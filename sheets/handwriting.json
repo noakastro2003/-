@@ -1,0 +1,560 @@
+{
+ "family": "Noa Handwriting",
+ "glyphs": {
+  "alef": {
+   "unicode": 1488,
+   "parts": [
+    [
+     1019,
+     420
+    ],
+    [
+     993,
+     418
+    ]
+   ],
+   "row": 1
+  },
+  "bet": {
+   "unicode": 1489,
+   "parts": [
+    [
+     873,
+     411
+    ],
+    [
+     873,
+     438
+    ]
+   ],
+   "row": 1
+  },
+  "gimel": {
+   "unicode": 1490,
+   "parts": [
+    [
+     778,
+     406
+    ]
+   ],
+   "row": 1
+  },
+  "dalet": {
+   "unicode": 1491,
+   "parts": [
+    [
+     688,
+     403
+    ]
+   ],
+   "row": 1
+  },
+  "he": {
+   "unicode": 1492,
+   "parts": [
+    [
+     568,
+     407
+    ],
+    [
+     579,
+     430
+    ]
+   ],
+   "row": 1
+  },
+  "vav": {
+   "unicode": 1493,
+   "parts": [
+    [
+     470,
+     400
+    ]
+   ],
+   "row": 1
+  },
+  "zayin": {
+   "unicode": 1494,
+   "parts": [
+    [
+     382,
+     400
+    ]
+   ],
+   "row": 1
+  },
+  "het": {
+   "unicode": 1495,
+   "parts": [
+    [
+     282,
+     410
+    ]
+   ],
+   "row": 1
+  },
+  "tet": {
+   "unicode": 1496,
+   "parts": [
+    [
+     166,
+     379
+    ]
+   ],
+   "row": 1
+  },
+  "yod": {
+   "unicode": 1497,
+   "parts": [
+    [
+     105,
+     405
+    ]
+   ],
+   "row": 1
+  },
+  "kaf": {
+   "unicode": 1499,
+   "parts": [
+    [
+     1012,
+     572
+    ]
+   ],
+   "row": 2
+  },
+  "lamed": {
+   "unicode": 1500,
+   "parts": [
+    [
+     865,
+     529
+    ]
+   ],
+   "row": 2
+  },
+  "mem": {
+   "unicode": 1502,
+   "parts": [
+    [
+     774,
+     557
+    ]
+   ],
+   "row": 2
+  },
+  "nun": {
+   "unicode": 1504,
+   "parts": [
+    [
+     668,
+     549
+    ]
+   ],
+   "row": 2
+  },
+  "samekh": {
+   "unicode": 1505,
+   "parts": [
+    [
+     580,
+     549
+    ]
+   ],
+   "row": 2
+  },
+  "ayin": {
+   "unicode": 1506,
+   "parts": [
+    [
+     478,
+     530
+    ]
+   ],
+   "row": 2
+  },
+  "pe": {
+   "unicode": 1508,
+   "parts": [
+    [
+     379,
+     543
+    ]
+   ],
+   "row": 2
+  },
+  "tsadi": {
+   "unicode": 1510,
+   "parts": [
+    [
+     291,
+     547
+    ]
+   ],
+   "row": 2
+  },
+  "qof": {
+   "unicode": 1511,
+   "parts": [
+    [
+     215,
+     548
+    ],
+    [
+     223,
+     579
+    ]
+   ],
+   "row": 2
+  },
+  "resh": {
+   "unicode": 1512,
+   "parts": [
+    [
+     140,
+     552
+    ]
+   ],
+   "row": 2
+  },
+  "shin": {
+   "unicode": 1513,
+   "parts": [
+    [
+     987,
+     688
+    ]
+   ],
+   "row": 3
+  },
+  "tav": {
+   "unicode": 1514,
+   "parts": [
+    [
+     861,
+     702
+    ]
+   ],
+   "row": 3
+  },
+  "finalkaf": {
+   "unicode": 1498,
+   "parts": [
+    [
+     751,
+     708
+    ]
+   ],
+   "row": 3
+  },
+  "finalmem": {
+   "unicode": 1501,
+   "parts": [
+    [
+     642,
+     710
+    ]
+   ],
+   "row": 3
+  },
+  "finalnun": {
+   "unicode": 1503,
+   "parts": [
+    [
+     561,
+     701
+    ]
+   ],
+   "row": 3
+  },
+  "finalpe": {
+   "unicode": 1507,
+   "parts": [
+    [
+     422,
+     645
+    ]
+   ],
+   "row": 3
+  },
+  "finaltsadi": {
+   "unicode": 1509,
+   "parts": [
+    [
+     282,
+     652
+    ]
+   ],
+   "row": 3
+  },
+  "zero": {
+   "unicode": 48,
+   "parts": [
+    [
+     962,
+     943
+    ]
+   ],
+   "row": 4
+  },
+  "one": {
+   "unicode": 49,
+   "parts": [
+    [
+     172,
+     911
+    ]
+   ],
+   "row": 4
+  },
+  "two": {
+   "unicode": 50,
+   "parts": [
+    [
+     235,
+     921
+    ]
+   ],
+   "row": 4
+  },
+  "three": {
+   "unicode": 51,
+   "parts": [
+    [
+     321,
+     914
+    ]
+   ],
+   "row": 4
+  },
+  "four": {
+   "unicode": 52,
+   "parts": [
+    [
+     411,
+     918
+    ]
+   ],
+   "row": 4
+  },
+  "five": {
+   "unicode": 53,
+   "parts": [
+    [
+     510,
+     926
+    ]
+   ],
+   "row": 4
+  },
+  "six": {
+   "unicode": 54,
+   "parts": [
+    [
+     586,
+     927
+    ]
+   ],
+   "row": 4
+  },
+  "seven": {
+   "unicode": 55,
+   "parts": [
+    [
+     656,
+     920
+    ]
+   ],
+   "row": 4
+  },
+  "eight": {
+   "unicode": 56,
+   "parts": [
+    [
+     775,
+     915
+    ]
+   ],
+   "row": 4
+  },
+  "nine": {
+   "unicode": 57,
+   "parts": [
+    [
+     860,
+     933
+    ]
+   ],
+   "row": 4
+  },
+  "period": {
+   "unicode": 46,
+   "parts": [
+    [
+     519,
+     1192
+    ]
+   ],
+   "row": 5
+  },
+  "comma": {
+   "unicode": 44,
+   "parts": [
+    [
+     563,
+     1189
+    ]
+   ],
+   "row": 5
+  },
+  "exclam": {
+   "unicode": 33,
+   "parts": [
+    [
+     611,
+     1111
+    ],
+    [
+     626,
+     1203
+    ]
+   ],
+   "row": 5
+  },
+  "question": {
+   "unicode": 63,
+   "parts": [
+    [
+     652,
+     1110
+    ],
+    [
+     685,
+     1206
+    ]
+   ],
+   "row": 5
+  },
+  "hyphen": {
+   "unicode": 45,
+   "parts": [
+    [
+     764,
+     1163
+    ]
+   ],
+   "row": 5
+  },
+  "quotedbl": {
+   "unicode": 34,
+   "parts": [
+    [
+     849,
+     1107
+    ],
+    [
+     862,
+     1106
+    ]
+   ],
+   "row": 5
+  },
+  "parenleft": {
+   "unicode": 40,
+   "parts": [
+    [
+     945,
+     1112
+    ]
+   ],
+   "row": 5
+  },
+  "parenright": {
+   "unicode": 41,
+   "parts": [
+    [
+     1014,
+     1112
+    ]
+   ],
+   "row": 5
+  }
+ },
+ "base_sitting": [
+  "alef",
+  "ayin",
+  "bet",
+  "dalet",
+  "eight",
+  "finalmem",
+  "five",
+  "four",
+  "gimel",
+  "he",
+  "het",
+  "kaf",
+  "lamed",
+  "mem",
+  "one",
+  "pe",
+  "resh",
+  "samekh",
+  "seven",
+  "shin",
+  "six",
+  "tav",
+  "tet",
+  "three",
+  "tsadi",
+  "two",
+  "vav",
+  "zayin",
+  "zero"
+ ],
+ "rows_with_letters": [
+  1,
+  2,
+  3,
+  4
+ ],
+ "blur_px": 1.6,
+ "speck_px": 60,
+ "threshold_factor": 1.0,
+ "normalize_row_size": false,
+ "spacing_run": [
+  [
+   "mem",
+   "nun",
+   "samekh",
+   "ayin",
+   "pe",
+   "tsadi",
+   "qof",
+   "resh"
+  ]
+ ],
+ "tighten": 0.65,
+ "body_letters": [
+  "alef",
+  "bet",
+  "gimel",
+  "he",
+  "zayin",
+  "het",
+  "kaf",
+  "mem",
+  "samekh",
+  "pe",
+  "tsadi",
+  "resh",
+  "tav",
+  "finalmem"
+ ],
+ "row_baseline_from": {
+  "5": [
+   "period",
+   "exclam",
+   "question"
+  ]
+ }
+}

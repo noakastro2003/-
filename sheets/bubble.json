@@ -1,0 +1,629 @@
+{
+ "family": "Noa Bubble",
+ "blank": [
+  [
+   0,
+   0,
+   1125,
+   315
+  ],
+  [
+   1108,
+   0,
+   1125,
+   2000
+  ]
+ ],
+ "glyphs": {
+  "alef": {
+   "unicode": 1488,
+   "parts": [
+    [
+     892,
+     402
+    ]
+   ],
+   "row": 1
+  },
+  "bet": {
+   "unicode": 1489,
+   "parts": [
+    [
+     757,
+     396
+    ]
+   ],
+   "row": 1
+  },
+  "gimel": {
+   "unicode": 1490,
+   "parts": [
+    [
+     627,
+     383
+    ]
+   ],
+   "row": 1
+  },
+  "dalet": {
+   "unicode": 1491,
+   "parts": [
+    [
+     470,
+     398
+    ]
+   ],
+   "row": 1
+  },
+  "he": {
+   "unicode": 1492,
+   "parts": [
+    [
+     327,
+     389
+    ],
+    [
+     336,
+     439
+    ]
+   ],
+   "row": 1
+  },
+  "vav": {
+   "unicode": 1493,
+   "parts": [
+    [
+     248,
+     392
+    ]
+   ],
+   "row": 1
+  },
+  "zayin": {
+   "unicode": 1494,
+   "parts": [
+    [
+     95,
+     388
+    ]
+   ],
+   "row": 1
+  },
+  "het": {
+   "unicode": 1495,
+   "parts": [
+    [
+     883,
+     591
+    ]
+   ],
+   "row": 2
+  },
+  "tet": {
+   "unicode": 1496,
+   "parts": [
+    [
+     715,
+     585
+    ]
+   ],
+   "row": 2
+  },
+  "yod": {
+   "unicode": 1497,
+   "parts": [
+    [
+     632,
+     590
+    ]
+   ],
+   "row": 2
+  },
+  "kaf": {
+   "unicode": 1499,
+   "parts": [
+    [
+     476,
+     577
+    ]
+   ],
+   "row": 2
+  },
+  "lamed": {
+   "unicode": 1500,
+   "parts": [
+    [
+     309,
+     528
+    ]
+   ],
+   "row": 2
+  },
+  "mem": {
+   "unicode": 1502,
+   "parts": [
+    [
+     120,
+     558
+    ]
+   ],
+   "row": 2
+  },
+  "nun": {
+   "unicode": 1504,
+   "parts": [
+    [
+     915,
+     792
+    ]
+   ],
+   "row": 3
+  },
+  "samekh": {
+   "unicode": 1505,
+   "parts": [
+    [
+     734,
+     789
+    ],
+    [
+     782,
+     827
+    ]
+   ],
+   "row": 3
+  },
+  "ayin": {
+   "unicode": 1506,
+   "parts": [
+    [
+     568,
+     784
+    ]
+   ],
+   "row": 3
+  },
+  "pe": {
+   "unicode": 1508,
+   "parts": [
+    [
+     423,
+     792
+    ]
+   ],
+   "row": 3
+  },
+  "tsadi": {
+   "unicode": 1510,
+   "parts": [
+    [
+     266,
+     788
+    ]
+   ],
+   "row": 3
+  },
+  "qof": {
+   "unicode": 1511,
+   "parts": [
+    [
+     80,
+     777
+    ],
+    [
+     76,
+     845
+    ]
+   ],
+   "row": 3
+  },
+  "resh": {
+   "unicode": 1512,
+   "parts": [
+    [
+     886,
+     1036
+    ]
+   ],
+   "row": 4
+  },
+  "shin": {
+   "unicode": 1513,
+   "parts": [
+    [
+     663,
+     991
+    ]
+   ],
+   "row": 4
+  },
+  "tav": {
+   "unicode": 1514,
+   "parts": [
+    [
+     484,
+     1033
+    ]
+   ],
+   "row": 4
+  },
+  "finalkaf": {
+   "unicode": 1498,
+   "parts": [
+    [
+     285,
+     1037
+    ]
+   ],
+   "row": 4
+  },
+  "finalmem": {
+   "unicode": 1501,
+   "parts": [
+    [
+     85,
+     1033
+    ],
+    [
+     148,
+     1068
+    ]
+   ],
+   "row": 4
+  },
+  "finalnun": {
+   "unicode": 1503,
+   "parts": [
+    [
+     968,
+     1295
+    ]
+   ],
+   "row": 5
+  },
+  "finalpe": {
+   "unicode": 1507,
+   "parts": [
+    [
+     800,
+     1283
+    ]
+   ],
+   "row": 5
+  },
+  "finaltsadi": {
+   "unicode": 1509,
+   "parts": [
+    [
+     636,
+     1262
+    ]
+   ],
+   "row": 5
+  },
+  "parenright": {
+   "unicode": 41,
+   "parts": [
+    [
+     561,
+     1393
+    ]
+   ],
+   "row": 5
+  },
+  "parenleft": {
+   "unicode": 40,
+   "parts": [
+    [
+     463,
+     1390
+    ]
+   ],
+   "row": 5
+  },
+  "quotedbl": {
+   "unicode": 34,
+   "parts": [
+    [
+     380,
+     1362
+    ],
+    [
+     414,
+     1368
+    ]
+   ],
+   "row": 5
+  },
+  "hyphen": {
+   "unicode": 45,
+   "parts": [
+    [
+     307,
+     1401
+    ]
+   ],
+   "row": 5
+  },
+  "question": {
+   "unicode": 63,
+   "parts": [
+    [
+     224,
+     1336
+    ],
+    [
+     248,
+     1466
+    ]
+   ],
+   "row": 5
+  },
+  "exclam": {
+   "unicode": 33,
+   "parts": [
+    [
+     168,
+     1326
+    ],
+    [
+     181,
+     1459
+    ]
+   ],
+   "row": 5
+  },
+  "comma": {
+   "unicode": 44,
+   "parts": [
+    [
+     111,
+     1418
+    ]
+   ],
+   "row": 5
+  },
+  "period": {
+   "unicode": 46,
+   "parts": [
+    [
+     57,
+     1424
+    ]
+   ],
+   "row": 5
+  },
+  "zero": {
+   "unicode": 48,
+   "parts": [
+    [
+     56,
+     1576
+    ],
+    [
+     85,
+     1605
+    ]
+   ],
+   "row": 6
+  },
+  "one": {
+   "unicode": 49,
+   "parts": [
+    [
+     156,
+     1562
+    ]
+   ],
+   "row": 6
+  },
+  "two": {
+   "unicode": 50,
+   "parts": [
+    [
+     246,
+     1558
+    ]
+   ],
+   "row": 6
+  },
+  "three": {
+   "unicode": 51,
+   "parts": [
+    [
+     356,
+     1564
+    ]
+   ],
+   "row": 6
+  },
+  "four": {
+   "unicode": 52,
+   "parts": [
+    [
+     493,
+     1571
+    ]
+   ],
+   "row": 6
+  },
+  "five": {
+   "unicode": 53,
+   "parts": [
+    [
+     615,
+     1589
+    ]
+   ],
+   "row": 6
+  },
+  "six": {
+   "unicode": 54,
+   "parts": [
+    [
+     747,
+     1596
+    ],
+    [
+     780,
+     1697
+    ]
+   ],
+   "row": 6
+  },
+  "seven": {
+   "unicode": 55,
+   "parts": [
+    [
+     841,
+     1607
+    ]
+   ],
+   "row": 6
+  },
+  "eight": {
+   "unicode": 56,
+   "parts": [
+    [
+     938,
+     1610
+    ],
+    [
+     978,
+     1633
+    ],
+    [
+     961,
+     1695
+    ]
+   ],
+   "row": 6
+  },
+  "nine": {
+   "unicode": 57,
+   "parts": [
+    [
+     1021,
+     1626
+    ],
+    [
+     1057,
+     1651
+    ]
+   ],
+   "row": 6
+  }
+ },
+ "base_sitting": [
+  "alef",
+  "bet",
+  "gimel",
+  "dalet",
+  "he",
+  "vav",
+  "zayin",
+  "het",
+  "tet",
+  "kaf",
+  "lamed",
+  "mem",
+  "nun",
+  "samekh",
+  "ayin",
+  "pe",
+  "tsadi",
+  "resh",
+  "shin",
+  "tav",
+  "finalmem",
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine"
+ ],
+ "rows_with_letters": [
+  1,
+  2,
+  3,
+  4
+ ],
+ "reference_rows": [
+  2,
+  3,
+  4
+ ],
+ "normalize_row_size": true,
+ "normalize_rows": [
+  1
+ ],
+ "stroke_px": 4.0,
+ "row_baseline_from": {
+  "5": [
+   "period",
+   "exclam",
+   "question"
+  ]
+ },
+ "hang_baseline": {
+  "finalnun": "finalnun",
+  "finalpe": "finalnun",
+  "finaltsadi": "finalnun"
+ },
+ "blur_px": 0.8,
+ "speck_px": 20,
+ "threshold_factor": 1.0,
+ "spacing_run": [
+  [
+   "nun",
+   "samekh",
+   "ayin",
+   "pe",
+   "tsadi",
+   "qof"
+  ],
+  [
+   "het",
+   "tet",
+   "yod",
+   "kaf",
+   "lamed",
+   "mem"
+  ],
+  [
+   "resh",
+   "shin",
+   "tav",
+   "finalkaf",
+   "finalmem"
+  ]
+ ],
+ "tighten": 1.0,
+ "body_letters": [
+  "alef",
+  "bet",
+  "gimel",
+  "he",
+  "het",
+  "kaf",
+  "mem",
+  "samekh",
+  "pe",
+  "tsadi",
+  "resh",
+  "tav",
+  "finalmem",
+  "ayin"
+ ],
+ "body_units": 620,
+ "line_metrics": [
+  800,
+  -300,
+  200
+ ]
+}

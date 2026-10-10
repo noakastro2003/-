@@ -6,10 +6,20 @@
 - `samples/original_scan.jpg` – הסריקה המקורית.
 - `tools/` – הסקריפטים שבנו את הפונט (`extract.py` → `build_font.py` → `render_sample.py`).
 
-בנייה מחדש:
+## Noa Bubble – אותיות בועה
+
+- `font/NoaBubble-Regular.otf` – הפונט.
+- `samples/bubble_sample.png` – משפטים לדוגמה.
+- `samples/bubble_compare_original_vs_font.png` – סריקה מול פונט, לכל סימן.
+- `samples/bubble_original_scan.jpg` – הצילום המקורי.
+
+## בנייה מחדש
+
+כל דף מוגדר בקובץ `sheets/*.json` (איזה צורה בדף שייכת לאיזו אות, קו בסיס, ריווח):
 ```
-python3 tools/extract.py samples/original_scan.jpg WORKDIR
-python3 tools/build_font.py WORKDIR font/NoaHandwriting-Regular.otf
-python3 tools/render_sample.py font/NoaHandwriting-Regular.otf samples/sample.png
+python3 tools/extract.py sheets/bubble.json samples/bubble_original_scan.jpg WORKDIR
+python3 tools/build_font.py sheets/bubble.json WORKDIR font/NoaBubble-Regular.otf
+python3 tools/render_sample.py font/NoaBubble-Regular.otf samples/bubble_sample.png 96
+python3 tools/compare_glyphs.py WORKDIR font/NoaBubble-Regular.otf samples/bubble_compare_original_vs_font.png
 ```
-דרוש: `opencv-python-headless numpy fonttools potracer pillow` (ו-libraqm לרינדור הדוגמה).
+דרוש: `opencv-python-headless numpy scikit-image fonttools potracer pillow` (ו-libraqm לרינדור הדוגמה).

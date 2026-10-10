@@ -2,7 +2,8 @@
 import sys
 from PIL import Image, ImageDraw, ImageFont
 FONT, OUT = sys.argv[1], sys.argv[2]
-SRC = sys.argv[3] if len(sys.argv) > 3 else None
+SIZE = int(sys.argv[3]) if len(sys.argv) > 3 else 64
+SRC = None
 lines = [
     'שלום, קוראים לי נועה ואני כותבת בכתב היד שלי!',
     'הדג הקטן שחה בים הכחול וצחק מול הספינה.',
@@ -12,8 +13,8 @@ lines = [
     'אבגדהוזחטי כלמנסעפצקר שתךםןףץ',
     '0123456789 .,!?-"()',
 ]
-f = ImageFont.truetype(FONT, 64, layout_engine=ImageFont.Layout.RAQM)
-W, LH, M = 1900, 120, 60
+f = ImageFont.truetype(FONT, SIZE, layout_engine=ImageFont.Layout.RAQM)
+W, LH, M = int(1900*SIZE/64), int(120*SIZE/64), 60
 img = Image.new('RGB', (W, M*2 + LH*len(lines) + (0 if not SRC else 40)), 'white')
 d = ImageDraw.Draw(img)
 y = M

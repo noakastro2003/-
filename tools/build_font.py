@@ -10,16 +10,18 @@ from fontTools.pens.areaPen import AreaPen
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.feaLib.builder import addOpenTypeFeaturesFromString
 
-WORK, OUT = sys.argv[1], sys.argv[2]
+CFG, WORK, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
+C = json.load(open(CFG))
 P = json.load(open(WORK + '/glyphs.json'))
 G = P['glyphs']
-FAMILY = 'Noa Handwriting'
+FAMILY = C['family']
 
 # ---------------- scale: one factor for the whole sheet ------------------------------
-HEB_BODY = ['alef','bet','gimel','he','zayin','het','kaf','mem','samekh','pe','tsadi','resh','tav','finalmem']
-body_px = float(np.median([G[k]['inkbox'][3]-G[k]['inkbox'][1] for k in HEB_BODY]))
+HEB_BODY = C['body_letters']
+body_px = float(np.median([(G[k]['inkbox'][3]-G[k]['inkbox'][1])*G[k].get('scale', 1) for k in HEB_BODY]))
 UPM = 1000
-K = 480.0 / body_px          # font units per source pixel; typical letter body = 480 units
+BODY_UNITS = C.get('body_units', 480)
+K = BODY_UNITS / body_px      # font units per source pixel (one factor for every glyph)
 print(f'median letter body {body_px}px -> scale {K:.3f} units/px')
 
 # ---------------- outlines -----------------------------------------------------------
@@ -49,10 +51,10 @@ def inside(pt, poly):
 
 def to_font(g):
     """returns list of contours in font units (y up, baseline 0, x from ink left = 0 later)"""
-    up = g['up']; ox, oy = g['origin']; base = g['base']
+    up = g['up']; ox, oy = g['origin']; base = g['base']; ks = K * g.get('scale', 1)
     def tf(p):
-        X = (ox + p[0]/up) * K
-        Y = (base - (oy + p[1]/up)) * K
+        X = (ox + p[0]/up) * ks
+        Y = (base - (oy + p[1]/up)) * ks
         return (X, Y)
     out = []
     for segs in g['contours']:
@@ -119,8 +121,8 @@ for k, cs in font_contours.items():
     PROF[k] = dict(rows=rows, width=width)
 
 # ---------------- optical side bearings (area based) ----------------------------------
-XH = 480.0              # zone where letters are compared (baseline .. typical body top)
-DEPTH = 150.0           # how deep into a counter the eye "sees" white
+XH = float(BODY_UNITS)  # zone where letters are compared (baseline .. typical body top)
+DEPTH = 150.0 * XH / 480  # how deep into a counter the eye "sees" white
 def side_depth(k, side, lo=0, hi=XH):
     rows = PROF[k]['rows']; w = PROF[k]['width']
     ds = []
@@ -148,17 +150,16 @@ def bearings(k, target):
     return max(target - dl, 18), max(target - dr, 18)
 
 # ---------------- calibrate spacing to the user's own rhythm ---------------------------
-# Row 2 of the sheet (מ נ ס ע פ צ ק ר) was written as a continuous run; measure how much
+# A row of the sheet written as a continuous run (config: spacing_run); measure how much
 # optical white the writer actually left between neighbours and reproduce it.
 def src_white(right, left):
-    gap_px = G[right]['inkbox'][0] - G[left]['inkbox'][2]
+    gap_px = (G[right]['inkbox'][0] - G[left]['inkbox'][2]) * G[right].get('scale', 1)
     lo = max(zone(right)[0], zone(left)[0]); hi = min(zone(right)[1], zone(left)[1])
     return gap_px*K + side_depth(right, 'L', lo, hi) + side_depth(left, 'R', lo, hi)
-run = ['mem','nun','samekh','ayin','pe','tsadi','qof','resh']
-whites = [src_white(a, b) for a, b in zip(run, run[1:])]
+whites = [src_white(a, b) for run in C['spacing_run'] for a, b in zip(run, run[1:])]
 # letters on the sheet were written as a list, a bit apart from each other; inside real
 # words the same hand runs ~35% tighter, so keep the measured rhythm but tighten it uniformly.
-TIGHTEN = 0.65
+TIGHTEN = C.get('tighten', 1.0)
 T = float(np.median(whites)) / 2 * TIGHTEN
 print('source white per pair', np.round(whites), '-> side target', round(T))
 
@@ -269,7 +270,7 @@ ymin = min(BoundsPen_b[1] for BoundsPen_b in [
     (lambda bp: ([_emit(c, bp, 0) for c in font_contours[k]], bp.bounds)[1])(BoundsPen(None)) for k in G])
 ymax = max(BoundsPen_b[3] for BoundsPen_b in [
     (lambda bp: ([_emit(c, bp, 0) for c in font_contours[k]], bp.bounds)[1])(BoundsPen(None)) for k in G])
-ASC, DESC, GAP = 760, -340, 250
+ASC, DESC, GAP = C.get('line_metrics', [760, -340, 250])
 fb.setupHorizontalHeader(ascent=ASC, descent=DESC, lineGap=GAP)
 fb.setupNameTable({'familyName': FAMILY, 'styleName': 'Regular',
                    'uniqueFontIdentifier': FAMILY + ' Regular 1.000',
@@ -278,7 +279,7 @@ fb.setupNameTable({'familyName': FAMILY, 'styleName': 'Regular',
                    'description': 'Font made from a scan of personal Hebrew handwriting.'})
 fb.setupOS2(sTypoAscender=ASC, sTypoDescender=DESC, sTypoLineGap=GAP,
             usWinAscent=int(math.ceil(ymax)) + 10, usWinDescent=int(math.ceil(-ymin)) + 10,
-            sxHeight=480, sCapHeight=round(max(PROF[d]['rows'] and max(PROF[d]['rows'])*RES for d in DIGITS)),
+            sxHeight=round(BODY_UNITS), sCapHeight=round(max(PROF[d]['rows'] and max(PROF[d]['rows'])*RES for d in DIGITS)),
             fsSelection=0x40 | 0x80,  # REGULAR + USE_TYPO_METRICS
             ulUnicodeRange1=(1 << 0) | (1 << 11), ulCodePageRange1=(1 << 0) | (1 << 5),
             achVendID='NOAH', usWeightClass=400)
@@ -297,6 +298,6 @@ feature kern {{
 addOpenTypeFeaturesFromString(fb.font, fea)
 fb.save(OUT)
 json.dump({'T': T, 'K': K, 'adv': ADV, 'sb': {k: list(map(float, v)) for k, v in SB.items()},
-           'kern': {f'{a} {b}': v for (a, b), v in KERN.items()}, 'ymin': ymin, 'ymax': ymax, 'space': SPACE},
+           'kern': {f'{a} {b}': v for (a, b), v in KERN.items()}, 'scale': {k: G[k].get('scale', 1) for k in G}, 'ymin': ymin, 'ymax': ymax, 'space': SPACE},
           open(WORK + '/metrics.json', 'w'), indent=1)
 print('saved', OUT, 'ymin/ymax', round(ymin), round(ymax), 'space', SPACE)

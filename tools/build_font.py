@@ -262,6 +262,26 @@ if MARKG:
     for k, g in MARKG.items():
         if not g['guide']:
             mc[k] = [[(s_[0],) + tuple((p_[0], p_[1] - GAP) for p_ in s_[1:]) for s_ in c] for c in mc[k]]
+    # hataf qamats is not on the sheet: compose it from the writer's own qamats + sheva, laid out
+    # the way the writer drew the other hatafs (vowel on the left, sheva on the right, same gap)
+    def cbounds(c):
+        bp_ = BoundsPen(None); _emit(c, bp_, 0); return bp_.bounds
+    if all(k in mc for k in ('qamats', 'sheva', 'hatafpatah')) and 'hatafqamats' not in MARKG:
+        parts = sorted(mc['hatafpatah'], key=lambda c: cbounds(c)[2] - cbounds(c)[0])
+        bar = cbounds(parts[-1])                              # widest piece = the patah bar
+        dots = [cbounds(c) for c in parts[:-1] if cbounds(c)[0] > bar[2]]
+        hgap = min(d[0] for d in dots) - bar[2] if dots else 0.3 * (bar[2] - bar[0])
+        def bnds(cs):
+            b = [cbounds(c) for c in cs]
+            return min(v[0] for v in b), min(v[1] for v in b), max(v[2] for v in b), max(v[3] for v in b)
+        def shift(cs, dx, dy):
+            return [[(s_[0],) + tuple((p_[0] + dx, p_[1] + dy) for p_ in s_[1:]) for s_ in c] for c in cs]
+        qb, sb_ = bnds(mc['qamats']), bnds(mc['sheva'])
+        q = shift(mc['qamats'], sb_[0] - hgap - qb[2], 0)          # qamats just left of the sheva
+        sv = shift(mc['sheva'], 0, qb[3] - sb_[3])                 # tops aligned, like the hatafs
+        allb = bnds(q + sv)
+        mc['hatafqamats'] = shift(q + sv, -(allb[0] + allb[2]) / 2, 0)
+        MARKG['hatafqamats'] = dict(unicode=0x5B3, mark_class='below', _anchor=(0, 0), guide=None)
     # without mark positioning a zero-width mark lands at the letter's left edge (RTL);
     # pre-shift by half a typical letter so it still reads under the letter
     FX = float(np.median([ADV[k] for k in HEBREW])) / 2
@@ -308,14 +328,15 @@ if MARKG:
         top = max(ys) * RES; bottom = max(min(ys) * RES, 0)
         body = [rows[y] for y in ys if y * RES >= 0]
         x0 = min(r[0] for r in body); x1 = max(r[1] for r in body)
-        cxm, cym = (x0 + x1) / 2, (top + bottom) / 2
+        zlo, zhi = C.get('dagesh_zone', {}).get(k, (0.15, 0.85))
+        cxm, cym = (x0 + x1) / 2, bottom + (zlo + zhi) / 2 * (top - bottom)
         size = max(x1 - x0, top - bottom)
         best, bx, by = -1e9, cxm, cym
         L = int(0.7 * size / RES)
         dirs = [(1,0),(-1,0),(0,1),(0,-1),(1,1),(1,-1),(-1,1),(-1,-1)]
         for r in range(0, canvas.shape[0], 2):
             fy = (yt + pad - r) * RES                       # font y of this raster row
-            if fy < bottom + 0.15*(top-bottom) or fy > top - 0.15*(top-bottom): continue
+            if fy < bottom + zlo*(top-bottom) or fy > bottom + zhi*(top-bottom): continue
             for c in range(0, canvas.shape[1], 2):
                 fx = (c - pad) * RES
                 if fx < x0 - 3*drad or fx > x1 + 3*drad: continue

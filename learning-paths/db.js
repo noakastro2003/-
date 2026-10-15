@@ -1,0 +1,82 @@
+import { DatabaseSync } from 'node:sqlite';
+
+const SCHEMA = `
+CREATE TABLE IF NOT EXISTS teachers (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  password_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS sessions (
+  token TEXT PRIMARY KEY,
+  teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  expires_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS paths (
+  id INTEGER PRIMARY KEY,
+  teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  code TEXT NOT NULL UNIQUE,
+  theme TEXT NOT NULL DEFAULT '{}',
+  published INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS tasks (
+  id INTEGER PRIMARY KEY,
+  path_id INTEGER NOT NULL REFERENCES paths(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  emoji TEXT NOT NULL DEFAULT '',
+  est_minutes INTEGER NOT NULL DEFAULT 5,
+  content TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS tasks_path ON tasks(path_id, position);
+CREATE TABLE IF NOT EXISTS students (
+  id INTEGER PRIMARY KEY,
+  path_id INTEGER NOT NULL REFERENCES paths(id) ON DELETE CASCADE,
+  name TEXT NOT NULL COLLATE NOCASE,
+  token TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_active TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (path_id, name)
+);
+CREATE TABLE IF NOT EXISTS progress (
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  answer TEXT,
+  completed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (student_id, task_id)
+);
+CREATE TABLE IF NOT EXISTS help_requests (
+  id INTEGER PRIMARY KEY,
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  resolved INTEGER NOT NULL DEFAULT 0
+);
+`;
+
+export function openDb(file) {
+  const db = new DatabaseSync(file);
+  db.exec('PRAGMA foreign_keys = ON;');
+  if (file !== ':memory:') db.exec('PRAGMA journal_mode = WAL;');
+  db.exec(SCHEMA);
+  return db;
+}
+
+// Run fn inside a transaction; rolls back on throw.
+export function tx(db, fn) {
+  db.exec('BEGIN');
+  try {
+    const out = fn();
+    db.exec('COMMIT');
+    return out;
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}

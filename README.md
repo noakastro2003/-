@@ -33,3 +33,7 @@ python3 tools/render_sample.py font/NoaBubble-Regular.otf samples/bubble_sample.
 python3 tools/compare_glyphs.py WORKDIR font/NoaBubble-Regular.otf samples/bubble_compare_original_vs_font.png
 ```
 דרוש: `opencv-python-headless numpy scikit-image fonttools potracer pillow` (ו-libraqm לרינדור הדוגמה).
+
+## מסלולי למידה
+
+התיקייה `learning-paths/` מכילה מערכת למורות לבניית מסלולי למידה עצמאיים לתלמידים עם קשיי קשב. הוראות ב-[`learning-paths/README.md`](learning-paths/README.md).

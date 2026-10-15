@@ -6,8 +6,16 @@ import json, sys, math
 import cv2, numpy as np, potrace
 from skimage.morphology import skeletonize
 
+def load_cfg(path):
+    """sheet config; a config may 'extend' another one (e.g. a bold weight of the same sheet)"""
+    import os
+    c = json.load(open(path))
+    if 'extends' in c:
+        base = load_cfg(os.path.join(os.path.dirname(path), c.pop('extends')))
+        base.update(c); c = base
+    return c
 CFG, SRC, OUT = sys.argv[1:4]
-C = json.load(open(CFG))
+C = load_cfg(CFG)
 UP = 4  # supersampling factor for tracing
 GLYPHS = {k: (v['unicode'], [tuple(p) for p in v['parts']], v['row']) for k, v in C['glyphs'].items()}
 BASE_SITTING = set(C['base_sitting'])
@@ -146,6 +154,18 @@ for k, (uni, comps, row) in GLYPHS.items():
         t_new = topology(mask)
         if t_new == target: break
     if t_new != target: problems.append((k, target, t_new))
+    emb = C.get('embolden_px', 0)
+    if emb:
+        # bold weight: the same pen path written with a thicker pen (grow evenly on both sides);
+        # if growing would fill a counter or merge strokes, grow that glyph a little less
+        bgd = cv2.distanceTransform((~mask).astype(np.uint8), cv2.DIST_L2, 5)
+        for e in np.arange(emb, 0, -0.2):
+            grown = mask | (bgd <= e * UP)
+            if topology(grown) == t_new: break
+        else:
+            grown, e = mask, 0.0
+        if e < emb - 1e-6: print(f'  {k}: bold reduced to {e:.1f}px to keep its counters open')
+        mask = grown
     contours = trace(mask)
     if C.get('debug'): cv2.imwrite(OUT + f'/mask_{k}.png', (~mask).astype(np.uint8)*255)
     hang = C.get('hang_baseline', {}).get(k)

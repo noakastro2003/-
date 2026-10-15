@@ -1,0 +1,5 @@
+{
+ "extends": "nikud.json",
+ "style": "Bold",
+ "embolden_px": 2.0
+}

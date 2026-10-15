@@ -11,7 +11,15 @@ from fontTools.pens.boundsPen import BoundsPen
 from fontTools.feaLib.builder import addOpenTypeFeaturesFromString
 
 CFG, WORK, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
-C = json.load(open(CFG))
+def load_cfg(path):
+    """sheet config; a config may 'extend' another one (e.g. a bold weight of the same sheet)"""
+    import os
+    c = json.load(open(path))
+    if 'extends' in c:
+        base = load_cfg(os.path.join(os.path.dirname(path), c.pop('extends')))
+        base.update(c); c = base
+    return c
+C = load_cfg(CFG)
 P = json.load(open(WORK + '/glyphs.json'))
 G = P['glyphs']
 # vowel marks (nikud) are built separately: zero width, attached to letters by anchors
@@ -349,7 +357,7 @@ for name in order:
     draw(font_contours[name], pen, lsb)
     charstrings[name] = pen.getCharString()
     metrics[name] = (ADV[name], round(lsb))
-fb.setupCFF(FAMILY.replace(' ', ''), {'FullName': FAMILY, 'FamilyName': FAMILY, 'Weight': 'Regular'}, charstrings, {})
+fb.setupCFF(FAMILY.replace(' ', '') + '-' + C.get('style', 'Regular'), {'FullName': FAMILY + ' ' + C.get('style', 'Regular'), 'FamilyName': FAMILY, 'Weight': C.get('style', 'Regular')}, charstrings, {})
 fb.setupHorizontalMetrics(metrics)
 
 # vertical metrics from the real extents of the handwriting
@@ -359,18 +367,20 @@ ymax = max(BoundsPen_b[3] for BoundsPen_b in [
     (lambda bp: ([_emit(c, bp, 0) for c in font_contours[k]], bp.bounds)[1])(BoundsPen(None)) for k in list(G) + list(MARKG)])
 ASC, DESC, GAP = C.get('line_metrics', [760, -340, 250])
 fb.setupHorizontalHeader(ascent=ASC, descent=DESC, lineGap=GAP)
-fb.setupNameTable({'familyName': FAMILY, 'styleName': 'Regular',
-                   'uniqueFontIdentifier': FAMILY + ' Regular 1.000',
-                   'fullName': FAMILY + ' Regular', 'psName': FAMILY.replace(' ', '') + '-Regular',
+STYLE = C.get('style', 'Regular'); BOLD = STYLE == 'Bold'
+fb.setupNameTable({'familyName': FAMILY, 'styleName': STYLE,
+                   'uniqueFontIdentifier': f'{FAMILY} {STYLE} 1.000',
+                   'fullName': f'{FAMILY} {STYLE}', 'psName': FAMILY.replace(' ', '') + '-' + STYLE,
                    'version': 'Version 1.000', 'designer': 'Noa (handwriting)',
                    'description': 'Font made from a scan of personal Hebrew handwriting.'})
 fb.setupOS2(sTypoAscender=ASC, sTypoDescender=DESC, sTypoLineGap=GAP,
             usWinAscent=int(math.ceil(ymax)) + 10, usWinDescent=int(math.ceil(-ymin)) + 10,
             sxHeight=round(BODY_UNITS), sCapHeight=round(max(PROF[d]['rows'] and max(PROF[d]['rows'])*RES for d in DIGITS)),
-            fsSelection=0x40 | 0x80,  # REGULAR + USE_TYPO_METRICS
+            fsSelection=(0x20 if BOLD else 0x40) | 0x80,  # BOLD/REGULAR + USE_TYPO_METRICS
             ulUnicodeRange1=(1 << 0) | (1 << 11), ulCodePageRange1=(1 << 0) | (1 << 5),
-            achVendID='NOAH', usWeightClass=400)
+            achVendID='NOAH', usWeightClass=700 if BOLD else 400)
 fb.font['OS/2'].version = 4
+if BOLD: fb.font['head'].macStyle |= 1
 fb.setupPost(isFixedPitch=0, underlinePosition=-120, underlineThickness=40)
 
 pairs = '\n'.join(f'    pos {a} {b} {v};' for (a, b), v in sorted(KERN.items()))

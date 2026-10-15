@@ -19,6 +19,8 @@
 - `samples/nikud_sample.png` – משפטים לדוגמה, עם ובלי ניקוד.
 - `samples/nikud_compare_original_vs_font.png` – סריקה מול פונט, לכל סימן.
 - `samples/nikud_original_scan.jpg` – הצילום המקורי.
+- `font/NoaNikud-Bold.otf` – גרסת בולד (אותו מסלול עט, קו עבה יותר; `sheets/nikud-bold.json`).
+- `samples/nikud_bold_sample.png`, `samples/nikud_regular_vs_bold.png` – דוגמאות לבולד.
 
 ## בנייה מחדש
 

@@ -2,9 +2,10 @@ import { api } from './api.js';
 import { h, mount, toast, field } from './ui.js';
 import { go } from './app.js';
 import { TASK_TYPES } from './themes.js';
+import { DEMO } from './env.js';
 
 const YOUNG = ['גן', 'א׳', 'ב׳'];
-const ACCEPT = '.pdf,.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';
+const ACCEPT = `${DEMO ? '' : '.pdf,'}.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp`;
 const MAX_FILES = 5;
 const MAX_FILE_MB = 10;
 const MAX_TOTAL_MB = 20;
@@ -98,7 +99,7 @@ export async function generatorPage(app, topbar) {
   },
     h('div', { class: 'dropzone-icon', 'aria-hidden': 'true' }, '📎'),
     h('strong', {}, 'גררו לכאן קבצים או לחצו לבחירה'),
-    h('span', { class: 'muted small' }, `דפי עבודה, סיכומים, פרק מהספר · PDF, Word, תמונות או טקסט · עד ${MAX_FILES} קבצים`));
+    h('span', { class: 'muted small' }, `דפי עבודה, סיכומים, פרק מהספר · ${DEMO ? 'Word, תמונות או טקסט (PDF רק בגרסה המלאה)' : 'PDF, Word, תמונות או טקסט'} · עד ${MAX_FILES} קבצים`));
 
   const submit = h('button', { class: 'btn primary big', type: 'submit', disabled: !status.enabled }, '✨ צרו לי מסלול');
 
@@ -131,8 +132,9 @@ export async function generatorPage(app, topbar) {
       h('div', {},
         h('h1', {}, 'מחולל מסלולים'),
         h('p', { class: 'muted' }, 'מספרים על השיעור – והבינה המלאכותית בונה מסלול מלא: הסברים קצרים, משחקים, שאלות, זמני עבודה והפסקות. המסלול נשמר כטיוטה, ואת עוברת עליו ומתקנת לפני שהתלמידים רואים אותו.'))),
-    !status.enabled && h('div', { class: 'notice warn' },
-      '⚠️ המחולל עוד לא הופעל בשרת הזה. כדי להפעיל אותו, מנהל/ת המערכת צריך/ה להגדיר מפתח API של Anthropic במשתנה הסביבה ANTHROPIC_API_KEY ולהפעיל מחדש את השרת.'),
+    !status.enabled && h('div', { class: 'notice warn' }, DEMO
+      ? '⚠️ המחולל זמין כשפותחים את ההדגמה ב-claude.ai כשאת מחוברת לחשבון.'
+      : '⚠️ המחולל עוד לא הופעל בשרת הזה. כדי להפעיל אותו, מנהל/ת המערכת צריך/ה להגדיר מפתח API של Anthropic במשתנה הסביבה ANTHROPIC_API_KEY ולהפעיל מחדש את השרת.'),
     h('form', { class: 'card gen-form', onsubmit: onSubmit },
       field('על מה המסלול?', topic),
       h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'שכבת גיל'), gradeRow),
@@ -146,7 +148,9 @@ export async function generatorPage(app, topbar) {
         h('span', {}, h('strong', {}, 'ניקוד מלא'), h('span', { class: 'muted small block' }, 'כל הטקסט לתלמידים יהיה מנוקד (מומלץ לגן–ב׳)'))),
       h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'חומרי לימוד (לא חובה)'), drop, fileInput, fileList),
       field('עוד משהו שכדאי לדעת?', notes),
-      h('p', { class: 'muted small privacy' }, '🔒 הנושא והקבצים נשלחים לעיבוד אצל Anthropic (Claude). אל תצרפי מידע אישי על תלמידים.'),
+      h('p', { class: 'muted small privacy' }, DEMO
+        ? '🔒 בגרסת ההדגמה המחולל משתמש בחשבון Claude שלך (claude.ai יבקש אישור בפעם הראשונה). אל תצרפי מידע אישי על תלמידים.'
+        : '🔒 הנושא והקבצים נשלחים לעיבוד אצל Anthropic (Claude). אל תצרפי מידע אישי על תלמידים.'),
       h('div', { class: 'row center' }, submit))));
   topic.focus();
 }

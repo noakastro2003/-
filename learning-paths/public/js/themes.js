@@ -1,3 +1,5 @@
+import { DEMO } from './env.js';
+
 // Design options shared by the teacher's design editor and the student view.
 
 export const COLORS = [
@@ -100,6 +102,7 @@ export function applyTheme(el, theme) {
 
 // Turns a YouTube URL into an embeddable privacy-friendly URL, or null.
 export function youtubeEmbed(url) {
+  if (DEMO) return null; // the demo's frame cannot embed other sites; it shows a link instead
   try {
     const u = new URL(url);
     let id = null;

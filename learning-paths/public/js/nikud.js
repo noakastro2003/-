@@ -58,15 +58,15 @@ export function nikudBar(scope) {
         changed();
       },
     }, '🧽 הסרת ניקוד מהשדה'),
-    h('button', {
-      type: 'button', class: 'btn small secondary', onmousedown: keepFocus,
+    // A real link (not window.open) so it also works where pop-ups are blocked.
+    h('a', {
+      class: 'btn small secondary', href: DICTA_URL, target: '_blank', rel: 'noopener noreferrer', onmousedown: keepFocus,
       title: 'מעתיק את הטקסט ופותח את המנקד האוטומטי של דיקטה',
-      onclick: async () => {
-        if (target?.isConnected && target.value.trim()) {
-          await navigator.clipboard?.writeText(stripNikud(target.value)).catch(() => {});
-          toast('הטקסט הועתק – הדביקו אותו בדיקטה, ואז העתיקו את הטקסט המנוקד בחזרה לשדה', 'ok');
-        }
-        window.open(DICTA_URL, '_blank', 'noopener');
+      onclick: () => {
+        if (!target?.isConnected || !target.value.trim()) return;
+        navigator.clipboard?.writeText(stripNikud(target.value))
+          .then(() => toast('הטקסט הועתק – הדביקו אותו בדיקטה, ואז העתיקו את הטקסט המנוקד בחזרה לשדה', 'ok'))
+          .catch(() => {});
       },
     }, '✨ ניקוד אוטומטי (דיקטה)'));
 

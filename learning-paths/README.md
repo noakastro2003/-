@@ -18,6 +18,14 @@ npm test           # בדיקות
 - `PORT` (ברירת מחדל 3000), `DB_FILE` (ברירת מחדל `data/app.db`), `COOKIE_SECURE=1` כשמריצים מאחורי HTTPS.
 - `ANTHROPIC_API_KEY` – מפעיל את מחולל המסלולים. בלי מפתח כל השאר עובד, והמחולל מציג הודעה שהוא לא מוגדר. מפתח יוצרים ב-[console.anthropic.com](https://console.anthropic.com).
 
+## גרסת הדגמה (בלי שרת)
+
+התיקייה `demo/` בונה גרסה שרצה כולה בדפדפן, כ-Artifact ב-claude.ai: אותו ממשק, כשה-API נענה בתוך הדף (`demo/demo-api.js`) במקום ב-`server.js`. הבדיקה, ההסתרה של התשובות והטיפול בפלט המחולל מגיעים מאותם מודולים (`logic.js`, `validate.js`, `ai-prompt.js`). הנתונים נשמרים במסד הנתונים הפרטי של הצופה ב-Artifact, והמחולל משתמש בחשבון Claude של הצופה. PDF לא נתמך בהדגמה.
+
+```bash
+node demo/build.mjs   # יוצר את demo/dist
+```
+
 ## העלאה לאינטרנט (Render)
 
 בשורש הריפו יש קובץ `render.yaml` שמגדיר הכול: שרת Node, דיסק קבוע למסד הנתונים ובדיקת תקינות.

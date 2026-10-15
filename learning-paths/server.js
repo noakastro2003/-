@@ -8,6 +8,7 @@ import * as v from './validate.js';
 import { HttpError } from './validate.js';
 import { TEMPLATES } from './templates.js';
 import { createGenerator, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
+import { studentContent, gradeAnswer as grade, parseAiInput, pathFromAi } from './logic.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -52,45 +53,6 @@ function checkPassword(pw, stored) {
 }
 
 const DUMMY_HASH = hashPassword('timing-equalizer');
-
-function shuffle(list) {
-  const a = [...list];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = crypto.randomInt(i + 1);
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-// Shuffles, but never hands back the original order (when that is possible).
-function shuffleChanged(list) {
-  const unique = new Set(list).size > 1;
-  let a;
-  do a = shuffle(list); while (unique && a.every((x, i) => x === list[i]));
-  return a;
-}
-
-// Turns a task's content into what a student may see: answers stay on the server.
-function studentContent(type, c) {
-  switch (type) {
-    case 'choice': {
-      const { correct, explanation, ...rest } = c;
-      return rest;
-    }
-    case 'matching':
-      return { text: c.text, left: c.pairs.map((p) => p.a), right: shuffle(c.pairs.map((p) => p.b)) };
-    case 'order':
-      return { text: c.text, items: shuffleChanged(c.items) };
-    case 'blanks': {
-      const { segments, answers } = v.parseBlanks(c.passage);
-      return { text: c.text, segments, bank: shuffle([...answers, ...c.distractors]) };
-    }
-    case 'truefalse':
-      return { text: c.text, statements: c.statements.map((x) => x.s) };
-    default:
-      return c;
-  }
-}
 
 function randomCode(len = 6) {
   const bytes = crypto.randomBytes(len);
@@ -317,50 +279,7 @@ export function createApp(db, { ai } = {}) {
     return t;
   }
 
-  // Validates a student's answer for a task. Returns { correct, answer, wrong? } where
-  // answer is what gets stored and wrong lists the indices to fix; throws when incomplete.
-  function gradeAnswer(t, body) {
-    const content = JSON.parse(t.content);
-    const list = (n) => {
-      if (!Array.isArray(body.answer) || body.answer.length !== n) throw new HttpError(400, 'צריך להשלים את כל החלקים');
-      return body.answer;
-    };
-    const graded = (answer, expected, same = (a, b) => a === b) => {
-      const wrong = expected.map((e, i) => (same(answer[i], e) ? -1 : i)).filter((i) => i >= 0);
-      return { correct: wrong.length === 0, answer, wrong };
-    };
-    const sameWord = (a, b) => typeof a === 'string' && v.normalizeWord(a) === v.normalizeWord(b);
-    switch (t.type) {
-      case 'matching':
-        return graded(list(content.pairs.length), content.pairs.map((p) => p.b), sameWord);
-      case 'order':
-        return graded(list(content.items.length), content.items, sameWord);
-      case 'blanks': {
-        const { answers } = v.parseBlanks(content.passage);
-        return graded(list(answers.length), answers, sameWord);
-      }
-      case 'truefalse':
-        return graded(list(content.statements.length), content.statements.map((x) => x.t));
-      case 'choice': {
-        const choice = v.int(body.answer, { min: 0, max: content.options.length - 1, def: -1 });
-        if (choice < 0) throw new HttpError(400, 'צריך לבחור תשובה');
-        return { correct: choice === content.correct, answer: choice, explanation: content.explanation };
-      }
-      case 'question': {
-        const text = v.str(body.answer, { max: 5000, required: true, field: 'תשובה' });
-        return { correct: true, answer: text };
-      }
-      case 'checklist': {
-        const ticked = Array.isArray(body.answer) ? body.answer : [];
-        if (ticked.length < content.items.length || !content.items.every((_, i) => ticked[i] === true)) {
-          throw new HttpError(400, 'צריך לסמן את כל השלבים');
-        }
-        return { correct: true, answer: null };
-      }
-      default:
-        return { correct: true, answer: null };
-    }
-  }
+  const gradeAnswer = (t, body) => grade(t.type, JSON.parse(t.content), body);
 
   function studentState(s) {
     const done = {};
@@ -485,61 +404,14 @@ export function createApp(db, { ai } = {}) {
     return { enabled: aiEnabled, grades: GRADES, types: AI_TASK_TYPES };
   });
 
-  // Model output is untrusted: it goes through the same validation as a teacher's edits.
-  const aiTask = (t) => {
-    if (typeof t !== 'object' || t === null) throw new HttpError(400, 'משימה לא תקינה');
-    const { type, title, emoji, estMinutes, ...content } = t;
-    const clamp = (n, lo, hi, def) => (Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : def);
-    if (type === 'timer') content.minutes = clamp(content.minutes, 1, 60, 10);
-    return v.task({
-      type,
-      title: String(title || '').slice(0, 120),
-      emoji: String(emoji || '').slice(0, 16),
-      estMinutes: clamp(estMinutes, 1, 120, 5),
-      content,
-    });
-  };
-
   route('POST', '/api/ai/generate', async (ctx) => {
     const teacher = requireTeacher(ctx);
     if (!aiEnabled) throw new HttpError(503, 'מחולל המסלולים עוד לא הופעל בשרת הזה (חסר מפתח API).');
-    const b = ctx.body;
-    const input = {
-      topic: v.str(b.topic, { max: 200, required: true, field: 'נושא' }),
-      grade: GRADES.includes(b.grade) ? b.grade : null,
-      goals: v.str(b.goals, { max: 2000, field: 'מטרות' }),
-      notes: v.str(b.notes, { max: 2000, field: 'הערות' }),
-      taskCount: v.int(b.taskCount, { min: 3, max: 12, def: 7 }),
-      types: Array.isArray(b.types) ? AI_TASK_TYPES.filter((t) => b.types.includes(t)) : [...AI_TASK_TYPES],
-      nikud: Boolean(b.nikud),
-      files: Array.isArray(b.files) ? b.files : [],
-    };
-    if (!input.grade) throw new HttpError(400, 'בחרו שכבת גיל');
-    if (input.types.length < 2) throw new HttpError(400, 'בחרו לפחות שני סוגי משימות');
+    const input = parseAiInput(ctx.body);
     aiLimit(teacher.id);
 
     generatePath ||= createGenerator();
-    const raw = await generatePath(input);
-
-    const tasks = [];
-    let skipped = 0;
-    for (const t of Array.isArray(raw?.tasks) ? raw.tasks : []) {
-      try {
-        if (!input.types.includes(t?.type)) throw new Error('type');
-        tasks.push(aiTask(t));
-      } catch {
-        skipped++;
-      }
-    }
-    if (!tasks.length) throw new HttpError(502, 'המחולל לא הצליח ליצור משימות תקינות. נסו שוב.');
-    let theme;
-    try {
-      theme = v.theme({ icon: raw.icon, color: raw.color });
-    } catch {
-      theme = v.theme({});
-    }
-    const title = (typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : input.topic).slice(0, 120);
-    const description = (typeof raw.description === 'string' ? raw.description.trim() : '').slice(0, 1000);
+    const { title, description, theme, tasks, skipped } = pathFromAi(await generatePath(input), input);
     const id = tx(db, () => {
       const r = q.insertPath.run(teacher.id, title, description, newCode(), JSON.stringify(theme));
       const pathId = Number(r.lastInsertRowid);

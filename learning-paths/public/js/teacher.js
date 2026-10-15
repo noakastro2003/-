@@ -3,6 +3,7 @@ import { h, mount, toast, modal, confirmDialog, field, busy, formatDate, debounc
 import { session, go } from './app.js';
 import { COLORS, BACKGROUNDS, FONTS, MAPS, ICONS, TASK_EMOJIS, TASK_TYPES, TASK_GROUPS, applyTheme, fontFamily } from './themes.js';
 import { nikudBar } from './nikud.js';
+import { DEMO } from './env.js';
 
 // ---------- shared chrome ----------
 
@@ -12,8 +13,9 @@ export function topbar(...extra) {
       h('span', { class: 'brand-mark', 'aria-hidden': 'true' }, '〰️'), 'מסלולי למידה'),
     h('div', { class: 'topbar-actions' },
       extra,
-      session.teacher && h('span', { class: 'muted hide-sm' }, `שלום, ${session.teacher.name}`),
-      session.teacher && h('button', { class: 'btn ghost small', onclick: logout }, 'יציאה')));
+      DEMO && h('span', { class: 'chip chip-warn', title: 'הנתונים נשמרים רק אצלך' }, 'גרסת הדגמה'),
+      session.teacher && !DEMO && h('span', { class: 'muted hide-sm' }, `שלום, ${session.teacher.name}`),
+      session.teacher && !DEMO && h('button', { class: 'btn ghost small', onclick: logout }, 'יציאה')));
 }
 
 async function logout() {
@@ -200,7 +202,7 @@ export async function editorPage(app, id, tab) {
       h('span', { class: 'editor-icon', 'aria-hidden': 'true' }, state.path.theme.icon),
       titleInput, statusChip,
       h('div', { class: 'row' },
-        h('a', { class: 'btn small secondary', href: `#/s/${state.path.code}`, target: '_blank', rel: 'noopener' }, '👀 תצוגה מקדימה'),
+        h('a', { class: 'btn small secondary', href: `#/s/${state.path.code}`, target: DEMO ? null : '_blank', rel: 'noopener' }, '👀 תצוגה מקדימה'),
         publishBtn,
         h('button', { class: 'icon-btn', title: 'אפשרויות נוספות', 'aria-label': 'אפשרויות נוספות', onclick: () => moreMenu(state) }, '⋯'))),
     h('nav', { class: 'tabs', role: 'tablist' },
@@ -631,7 +633,19 @@ function designTab(body, state) {
 
 // ----- share tab -----
 
+function demoShareTab(body, state) {
+  mount(body,
+    !state.path.published && h('div', { class: 'notice warn' },
+      '⚠️ המסלול עדיין בטיוטה. כדי לנסות אותו כמו תלמיד/ה, לחצי קודם על "פרסום לתלמידים" למעלה.'),
+    h('div', { class: 'card center demo-share' },
+      h('h3', {}, 'קוד המסלול'),
+      h('div', { class: 'big-code', dir: 'ltr' }, state.path.code),
+      h('p', {}, 'בגרסה המלאה, תלמידים נכנסים מהמחשב או מהטלפון שלהם עם הקוד הזה. בגרסת ההדגמה את יכולה לשחק את התלמיד/ה בעצמך: ההתקדמות תופיע בלשונית "התקדמות".'),
+      h('a', { class: 'btn primary big', href: `#/s/${state.path.code}` }, '🎒 כניסה כתלמיד/ה')));
+}
+
 function shareTab(body, state) {
+  if (DEMO) return demoShareTab(body, state);
   const link = `${location.origin}/#/s/${state.path.code}`;
   const copy = (text, what) => navigator.clipboard?.writeText(text)
     .then(() => toast(`${what} הועתק`, 'ok'))

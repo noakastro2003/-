@@ -3,6 +3,7 @@ import { h, mount, toast, storage } from './ui.js';
 import { go } from './app.js';
 import { TASK_TYPES, BREAK_IDEAS, applyTheme, youtubeEmbed } from './themes.js';
 import { GAMES, gameSpeech } from './games.js';
+import { DEMO } from './env.js';
 
 // ---------- code entry ----------
 
@@ -89,6 +90,7 @@ function applyState(s, st) {
 
 function frame(s, ...children) {
   return mount(s.app,
+    DEMO && h('div', { class: 'demo-bar' }, 'גרסת הדגמה · ', h('a', { href: '#/dashboard' }, 'חזרה למסך המורה')),
     s.preview && h('div', { class: 'preview-banner' }, '👀 תצוגה מקדימה – כך התלמידים יראו את המסלול. ההתקדמות לא נשמרת.'),
     children);
 }

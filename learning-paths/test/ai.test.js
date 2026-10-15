@@ -6,6 +6,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { openDb } from '../db.js';
 import { createApp } from '../server.js';
 import { createGenerator, pathSchema } from '../ai.js';
+import zlib from 'node:zlib';
 import { docxToText } from '../docx.js';
 
 const docx = fs.readFileSync(new URL('./fixtures/sample.docx', import.meta.url));
@@ -201,6 +202,6 @@ test('schema: every object forbids extra properties and lists all fields as requ
   walk(pathSchema());
 });
 
-test('docx text extraction', () => {
-  assert.equal(docxToText(docx), 'מחזור המים\nהמים מתאדים\t& עולים לשמיים.');
+test('docx text extraction', async () => {
+  assert.equal(await docxToText(docx, (d) => zlib.inflateRawSync(d)), 'מחזור המים\nהמים מתאדים\t& עולים לשמיים.');
 });

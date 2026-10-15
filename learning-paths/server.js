@@ -7,11 +7,13 @@ import { openDb, tx } from './db.js';
 import * as v from './validate.js';
 import { HttpError } from './validate.js';
 import { TEMPLATES } from './templates.js';
+import { createGenerator, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SESSION_MS = 30 * 24 * 3600 * 1000;
 const MAX_BODY = 256 * 1024;
+const MAX_UPLOAD_BODY = 30 * 1024 * 1024; // AI generator: files arrive base64-encoded
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const MIME = {
@@ -114,13 +116,13 @@ function send(res, status, body, headers = {}) {
   res.end(data);
 }
 
-async function readJson(req) {
+async function readJson(req, maxBody = MAX_BODY) {
   if (req.method === 'GET' || req.method === 'DELETE') return {};
   let size = 0;
   const chunks = [];
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > MAX_BODY) throw new HttpError(413, 'הבקשה גדולה מדי');
+    if (size > maxBody) throw new HttpError(413, 'הבקשה גדולה מדי');
     chunks.push(chunk);
   }
   if (!size) return {};
@@ -152,9 +154,13 @@ function rateLimiter(limit, windowMs) {
 
 // ---------- app ----------
 
-export function createApp(db) {
+// ai: { enabled, generatePath } – injectable so tests don't call the real API.
+export function createApp(db, { ai } = {}) {
   const loginLimit = rateLimiter(10, 15 * 60 * 1000);
   const joinLimit = rateLimiter(60, 15 * 60 * 1000);
+  const aiLimit = rateLimiter(20, 60 * 60 * 1000);
+  let generatePath = ai?.generatePath;
+  const aiEnabled = ai ? ai.enabled !== false : aiConfigured();
 
   const q = {
     teacherByEmail: db.prepare('SELECT * FROM teachers WHERE email = ?'),
@@ -368,9 +374,9 @@ export function createApp(db) {
   // ----- routes -----
 
   const routes = [];
-  const route = (method, pattern, handler) => {
+  const route = (method, pattern, handler, opts = {}) => {
     const re = new RegExp('^' + pattern.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$');
-    routes.push({ method, re, handler });
+    routes.push({ method, re, handler, maxBody: opts.maxBody });
   };
 
   route('POST', '/api/auth/register', (ctx) => {
@@ -465,6 +471,77 @@ export function createApp(db) {
     q.touchPath.run(p.id);
     return [201, { task: taskOut(row) }];
   });
+
+  // --- AI generator ---
+
+  route('GET', '/api/ai/status', (ctx) => {
+    requireTeacher(ctx);
+    return { enabled: aiEnabled, grades: GRADES, types: AI_TASK_TYPES };
+  });
+
+  // Model output is untrusted: it goes through the same validation as a teacher's edits.
+  const aiTask = (t) => {
+    if (typeof t !== 'object' || t === null) throw new HttpError(400, 'משימה לא תקינה');
+    const { type, title, emoji, estMinutes, ...content } = t;
+    const clamp = (n, lo, hi, def) => (Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : def);
+    if (type === 'timer') content.minutes = clamp(content.minutes, 1, 60, 10);
+    return v.task({
+      type,
+      title: String(title || '').slice(0, 120),
+      emoji: String(emoji || '').slice(0, 16),
+      estMinutes: clamp(estMinutes, 1, 120, 5),
+      content,
+    });
+  };
+
+  route('POST', '/api/ai/generate', async (ctx) => {
+    const teacher = requireTeacher(ctx);
+    if (!aiEnabled) throw new HttpError(503, 'מחולל המסלולים עוד לא הופעל בשרת הזה (חסר מפתח API).');
+    const b = ctx.body;
+    const input = {
+      topic: v.str(b.topic, { max: 200, required: true, field: 'נושא' }),
+      grade: GRADES.includes(b.grade) ? b.grade : null,
+      goals: v.str(b.goals, { max: 2000, field: 'מטרות' }),
+      notes: v.str(b.notes, { max: 2000, field: 'הערות' }),
+      taskCount: v.int(b.taskCount, { min: 3, max: 12, def: 7 }),
+      types: Array.isArray(b.types) ? AI_TASK_TYPES.filter((t) => b.types.includes(t)) : [...AI_TASK_TYPES],
+      nikud: Boolean(b.nikud),
+      files: Array.isArray(b.files) ? b.files : [],
+    };
+    if (!input.grade) throw new HttpError(400, 'בחרו שכבת גיל');
+    if (input.types.length < 2) throw new HttpError(400, 'בחרו לפחות שני סוגי משימות');
+    aiLimit(teacher.id);
+
+    generatePath ||= createGenerator();
+    const raw = await generatePath(input);
+
+    const tasks = [];
+    let skipped = 0;
+    for (const t of Array.isArray(raw?.tasks) ? raw.tasks : []) {
+      try {
+        if (!input.types.includes(t?.type)) throw new Error('type');
+        tasks.push(aiTask(t));
+      } catch {
+        skipped++;
+      }
+    }
+    if (!tasks.length) throw new HttpError(502, 'המחולל לא הצליח ליצור משימות תקינות. נסו שוב.');
+    let theme;
+    try {
+      theme = v.theme({ icon: raw.icon, color: raw.color });
+    } catch {
+      theme = v.theme({});
+    }
+    const title = (typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : input.topic).slice(0, 120);
+    const description = (typeof raw.description === 'string' ? raw.description.trim() : '').slice(0, 1000);
+    const id = tx(db, () => {
+      const r = q.insertPath.run(teacher.id, title, description, newCode(), JSON.stringify(theme));
+      const pathId = Number(r.lastInsertRowid);
+      for (const t of tasks) insertTask(pathId, t);
+      return pathId;
+    });
+    return [201, { path: pathOut(q.pathById.get(id)), taskCount: tasks.length, skipped }];
+  }, { maxBody: MAX_UPLOAD_BODY });
 
   route('PUT', '/api/paths/:id/order', (ctx) => {
     const p = ownPath(ctx, ctx.params.id);
@@ -633,7 +710,7 @@ export function createApp(db) {
         const ctx = {
           req,
           params: m.groups || {},
-          body: await readJson(req),
+          body: await readJson(req, r.maxBody),
           teacher: currentTeacher(req),
           ip: req.socket.remoteAddress,
         };
@@ -656,7 +733,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   fs.mkdirSync(path.dirname(dbFile), { recursive: true });
   const db = openDb(dbFile);
   const port = Number(process.env.PORT) || 3000;
-  http.createServer(createApp(db)).listen(port, () => {
+  const server = http.createServer(createApp(db));
+  server.requestTimeout = 15 * 60 * 1000; // AI generation can take a few minutes
+  server.listen(port, () => {
     console.log(`מסלולי למידה פועל: http://localhost:${port}`);
   });
 }

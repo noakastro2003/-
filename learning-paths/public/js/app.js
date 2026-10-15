@@ -1,6 +1,7 @@
 import { api } from './api.js';
 import { h, mount } from './ui.js';
-import { homePage, authPage, dashboardPage, editorPage } from './teacher.js';
+import { homePage, authPage, dashboardPage, editorPage, topbar } from './teacher.js';
+import { generatorPage } from './generator.js';
 import { studentPage, joinCodePage } from './student.js';
 
 const app = document.getElementById('app');
@@ -28,6 +29,7 @@ const routes = [
   [/^#\/join$/, () => joinCodePage(app)],
   [/^#\/s\/([A-Za-z0-9]+)$/, (m) => studentPage(app, m[1].toUpperCase())],
   [/^#\/dashboard$/, () => needTeacher(() => dashboardPage(app))],
+  [/^#\/generate$/, () => needTeacher(() => generatorPage(app, topbar))],
   [/^#\/path\/(\d+)(?:\/(tasks|design|share|progress))?$/, (m) => needTeacher(() => editorPage(app, Number(m[1]), m[2] || 'tasks'))],
 ];
 

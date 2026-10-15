@@ -505,3 +505,31 @@ textarea, .task-text, .blanks-text, .station-title { line-height: 1.75; }
   .list-row .segmented { order: 3; }
 }
 .mem-front.emoji-only { font-size: 2.8rem; }
+
+/* ===== AI generator ===== */
+.narrow-page { max-width: 780px; }
+.gen-hero { display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1.2rem; }
+.gen-hero-icon { font-size: 2.6rem; line-height: 1; background: var(--accent-soft); border-radius: 18px; padding: .6rem; }
+.gen-hero h1 { margin-bottom: .3rem; }
+.gen-form { display: flex; flex-direction: column; }
+.grade-chips, .type-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.grade-chip, .type-chip { padding: .45rem .9rem; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; cursor: pointer; font-weight: 500; }
+.grade-chip { min-width: 52px; }
+.grade-chip.selected, .type-chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+.type-chip:not(.selected) { color: var(--muted); }
+.range-value { color: var(--accent-strong); font-size: 1.1rem; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.gen-toggle { margin-bottom: 1.2rem; }
+.dropzone { display: flex; flex-direction: column; align-items: center; gap: .3rem; padding: 1.4rem 1rem; border: 2px dashed color-mix(in srgb, var(--accent) 40%, white); border-radius: 16px; background: #faf9ff; cursor: pointer; text-align: center; transition: background .15s, border-color .15s; }
+.dropzone:hover, .dropzone.over { background: var(--accent-soft); border-color: var(--accent); }
+.dropzone-icon { font-size: 1.8rem; }
+.file-list { list-style: none; padding: 0; margin: .5rem 0 0; display: flex; flex-direction: column; gap: .3rem; }
+.file-list li { display: flex; align-items: center; gap: .6rem; padding: .4rem .7rem; background: #f6f5fb; border-radius: 10px; }
+.file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.privacy { text-align: center; }
+.gen-loading .card { max-width: 420px; width: 100%; }
+.gen-loading-icon { font-size: 3.4rem; animation: breathe 2.5s ease-in-out infinite; display: inline-block; }
+.gen-loading-text { font-size: 1.1rem; min-height: 1.6em; }
+.gen-progress { height: 8px; border-radius: 4px; background: var(--accent-soft); overflow: hidden; margin: 1rem 0; }
+.gen-progress span { display: block; height: 100%; width: 35%; background: var(--accent); border-radius: 4px; animation: indeterminate 1.6s ease-in-out infinite; }
+@keyframes indeterminate { from { transform: translateX(120%); } to { transform: translateX(-300%); } }

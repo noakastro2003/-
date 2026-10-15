@@ -6,7 +6,7 @@ import { nikudBar } from './nikud.js';
 
 // ---------- shared chrome ----------
 
-function topbar(...extra) {
+export function topbar(...extra) {
   return h('header', { class: 'topbar' },
     h('a', { class: 'brand', href: session.teacher ? '#/dashboard' : '#/' },
       h('span', { class: 'brand-mark', 'aria-hidden': 'true' }, '〰️'), 'מסלולי למידה'),
@@ -32,6 +32,8 @@ export function homePage(app) {
     ['🎉', 'חיזוקים מיידיים', 'כוכבים וחגיגה קטנה בסיום כל משימה.'],
     ['🎨', 'עיצוב אישי', 'צבעים, רקעים ופונטים בכתב יד – כולל ניקוד.'],
     ['✋', 'כפתור "צריך עזרה"', 'רואים מיד מי נתקע ובאיזו משימה.'],
+    ['✨', 'מחולל מסלולים חכם', 'כותבים נושא, שכבת גיל ומטרות, מצרפים חומרים – ומקבלים מסלול מוכן לעריכה.'],
+    ['🃏', 'משחקים ותרגולים', 'משחק זיכרון, תפזורת, התאמה, סידור, השלמת מילים ונכון/לא נכון.'],
   ];
   mount(app,
     topbar(h('a', { class: 'btn ghost small', href: '#/login' }, 'כניסה')),
@@ -87,7 +89,9 @@ export async function dashboardPage(app) {
   mount(app, topbar(), h('main', { class: 'page' },
     h('div', { class: 'page-head' },
       h('h1', {}, 'המסלולים שלי'),
-      h('button', { class: 'btn primary', onclick: newPathDialog }, '+ מסלול חדש')),
+      h('div', { class: 'row wrap' },
+        h('a', { class: 'btn secondary', href: '#/generate' }, '✨ מחולל מסלולים'),
+        h('button', { class: 'btn primary', onclick: newPathDialog }, '+ מסלול חדש'))),
     list));
 
   let paths;
@@ -100,8 +104,10 @@ export async function dashboardPage(app) {
     return mount(list, h('div', { class: 'empty card' },
       h('div', { class: 'empty-icon', 'aria-hidden': 'true' }, '🗺️'),
       h('h2', {}, 'עוד אין מסלולים'),
-      h('p', {}, 'צרי את המסלול הראשון שלך – אפשר להתחיל ממסלול לדוגמה ולערוך אותו.'),
-      h('button', { class: 'btn primary', onclick: newPathDialog }, 'יצירת מסלול ראשון')));
+      h('p', {}, 'צרי את המסלול הראשון שלך – בעצמך, ממסלול לדוגמה, או עם מחולל המסלולים שבונה מסלול שלם מנושא ומטרות.'),
+      h('div', { class: 'row center wrap' },
+        h('a', { class: 'btn secondary', href: '#/generate' }, '✨ מחולל מסלולים'),
+        h('button', { class: 'btn primary', onclick: newPathDialog }, 'יצירת מסלול בעצמי'))));
   }
   mount(list, paths.map((p) => {
     const card = h('a', { class: 'path-card', href: `#/path/${p.id}` },

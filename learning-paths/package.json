@@ -4,9 +4,14 @@
   "description": "מערכת למורות לבניית מסלולי למידה עצמאיים לתלמידים עם קשיי קשב",
   "type": "module",
   "private": true,
-  "engines": { "node": ">=22.13" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "start": "node --no-warnings server.js",
     "test": "node --no-warnings --test test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.135.0"
   }
 }

@@ -295,6 +295,41 @@ if MARKG:
         bp = BoundsPen(None); [_emit(c, bp, 0) for c in font_contours['dagesh']]
         dcx, dcy = (bp.bounds[0] + bp.bounds[2]) / 2, (bp.bounds[1] + bp.bounds[3]) / 2
         dax, day = dot['_anchor']
+        drad = (bp.bounds[2] - bp.bounds[0]) / 2
+    def dagesh_point(k):
+        """where a dagesh dot fits best: inside the letter's open space, clear of the pen line,
+        as central as possible; letters with no room inside get it right beside them"""
+        img, yb, yt, width = raster(font_contours[k])
+        H, Wd = img.shape
+        pad = int(math.ceil(3 * drad / RES)) + 2
+        canvas = np.zeros((H + 2*pad, Wd + 2*pad), np.uint8); canvas[pad:pad+H, pad:pad+Wd] = img
+        clear = cv2.distanceTransform((1 - canvas).astype(np.uint8), cv2.DIST_L2, 5) * RES
+        rows = PROF[k]['rows']; ys = sorted(rows)
+        top = max(ys) * RES; bottom = max(min(ys) * RES, 0)
+        body = [rows[y] for y in ys if y * RES >= 0]
+        x0 = min(r[0] for r in body); x1 = max(r[1] for r in body)
+        cxm, cym = (x0 + x1) / 2, (top + bottom) / 2
+        size = max(x1 - x0, top - bottom)
+        best, bx, by = -1e9, cxm, cym
+        L = int(0.7 * size / RES)
+        dirs = [(1,0),(-1,0),(0,1),(0,-1),(1,1),(1,-1),(-1,1),(-1,-1)]
+        for r in range(0, canvas.shape[0], 2):
+            fy = (yt + pad - r) * RES                       # font y of this raster row
+            if fy < bottom + 0.15*(top-bottom) or fy > top - 0.15*(top-bottom): continue
+            for c in range(0, canvas.shape[1], 2):
+                fx = (c - pad) * RES
+                if fx < x0 - 3*drad or fx > x1 + 3*drad: continue
+                cl = clear[r, c]
+                if cl < drad * 1.3: continue                  # the dot must not touch the line
+                hits = 0                                      # how enclosed the spot is
+                for dx, dy in dirs:
+                    for t in range(1, L):
+                        rr, cc = r + dy*t, c + dx*t
+                        if not (0 <= rr < canvas.shape[0] and 0 <= cc < canvas.shape[1]): break
+                        if canvas[rr, cc]: hits += 1; break
+                score = min(cl, 2.2*drad) + 0.45*drad*hits - 0.35*math.hypot(fx - cxm, fy - cym)
+                if score > best: best, bx, by = score, fx, fy
+        return bx, by
     def base_anchors(k):
         rows = PROF[k]['rows']; lsb = SB[k][0]
         ys = sorted(rows); top = max(ys) * RES; bottom = max(min(ys) * RES, 0)
@@ -317,8 +352,9 @@ if MARKG:
         if dot:
             if k == 'vav':   # shuruk: the dot beside the vav, as on the sheet
                 a['dagesh'] = (min(r[0] for r in midrows) + lsb, mid)
-            else:            # dagesh: the same dot in the middle of the letter
-                a['dagesh'] = ((x0 + x1) / 2 + lsb + (dax - dcx), mid + (day - dcy))
+            else:            # dagesh: the same dot, in the letter's open space
+                px, py = dagesh_point(k)
+                a['dagesh'] = (px + lsb + (dax - dcx), py + (day - dcy))
         return a
     A = {k: base_anchors(k) for k in HEBREW}
     lines = []

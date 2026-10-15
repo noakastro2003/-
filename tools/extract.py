@@ -26,6 +26,10 @@ def comp_at(x, y):
         if st[i,0] == x and st[i,1] == y: return i
     raise SystemExit(f'no component at {(x,y)}')
 members = {k: [comp_at(*p) for p in v[1]] for k, v in GLYPHS.items()}
+# vowel marks: the little circle drawn next to each mark stands in for the letter; it is
+# measured (to place the mark like the writer did) but never becomes part of the glyph
+GUIDES = {k: comp_at(*v['guide']) for k, v in C['glyphs'].items() if v.get('guide')}
+MARKS = {k for k, v in C['glyphs'].items() if v.get('kind') == 'mark'}
 
 # --- deskew: fit straight lines through the bottoms of baseline letters of each row
 slopes = []
@@ -50,6 +54,10 @@ for k in GLYPHS:
     ys, xs = np.nonzero(np.isin(lab_r, members[k]))
     boxes[k] = (xs.min(), ys.min(), xs.max()+1, ys.max()+1)
 height = {k: boxes[k][3]-boxes[k][1] for k in GLYPHS}
+guide_boxes = {}
+for k, c in GUIDES.items():
+    ys, xs = np.nonzero(lab_r == c)
+    guide_boxes[k] = (xs.min(), ys.min(), xs.max()+1, ys.max()+1)
 
 # --- per-row size: rows written noticeably smaller/larger are brought to the common size
 # with ONE uniform factor per row (aspect ratio and in-row proportions untouched)
@@ -141,7 +149,9 @@ for k, (uni, comps, row) in GLYPHS.items():
     contours = trace(mask)
     if C.get('debug'): cv2.imwrite(OUT + f'/mask_{k}.png', (~mask).astype(np.uint8)*255)
     hang = C.get('hang_baseline', {}).get(k)
-    if hang:                      # final letters of a row without regular letters: hang from the top line
+    if k in MARKS:                # marks: y measured from the guide's bottom (or own top if no guide)
+        base = guide_boxes[k][3] if k in guide_boxes else boxes[k][1]
+    elif hang:                      # final letters of a row without regular letters: hang from the top line
         base = boxes[hang][1] + ref_body / s
     elif k in BASE_SITTING:
         base = boxes[k][3]        # snap the letter's own bottom to the baseline
@@ -149,7 +159,9 @@ for k, (uni, comps, row) in GLYPHS.items():
         base = rows[row]          # keep natural height relative to the line
     result['glyphs'][k] = dict(unicode=uni, row=row, origin=[x0, y0], base=base, up=UP, scale=s,
                                contours=contours, inkbox=[int(v) for v in boxes[k]],
-                               mask_shape=list(mask.shape))
+                               mask_shape=list(mask.shape),
+                               guide=[int(v) for v in guide_boxes[k]] if k in guide_boxes else None,
+                               mark_class=C['glyphs'][k].get('mark_class'))
     print(f'{k:11s} w={boxes[k][2]-boxes[k][0]:3d} h={height[k]:3d} '
           f'bottom-base={boxes[k][3]-base:+6.1f} contours={len(contours)} topo={t_new} thr={f:.2f}')
 if problems:

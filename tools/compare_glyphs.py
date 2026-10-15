@@ -11,12 +11,15 @@ g = cv2.warpAffine(g, M, (g.shape[1], g.shape[0]), flags=cv2.INTER_CUBIC, border
 src = Image.fromarray(cv2.cvtColor(g, cv2.COLOR_BGR2RGB))
 names = list(P['glyphs'])
 font = ImageFont.truetype(FONT, 150, layout_engine=ImageFont.Layout.BASIC)
+rfont = ImageFont.truetype(FONT, 150, layout_engine=ImageFont.Layout.RAQM)
 lab = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 16)
-CW, CH, COLS = 170, 420, 12
+CW, CH, COLS = 170, 480, 12
 rows = (len(names)+COLS-1)//COLS
 img = Image.new('RGB', (CW*COLS, CH*rows), 'white'); d = ImageDraw.Draw(img)
 for i, k in enumerate(names):
     G = P['glyphs'][k]; x0, y0, x1, y1 = G['inkbox']; base = G['base']
+    if G.get('guide'):   # include the guide circle in the scan crop
+        gx0, gy0, gx1, gy1 = G['guide']; x0, y0, x1, y1 = min(x0, gx0), min(y0, gy0), max(x1, gx1), max(y1, gy1)
     S = 150/1000*MET['K']*G.get('scale', 1)   # same scale as the font render
     cx, cy = (i % COLS)*CW, (i//COLS)*CH
     # source crop placed on the same baseline as the font render
@@ -27,7 +30,10 @@ for i, k in enumerate(names):
     img.paste(crop, (cx+10, cy+10 + int((top-top0)*S)))
     by = cy + 10 + int((base-top0)*S)
     d.line((cx, by, cx+CW, by), fill=(255, 150, 150))
-    d.text((cx+10, by+ 230 - 10), chr(G['unicode']), font=font, fill='black', anchor='ls')
+    if G.get('mark_class'):   # a vowel is shown on a letter (the sheet shows it next to a circle)
+        d.text((cx+10, by+ 230 - 10), '\u05d1' + chr(G['unicode']), font=rfont, fill='black', anchor='ls', direction='rtl')
+    else:
+        d.text((cx+10, by+ 230 - 10), chr(G['unicode']), font=font, fill='black', anchor='ls')
     d.line((cx, by+220, cx+CW, by+220), fill=(255, 150, 150))
     d.text((cx+5, cy+CH-22), k, font=lab, fill=(80, 80, 200))
     d.line((cx+CW-1, cy, cx+CW-1, cy+CH), fill=(220, 220, 220))

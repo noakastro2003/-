@@ -14,6 +14,9 @@ CFG, WORK, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
 C = json.load(open(CFG))
 P = json.load(open(WORK + '/glyphs.json'))
 G = P['glyphs']
+# vowel marks (nikud) are built separately: zero width, attached to letters by anchors
+MARKG = {k: g for k, g in G.items() if g.get('mark_class')}
+G = {k: g for k, g in G.items() if k not in MARKG}
 FAMILY = C['family']
 
 # ---------------- scale: one factor for the whole sheet ------------------------------
@@ -165,7 +168,7 @@ print('source white per pair', np.round(whites), '-> side target', round(T))
 
 HEBREW = [k for k in G if 0x5D0 <= G[k]['unicode'] <= 0x5EA]
 DIGITS = ['zero','one','two','three','four','five','six','seven','eight','nine']
-PUNCT  = ['period','comma','exclam','question','hyphen','quotedbl','parenleft','parenright']
+PUNCT  = [k for k in G if k not in HEBREW and k not in DIGITS]
 SB = {}
 for k in G:
     tgt = T
@@ -227,9 +230,93 @@ kern_group(HEBREW, PUNCT + DIGITS); kern_group(PUNCT + DIGITS, HEBREW)
 kern_group(DIGITS + PUNCT, DIGITS + PUNCT)
 print('kern pairs', len(KERN), 'range', min(KERN.values()), max(KERN.values()))
 
+# ---------------- nikud: mark glyphs + anchors ----------------------------------------------
+MARK_FEA = ''
+if MARKG:
+    mc = {}
+    for k, g in MARKG.items():
+        cs = to_font(g)            # y=0 at the guide circle's bottom (the stand-in letter's bottom)
+        if g['guide']:
+            gx0, gy0, gx1, gy1 = g['guide']; ks = K * g.get('scale', 1)
+            ref_x = (gx0 + gx1) / 2 * ks
+            g['_anchor'] = {'below': (0, 0), 'above': ((gx0 - (gx0+gx1)/2) * ks, (gy1 - gy0) * ks),
+                            'dagesh': ((gx0 - (gx0+gx1)/2) * ks, (gy1 - gy0) / 2 * ks)}[g['mark_class']]
+        else:
+            x0, y0, x1, y1 = g['inkbox']; ref_x = (x0 + x1) / 2 * K * g.get('scale', 1)
+            g['_anchor'] = (0, 0)
+        mc[k] = [[(s_[0],) + tuple((p_[0] - ref_x, p_[1]) for p_ in s_[1:]) for s_ in c] for c in cs]
+    # a mark drawn without a guide (sheva) sits at the writer's usual distance below the letter
+    gaps = []
+    for k, g in MARKG.items():
+        if g['guide'] and g['mark_class'] == 'below':
+            gaps.append((g['inkbox'][1] - g['guide'][3]) * K * g.get('scale', 1))
+    GAP = float(np.median(gaps))
+    for k, g in MARKG.items():
+        if not g['guide']:
+            mc[k] = [[(s_[0],) + tuple((p_[0], p_[1] - GAP) for p_ in s_[1:]) for s_ in c] for c in mc[k]]
+    # without mark positioning a zero-width mark lands at the letter's left edge (RTL);
+    # pre-shift by half a typical letter so it still reads under the letter
+    FX = float(np.median([ADV[k] for k in HEBREW])) / 2
+    for k in MARKG:
+        font_contours[k] = [[(s_[0],) + tuple((p_[0] + FX, p_[1]) for p_ in s_[1:]) for s_ in c] for c in mc[k]]
+        ax, ay = MARKG[k]['_anchor']; MARKG[k]['_anchor'] = (ax + FX, ay)
+        SB[k] = (0, 0); ADV[k] = 0
+    if 'holam' in MARKG and 'shin' in G:
+        ax, ay = MARKG['holam']['_anchor']
+        hol = font_contours['holam']
+        bp = BoundsPen(None); [_emit(c, bp, 0) for c in hol]
+        # sin dot: exactly where holam sits (above the letter's top-left)
+        font_contours['sindot'] = hol
+        MARKG['sindot'] = dict(unicode=0x5C2, mark_class='sinabove', _anchor=(ax, ay))
+        # shin dot: the same dot mirrored to the top-right
+        mir = [[(s_[0],) + tuple((2*ax - p_[0], p_[1]) for p_ in s_[1:]) for s_ in c] for c in hol]
+        font_contours['shindot'] = mir   # orientation is fixed when drawn
+        MARKG['shindot'] = dict(unicode=0x5C1, mark_class='shinabove', _anchor=(ax, ay))
+        for k in ('sindot', 'shindot'): SB[k] = (0, 0); ADV[k] = 0
+    dot = MARKG.get('dagesh')
+    if dot:
+        bp = BoundsPen(None); [_emit(c, bp, 0) for c in font_contours['dagesh']]
+        dcx, dcy = (bp.bounds[0] + bp.bounds[2]) / 2, (bp.bounds[1] + bp.bounds[3]) / 2
+        dax, day = dot['_anchor']
+    def base_anchors(k):
+        rows = PROF[k]['rows']; lsb = SB[k][0]
+        ys = sorted(rows); top = max(ys) * RES; bottom = max(min(ys) * RES, 0)
+        body = [rows[y] for y in ys if y * RES >= 0]
+        x0 = min(r[0] for r in body); x1 = max(r[1] for r in body)
+        cx = (x0 + x1) / 2
+        desc = [rows[y] for y in ys if y * RES < -0.12 * XH]
+        if desc:   # keep vowels clear of a descender: centre them in the free side
+            dl = min(r[0] for r in desc); dr = max(r[1] for r in desc)
+            cx = (dr + x1) / 2 if (x1 - dr) >= (dl - x0) else (x0 + dl) / 2
+        upper = [rows[y] for y in ys if y * RES >= top * 0.75]
+        mid = (top + bottom) / 2
+        midrows = [rows[y] for y in ys if abs(y * RES - mid) < 0.15 * (top - bottom)] or body
+        a = {'below': (cx + lsb, 0), 'above': (min(r[0] for r in upper) + lsb, top),
+             'sinabove': (min(r[0] for r in upper) + lsb, top), 'shinabove': (max(r[1] for r in upper) + lsb, top)}
+        if dot:
+            if k == 'vav':   # shuruk: the dot beside the vav, as on the sheet
+                a['dagesh'] = (min(r[0] for r in midrows) + lsb, mid)
+            else:            # dagesh: the same dot in the middle of the letter
+                a['dagesh'] = ((x0 + x1) / 2 + lsb + (dax - dcx), mid + (day - dcy))
+        return a
+    A = {k: base_anchors(k) for k in HEBREW}
+    lines = []
+    for k, g in MARKG.items():
+        ax, ay = g['_anchor']; lines.append(f'markClass {k} <anchor {round(ax)} {round(ay)}> @{g["mark_class"].upper()};')
+    classes = sorted({g['mark_class'] for g in MARKG.values()})
+    lines.append('feature mark {')
+    for k in HEBREW:
+        cl = [c for c in classes if c not in ('sinabove', 'shinabove') or k == 'shin']
+        parts = ' '.join(f'<anchor {round(A[k][c][0])} {round(A[k][c][1])}> mark @{c.upper()}' for c in cl)
+        lines.append(f'    pos base {k} {parts};')
+    lines.append('} mark;')
+    MARK_FEA = '\n'.join(lines)
+
 # ---------------- assemble the font -----------------------------------------------------
-order = ['.notdef', 'space'] + list(G) + ['quotesingle', 'geresh', 'gershayim', 'maqaf']
+order = ['.notdef', 'space'] + list(G) + ['quotesingle', 'geresh', 'gershayim', 'maqaf'] + list(MARKG)
 cmap = {G[k]['unicode']: k for k in G}
+cmap.update({MARKG[k]['unicode']: k for k in MARKG})
+cmap.update({int(u, 16): n for u, n in C.get('extra_cmap', {}).items()})
 cmap.update({0x20: 'space', 0xA0: 'space', 0x27: 'quotesingle', 0x5F3: 'geresh', 0x5F4: 'gershayim', 0x5BE: 'maqaf'})
 # the apostrophe/geresh reuse ONE of the user's two quote strokes; maqaf reuses the hyphen
 qcs = font_contours['quotedbl']
@@ -267,9 +354,9 @@ fb.setupHorizontalMetrics(metrics)
 
 # vertical metrics from the real extents of the handwriting
 ymin = min(BoundsPen_b[1] for BoundsPen_b in [
-    (lambda bp: ([_emit(c, bp, 0) for c in font_contours[k]], bp.bounds)[1])(BoundsPen(None)) for k in G])
+    (lambda bp: ([_emit(c, bp, 0) for c in font_contours[k]], bp.bounds)[1])(BoundsPen(None)) for k in list(G) + list(MARKG)])
 ymax = max(BoundsPen_b[3] for BoundsPen_b in [
-    (lambda bp: ([_emit(c, bp, 0) for c in font_contours[k]], bp.bounds)[1])(BoundsPen(None)) for k in G])
+    (lambda bp: ([_emit(c, bp, 0) for c in font_contours[k]], bp.bounds)[1])(BoundsPen(None)) for k in list(G) + list(MARKG)])
 ASC, DESC, GAP = C.get('line_metrics', [760, -340, 250])
 fb.setupHorizontalHeader(ascent=ASC, descent=DESC, lineGap=GAP)
 fb.setupNameTable({'familyName': FAMILY, 'styleName': 'Regular',
@@ -292,9 +379,14 @@ languagesystem DFLT dflt;
 languagesystem hebr dflt;
 languagesystem latn dflt;
 feature kern {{
+    lookupflag IgnoreMarks;
 {pairs}
 }} kern;
+{MARK_FEA}
 """
+if MARKG:
+    bases = ' '.join(n for n in order if n not in MARKG and n != '.notdef')
+    fea += f"table GDEF {{ GlyphClassDef [{bases}], , [{' '.join(MARKG)}], ; }} GDEF;\n"
 addOpenTypeFeaturesFromString(fb.font, fea)
 fb.save(OUT)
 json.dump({'T': T, 'K': K, 'adv': ADV, 'sb': {k: list(map(float, v)) for k, v in SB.items()},

@@ -65,7 +65,7 @@ test('task CRUD, ordering and theme validation', async () => {
   const c = await teacher();
   const { body: { path } } = await c('POST', '/api/paths', { title: 'שברים', template: 'sample' });
   let { body } = await c('GET', `/api/paths/${path.id}`);
-  assert.equal(body.tasks.length, 5);
+  assert.equal(body.tasks.length, 6);
 
   const bad = await c('POST', `/api/paths/${path.id}/tasks`, { type: 'choice', title: 'q', content: { options: ['רק אחת'] } });
   assert.equal(bad.status, 400);
@@ -94,7 +94,7 @@ test('task CRUD, ordering and theme validation', async () => {
   assert.equal(themed.body.path.theme.icon, '🚀');
 
   const dup = await c('POST', `/api/paths/${path.id}/duplicate`);
-  assert.equal((await c('GET', `/api/paths/${dup.body.path.id}`)).body.tasks.length, 5);
+  assert.equal((await c('GET', `/api/paths/${dup.body.path.id}`)).body.tasks.length, 6);
   assert.notEqual(dup.body.path.code, path.code);
 });
 
@@ -157,4 +157,64 @@ test('static files and security headers', async () => {
   assert.equal((await fetch(`${base}/js/app.js`)).headers.get('content-type'), 'text/javascript; charset=utf-8');
   assert.equal((await fetch(`${base}/..%2fserver.js`)).status, 404);
   assert.equal((await fetch(`${base}/api/paths`, { method: 'POST', body: 'x', headers: { 'Content-Type': 'text/plain' } })).status, 415);
+});
+
+test('game task types: validation, hidden answers and grading', async () => {
+  const t = await teacher();
+  const { body: { path } } = await t('POST', '/api/paths', { title: 'משחקים' });
+  const add = (task) => t('POST', `/api/paths/${path.id}/tasks`, task);
+
+  assert.equal((await add({ type: 'blanks', title: 'x', content: { passage: 'אין כאן סוגריים' } })).status, 400);
+  assert.equal((await add({ type: 'matching', title: 'x', content: { pairs: [{ a: 'א', b: '' }, { a: 'ב', b: 'ב' }] } })).status, 400);
+  assert.equal((await add({ type: 'wordsearch', title: 'x', content: { words: ['אבגדהוזחטיכ', 'שלום'] } })).status, 400);
+
+  const tasks = {};
+  for (const task of [
+    { type: 'memory', title: 'זיכרון', content: { pairs: [{ a: '🐶', b: 'כלב' }, { a: 'חתול', b: '' }] } },
+    { type: 'wordsearch', title: 'תפזורת', content: { words: ['שָׁלוֹם', 'בית', 'ספר'] } },
+    { type: 'matching', title: 'התאמה', content: { pairs: [{ a: 'cat', b: 'חתול' }, { a: 'dog', b: 'כלב' }, { a: 'sun', b: 'שמש' }] } },
+    { type: 'order', title: 'סדר', content: { items: ['קמתי', 'צחצחתי שיניים', 'אכלתי', 'יצאתי'] } },
+    { type: 'blanks', title: 'השלמה', content: { passage: 'הַכֶּלֶב [רָץ] בַּגִּנָּה וְ[שִׂחֵק].', distractors: ['ישן'] } },
+    { type: 'truefalse', title: 'נ/לנ', content: { statements: [{ s: 'השמש חמה', t: true }, { s: 'דגים עפים', t: false }] } },
+  ]) {
+    const r = await add(task);
+    assert.equal(r.status, 201, JSON.stringify(r.body));
+    tasks[task.type] = r.body.task;
+  }
+  await t('PUT', `/api/paths/${path.id}`, { published: true });
+
+  const kid = client();
+  const view = (await kid('GET', `/api/s/${path.code}`)).body.tasks;
+  const seen = Object.fromEntries(view.map((x) => [x.type, x.content]));
+  assert.equal(seen.matching.pairs, undefined);
+  assert.deepEqual([...seen.matching.right].sort(), ['חתול', 'כלב', 'שמש'].sort());
+  assert.notDeepEqual(seen.order.items, ['קמתי', 'צחצחתי שיניים', 'אכלתי', 'יצאתי']);
+  assert.equal(seen.blanks.passage, undefined);
+  assert.equal(seen.blanks.segments.length, 3);
+  assert.deepEqual([...seen.blanks.bank].sort(), ['ישן', 'רָץ', 'שִׂחֵק'].sort());
+  assert.deepEqual(seen.truefalse.statements, ['השמש חמה', 'דגים עפים']);
+
+  const { body: { token } } = await kid('POST', `/api/s/${path.code}/join`, { name: 'רוני' });
+  const send = (type, answer) => kid('POST', `/api/s/${path.code}/tasks/${tasks[type].id}/complete`, { answer }, { 'X-Student-Token': token });
+
+  let r = await send('matching', ['חתול', 'שמש', 'כלב']);
+  assert.deepEqual([r.body.correct, r.body.wrong], [false, [1, 2]]);
+  assert.equal((await send('matching', ['חתול', 'כלב', 'שמש'])).body.correct, true);
+
+  r = await send('order', ['קמתי', 'אכלתי', 'צחצחתי שיניים', 'יצאתי']);
+  assert.deepEqual(r.body.wrong, [1, 2]);
+  assert.equal((await send('order', ['קמתי', 'צחצחתי שיניים', 'אכלתי', 'יצאתי'])).body.correct, true);
+
+  assert.equal((await send('blanks', ['רץ'])).status, 400, 'all blanks must be filled');
+  r = await send('blanks', ['ישן', 'קפץ']);
+  assert.deepEqual(r.body.wrong, [0, 1]);
+  assert.equal((await send('blanks', ['רץ', 'שִׂחֵק'])).body.correct, true, 'nikud is ignored when comparing');
+
+  assert.deepEqual((await send('truefalse', [true, true])).body.wrong, [1]);
+  assert.equal((await send('truefalse', [true, false])).body.correct, true);
+
+  assert.equal((await send('memory', null)).body.correct, true);
+  assert.equal((await send('wordsearch', null)).body.correct, true);
+  const prog = await t('GET', `/api/paths/${path.id}/progress`);
+  assert.equal(Object.keys(prog.body.students[0].done).length, 6);
 });

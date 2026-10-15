@@ -2,6 +2,7 @@ import { api } from './api.js';
 import { h, mount, toast, storage } from './ui.js';
 import { go } from './app.js';
 import { TASK_TYPES, BREAK_IDEAS, applyTheme, youtubeEmbed } from './themes.js';
+import { GAMES, gameSpeech } from './games.js';
 
 // ---------- code entry ----------
 
@@ -207,6 +208,7 @@ function showTask(s, i) {
   const feedback = h('div', { class: 'feedback', role: 'status', 'aria-live': 'polite' });
   let getAnswer = () => ({});
   let canFinish = () => true;
+  let onWrong = null;
 
   const parts = [];
   if (c.text) parts.push(h('p', { class: 'task-text path-font' }, c.text));
@@ -265,6 +267,20 @@ function showTask(s, i) {
     };
   }
   if (t.type === 'timer') parts.push(focusTimer(c.minutes));
+  if (GAMES[t.type]) {
+    const game = GAMES[t.type](t, { complete: () => finishBtn.click() });
+    parts.push(game.el);
+    if (game.label) finishBtn.textContent = game.label;
+    getAnswer = () => ({ answer: game.answer() });
+    canFinish = () => {
+      const hint = game.ready();
+      if (!hint) return true;
+      feedback.className = 'feedback';
+      feedback.textContent = hint;
+      return false;
+    };
+    onWrong = game.wrong;
+  }
 
   const helpBtn = h('button', {
     class: 'btn ghost help-btn', disabled: s.help.includes(t.id),
@@ -295,7 +311,8 @@ function showTask(s, i) {
       }
       if (!r.correct) {
         feedback.className = 'feedback try-again';
-        feedback.textContent = 'כמעט! נסו תשובה אחרת 🙂';
+        feedback.textContent = r.wrong?.length ? 'כמעט! תקנו את מה שמסומן באדום 🙂' : 'כמעט! נסו תשובה אחרת 🙂';
+        onWrong?.(r.wrong || []);
         finishBtn.disabled = false;
         return;
       }
@@ -308,7 +325,7 @@ function showTask(s, i) {
     }
   };
 
-  const readText = [t.title, c.text, t.type === 'choice' ? c.options.join('. ') : '', t.type === 'checklist' ? c.items.join('. ') : ''].filter(Boolean).join('. ');
+  const readText = [t.title, c.text, t.type === 'choice' ? c.options.join('. ') : '', t.type === 'checklist' ? c.items.join('. ') : '', GAMES[t.type] ? gameSpeech(t) : ''].filter(Boolean).join('. ');
 
   frame(s,
     h('header', { class: 'kid-header' },

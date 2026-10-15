@@ -33,13 +33,46 @@ export const ICONS = ['🚀', '🌈', '🦄', '🐢', '🦁', '⚽', '🎨', '�
 export const TASK_EMOJIS = ['📖', '✏️', '🎧', '🎬', '🤔', '💬', '✅', '⏱️', '🧮', '🎨', '🔍', '🧠', '🎒', '🌟', '🏃', '🧩'];
 
 export const TASK_TYPES = {
-  read: { name: 'קריאה / הסבר', icon: '📖', desc: 'טקסט הסבר או הוראות, עם תמונה אופציונלית' },
-  link: { name: 'סרטון / קישור', icon: '🎬', desc: 'סרטון יוטיוב (מוטמע) או קישור לאתר' },
-  question: { name: 'שאלה פתוחה', icon: '💬', desc: 'התלמיד/ה כותב/ת תשובה שתגיע אלייך' },
-  choice: { name: 'שאלה אמריקאית', icon: '🤔', desc: 'בחירה מכמה תשובות, עם משוב מיידי' },
-  checklist: { name: 'רשימת צעדים', icon: '✅', desc: 'פירוק משימה לצעדים קטנים לסימון' },
-  timer: { name: 'זמן עבודה מרוכז', icon: '⏱️', desc: 'שעון עצר לעבודה ממוקדת לזמן קצוב' },
+  read: { group: 'basic', name: 'קריאה / הסבר', icon: '📖', desc: 'טקסט הסבר או הוראות, עם תמונה אופציונלית' },
+  link: { group: 'basic', name: 'סרטון / קישור', icon: '🎬', desc: 'סרטון יוטיוב (מוטמע) או קישור לאתר' },
+  question: { group: 'basic', name: 'שאלה פתוחה', icon: '💬', desc: 'התלמיד/ה כותב/ת תשובה שתגיע אלייך' },
+  choice: { group: 'basic', name: 'שאלה אמריקאית', icon: '🤔', desc: 'בחירה מכמה תשובות, עם משוב מיידי' },
+  checklist: { group: 'basic', name: 'רשימת צעדים', icon: '✅', desc: 'פירוק משימה לצעדים קטנים לסימון' },
+  timer: { group: 'basic', name: 'זמן עבודה מרוכז', icon: '⏱️', desc: 'שעון עצר לעבודה ממוקדת לזמן קצוב' },
+  memory: { group: 'game', name: 'משחק זיכרון', icon: '🃏', desc: 'הופכים קלפים ומחפשים זוגות תואמים' },
+  wordsearch: { group: 'game', name: 'תפזורת', icon: '🔍', desc: 'מוצאים מילים מוסתרות בטבלת אותיות' },
+  matching: { group: 'game', name: 'התאמה', icon: '🔗', desc: 'מחברים כל פריט לבן הזוג שלו' },
+  order: { group: 'game', name: 'סידור לפי הסדר', icon: '🔢', desc: 'מסדרים שלבים, מילים במשפט או אירועים' },
+  blanks: { group: 'game', name: 'השלמת מילים', icon: '🧩', desc: 'משלימים מילים חסרות מתוך מחסן מילים' },
+  truefalse: { group: 'game', name: 'נכון / לא נכון', icon: '⚖️', desc: 'מחליטים על כל משפט אם הוא נכון' },
 };
+
+export const TASK_GROUPS = [
+  ['basic', 'משימות'],
+  ['game', 'משחקים ותרגול'],
+];
+
+// Hebrew vowel points for the nikud keyboard. "insert" is what a button adds after the letter.
+export const NIKUD = [
+  { insert: '\u05B8', name: 'קָמָץ' },
+  { insert: '\u05B7', name: 'פַּתָח' },
+  { insert: '\u05B5', name: 'צֵירֵה' },
+  { insert: '\u05B6', name: 'סֶגּוֹל' },
+  { insert: '\u05B4', name: 'חִירִיק' },
+  { insert: '\u05B9', name: 'חוֹלָם' },
+  { insert: '\u05BB', name: 'קֻבּוּץ' },
+  { insert: '\u05BC', name: 'דָּגֵשׁ / שׁוּרוּק' },
+  { insert: '\u05B0', name: 'שְׁוָא' },
+  { insert: '\u05B2', name: 'חֲטַף פַּתָח' },
+  { insert: '\u05B1', name: 'חֲטַף סֶגּוֹל' },
+  { insert: '\u05B3', name: 'חֲטַף קָמָץ' },
+  { insert: '\u05C1', name: 'שִׁי"ן יְמָנִית' },
+  { insert: '\u05C2', name: 'שִׂי"ן שְׂמָאלִית' },
+  { insert: 'וֹ', name: 'חוֹלָם מָלֵא', letter: true },
+  { insert: 'וּ', name: 'שׁוּרוּק', letter: true },
+];
+
+export const stripNikud = (s) => String(s).replace(/[\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7]/g, '');
 
 export const BREAK_IDEAS = [
   { icon: '🙆', text: 'מתיחה גדולה – ידיים למעלה!' },

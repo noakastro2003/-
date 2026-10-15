@@ -51,6 +51,45 @@ function checkPassword(pw, stored) {
 
 const DUMMY_HASH = hashPassword('timing-equalizer');
 
+function shuffle(list) {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Shuffles, but never hands back the original order (when that is possible).
+function shuffleChanged(list) {
+  const unique = new Set(list).size > 1;
+  let a;
+  do a = shuffle(list); while (unique && a.every((x, i) => x === list[i]));
+  return a;
+}
+
+// Turns a task's content into what a student may see: answers stay on the server.
+function studentContent(type, c) {
+  switch (type) {
+    case 'choice': {
+      const { correct, explanation, ...rest } = c;
+      return rest;
+    }
+    case 'matching':
+      return { text: c.text, left: c.pairs.map((p) => p.a), right: shuffle(c.pairs.map((p) => p.b)) };
+    case 'order':
+      return { text: c.text, items: shuffleChanged(c.items) };
+    case 'blanks': {
+      const { segments, answers } = v.parseBlanks(c.passage);
+      return { text: c.text, segments, bank: shuffle([...answers, ...c.distractors]) };
+    }
+    case 'truefalse':
+      return { text: c.text, statements: c.statements.map((x) => x.s) };
+    default:
+      return c;
+  }
+}
+
 function randomCode(len = 6) {
   const bytes = crypto.randomBytes(len);
   return Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
@@ -179,8 +218,8 @@ export function createApp(db) {
   // ----- serializers -----
 
   const taskOut = (t, { forStudent = false } = {}) => {
-    const content = JSON.parse(t.content);
-    if (forStudent && t.type === 'choice') delete content.correct;
+    let content = JSON.parse(t.content);
+    if (forStudent) content = studentContent(t.type, content);
     return { id: t.id, type: t.type, title: t.title, emoji: t.emoji, estMinutes: t.est_minutes, content };
   };
 
@@ -272,11 +311,30 @@ export function createApp(db) {
     return t;
   }
 
-  // Validates a student's answer for a task. Returns { correct, answer } where
-  // answer is what gets stored; throws when the answer is incomplete.
+  // Validates a student's answer for a task. Returns { correct, answer, wrong? } where
+  // answer is what gets stored and wrong lists the indices to fix; throws when incomplete.
   function gradeAnswer(t, body) {
     const content = JSON.parse(t.content);
+    const list = (n) => {
+      if (!Array.isArray(body.answer) || body.answer.length !== n) throw new HttpError(400, 'צריך להשלים את כל החלקים');
+      return body.answer;
+    };
+    const graded = (answer, expected, same = (a, b) => a === b) => {
+      const wrong = expected.map((e, i) => (same(answer[i], e) ? -1 : i)).filter((i) => i >= 0);
+      return { correct: wrong.length === 0, answer, wrong };
+    };
+    const sameWord = (a, b) => typeof a === 'string' && v.normalizeWord(a) === v.normalizeWord(b);
     switch (t.type) {
+      case 'matching':
+        return graded(list(content.pairs.length), content.pairs.map((p) => p.b), sameWord);
+      case 'order':
+        return graded(list(content.items.length), content.items, sameWord);
+      case 'blanks': {
+        const { answers } = v.parseBlanks(content.passage);
+        return graded(list(answers.length), answers, sameWord);
+      }
+      case 'truefalse':
+        return graded(list(content.statements.length), content.statements.map((x) => x.t));
       case 'choice': {
         const choice = v.int(body.answer, { min: 0, max: content.options.length - 1, def: -1 });
         if (choice < 0) throw new HttpError(400, 'צריך לבחור תשובה');
@@ -503,17 +561,17 @@ export function createApp(db) {
   // Grade without saving (used by teacher preview).
   route('POST', '/api/s/:code/tasks/:taskId/check', (ctx) => {
     const p = publicPath(ctx, ctx.params.code);
-    const { correct, explanation } = gradeAnswer(studentTask(p, ctx.params.taskId), ctx.body);
-    return { correct, explanation: correct ? explanation || '' : '' };
+    const { correct, explanation, wrong } = gradeAnswer(studentTask(p, ctx.params.taskId), ctx.body);
+    return correct ? { correct, explanation: explanation || '' } : { correct, wrong: wrong || [] };
   });
 
   route('POST', '/api/s/:code/tasks/:taskId/complete', (ctx) => {
     const p = publicPath(ctx, ctx.params.code);
     const s = currentStudent(ctx.req, p);
     const t = studentTask(p, ctx.params.taskId);
-    const { correct, answer, explanation } = gradeAnswer(t, ctx.body);
+    const { correct, answer, explanation, wrong } = gradeAnswer(t, ctx.body);
     q.touchStudent.run(s.id);
-    if (!correct) return { correct: false };
+    if (!correct) return { correct: false, wrong: wrong || [] };
     q.upsertProgress.run(s.id, t.id, answer == null ? null : JSON.stringify(answer));
     q.resolveHelpForTask.run(s.id, t.id);
     return { correct: true, explanation: explanation || '', ...studentState(s) };

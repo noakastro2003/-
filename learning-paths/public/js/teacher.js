@@ -1,7 +1,8 @@
 import { api } from './api.js';
 import { h, mount, toast, modal, confirmDialog, field, busy, formatDate, debounce } from './ui.js';
 import { session, go } from './app.js';
-import { COLORS, BACKGROUNDS, FONTS, MAPS, ICONS, TASK_EMOJIS, TASK_TYPES, applyTheme, fontFamily } from './themes.js';
+import { COLORS, BACKGROUNDS, FONTS, MAPS, ICONS, TASK_EMOJIS, TASK_TYPES, TASK_GROUPS, applyTheme, fontFamily } from './themes.js';
+import { nikudBar } from './nikud.js';
 
 // ---------- shared chrome ----------
 
@@ -318,6 +319,7 @@ function tasksTab(body, state) {
   };
 
   mount(body,
+    nikudBar(body.closest('main') || body),
     field('תיאור המסלול', descInput),
     h('div', { class: 'page-head' }, h('h2', {}, 'משימות'), total),
     list,
@@ -327,46 +329,92 @@ function tasksTab(body, state) {
 }
 
 function chooseTaskType(state, onDone) {
-  const m = modal('איזו משימה להוסיף?', h('div', { class: 'type-grid' },
-    Object.entries(TASK_TYPES).map(([key, t]) => h('button', {
-      class: 'type-card', onclick: () => { m.close(); taskForm(state, key, null, onDone); },
-    }, h('span', { class: 'type-icon', 'aria-hidden': 'true' }, t.icon), h('strong', {}, t.name), h('span', { class: 'muted small' }, t.desc)))),
-  { wide: true });
+  const m = modal('איזו משימה להוסיף?', TASK_GROUPS.map(([group, label]) => [
+    h('h3', { class: 'type-group' }, label),
+    h('div', { class: 'type-grid' },
+      Object.entries(TASK_TYPES).filter(([, t]) => t.group === group).map(([key, t]) => h('button', {
+        class: 'type-card', onclick: () => { m.close(); taskForm(state, key, null, onDone); },
+      }, h('span', { class: 'type-icon', 'aria-hidden': 'true' }, t.icon), h('strong', {}, t.name), h('span', { class: 'muted small' }, t.desc)))),
+  ]), { wide: true });
 }
 
-// Editable list of short strings (answers / checklist steps).
-function listEditor(items, { placeholder, min, max, correct }) {
-  const wrap = h('div', { class: 'list-editor' });
+// Editable list of rows. makeRow(value) returns { el, get }; values() reads all rows.
+function rowsEditor(initial, { min, max, makeRow, addLabel = '+ הוספה' }) {
   const rows = h('div', { class: 'stack' });
-  const name = `correct-${Math.random().toString(36).slice(2)}`;
-  const addBtn = h('button', { type: 'button', class: 'btn ghost small' }, '+ הוספה');
-
-  const addRow = (value = '', isCorrect = false) => {
-    const input = h('input', { type: 'text', value, maxlength: 200, placeholder });
-    const radio = correct && h('input', { type: 'radio', name, checked: isCorrect, 'aria-label': 'התשובה הנכונה', title: 'התשובה הנכונה' });
-    const row = h('div', { class: 'list-row' },
-      radio && h('label', { class: 'correct-pick' }, radio, h('span', { class: 'small' }, 'נכונה')),
-      input,
-      h('button', {
-        type: 'button', class: 'icon-btn', 'aria-label': 'הסרה',
-        onclick: () => { if (rows.children.length > min) { row.remove(); sync(); } },
-      }, '✕'));
+  const entries = [];
+  const addBtn = h('button', { type: 'button', class: 'btn ghost small' }, addLabel);
+  const live = () => entries.filter((e) => e.row.isConnected);
+  const sync = () => { addBtn.disabled = live().length >= max; };
+  const add = (value) => {
+    const r = makeRow(value);
+    const row = h('div', { class: 'list-row' }, r.el, h('button', {
+      type: 'button', class: 'icon-btn', 'aria-label': 'הסרה', title: 'הסרה',
+      onclick: () => { if (live().length > min) { row.remove(); sync(); } },
+    }, '✕'));
+    entries.push({ row, ...r });
     rows.append(row);
     sync();
-    return input;
+    return row;
   };
-  const sync = () => { addBtn.disabled = rows.children.length >= max; };
-  addBtn.onclick = () => addRow().focus();
-
-  (items.length ? items : Array(min).fill('')).forEach((v, i) => addRow(v, correct && i === (correct.index ?? 0)));
-  wrap.append(rows, addBtn);
-  wrap.getValues = () => [...rows.children].map((r) => r.querySelector('input[type=text]').value);
-  wrap.getCorrect = () => {
-    const filled = [...rows.children].filter((r) => r.querySelector('input[type=text]').value.trim());
-    const idx = filled.findIndex((r) => r.querySelector('input[type=radio]')?.checked);
-    return idx < 0 ? 0 : idx;
-  };
+  addBtn.onclick = () => add(undefined).querySelector('input')?.focus();
+  const start = initial.length ? initial : Array(min).fill(undefined);
+  start.forEach((v, i) => add(v, i));
+  const wrap = h('div', { class: 'list-editor' }, rows, addBtn);
+  wrap.values = () => live().map((e) => e.get());
+  wrap.entries = live;
   return wrap;
+}
+
+// List of short strings (answers / steps / words), optionally with a "correct" radio.
+function listEditor(items, { placeholder, min, max, correct }) {
+  const name = `correct-${Math.random().toString(36).slice(2)}`;
+  let i = 0;
+  const editor = rowsEditor(items, {
+    min, max,
+    makeRow: (value = '') => {
+      const input = h('input', { type: 'text', value, maxlength: 200, placeholder });
+      const radio = correct && h('input', { type: 'radio', name, checked: i++ === (correct.index ?? 0), 'aria-label': 'התשובה הנכונה', title: 'התשובה הנכונה' });
+      return {
+        el: [radio && h('label', { class: 'correct-pick' }, radio, h('span', { class: 'small' }, 'נכונה')), input],
+        get: () => input.value,
+        isCorrect: () => radio?.checked,
+      };
+    },
+  });
+  editor.getValues = () => editor.values();
+  editor.getCorrect = () => {
+    const filled = editor.entries().filter((e) => e.get().trim());
+    return Math.max(0, filled.findIndex((e) => e.isCorrect()));
+  };
+  return editor;
+}
+
+function pairEditor(pairs, { min, max, placeholderA, placeholderB }) {
+  return rowsEditor(pairs, {
+    min, max, addLabel: '+ הוספת זוג',
+    makeRow: (p = { a: '', b: '' }) => {
+      const a = h('input', { type: 'text', value: p.a, maxlength: 120, placeholder: placeholderA });
+      const b = h('input', { type: 'text', value: p.b, maxlength: 120, placeholder: placeholderB });
+      return { el: [a, h('span', { class: 'pair-sep', 'aria-hidden': 'true' }, '↔'), b], get: () => ({ a: a.value, b: b.value }) };
+    },
+  });
+}
+
+function statementEditor(statements) {
+  return rowsEditor(statements, {
+    min: 1, max: 10, addLabel: '+ הוספת משפט',
+    makeRow: (x = { s: '', t: true }) => {
+      let truth = x.t;
+      const input = h('input', { type: 'text', value: x.s, maxlength: 300, placeholder: 'משפט' });
+      const seg = h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'האם המשפט נכון?' });
+      const render = () => mount(seg, [[true, '✓ נכון'], [false, '✗ לא נכון']].map(([val, label]) => h('button', {
+        type: 'button', role: 'radio', 'aria-checked': String(truth === val), class: truth === val ? `on ${val ? 'yes' : 'no'}` : '',
+        onclick: () => { truth = val; render(); },
+      }, label)));
+      render();
+      return { el: [input, seg], get: () => ({ s: input.value, t: truth }) };
+    },
+  });
 }
 
 function emojiPicker(current, options) {
@@ -381,13 +429,27 @@ function emojiPicker(current, options) {
   return wrap;
 }
 
+const DEFAULT_TEXT = {
+  memory: 'הפכו שני קלפים בכל פעם ומצאו את כל הזוגות.',
+  wordsearch: 'מצאו את כל המילים בטבלה. גררו מהאות הראשונה עד האחרונה, או לחצו על האות הראשונה ואז על האחרונה.',
+  matching: 'חברו כל פריט לבן הזוג שלו.',
+  order: 'סדרו את הפריטים לפי הסדר הנכון.',
+  blanks: 'השלימו את המילים החסרות.',
+  truefalse: 'קראו כל משפט והחליטו: נכון או לא נכון?',
+};
+
+const TEXT_LABEL = { choice: 'שאלה', question: 'שאלה' };
+const TEXT_PLACEHOLDER = {
+  choice: 'השאלה', question: 'השאלה שהתלמיד/ה יענה/תענה עליה',
+};
+
 function taskForm(state, type, existing, onDone) {
   const meta = TASK_TYPES[type];
   const c = existing?.content || {};
   const title = h('input', { type: 'text', required: true, maxlength: 120, value: existing?.title || '', placeholder: 'שם קצר וברור למשימה' });
   const text = h('textarea', {
-    rows: 4, maxlength: 5000, value: c.text || '',
-    placeholder: type === 'choice' ? 'השאלה' : type === 'question' ? 'השאלה שהתלמיד/ה יענה/תענה עליה' : 'הוראות קצרות ופשוטות',
+    rows: 3, maxlength: 5000, value: existing ? c.text || '' : DEFAULT_TEXT[type] || '',
+    placeholder: TEXT_PLACEHOLDER[type] || 'הוראות קצרות ופשוטות',
   });
   const est = h('input', { type: 'number', min: 1, max: 120, value: existing?.estMinutes ?? (type === 'timer' ? 10 : 5) });
   const emoji = emojiPicker(existing?.emoji ?? meta.icon, TASK_EMOJIS.includes(meta.icon) ? TASK_EMOJIS : [meta.icon, ...TASK_EMOJIS]);
@@ -406,10 +468,7 @@ function taskForm(state, type, existing, onDone) {
     const opts = listEditor(c.options || [], { placeholder: 'תשובה', min: 2, max: 6, correct: { index: c.correct ?? 0 } });
     const explanation = h('input', { type: 'text', maxlength: 1000, value: c.explanation || '', placeholder: 'למשל: נכון! כי…' });
     extra.push(field('תשובות – סמני את הנכונה', opts), field('הסבר אחרי תשובה נכונה (לא חובה)', explanation));
-    collect = () => {
-      const all = opts.getValues();
-      return { options: all.filter((s) => s.trim()), correct: opts.getCorrect(), explanation: explanation.value };
-    };
+    collect = () => ({ options: opts.getValues().filter((s) => s.trim()), correct: opts.getCorrect(), explanation: explanation.value });
   } else if (type === 'checklist') {
     const items = listEditor(c.items || [], { placeholder: 'צעד קטן', min: 1, max: 15 });
     extra.push(field('הצעדים', items));
@@ -419,10 +478,37 @@ function taskForm(state, type, existing, onDone) {
     minutes.addEventListener('input', () => { est.value = minutes.value; });
     extra.push(field('אורך זמן העבודה (דקות)', minutes));
     collect = () => ({ minutes: Number(minutes.value) });
+  } else if (type === 'memory') {
+    const pairs = pairEditor(c.pairs || [], { min: 2, max: 10, placeholderA: 'קלף', placeholderB: 'הקלף התואם (לא חובה)' });
+    extra.push(field('זוגות קלפים', pairs, 'כל זוג = שני קלפים. למשל: 🐶 ↔ כלב, 3+4 ↔ 7, cat ↔ חתול. השאירו את הצד השני ריק לקבלת שני קלפים זהים.'));
+    collect = () => ({ pairs: pairs.values() });
+  } else if (type === 'matching') {
+    const pairs = pairEditor(c.pairs || [], { min: 2, max: 8, placeholderA: 'פריט', placeholderB: 'בן הזוג שלו' });
+    extra.push(field('זוגות להתאמה', pairs, 'התלמידים יקבלו את הצד השני מעורבב.'));
+    collect = () => ({ pairs: pairs.values() });
+  } else if (type === 'wordsearch') {
+    const words = listEditor(c.words || [], { placeholder: 'מילה', min: 3, max: 10 });
+    extra.push(field('מילים להסתרה', words, 'בין 2 ל-10 אותיות למילה. הטבלה נבנית אוטומטית, בלי ניקוד.'));
+    collect = () => ({ words: words.getValues().filter((s) => s.trim()) });
+  } else if (type === 'order') {
+    const items = listEditor(c.items || [], { placeholder: 'פריט', min: 3, max: 10 });
+    extra.push(field('הפריטים – בסדר הנכון', items, 'התלמידים יקבלו אותם מעורבבים ויצטרכו לסדר.'));
+    collect = () => ({ items: items.getValues().filter((s) => s.trim()) });
+  } else if (type === 'blanks') {
+    const passage = h('textarea', { rows: 4, maxlength: 3000, required: true, value: c.passage || '', placeholder: 'הַכֶּלֶב [רָץ] בַּגִּנָּה וְ[שִׂחֵק] עִם הַכַּדּוּר.' });
+    const distractors = listEditor(c.distractors || [], { placeholder: 'מילה מסיחה', min: 0, max: 8 });
+    extra.push(
+      field('הטקסט', passage, 'שימו את המילים שהתלמידים צריכים להשלים בסוגריים מרובעים [ ]. המילים יופיעו במחסן מילים מעורבב.'),
+      field('מילים מסיחות (לא חובה)', distractors, 'מילים נוספות למחסן, כדי שיהיה מאתגר יותר.'));
+    collect = () => ({ passage: passage.value, distractors: distractors.getValues().filter((s) => s.trim()) });
+  } else if (type === 'truefalse') {
+    const statements = statementEditor(c.statements || []);
+    extra.push(field('משפטים', statements));
+    collect = () => ({ statements: statements.values() });
   }
 
   const submit = h('button', { class: 'btn primary', type: 'submit' }, existing ? 'שמירה' : 'הוספה');
-  const m = modal(`${meta.icon} ${existing ? 'עריכת' : 'הוספת'} משימה: ${meta.name}`, h('form', {
+  const form = h('form', {
     class: 'task-form',
     onsubmit: (e) => {
       e.preventDefault();
@@ -443,12 +529,13 @@ function taskForm(state, type, existing, onDone) {
     },
   },
     field('כותרת', title),
-    field(type === 'choice' || type === 'question' ? 'שאלה' : 'הוראות', text),
+    field(TEXT_LABEL[type] || 'הוראות', text),
     extra,
     h('div', { class: 'row wrap' }, field('זמן משוער (דקות)', est)),
     field('סמל', emoji),
-    h('div', { class: 'row end' }, h('button', { type: 'button', class: 'btn ghost', onclick: () => m.close() }, 'ביטול'), submit)),
-  { wide: true });
+    h('div', { class: 'row end' }, h('button', { type: 'button', class: 'btn ghost', onclick: () => m.close() }, 'ביטול'), submit));
+  form.prepend(nikudBar(form));
+  const m = modal(`${meta.icon} ${existing ? 'עריכת' : 'הוספת'} משימה: ${meta.name}`, form, { wide: true });
 }
 
 // ----- design tab -----

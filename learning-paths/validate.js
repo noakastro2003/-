@@ -98,7 +98,48 @@ export function theme(input = {}, base = THEME_DEFAULTS) {
 
 // ---- Tasks ----
 
-export const TASK_TYPES = ['read', 'link', 'question', 'choice', 'checklist', 'timer'];
+export const TASK_TYPES = [
+  'read', 'link', 'question', 'choice', 'checklist', 'timer',
+  'memory', 'wordsearch', 'matching', 'order', 'blanks', 'truefalse',
+];
+
+// Removes Hebrew nikud and cantillation marks (keeps maqaf and punctuation).
+export function stripNikud(s) {
+  return String(s).replace(/[\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7]/g, '');
+}
+
+// Loose comparison for typed/picked words: no nikud, case or extra spaces.
+export function normalizeWord(s) {
+  return stripNikud(s).trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+// Splits "הכלב [רץ] בגינה" into text segments and the hidden answers.
+export function parseBlanks(passage) {
+  const answers = [];
+  const segments = [];
+  let last = 0;
+  for (const m of passage.matchAll(/\[([^\[\]]+)\]/g)) {
+    segments.push(passage.slice(last, m.index));
+    answers.push(m[1].trim());
+    last = m.index + m[0].length;
+  }
+  segments.push(passage.slice(last));
+  return { segments, answers };
+}
+
+function pairList(value, { min, max }) {
+  if (!Array.isArray(value)) value = [];
+  const pairs = value
+    .map((p) => ({
+      a: str(p?.a, { max: 120, field: 'זוג' }),
+      b: str(p?.b, { max: 120, field: 'זוג' }),
+    }))
+    .filter((p) => p.a || p.b);
+  if (pairs.some((p) => !p.a)) throw bad('בכל זוג צריך למלא לפחות את הצד הראשון');
+  if (pairs.length < min) throw bad(`צריך לפחות ${min} זוגות`);
+  if (pairs.length > max) throw bad(`עד ${max} זוגות`);
+  return pairs;
+}
 
 function taskContent(type, c = {}) {
   if (typeof c !== 'object' || c === null) c = {};
@@ -122,6 +163,41 @@ function taskContent(type, c = {}) {
       return { text, items: strList(c.items, { field: 'שלבים', min: 1, maxItems: 15 }) };
     case 'timer':
       return { text, minutes: int(c.minutes, { min: 1, max: 60, def: 10 }) };
+    case 'memory':
+      // b is optional: an empty b means two identical cards.
+      return { text, pairs: pairList(c.pairs, { min: 2, max: 10 }) };
+    case 'matching': {
+      const pairs = pairList(c.pairs, { min: 2, max: 8 });
+      if (pairs.some((p) => !p.b)) throw bad('בכל זוג צריך למלא את שני הצדדים');
+      if (new Set(pairs.map((p) => normalizeWord(p.b))).size !== pairs.length) throw bad('הצד השני של כל זוג צריך להיות שונה');
+      return { text, pairs };
+    }
+    case 'wordsearch': {
+      const words = strList(c.words, { field: 'מילים', min: 2, maxItems: 10, maxLen: 30 });
+      for (const w of words) {
+        const letters = stripNikud(w).replace(/\s+/g, '');
+        if (letters.length < 2 || letters.length > 10) throw bad(`המילה "${w}" צריכה להיות באורך 2 עד 10 אותיות`);
+      }
+      return { text, words };
+    }
+    case 'order':
+      return { text, items: strList(c.items, { field: 'פריטים', min: 2, maxItems: 10 }) };
+    case 'blanks': {
+      const passage = str(c.passage, { max: 3000, required: true, field: 'טקסט להשלמה' });
+      const { answers } = parseBlanks(passage);
+      if (!answers.length) throw bad('סמנו לפחות מילה אחת להשלמה בסוגריים מרובעים, למשל: הכלב [רץ] בגינה');
+      if (answers.length > 15) throw bad('עד 15 מילים להשלמה');
+      return { text, passage, distractors: strList(c.distractors, { field: 'מילים מסיחות', maxItems: 8, maxLen: 60 }) };
+    }
+    case 'truefalse': {
+      const list = Array.isArray(c.statements) ? c.statements : [];
+      const statements = list
+        .map((x) => ({ s: str(x?.s, { max: 300, field: 'משפט' }), t: Boolean(x?.t) }))
+        .filter((x) => x.s);
+      if (!statements.length) throw bad('צריך לפחות משפט אחד');
+      if (statements.length > 10) throw bad('עד 10 משפטים');
+      return { text, statements };
+    }
   }
   throw bad('סוג משימה לא מוכר');
 }

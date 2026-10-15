@@ -25,6 +25,10 @@ export const TEMPLATES = {
         type: 'question', title: 'מה דעתי?', emoji: '💬', estMinutes: 4,
         content: { text: 'מה הייתם עושים אם הייתם הדמות הראשית? כתבו משפט אחד או שניים.' },
       },
+      {
+        type: 'memory', title: 'משחק זיכרון', emoji: '🃏', estMinutes: 4,
+        content: { text: 'הפכו שני קלפים בכל פעם ומצאו את כל הזוגות.', pairs: [{ a: '🐢', b: 'צב' }, { a: '🐇', b: 'ארנב' }, { a: '🦊', b: 'שועל' }, { a: '🌳', b: 'עץ' }] },
+      },
     ],
   },
 };

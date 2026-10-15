@@ -6,7 +6,12 @@ export function h(tag, attrs = {}, ...children) {
     if (k.startsWith('on') && typeof val === 'function') el.addEventListener(k.slice(2), val);
     else if (k === 'class') el.className = val;
     else if (k === 'value') el.value = val;
-    else if (k === 'style' && typeof val === 'object') Object.assign(el.style, val);
+    else if (k === 'style' && typeof val === 'object') {
+      for (const [prop, v] of Object.entries(val)) {
+        if (prop.startsWith('--')) el.style.setProperty(prop, v);
+        else el.style[prop] = v;
+      }
+    }
     else if (k === 'dataset') Object.assign(el.dataset, val);
     else if (k in el && typeof val !== 'string') el[k] = val;
     else el.setAttribute(k, val === true ? '' : val);

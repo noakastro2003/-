@@ -18,6 +18,20 @@ npm test           # בדיקות
 - `PORT` (ברירת מחדל 3000), `DB_FILE` (ברירת מחדל `data/app.db`), `COOKIE_SECURE=1` כשמריצים מאחורי HTTPS.
 - `ANTHROPIC_API_KEY` – מפעיל את מחולל המסלולים. בלי מפתח כל השאר עובד, והמחולל מציג הודעה שהוא לא מוגדר. מפתח יוצרים ב-[console.anthropic.com](https://console.anthropic.com).
 
+## העלאה לאינטרנט (Render)
+
+בשורש הריפו יש קובץ `render.yaml` שמגדיר הכול: שרת Node, דיסק קבוע למסד הנתונים ובדיקת תקינות.
+
+1. נרשמים ל-[render.com](https://render.com) עם חשבון ה-GitHub.
+2. **New → Blueprint**, בוחרים את הריפו ולוחצים **Apply**.
+3. Render יבקש את הערך של `ANTHROPIC_API_KEY` (בשביל מחולל המסלולים). אפשר להשאיר ריק ולהוסיף אחר כך בלשונית Environment.
+4. אחרי כמה דקות המערכת זמינה בכתובת `https://learning-paths.onrender.com` (או דומה). דומיין משלך מחברים ב-Settings → Custom Domains.
+
+הערות:
+- הדיסק דורש חבילה בתשלום (Starter). בחבילה החינמית כל הנתונים נמחקים בכל הפעלה מחדש.
+- גיבוי: מומלץ להפעיל snapshots לדיסק בהגדרות של Render.
+- Render קורא את `render.yaml` מהענף שבוחרים בהגדרות השירות.
+
 ## מה יש למורה
 
 - **הרשמה וכניסה** – סיסמאות מוצפנות (scrypt), עוגיית סשן HttpOnly.

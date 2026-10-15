@@ -379,6 +379,12 @@ export function createApp(db, { ai } = {}) {
     routes.push({ method, re, handler, maxBody: opts.maxBody });
   };
 
+  // Used by the hosting platform to know the server is up and the database answers.
+  route('GET', '/api/health', () => {
+    db.prepare('SELECT 1').get();
+    return { ok: true };
+  });
+
   route('POST', '/api/auth/register', (ctx) => {
     const name = v.str(ctx.body.name, { max: 80, required: true, field: 'שם' });
     const mail = v.email(ctx.body.email);

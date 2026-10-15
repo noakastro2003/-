@@ -149,6 +149,12 @@ test('student flow: join, complete, help, teacher progress', async () => {
   assert.equal((await kid('GET', `/api/s/${path.code}/me`, undefined, auth)).status, 401);
 });
 
+test('health check', async () => {
+  const res = await fetch(`${base}/api/health`);
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { ok: true });
+});
+
 test('static files and security headers', async () => {
   const res = await fetch(`${base}/`);
   assert.equal(res.status, 200);

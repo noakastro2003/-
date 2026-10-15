@@ -281,6 +281,15 @@ if MARKG:
         font_contours['shindot'] = mir   # orientation is fixed when drawn
         MARKG['shindot'] = dict(unicode=0x5C1, mark_class='shinabove', _anchor=(ax, ay))
         for k in ('sindot', 'shindot'): SB[k] = (0, 0); ADV[k] = 0
+    if 'holam' in MARKG:
+        # holam haser for vav (U+05BA, e.g. מצוֺת) keeps the dot at the top-left like on any letter;
+        # plain holam on vav is holam male: the dot sits right above the vav
+        font_contours['holamhaser'] = font_contours['holam']
+        MARKG['holamhaser'] = dict(unicode=0x5BA, mark_class='haser', _anchor=MARKG['holam']['_anchor'])
+        SB['holamhaser'] = (0, 0); ADV['holamhaser'] = 0
+        bp = BoundsPen(None); [_emit(c, bp, 0) for c in font_contours['holam']]
+        hcx = (bp.bounds[0] + bp.bounds[2]) / 2
+        hax, hay = MARKG['holam']['_anchor']
     dot = MARKG.get('dagesh')
     if dot:
         bp = BoundsPen(None); [_emit(c, bp, 0) for c in font_contours['dagesh']]
@@ -300,7 +309,11 @@ if MARKG:
         mid = (top + bottom) / 2
         midrows = [rows[y] for y in ys if abs(y * RES - mid) < 0.15 * (top - bottom)] or body
         a = {'below': (cx + lsb, 0), 'above': (min(r[0] for r in upper) + lsb, top),
+             'haser': (min(r[0] for r in upper) + lsb, top),
              'sinabove': (min(r[0] for r in upper) + lsb, top), 'shinabove': (max(r[1] for r in upper) + lsb, top)}
+        if k == 'vav' and 'holam' in MARKG:   # holam male: dot centred over the vav
+            ux0 = min(r[0] for r in upper); ux1 = max(r[1] for r in upper)
+            a['above'] = ((ux0 + ux1) / 2 + lsb + (hax - hcx), top)
         if dot:
             if k == 'vav':   # shuruk: the dot beside the vav, as on the sheet
                 a['dagesh'] = (min(r[0] for r in midrows) + lsb, mid)

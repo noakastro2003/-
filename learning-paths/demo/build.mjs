@@ -22,7 +22,7 @@ fs.writeFileSync(path.join(out, 'js', 'env.js'), 'export const DEMO = true;\n');
 fs.writeFileSync(path.join(out, 'index.html'), `<title>מסלולי למידה</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playpen+Sans+Hebrew:wght@400;600&family=Rubik:wght@400;500;700&family=Secular+One&family=Varela+Round&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playpen+Sans+Hebrew:wght@400;600&family=Rubik:wght@400;500;700&family=Secular+One&family=Suez+One&family=Varela+Round&display=swap">
 <link rel="stylesheet" href="css/style.css">
 <script>document.documentElement.lang = 'he'; document.documentElement.dir = 'rtl';</script>
 <div id="app" aria-live="polite"></div>

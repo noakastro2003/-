@@ -3,7 +3,7 @@
 import * as v from '../validate.js';
 import { HttpError } from '../validate.js';
 import { TEMPLATES } from '../templates.js';
-import { studentContent, gradeAnswer, parseAiInput, pathFromAi } from '../logic.js';
+import { studentContent, gradeAnswer, parseAiInput, pathFromAi, randomPin } from '../logic.js';
 import { SYSTEM_PROMPT, GRADES, AI_TASK_TYPES, buildRequestText, jsonFormatInstructions } from '../ai-prompt.js';
 import { docxToText } from '../docx.js';
 import * as billing from '../billing.js';
@@ -48,7 +48,7 @@ function save(p, { touch = true } = {}) {
 
 function createPath({ title, description = '', theme = v.THEME_DEFAULTS, tasks = [], published = false }) {
   const p = {
-    id: newId(), title, description, code: newCode(), theme: clone(theme), published,
+    id: newId(), title, description, code: newCode(), theme: clone(theme), published, approvalPin: randomPin(),
     createdAt: now(), updatedAt: now(), tasks: [], students: [], progress: {}, help: [],
   };
   for (const t of tasks) p.tasks.push({ id: newId(), ...clone(t) });
@@ -61,7 +61,7 @@ const ready = (async () => {
   store = await openStore(() => toast('השמירה נכשלה. בדקי את החיבור לאינטרנט.', 'error'));
   meta = store.docs.meta || { nextId: 1 };
   for (const [id, body] of Object.entries(store.docs)) {
-    if (id.startsWith('path-')) paths.set(body.id, body);
+    if (id.startsWith('path-')) paths.set(body.id, { approvalPin: randomPin(), ...body });
   }
   // Visitors from before credits existed start with the same free credits as new ones.
   if (!meta.account) {
@@ -105,11 +105,11 @@ const teacher = () => ({ id: 1, name: meta.teacherName || 'מורה', email: '' 
 
 const pathOut = (p) => ({
   id: p.id, title: p.title, description: p.description, code: p.code,
-  theme: v.theme(p.theme), published: p.published, createdAt: p.createdAt, updatedAt: p.updatedAt,
+  theme: v.theme(p.theme), published: p.published, approvalPin: p.approvalPin, createdAt: p.createdAt, updatedAt: p.updatedAt,
 });
 
 const taskOut = (t, forStudent = false) => ({
-  id: t.id, type: t.type, title: t.title, emoji: t.emoji, estMinutes: t.estMinutes,
+  id: t.id, type: t.type, title: t.title, emoji: t.emoji, estMinutes: t.estMinutes, needsApproval: Boolean(t.needsApproval),
   content: forStudent ? studentContent(t.type, clone(t.content)) : clone(t.content),
 });
 
@@ -146,11 +146,27 @@ function studentTask(p, id) {
   return t;
 }
 
-const studentState = (p, s) => ({
-  student: { id: s.id, name: s.name },
-  done: clone(p.progress[s.id] || {}),
-  help: p.help.filter((h) => h.studentId === s.id && !h.resolved).map((h) => h.taskId),
-});
+// done: approved (or never needed approval); pending: finished, waiting for the teacher.
+function studentState(p, s) {
+  const done = {};
+  const pending = [];
+  for (const [taskId, d] of Object.entries(p.progress[s.id] || {})) {
+    if (d.approved === false) pending.push(Number(taskId));
+    else done[taskId] = { answer: d.answer, completedAt: d.completedAt };
+  }
+  return { student: { id: s.id, name: s.name }, done, pending, help: p.help.filter((h) => h.studentId === s.id && !h.resolved).map((h) => h.taskId) };
+}
+
+// The teacher's decision on a pending task: approve, or send it back to redo.
+function decide(p, s, t, decision) {
+  const d = p.progress[s.id]?.[t.id];
+  if (!d) throw new HttpError(400, 'המשימה עוד לא הושלמה');
+  if (decision === 'redo') delete p.progress[s.id][t.id];
+  else if (decision === 'approve') d.approved = true;
+  else throw new HttpError(400, 'החלטה לא תקינה');
+  for (const h of p.help) if (h.studentId === s.id && h.taskId === t.id) h.resolved = true;
+  save(p, { touch: false });
+}
 
 // ---------- AI generator (through the viewer's own Claude account) ----------
 
@@ -289,6 +305,7 @@ route('GET', '/api/paths', () => ({
     .map((p) => ({
       ...pathOut(p), taskCount: p.tasks.length, studentCount: p.students.length,
       openHelp: p.help.filter((h) => !h.resolved).length,
+      pendingApproval: Object.values(p.progress).reduce((n, byTask) => n + Object.values(byTask).filter((d) => d.approved === false).length, 0),
     })),
 }));
 
@@ -373,7 +390,8 @@ route('GET', '/api/paths/:id/progress', ({ params }) => {
   return {
     tasks: p.tasks.map((t) => taskOut(t)),
     students: p.students.map((s) => ({
-      id: s.id, name: s.name, joinedAt: s.createdAt, lastActive: s.lastActive, done: clone(p.progress[s.id] || {}),
+      id: s.id, name: s.name, joinedAt: s.createdAt, lastActive: s.lastActive,
+      done: Object.fromEntries(Object.entries(p.progress[s.id] || {}).map(([k, d]) => [k, { ...d, approved: d.approved !== false }])),
     })).sort((a, b) => a.name.localeCompare(b.name, 'he')),
     help: p.help.filter((h) => !h.resolved).map(({ id, studentId, taskId, createdAt }) => ({ id, studentId, taskId, createdAt })),
   };
@@ -451,10 +469,44 @@ route('POST', '/api/s/:code/tasks/:taskId/complete', ({ params, body, headers })
     save(p, { touch: false });
     return { correct: false, wrong: wrong || [] };
   }
-  (p.progress[s.id] ||= {})[t.id] = { answer: answer ?? null, completedAt: now() };
+  const before = p.progress[s.id]?.[t.id];
+  // Redoing an approved task keeps it approved.
+  const approved = !t.needsApproval || Boolean(before && before.approved !== false);
+  (p.progress[s.id] ||= {})[t.id] = { answer: answer ?? null, completedAt: now(), approved };
   for (const h of p.help) if (h.studentId === s.id && h.taskId === t.id) h.resolved = true;
   save(p, { touch: false });
   return { correct: true, explanation: explanation || '', ...studentState(p, s) };
+});
+
+const pinTries = new Map(); // student id -> recent attempt times
+route('POST', '/api/s/:code/tasks/:taskId/approve', ({ params, body, headers }) => {
+  const p = byCode(params.code);
+  const s = student(p, headers);
+  const t = studentTask(p, params.taskId);
+  const tries = (pinTries.get(s.id) || []).filter((x) => Date.now() - x < 10 * 60 * 1000);
+  tries.push(Date.now());
+  pinTries.set(s.id, tries);
+  if (tries.length > 8) throw new HttpError(429, 'יותר מדי ניסיונות, נסו שוב בעוד כמה דקות');
+  if (body.pin !== p.approvalPin) throw new HttpError(403, 'הקוד לא נכון');
+  decide(p, s, t, body.decision);
+  return studentState(p, s);
+});
+
+route('POST', '/api/students/:id/tasks/:taskId/decision', ({ params, body }) => {
+  for (const p of paths.values()) {
+    const s = p.students.find((x) => x.id === Number(params.id));
+    if (!s) continue;
+    decide(p, s, studentTask(p, params.taskId), body.decision);
+    return { ok: true };
+  }
+  throw new HttpError(404, 'התלמיד/ה לא נמצא/ה');
+});
+
+route('PUT', '/api/paths/:id/pin', ({ params, body }) => {
+  const p = getPath(params.id);
+  p.approvalPin = body.pin === undefined ? randomPin() : v.pin(body.pin);
+  save(p, { touch: false });
+  return { path: pathOut(p) };
 });
 
 route('POST', '/api/s/:code/tasks/:taskId/undo', ({ params, headers }) => {

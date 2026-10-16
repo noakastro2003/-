@@ -9,6 +9,9 @@ function randomInt(n) {
   return crypto.getRandomValues(new Uint32Array(1))[0] % n;
 }
 
+// The 4-digit code a teacher types on a student's screen to approve their work.
+export const randomPin = () => String(randomInt(10000)).padStart(4, '0');
+
 export function shuffle(list) {
   const a = [...list];
   for (let i = a.length - 1; i > 0; i--) {

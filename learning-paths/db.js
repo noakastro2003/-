@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { BILLING_DEFAULTS } from './billing.js';
+import { randomPin } from './logic.js';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS teachers (
@@ -90,6 +91,17 @@ function migrate(db) {
   if (!cols.has('sub_status')) db.exec('ALTER TABLE teachers ADD COLUMN sub_status TEXT');
   if (!cols.has('sub_period_end')) db.exec('ALTER TABLE teachers ADD COLUMN sub_period_end TEXT');
   if (!cols.has('sub_credits_left')) db.exec('ALTER TABLE teachers ADD COLUMN sub_credits_left INTEGER NOT NULL DEFAULT 0');
+
+  // Teacher approval: tasks that stop the student, each path's approval code, and
+  // progress rows waiting for approval (approved = 0).
+  const has = (table, col) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
+  if (!has('tasks', 'needs_approval')) db.exec('ALTER TABLE tasks ADD COLUMN needs_approval INTEGER NOT NULL DEFAULT 0');
+  if (!has('progress', 'approved')) db.exec('ALTER TABLE progress ADD COLUMN approved INTEGER NOT NULL DEFAULT 1');
+  if (!has('paths', 'approval_pin')) {
+    db.exec('ALTER TABLE paths ADD COLUMN approval_pin TEXT');
+    const set = db.prepare('UPDATE paths SET approval_pin = ? WHERE id = ?');
+    for (const { id } of db.prepare('SELECT id FROM paths').all()) set.run(randomPin(), id);
+  }
 }
 
 // Run fn inside a transaction; rolls back on throw.

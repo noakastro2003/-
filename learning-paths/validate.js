@@ -46,6 +46,11 @@ export function email(value) {
   return s;
 }
 
+export function pin(value) {
+  if (typeof value !== 'string' || !/^\d{4,6}$/.test(value)) throw bad('קוד האישור צריך להיות 4 עד 6 ספרות');
+  return value;
+}
+
 export function password(value) {
   if (typeof value !== 'string' || value.length < 8) throw bad('הסיסמה חייבת להכיל לפחות 8 תווים');
   if (value.length > 200) throw bad('הסיסמה ארוכה מדי');
@@ -65,13 +70,22 @@ export const THEME_DEFAULTS = Object.freeze({
   breakMinutes: 2,
   celebrate: true,
   readAloud: true,
+  mode: 'light',          // 'dark' = night mode for the student screens
+  stations: 'circle',     // shape of the stations on the map
+  card: 'soft',           // style of the task cards
+  celebration: 'confetti',
+  buddy: '',              // a companion emoji that cheers the student on ('' = none)
 });
 
 const ONE_OF = {
-  background: ['plain', 'dots', 'waves', 'stars', 'grid'],
-  font: ['rounded', 'handwriting', 'bold', 'clean'],
-  map: ['road', 'cards'],
+  background: ['plain', 'dots', 'waves', 'stars', 'grid', 'notebook', 'confetti', 'sunset', 'bubbles'],
+  font: ['rounded', 'handwriting', 'bold', 'festive', 'clean'],
+  map: ['road', 'cards', 'timeline'],
   order: ['sequential', 'free'],
+  mode: ['light', 'dark'],
+  stations: ['circle', 'rounded', 'hex'],
+  card: ['soft', 'bold', 'glass'],
+  celebration: ['confetti', 'stars', 'balloons', 'hearts', 'bubbles'],
 };
 
 export function theme(input = {}, base = THEME_DEFAULTS) {
@@ -88,6 +102,7 @@ export function theme(input = {}, base = THEME_DEFAULTS) {
     }
   }
   if (input.icon !== undefined) t.icon = str(input.icon, { max: 16, field: 'סמל' }) || THEME_DEFAULTS.icon;
+  if (input.buddy !== undefined) t.buddy = str(input.buddy, { max: 16, field: 'דמות מלווה' });
   if (input.breakEvery !== undefined) t.breakEvery = int(input.breakEvery, { min: 0, max: 20, def: t.breakEvery });
   if (input.breakMinutes !== undefined) t.breakMinutes = int(input.breakMinutes, { min: 1, max: 15, def: t.breakMinutes });
   for (const key of ['celebrate', 'readAloud']) {
@@ -209,6 +224,8 @@ export function task(input = {}) {
     title: str(input.title, { max: 120, required: true, field: 'כותרת' }),
     emoji: str(input.emoji, { max: 16, field: 'סמל' }),
     estMinutes: int(input.estMinutes, { min: 1, max: 120, def: 5 }),
+    // The student stops after this task until the teacher approves it.
+    needsApproval: Boolean(input.needsApproval),
     content: taskContent(input.type, input.content),
   };
 }

@@ -50,6 +50,7 @@ export async function studentPage(app, code) {
   }
 
   applyTheme(app, data.path.theme);
+  document.body.classList.toggle('student-dark', data.path.theme.mode === 'dark');
   const s = {
     app, code,
     path: data.path,
@@ -60,6 +61,7 @@ export async function studentPage(app, code) {
     name: '',
     done: {},
     help: [],
+    pending: [],
     sinceBreak: 0,
   };
 
@@ -86,6 +88,7 @@ function applyState(s, st) {
   s.name = st.student.name;
   s.done = st.done;
   s.help = st.help;
+  s.pending = st.pending || [];
 }
 
 function frame(s, ...children) {
@@ -116,6 +119,7 @@ function showJoin(s) {
       },
     },
       h('div', { class: 'big-emoji', 'aria-hidden': 'true' }, s.theme.icon),
+      s.theme.buddy && buddySays(s, 'היי! אני אלווה אותך לאורך כל המסלול 👋'),
       h('h1', { class: 'path-font' }, s.path.title),
       s.path.description && h('p', { class: 'path-font desc' }, s.path.description),
       h('p', {}, `${s.tasks.length} משימות קטנות מחכות לך`),
@@ -131,6 +135,9 @@ const isDone = (s, t) => Boolean(s.done[t.id]);
 const doneCount = (s) => s.tasks.filter((t) => isDone(s, t)).length;
 const nextIndex = (s) => s.tasks.findIndex((t) => !isDone(s, t));
 const isOpen = (s, i) => s.theme.order === 'free' || isDone(s, s.tasks[i]) || i === nextIndex(s);
+const isPending = (s, t) => s.pending.includes(t.id);
+// A finished task that waits for the teacher opens the approval screen, not the task again.
+const openTask = (s, i) => (isPending(s, s.tasks[i]) ? showApproval(s, i) : showTask(s, i));
 
 function progressBar(s) {
   const n = doneCount(s);
@@ -162,16 +169,20 @@ function showMap(s) {
     const open = isOpen(s, i);
     const current = i === next;
     const needsHelp = s.help.includes(t.id);
-    return h('li', { class: `station ${done ? 'done' : current ? 'current' : open ? 'open' : 'locked'}` },
+    const pending = isPending(s, t);
+    return h('li', { class: `station ${done ? 'done' : current ? 'current' : open ? 'open' : 'locked'}${pending ? ' pending' : ''}` },
       h('button', {
-        class: 'station-btn', disabled: !open, onclick: () => showTask(s, i),
-        'aria-label': `משימה ${i + 1}: ${t.title}${done ? ' – הושלמה' : open ? '' : ' – נעולה'}`,
+        class: 'station-btn', disabled: !open, onclick: () => openTask(s, i),
+        'aria-label': `משימה ${i + 1}: ${t.title}${done ? ' – הושלמה' : pending ? ' – מחכה לאישור המורה' : open ? '' : ' – נעולה'}`,
       },
-        h('span', { class: 'station-dot', 'aria-hidden': 'true' }, done ? '✓' : open ? (t.emoji || TASK_TYPES[t.type].icon) : '🔒'),
+        h('span', { class: 'station-dot', 'aria-hidden': 'true' }, done ? '✓' : pending ? '⏳' : open ? (t.emoji || TASK_TYPES[t.type].icon) : '🔒'),
         h('span', { class: 'station-label' },
           h('span', { class: 'station-title path-font' }, t.title),
-          h('span', { class: 'station-meta' }, `${t.estMinutes} דק׳`, needsHelp ? ' · ✋ ביקשתי עזרה' : ''))),
-      current && h('span', { class: 'you-are-here', 'aria-hidden': 'true' }, 'את/ה כאן!'));
+          h('span', { class: 'station-meta' }, `${t.estMinutes} דק׳`,
+            pending ? ' · 🧑‍🏫 מחכה לאישור המורה' : needsHelp ? ' · ✋ ביקשתי עזרה' : ''))),
+      current && (s.theme.buddy
+        ? h('span', { class: 'buddy-here', 'aria-hidden': 'true', title: 'את/ה כאן!' }, s.theme.buddy)
+        : h('span', { class: 'you-are-here', 'aria-hidden': 'true' }, 'את/ה כאן!')));
   });
 
   frame(s,
@@ -181,8 +192,8 @@ function showMap(s) {
       progressBar(s),
       allDone
         ? h('div', { class: 'card center finish-mini' }, h('span', { class: 'big-emoji' }, '🏆'), h('p', {}, 'סיימת את כל המסלול! איזה כיף!'))
-        : h('button', { class: 'btn primary big go-btn', onclick: () => showTask(s, next) },
-          doneCount(s) ? 'ממשיכים למשימה הבאה ←' : 'מתחילים! ←'),
+        : h('button', { class: 'btn primary big go-btn', onclick: () => openTask(s, next) },
+          isPending(s, s.tasks[next]) ? '🧑‍🏫 מחכים לאישור המורה' : doneCount(s) ? 'ממשיכים למשימה הבאה ←' : 'מתחילים! ←'),
       h('ol', { class: `map map-${s.theme.map}` }, stations,
         h('li', { class: `station goal ${allDone ? 'done' : ''}`, 'aria-hidden': 'true' },
           h('span', { class: 'station-dot' }, '🏁')))));
@@ -306,7 +317,8 @@ function showTask(s, i) {
       let r;
       if (s.preview) {
         r = await api('POST', `/api/s/${s.code}/tasks/${t.id}/check`, body);
-        if (r.correct) s.done[t.id] = { answer: body.answer ?? null };
+        if (r.correct && t.needsApproval && !done) s.pending = [...new Set([...s.pending, t.id])];
+        else if (r.correct) s.done[t.id] = { answer: body.answer ?? null };
       } else {
         r = await api('POST', `/api/s/${s.code}/tasks/${t.id}/complete`, body, auth(s));
         if (r.correct) applyState(s, r);
@@ -319,6 +331,7 @@ function showTask(s, i) {
         return;
       }
       if (done) return showMap(s);
+      if (isPending(s, t)) return showApproval(s, i, r.explanation);
       s.sinceBreak++;
       showWellDone(s, i, r.explanation);
     } catch (err) {
@@ -340,7 +353,8 @@ function showTask(s, i) {
           h('span', { class: 'task-big-emoji', 'aria-hidden': 'true' }, t.emoji || TASK_TYPES[t.type].icon),
           h('div', {},
             h('h1', { class: 'path-font' }, t.title),
-            h('span', { class: 'chip' }, `⏳ בערך ${t.estMinutes} דקות`)),
+            h('span', { class: 'chip' }, `⏳ בערך ${t.estMinutes} דקות`),
+            t.needsApproval && h('span', { class: 'chip chip-approval' }, '🧑‍🏫 בסוף המורה מאשרת')),
           s.theme.readAloud && h('button', { class: 'icon-btn read-btn', 'aria-label': 'הקראה', title: 'הקראה בקול', onclick: () => speak(readText) }, '🔊')),
         parts,
         feedback,
@@ -413,11 +427,133 @@ function chime() {
   } catch { /* audio unavailable */ }
 }
 
+// ----- teacher approval -----
+
+// The student finished a task that needs the teacher's OK. The teacher comes over and
+// types the path's code on this screen: approve (continue) or send it back to fix.
+function showApproval(s, i, explanation) {
+  window.scrollTo(0, 0);
+  const t = s.tasks[i];
+  let pin = '';
+  const dots = h('div', { class: 'pin-dots', 'aria-live': 'polite' });
+  const message = h('p', { class: 'pin-message', role: 'status' });
+  const approveBtn = h('button', { class: 'btn primary big', disabled: true, onclick: () => decide('approve') }, '✓ אישור – אפשר להמשיך');
+  const redoBtn = h('button', { class: 'btn ghost', disabled: true, onclick: () => decide('redo') }, '↺ צריך לתקן');
+  const draw = () => {
+    mount(dots, Array.from({ length: Math.max(4, pin.length) }, (_, k) => h('span', { class: `pin-dot${k < pin.length ? ' on' : ''}` })));
+    dots.setAttribute('aria-label', `הוקלדו ${pin.length} ספרות`);
+    approveBtn.disabled = redoBtn.disabled = pin.length < 4;
+  };
+  const press = (key) => {
+    message.textContent = '';
+    message.className = 'pin-message';
+    if (key === 'del') pin = pin.slice(0, -1);
+    else if (pin.length < 6) pin += key;
+    draw();
+  };
+
+  async function decide(decision) {
+    approveBtn.disabled = redoBtn.disabled = true;
+    try {
+      applyState(s, await api('POST', `/api/s/${s.code}/tasks/${t.id}/approve`, { pin, decision }, auth(s)));
+      document.removeEventListener('keydown', onKey);
+      if (decision === 'redo') {
+        toast('המורה ביקשה לתקן – אפשר לנסות שוב 💪', 'info');
+        return showTask(s, i);
+      }
+      s.sinceBreak++;
+      showWellDone(s, i, explanation);
+    } catch (err) {
+      pin = '';
+      draw();
+      message.className = 'pin-message wrong';
+      message.textContent = err.status === 403 ? 'הקוד לא נכון. נסי שוב.' : err.message;
+    }
+  }
+
+  const onKey = (e) => {
+    if (!dots.isConnected) return document.removeEventListener('keydown', onKey);
+    if (/^\d$/.test(e.key)) press(e.key);
+    else if (e.key === 'Backspace') press('del');
+    else if (e.key === 'Enter' && pin.length >= 4) decide('approve');
+  };
+  document.addEventListener('keydown', onKey);
+
+  const callBtn = h('button', {
+    class: 'btn secondary', disabled: s.help.includes(t.id) || s.preview,
+    onclick: async () => {
+      try {
+        applyState(s, await api('POST', `/api/s/${s.code}/tasks/${t.id}/help`, {}, auth(s)));
+        callBtn.disabled = true;
+        callBtn.textContent = '✋ המורה קיבלה הודעה';
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    },
+  }, s.help.includes(t.id) ? '✋ המורה קיבלה הודעה' : '✋ לקרוא למורה');
+
+  const keypad = h('div', { class: 'pin-pad', role: 'group', 'aria-label': 'מקלדת קוד' },
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0'].map((k) => h('button', {
+      class: `pin-key${k === 'del' ? ' del' : ''}`, 'aria-label': k === 'del' ? 'מחיקה' : k, onclick: () => press(k),
+    }, k === 'del' ? '⌫' : k)));
+
+  frame(s,
+    kidHeader(s),
+    h('main', { class: 'center-page kid' },
+      h('div', { class: 'card narrow center approval-card' },
+        h('div', { class: 'big-emoji', 'aria-hidden': 'true' }, '🧑‍🏫'),
+        h('h1', { class: 'path-font' }, 'כל הכבוד! עכשיו המורה מאשרת'),
+        h('p', {}, 'סיימת את ', h('strong', {}, t.title), '. קראו למורה – היא תקליד את הקוד שלה כדי שתוכלו להמשיך.'),
+        s.preview
+          ? [h('p', { class: 'muted small' }, 'בתצוגה מקדימה אין צורך בקוד.'),
+            h('button', { class: 'btn primary big', onclick: () => { s.pending = s.pending.filter((x) => x !== t.id); s.done[t.id] = { answer: null }; s.sinceBreak++; showWellDone(s, i, explanation); } }, 'המשך ←')]
+          : [callBtn,
+            h('div', { class: 'pin-box' },
+              h('p', { class: 'pin-label' }, 'למורה: הקלידי את קוד האישור'),
+              dots, message, keypad,
+              h('div', { class: 'stack' }, approveBtn, redoBtn))],
+        h('button', { class: 'btn ghost small', onclick: () => { document.removeEventListener('keydown', onKey); showMap(s); } }, 'חזרה למפה'))));
+  draw();
+}
+
 // ----- rewards & breaks -----
+
+const CHEERS = ['איזה יופי! ממשיכים יחד?', 'ידעתי שתצליח/י!', 'עוד צעד קדימה במסלול!', 'אני גאה בך!', 'וואו, איזו עבודה!'];
+
+function buddySays(s, text) {
+  return h('div', { class: 'buddy-say' },
+    h('span', { class: 'buddy-face', 'aria-hidden': 'true' }, s.theme.buddy),
+    h('span', { class: 'bubble path-font' }, text));
+}
 
 const PRAISE = ['כל הכבוד!', 'מעולה!', 'יופי של עבודה!', 'אלופים!', 'וואו, איזה יופי!', 'עוד צעד קדימה!'];
 
-function confetti(container) {
+const PARTICLES = {
+  stars: { chars: ['⭐', '🌟', '✨'] },
+  hearts: { chars: ['💖', '💜', '💛', '💙', '💚'] },
+  balloons: { chars: ['🎈', '🎈', '🎈', '🎉'], rise: true },
+  bubbles: { chars: ['🫧'], rise: true },
+};
+
+// A short burst over the page. style: 'confetti' or one of PARTICLES.
+export function celebrate(container, style = 'confetti') {
+  const emoji = PARTICLES[style];
+  if (emoji) {
+    const layer = h('div', { class: `confetti emoji${emoji.rise ? ' rise' : ''}`, 'aria-hidden': 'true' });
+    for (let i = 0; i < 34; i++) {
+      layer.append(h('i', {
+        style: {
+          left: `${Math.random() * 96}%`,
+          animationDelay: `${Math.random() * 0.8}s`,
+          animationDuration: `${2.2 + Math.random() * 1.6}s`,
+          fontSize: `${1.4 + Math.random() * 1.2}rem`,
+        },
+      }, emoji.chars[i % emoji.chars.length]));
+    }
+    container.append(layer);
+    setTimeout(() => layer.remove(), 4800);
+    return;
+  }
   const colors = ['#ffd166', '#ef476f', '#06d6a0', '#118ab2', 'var(--accent)'];
   const layer = h('div', { class: 'confetti', 'aria-hidden': 'true' });
   for (let i = 0; i < 60; i++) {
@@ -441,7 +577,7 @@ function showWellDone(s, i, explanation) {
   const next = nextIndex(s);
   if (next === -1) return showFinish(s);
   const breakDue = s.theme.breakEvery > 0 && s.sinceBreak >= s.theme.breakEvery;
-  const goNext = () => (breakDue ? showBreak(s, next) : showTask(s, next));
+  const goNext = () => (breakDue ? showBreak(s, next) : openTask(s, next));
   const nextBtn = h('button', { class: 'btn primary big', onclick: goNext }, breakDue ? 'זמן להפסקה קטנה 🙆' : 'למשימה הבאה ←');
 
   frame(s,
@@ -452,9 +588,10 @@ function showWellDone(s, i, explanation) {
         h('h1', { class: 'path-font' }, PRAISE[Math.floor(Math.random() * PRAISE.length)]),
         h('p', {}, 'סיימת את ', h('strong', {}, t.title)),
         explanation && h('p', { class: 'explanation path-font' }, explanation),
+        s.theme.buddy && buddySays(s, CHEERS[Math.floor(Math.random() * CHEERS.length)]),
         progressBar(s),
         h('div', { class: 'stack' }, nextBtn, h('button', { class: 'btn ghost', onclick: () => showMap(s) }, 'למפה')))));
-  if (s.theme.celebrate) confetti(s.app);
+  if (s.theme.celebrate) celebrate(s.app, s.theme.celebration);
   nextBtn.focus();
 }
 
@@ -475,9 +612,9 @@ function showBreak(s, next) {
     h('div', { class: 'card narrow center break-card' },
       h('h1', { class: 'path-font' }, 'הפסקה קטנה'),
       h('div', { class: 'big-emoji breathe', 'aria-hidden': 'true' }, idea.icon),
-      h('p', { class: 'break-idea path-font' }, idea.text),
+      s.theme.buddy ? buddySays(s, idea.text) : h('p', { class: 'break-idea path-font' }, idea.text),
       label,
-      h('button', { class: 'btn primary big', onclick: () => { clearInterval(timer); showTask(s, next); } }, 'מוכנ/ה להמשיך ←'))));
+      h('button', { class: 'btn primary big', onclick: () => { clearInterval(timer); openTask(s, next); } }, 'מוכנ/ה להמשיך ←'))));
 }
 
 function showFinish(s) {
@@ -490,6 +627,6 @@ function showFinish(s) {
         h('p', {}, `השלמת ${s.tasks.length} משימות וצברת ${doneCount(s)} כוכבים.`),
         h('p', { class: 'big-stars', 'aria-hidden': 'true' }, '⭐'.repeat(Math.min(doneCount(s), 12))),
         h('button', { class: 'btn primary', onclick: () => showMap(s) }, 'לראות את המפה'))));
-  confetti(s.app);
-  setTimeout(() => s.app.isConnected && confetti(s.app), 1200);
+  celebrate(s.app, s.theme.celebrate ? s.theme.celebration : 'confetti');
+  setTimeout(() => s.app.isConnected && celebrate(s.app, 'confetti'), 1200);
 }

@@ -9,6 +9,12 @@ export const COLORS = [
   { value: '#e17055', name: 'כתום' },
   { value: '#d63384', name: 'ורוד' },
   { value: '#2d3436', name: 'כהה' },
+  { value: '#0aa5c0', name: 'טורקיז' },
+  { value: '#2f9e44', name: 'ירוק יער' },
+  { value: '#f08c00', name: 'צהוב חם' },
+  { value: '#e64980', name: 'ורוד ממתק' },
+  { value: '#f76707', name: 'כתום שקיעה' },
+  { value: '#5c7cfa', name: 'כחול לילה' },
 ];
 
 export const BACKGROUNDS = [
@@ -17,21 +23,70 @@ export const BACKGROUNDS = [
   { value: 'grid', name: 'משבצות' },
   { value: 'waves', name: 'גלים' },
   { value: 'stars', name: 'כוכבים' },
+  { value: 'notebook', name: 'מחברת' },
+  { value: 'confetti', name: 'קונפטי' },
+  { value: 'sunset', name: 'שקיעה' },
+  { value: 'bubbles', name: 'בועות' },
 ];
 
 export const FONTS = [
   { value: 'rounded', name: 'עגול וידידותי', family: "'Varela Round'" },
   { value: 'handwriting', name: 'כתב יד', family: "'Playpen Sans Hebrew'" },
   { value: 'bold', name: 'כותרות בולטות', family: "'Secular One'" },
+  { value: 'festive', name: 'חגיגי', family: "'Suez One'" },
   { value: 'clean', name: 'דפוס ברור', family: "'Rubik'" },
 ];
 
 export const MAPS = [
   { value: 'road', name: 'דרך מתפתלת', icon: '〰️' },
   { value: 'cards', name: 'כרטיסים', icon: '🗂️' },
+  { value: 'timeline', name: 'קו ישר', icon: '📍' },
 ];
 
-export const ICONS = ['🚀', '🌈', '🦄', '🐢', '🦁', '⚽', '🎨', '📚', '🧩', '🌟', '🌱', '🏝️', '🐙', '🎵', '🔬', '🏰'];
+export const MODES = [
+  { value: 'light', name: 'יום', icon: '☀️' },
+  { value: 'dark', name: 'לילה', icon: '🌙' },
+];
+
+export const STATIONS = [
+  { value: 'circle', name: 'עיגול' },
+  { value: 'rounded', name: 'ריבוע רך' },
+  { value: 'hex', name: 'משושה' },
+];
+
+export const CARDS = [
+  { value: 'soft', name: 'רך' },
+  { value: 'bold', name: 'מסגרת עבה' },
+  { value: 'glass', name: 'זכוכית' },
+];
+
+export const CELEBRATIONS = [
+  { value: 'confetti', name: 'קונפטי', icon: '🎊' },
+  { value: 'stars', name: 'כוכבים', icon: '⭐' },
+  { value: 'balloons', name: 'בלונים', icon: '🎈' },
+  { value: 'hearts', name: 'לבבות', icon: '💖' },
+  { value: 'bubbles', name: 'בועות', icon: '🫧' },
+];
+
+// A companion who stands next to the student on the map and cheers after each task.
+export const BUDDIES = ['', '🦉', '🐶', '🐱', '🤖', '🦄', '🐢', '🦊', '🐼', '🐸', '🐙', '🦖', '🐝'];
+
+// Ready-made looks: one click sets everything below.
+export const PRESETS = [
+  { name: 'קלאסי', icon: '🚀', theme: { color: '#6c5ce7', background: 'dots', font: 'rounded', map: 'road', mode: 'light', stations: 'circle', card: 'soft', celebration: 'confetti', buddy: '', icon: '🚀' } },
+  { name: 'חלל', icon: '🪐', theme: { color: '#7c5cff', background: 'stars', font: 'bold', map: 'road', mode: 'dark', stations: 'hex', card: 'glass', celebration: 'stars', buddy: '🤖', icon: '🪐' } },
+  { name: 'מתחת לים', icon: '🐙', theme: { color: '#0aa5c0', background: 'bubbles', font: 'rounded', map: 'road', mode: 'light', stations: 'circle', card: 'soft', celebration: 'bubbles', buddy: '🐙', icon: '🐙' } },
+  { name: 'יער', icon: '🌳', theme: { color: '#2f9e44', background: 'dots', font: 'handwriting', map: 'timeline', mode: 'light', stations: 'rounded', card: 'bold', celebration: 'confetti', buddy: '🦉', icon: '🌱' } },
+  { name: 'ממתקים', icon: '🍭', theme: { color: '#e64980', background: 'confetti', font: 'festive', map: 'cards', mode: 'light', stations: 'circle', card: 'bold', celebration: 'hearts', buddy: '🦄', icon: '🦄' } },
+  { name: 'מחברת', icon: '✏️', theme: { color: '#1c7ed6', background: 'notebook', font: 'handwriting', map: 'timeline', mode: 'light', stations: 'rounded', card: 'soft', celebration: 'stars', buddy: '', icon: '📚' } },
+  { name: 'שקיעה', icon: '🌅', theme: { color: '#f76707', background: 'sunset', font: 'bold', map: 'road', mode: 'light', stations: 'hex', card: 'glass', celebration: 'balloons', buddy: '🦊', icon: '🏝️' } },
+  { name: 'לילה רגוע', icon: '🌙', theme: { color: '#5c7cfa', background: 'plain', font: 'rounded', map: 'timeline', mode: 'dark', stations: 'circle', card: 'soft', celebration: 'stars', buddy: '🐢', icon: '🌟' } },
+];
+
+export const ICONS = [
+  '🚀', '🌈', '🦄', '🐢', '🦁', '⚽', '🎨', '📚', '🧩', '🌟', '🌱', '🏝️', '🐙', '🎵', '🔬', '🏰',
+  '🪐', '🦖', '🐝', '🦋', '🍎', '🚂', '🎈', '🧪', '🌍', '🐬', '🌻', '🏆', '🎮', '🧸', '🍕', '🔢',
+];
 export const TASK_EMOJIS = ['📖', '✏️', '🎧', '🎬', '🤔', '💬', '✅', '⏱️', '🧮', '🎨', '🔍', '🧠', '🎒', '🌟', '🏃', '🧩'];
 
 export const TASK_TYPES = {
@@ -90,14 +145,19 @@ export function fontFamily(font) {
 }
 
 // Applies a path theme to a container as CSS variables + classes.
-export function applyTheme(el, theme) {
+// Applies a path theme to a container as CSS variables + classes. `surfaces: false` keeps
+// the container light (dashboard cards sit on the teacher's page, not in the student's world).
+export function applyTheme(el, theme, { surfaces = true } = {}) {
+  const dark = surfaces && theme.mode === 'dark';
   el.style.setProperty('--accent', theme.color);
   // Derived shades must be recomputed here, otherwise they inherit :root's default accent.
-  el.style.setProperty('--accent-soft', `color-mix(in srgb, ${theme.color} 14%, white)`);
-  el.style.setProperty('--accent-strong', `color-mix(in srgb, ${theme.color} 80%, black)`);
+  el.style.setProperty('--accent-soft', dark ? `color-mix(in srgb, ${theme.color} 28%, #14122a)` : `color-mix(in srgb, ${theme.color} 14%, white)`);
+  el.style.setProperty('--accent-strong', dark ? `color-mix(in srgb, ${theme.color} 55%, white)` : `color-mix(in srgb, ${theme.color} 80%, black)`);
   el.style.setProperty('--path-font', `${fontFamily(theme.font)}, system-ui, sans-serif`);
-  for (const c of [...el.classList]) if (c.startsWith('bg-')) el.classList.remove(c);
+  const prefixes = ['bg-', 'mode-', 'stations-', 'card-'];
+  for (const c of [...el.classList]) if (prefixes.some((p) => c.startsWith(p))) el.classList.remove(c);
   el.classList.add(`bg-${theme.background}`);
+  if (surfaces) el.classList.add(`mode-${theme.mode || 'light'}`, `stations-${theme.stations || 'circle'}`, `card-${theme.card || 'soft'}`);
 }
 
 // Turns a YouTube URL into an embeddable privacy-friendly URL, or null.

@@ -8,7 +8,7 @@ import * as v from './validate.js';
 import { HttpError } from './validate.js';
 import { TEMPLATES } from './templates.js';
 import { createGenerator, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
-import { studentContent, gradeAnswer as grade, parseAiInput, pathFromAi } from './logic.js';
+import { studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, randomPin } from './logic.js';
 import * as billing from './billing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -142,6 +142,7 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
   const loginLimit = rateLimiter(10, 15 * 60 * 1000);
   const joinLimit = rateLimiter(60, 15 * 60 * 1000);
   const aiLimit = rateLimiter(20, 60 * 60 * 1000);
+  const pinLimit = rateLimiter(8, 10 * 60 * 1000); // per student: stops guessing the 4-digit code
   let generatePath = ai?.generatePath;
   const aiEnabled = ai ? ai.enabled !== false : aiConfigured();
 
@@ -161,12 +162,15 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     listPaths: db.prepare(`SELECT p.*, (SELECT COUNT(*) FROM tasks WHERE path_id = p.id) AS task_count,
                              (SELECT COUNT(*) FROM students WHERE path_id = p.id) AS student_count,
                              (SELECT COUNT(*) FROM help_requests h JOIN students s ON s.id = h.student_id
-                               WHERE s.path_id = p.id AND h.resolved = 0) AS open_help
+                               WHERE s.path_id = p.id AND h.resolved = 0) AS open_help,
+                             (SELECT COUNT(*) FROM progress pr JOIN students s ON s.id = pr.student_id
+                               WHERE s.path_id = p.id AND pr.approved = 0) AS pending_approval
                            FROM paths p WHERE teacher_id = ? ORDER BY updated_at DESC, id DESC`),
     pathById: db.prepare('SELECT * FROM paths WHERE id = ?'),
     pathByCode: db.prepare('SELECT * FROM paths WHERE code = ?'),
     codeExists: db.prepare('SELECT 1 FROM paths WHERE code = ?'),
-    insertPath: db.prepare('INSERT INTO paths (teacher_id, title, description, code, theme) VALUES (?, ?, ?, ?, ?)'),
+    insertPathRow: db.prepare('INSERT INTO paths (teacher_id, title, description, code, theme, approval_pin) VALUES (?, ?, ?, ?, ?, ?)'),
+    setPin: db.prepare('UPDATE paths SET approval_pin = ? WHERE id = ?'),
     updatePath: db.prepare(`UPDATE paths SET title = ?, description = ?, theme = ?, published = ?,
                             updated_at = datetime('now') WHERE id = ?`),
     touchPath: db.prepare("UPDATE paths SET updated_at = datetime('now') WHERE id = ?"),
@@ -175,9 +179,10 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     tasks: db.prepare('SELECT * FROM tasks WHERE path_id = ? ORDER BY position, id'),
     taskById: db.prepare('SELECT * FROM tasks WHERE id = ?'),
     maxPos: db.prepare('SELECT COALESCE(MAX(position), -1) AS m FROM tasks WHERE path_id = ?'),
-    insertTask: db.prepare(`INSERT INTO tasks (path_id, position, type, title, emoji, est_minutes, content)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)`),
-    updateTask: db.prepare('UPDATE tasks SET type = ?, title = ?, emoji = ?, est_minutes = ?, content = ? WHERE id = ?'),
+    insertTask: db.prepare(`INSERT INTO tasks (path_id, position, type, title, emoji, est_minutes, content, needs_approval)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`),
+    updateTask: db.prepare(`UPDATE tasks SET type = ?, title = ?, emoji = ?, est_minutes = ?, content = ?, needs_approval = ?
+                            WHERE id = ?`),
     setPos: db.prepare('UPDATE tasks SET position = ? WHERE id = ?'),
     deleteTask: db.prepare('DELETE FROM tasks WHERE id = ?'),
 
@@ -189,12 +194,15 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     deleteStudent: db.prepare('DELETE FROM students WHERE id = ?'),
     studentsOfPath: db.prepare('SELECT id, name, created_at, last_active FROM students WHERE path_id = ? ORDER BY name'),
 
-    progressOfStudent: db.prepare('SELECT task_id, answer, completed_at FROM progress WHERE student_id = ?'),
-    progressOfPath: db.prepare(`SELECT p.student_id, p.task_id, p.answer, p.completed_at FROM progress p
+    progressOfStudent: db.prepare('SELECT task_id, answer, completed_at, approved FROM progress WHERE student_id = ?'),
+    progressOfPath: db.prepare(`SELECT p.student_id, p.task_id, p.answer, p.completed_at, p.approved FROM progress p
                                 JOIN students s ON s.id = p.student_id WHERE s.path_id = ?`),
-    upsertProgress: db.prepare(`INSERT INTO progress (student_id, task_id, answer) VALUES (?, ?, ?)
+    // Redoing an approved task keeps it approved.
+    upsertProgress: db.prepare(`INSERT INTO progress (student_id, task_id, answer, approved) VALUES (?, ?, ?, ?)
                                 ON CONFLICT (student_id, task_id) DO UPDATE SET answer = excluded.answer,
-                                completed_at = datetime('now')`),
+                                completed_at = datetime('now'), approved = max(progress.approved, excluded.approved)`),
+    approveProgress: db.prepare('UPDATE progress SET approved = 1 WHERE student_id = ? AND task_id = ? AND approved = 0'),
+    progressRow: db.prepare('SELECT * FROM progress WHERE student_id = ? AND task_id = ?'),
     deleteProgress: db.prepare('DELETE FROM progress WHERE student_id = ? AND task_id = ?'),
 
     insertHelp: db.prepare('INSERT INTO help_requests (student_id, task_id) VALUES (?, ?)'),
@@ -213,7 +221,10 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
   const taskOut = (t, { forStudent = false } = {}) => {
     let content = JSON.parse(t.content);
     if (forStudent) content = studentContent(t.type, content);
-    return { id: t.id, type: t.type, title: t.title, emoji: t.emoji, estMinutes: t.est_minutes, content };
+    return {
+      id: t.id, type: t.type, title: t.title, emoji: t.emoji, estMinutes: t.est_minutes,
+      needsApproval: Boolean(t.needs_approval), content,
+    };
   };
 
   const pathOut = (p) => ({
@@ -223,6 +234,7 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     code: p.code,
     theme: v.theme(JSON.parse(p.theme)),
     published: Boolean(p.published),
+    approvalPin: p.approval_pin,
     createdAt: p.created_at,
     updatedAt: p.updated_at,
   });
@@ -274,9 +286,12 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     throw new Error('could not allocate path code');
   }
 
+  const insertPath = (teacherId, title, description, code, theme) =>
+    q.insertPathRow.run(teacherId, title, description, code, theme, randomPin());
+
   function insertTask(pathId, t) {
     const pos = q.maxPos.get(pathId).m + 1;
-    const r = q.insertTask.run(pathId, pos, t.type, t.title, t.emoji, t.estMinutes, JSON.stringify(t.content));
+    const r = q.insertTask.run(pathId, pos, t.type, t.title, t.emoji, t.estMinutes, JSON.stringify(t.content), t.needsApproval ? 1 : 0);
     return q.taskById.get(Number(r.lastInsertRowid));
   }
 
@@ -349,13 +364,24 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
 
   const gradeAnswer = (t, body) => grade(t.type, JSON.parse(t.content), body);
 
+  // done: approved (or never needed approval); pending: finished, waiting for the teacher.
   function studentState(s) {
     const done = {};
+    const pending = [];
     for (const r of q.progressOfStudent.all(s.id)) {
+      if (!r.approved) { pending.push(r.task_id); continue; }
       done[r.task_id] = { answer: r.answer == null ? null : JSON.parse(r.answer), completedAt: r.completed_at };
     }
     const help = q.openHelpForStudent.all(s.id).map((r) => r.task_id);
-    return { student: { id: s.id, name: s.name }, done, help };
+    return { student: { id: s.id, name: s.name }, done, pending, help };
+  }
+
+  // The teacher's decision on a pending task: approve, or send it back to redo.
+  function decide(studentId, taskId, decision) {
+    if (decision === 'redo') q.deleteProgress.run(studentId, taskId);
+    else if (decision === 'approve') q.approveProgress.run(studentId, taskId);
+    else throw new HttpError(400, 'החלטה לא תקינה');
+    q.resolveHelpForTask.run(studentId, taskId);
   }
 
   // ----- routes -----
@@ -436,6 +462,7 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     return {
       paths: q.listPaths.all(teacher.id).map((p) => ({
         ...pathOut(p), taskCount: p.task_count, studentCount: p.student_count, openHelp: p.open_help,
+        pendingApproval: p.pending_approval,
       })),
     };
   });
@@ -446,7 +473,7 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     const template = TEMPLATES[ctx.body.template] || TEMPLATES.empty;
     const id = tx(db, () => {
       charge(teacher.id, 'createPath', title);
-      const r = q.insertPath.run(teacher.id, title, template.description, newCode(), JSON.stringify(v.THEME_DEFAULTS));
+      const r = insertPath(teacher.id, title, template.description, newCode(), JSON.stringify(v.THEME_DEFAULTS));
       const pathId = Number(r.lastInsertRowid);
       for (const t of template.tasks) insertTask(pathId, v.task(t));
       return pathId;
@@ -481,10 +508,13 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     const title = `${p.title} (עותק)`.slice(0, 120);
     const id = tx(db, () => {
       charge(p.teacher_id, 'createPath', title);
-      const r = q.insertPath.run(p.teacher_id, title, p.description, newCode(), p.theme);
+      const r = insertPath(p.teacher_id, title, p.description, newCode(), p.theme);
       const newId = Number(r.lastInsertRowid);
       for (const t of q.tasks.all(p.id)) {
-        insertTask(newId, { type: t.type, title: t.title, emoji: t.emoji, estMinutes: t.est_minutes, content: JSON.parse(t.content) });
+        insertTask(newId, {
+          type: t.type, title: t.title, emoji: t.emoji, estMinutes: t.est_minutes,
+          needsApproval: Boolean(t.needs_approval), content: JSON.parse(t.content),
+        });
       }
       return newId;
     });
@@ -525,7 +555,7 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     }
     const { title, description, theme, tasks, skipped } = result;
     const id = tx(db, () => {
-      const r = q.insertPath.run(teacher.id, title, description, newCode(), JSON.stringify(theme));
+      const r = insertPath(teacher.id, title, description, newCode(), JSON.stringify(theme));
       const pathId = Number(r.lastInsertRowid);
       for (const t of tasks) insertTask(pathId, t);
       return pathId;
@@ -548,7 +578,7 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
   route('PUT', '/api/tasks/:id', (ctx) => {
     const existing = ownTask(ctx, ctx.params.id);
     const t = v.task(ctx.body);
-    q.updateTask.run(t.type, t.title, t.emoji, t.estMinutes, JSON.stringify(t.content), existing.id);
+    q.updateTask.run(t.type, t.title, t.emoji, t.estMinutes, JSON.stringify(t.content), t.needsApproval ? 1 : 0, existing.id);
     q.touchPath.run(existing.path_id);
     return { task: taskOut(q.taskById.get(existing.id)) };
   });
@@ -568,13 +598,31 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     const byId = new Map(students.map((s) => [s.id, s]));
     for (const r of q.progressOfPath.all(p.id)) {
       byId.get(r.student_id).done[r.task_id] = {
-        answer: r.answer == null ? null : JSON.parse(r.answer), completedAt: r.completed_at,
+        answer: r.answer == null ? null : JSON.parse(r.answer), completedAt: r.completed_at, approved: Boolean(r.approved),
       };
     }
     const help = q.helpOfPath.all(p.id).map((h) => ({
       id: h.id, studentId: h.student_id, taskId: h.task_id, createdAt: h.created_at,
     }));
     return { tasks: q.tasks.all(p.id).map((t) => taskOut(t)), students, help };
+  });
+
+  // Approving from the progress table, without the student's screen.
+  route('POST', '/api/students/:id/tasks/:taskId/decision', (ctx) => {
+    const s = q.studentById.get(Number(ctx.params.id));
+    if (!s) throw new HttpError(404, 'התלמיד/ה לא נמצא/ה');
+    const p = ownPath(ctx, s.path_id);
+    const t = studentTask(p, ctx.params.taskId);
+    if (!q.progressRow.get(s.id, t.id)) throw new HttpError(400, 'המשימה עוד לא הושלמה');
+    decide(s.id, t.id, ctx.body.decision);
+    return { ok: true };
+  });
+
+  route('PUT', '/api/paths/:id/pin', (ctx) => {
+    const p = ownPath(ctx, ctx.params.id);
+    const pin = ctx.body.pin === undefined ? randomPin() : v.pin(ctx.body.pin);
+    q.setPin.run(pin, p.id);
+    return { path: pathOut(q.pathById.get(p.id)) };
   });
 
   route('DELETE', '/api/students/:id', (ctx) => {
@@ -639,9 +687,22 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     const { correct, answer, explanation, wrong } = gradeAnswer(t, ctx.body);
     q.touchStudent.run(s.id);
     if (!correct) return { correct: false, wrong: wrong || [] };
-    q.upsertProgress.run(s.id, t.id, answer == null ? null : JSON.stringify(answer));
+    q.upsertProgress.run(s.id, t.id, answer == null ? null : JSON.stringify(answer), t.needs_approval ? 0 : 1);
     q.resolveHelpForTask.run(s.id, t.id);
     return { correct: true, explanation: explanation || '', ...studentState(s) };
+  });
+
+  // The teacher types the path's approval code on the student's screen.
+  route('POST', '/api/s/:code/tasks/:taskId/approve', (ctx) => {
+    const p = publicPath(ctx, ctx.params.code);
+    const s = currentStudent(ctx.req, p);
+    const t = studentTask(p, ctx.params.taskId);
+    pinLimit(`${s.id}`);
+    const given = typeof ctx.body.pin === 'string' ? ctx.body.pin : '';
+    if (given !== p.approval_pin) throw new HttpError(403, 'הקוד לא נכון');
+    if (!q.progressRow.get(s.id, t.id)) throw new HttpError(400, 'המשימה עוד לא הושלמה');
+    decide(s.id, t.id, ctx.body.decision);
+    return studentState(s);
   });
 
   route('POST', '/api/s/:code/tasks/:taskId/undo', (ctx) => {

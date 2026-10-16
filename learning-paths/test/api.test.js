@@ -224,3 +224,68 @@ test('game task types: validation, hidden answers and grading', async () => {
   const prog = await t('GET', `/api/paths/${path.id}/progress`);
   assert.equal(Object.keys(prog.body.students[0].done).length, 6);
 });
+
+test('teacher approval: the student waits until the teacher types the code', async () => {
+  const t = await teacher();
+  const { body: { path } } = await t('POST', '/api/paths', { title: 'אישורים' });
+  assert.match(path.approvalPin, /^\d{4}$/);
+  const a = (await t('POST', `/api/paths/${path.id}/tasks`, { type: 'read', title: 'כתבו במחברת', needsApproval: true })).body.task;
+  assert.equal(a.needsApproval, true);
+  const b = (await t('POST', `/api/paths/${path.id}/tasks`, { type: 'read', title: 'הבאה' })).body.task;
+  await t('PUT', `/api/paths/${path.id}`, { published: true });
+
+  const kid = client();
+  const view = await kid('GET', `/api/s/${path.code}`);
+  assert.equal(view.body.path.approvalPin, undefined, 'the code is never sent to students');
+  const { body: { token } } = await kid('POST', `/api/s/${path.code}/join`, { name: 'שיר' });
+  const auth = { 'X-Student-Token': token };
+  const done = await kid('POST', `/api/s/${path.code}/tasks/${a.id}/complete`, {}, auth);
+  assert.deepEqual(done.body.pending, [a.id]);
+  assert.equal(done.body.done[a.id], undefined, 'not done until approved');
+
+  const listed = (await t('GET', '/api/paths')).body.paths.find((x) => x.id === path.id);
+  assert.equal(listed.pendingApproval, 1);
+  const prog = (await t('GET', `/api/paths/${path.id}/progress`)).body;
+  assert.equal(prog.students[0].done[a.id].approved, false);
+
+  const wrongPin = path.approvalPin === '0000' ? '1111' : '0000';
+  assert.equal((await kid('POST', `/api/s/${path.code}/tasks/${a.id}/approve`, { pin: wrongPin, decision: 'approve' }, auth)).status, 403);
+  assert.equal((await kid('POST', `/api/s/${path.code}/tasks/${b.id}/approve`, { pin: path.approvalPin, decision: 'approve' }, auth)).status, 400);
+
+  // "Needs fixing" sends the task back; finishing again waits again; the right code approves.
+  let r = await kid('POST', `/api/s/${path.code}/tasks/${a.id}/approve`, { pin: path.approvalPin, decision: 'redo' }, auth);
+  assert.deepEqual([r.body.pending, r.body.done[a.id]], [[], undefined]);
+  await kid('POST', `/api/s/${path.code}/tasks/${a.id}/complete`, {}, auth);
+  r = await kid('POST', `/api/s/${path.code}/tasks/${a.id}/approve`, { pin: path.approvalPin, decision: 'approve' }, auth);
+  assert.deepEqual(r.body.pending, []);
+  assert.ok(r.body.done[a.id]);
+
+  // Redoing an approved task keeps it approved.
+  r = await kid('POST', `/api/s/${path.code}/tasks/${a.id}/complete`, {}, auth);
+  assert.deepEqual(r.body.pending, []);
+
+  // Guessing is limited.
+  let last;
+  for (let i = 0; i < 9; i++) last = await kid('POST', `/api/s/${path.code}/tasks/${a.id}/approve`, { pin: wrongPin, decision: 'approve' }, auth);
+  assert.equal(last.status, 429);
+});
+
+test('teacher approval from the progress table, and changing the code', async () => {
+  const t = await teacher();
+  const { body: { path } } = await t('POST', '/api/paths', { title: 'מרחוק' });
+  const a = (await t('POST', `/api/paths/${path.id}/tasks`, { type: 'read', title: 'x', needsApproval: true })).body.task;
+  await t('PUT', `/api/paths/${path.id}`, { published: true });
+  const kid = client();
+  const { body: { token, student } } = await kid('POST', `/api/s/${path.code}/join`, { name: 'עומר' });
+  await kid('POST', `/api/s/${path.code}/tasks/${a.id}/complete`, {}, { 'X-Student-Token': token });
+
+  const other = await teacher();
+  assert.equal((await other('POST', `/api/students/${student.id}/tasks/${a.id}/decision`, { decision: 'approve' })).status, 404);
+  assert.equal((await t('POST', `/api/students/${student.id}/tasks/${a.id}/decision`, { decision: 'approve' })).status, 200);
+  const me = await kid('GET', `/api/s/${path.code}/me`, undefined, { 'X-Student-Token': token });
+  assert.ok(me.body.done[a.id]);
+
+  assert.equal((await t('PUT', `/api/paths/${path.id}/pin`, { pin: '12' })).status, 400);
+  assert.equal((await t('PUT', `/api/paths/${path.id}/pin`, { pin: '2468' })).body.path.approvalPin, '2468');
+  assert.match((await t('PUT', `/api/paths/${path.id}/pin`, {})).body.path.approvalPin, /^\d{4}$/);
+});

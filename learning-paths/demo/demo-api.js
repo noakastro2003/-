@@ -6,6 +6,7 @@ import { TEMPLATES } from '../templates.js';
 import { studentContent, gradeAnswer, parseAiInput, pathFromAi } from '../logic.js';
 import { SYSTEM_PROMPT, GRADES, AI_TASK_TYPES, buildRequestText, jsonFormatInstructions } from '../ai-prompt.js';
 import { docxToText } from '../docx.js';
+import * as billing from '../billing.js';
 import { openStore } from './store.js';
 import { toast } from './ui.js';
 
@@ -13,6 +14,9 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const MAX_SOURCE_CHARS = 120_000; // keeps the whole prompt well under the 256 KiB sample limit
+
+// The demo has no real payments: subscribing is the same test mode the server offers.
+const BILLING = { ...billing.BILLING_DEFAULTS, paymentsMode: 'test' };
 
 let store;
 let meta;
@@ -59,7 +63,13 @@ const ready = (async () => {
   for (const [id, body] of Object.entries(store.docs)) {
     if (id.startsWith('path-')) paths.set(body.id, body);
   }
-  // First visit: open on a ready-made example instead of an empty screen.
+  // Visitors from before credits existed start with the same free credits as new ones.
+  if (!meta.account) {
+    meta.account = billing.newAccount(BILLING);
+    meta.ledger = [{ delta: BILLING.freeCredits, action: 'signup', note: '', at: now() }];
+    store.save('meta', meta);
+  }
+  // First visit: open on a ready-made example instead of an empty screen (free).
   if (!meta.seeded) {
     const t = TEMPLATES.sample;
     createPath({ title: 'דוגמה: הצב והארנב', description: t.description, tasks: t.tasks.map((x) => v.task(x)), published: true });
@@ -67,6 +77,27 @@ const ready = (async () => {
     store.save('meta', meta);
   }
 })();
+
+// ---------- credits ----------
+
+function record(delta, action, note = '') {
+  meta.ledger = [{ delta, action, note: note.slice(0, 200), at: now() }, ...(meta.ledger || [])].slice(0, 30);
+  store.save('meta', meta);
+}
+
+function charge(action, note) {
+  const taken = billing.spend(meta.account, action, BILLING);
+  record(-taken.cost, action, note);
+  return taken;
+}
+
+const credits = () => billing.available(billing.refresh(meta.account));
+
+const billingOut = () => ({
+  ...billing.summary(meta.account, BILLING),
+  paymentsMode: BILLING.paymentsMode,
+  history: (meta.ledger || []).map((x) => ({ ...x, label: billing.ACTION_LABELS[x.action] || x.action })),
+});
 
 // ---------- serializers ----------
 
@@ -181,6 +212,17 @@ async function generate(body) {
   const sample = await getSample();
   if (!sample) throw new HttpError(503, 'המחולל זמין כשפותחים את ההדגמה ב-claude.ai כשאת מחוברת לחשבון.');
   const input = parseAiInput(body);
+  const taken = charge('aiGenerate', input.topic);
+  try {
+    return await generateWith(sample, input);
+  } catch (err) {
+    billing.refund(meta.account, taken);
+    record(taken.cost, 'refund', input.topic);
+    throw err;
+  }
+}
+
+async function generateWith(sample, input) {
   const { texts, images, names } = await readFiles(input.files);
   let budget = MAX_SOURCE_CHARS;
   const sources = texts.map((f) => {
@@ -205,7 +247,7 @@ async function generate(body) {
   }
   const { title, description, theme, tasks, skipped } = pathFromAi(raw, input);
   const p = createPath({ title, description, theme, tasks });
-  return { path: pathOut(p), taskCount: tasks.length, skipped };
+  return { path: pathOut(p), taskCount: tasks.length, skipped, credits: credits() };
 }
 
 // ---------- routes ----------
@@ -216,7 +258,20 @@ const route = (method, pattern, handler) => {
 };
 
 route('GET', '/api/health', () => ({ ok: true }));
-route('GET', '/api/auth/me', () => ({ teacher: teacher() }));
+route('GET', '/api/auth/me', () => ({ teacher: { ...teacher(), credits: credits() }, costs: BILLING.costs }));
+
+route('GET', '/api/billing', () => billingOut());
+route('POST', '/api/billing/checkout', () => {
+  billing.activate(meta.account, BILLING);
+  record(BILLING.monthlyCredits, 'subscribe', 'מצב בדיקה – ללא חיוב');
+  return billingOut();
+});
+route('POST', '/api/billing/cancel', () => {
+  if (meta.account.subStatus !== 'active') throw new HttpError(400, 'אין מנוי פעיל לביטול');
+  billing.cancel(meta.account);
+  record(0, 'cancel');
+  return billingOut();
+});
 const signIn = ({ body }) => {
   if (typeof body.name === 'string' && body.name.trim()) {
     meta.teacherName = body.name.trim().slice(0, 80);
@@ -240,7 +295,9 @@ route('GET', '/api/paths', () => ({
 route('POST', '/api/paths', ({ body }) => {
   const title = v.str(body.title, { max: 120, required: true, field: 'שם המסלול' });
   const t = TEMPLATES[body.template] || TEMPLATES.empty;
-  return { path: pathOut(createPath({ title, description: t.description, tasks: t.tasks.map((x) => v.task(x)) })) };
+  const tasks = t.tasks.map((x) => v.task(x));
+  charge('createPath', title);
+  return { path: pathOut(createPath({ title, description: t.description, tasks })), credits: credits() };
 });
 
 route('GET', '/api/paths/:id', ({ params }) => {
@@ -269,11 +326,10 @@ route('DELETE', '/api/paths/:id', ({ params }) => {
 
 route('POST', '/api/paths/:id/duplicate', ({ params }) => {
   const p = getPath(params.id);
-  const copy = createPath({
-    title: `${p.title} (עותק)`.slice(0, 120), description: p.description, theme: p.theme,
-    tasks: p.tasks.map(({ id, ...t }) => t),
-  });
-  return { path: pathOut(copy) };
+  const title = `${p.title} (עותק)`.slice(0, 120);
+  charge('createPath', title);
+  const copy = createPath({ title, description: p.description, theme: p.theme, tasks: p.tasks.map(({ id, ...t }) => t) });
+  return { path: pathOut(copy), credits: credits() };
 });
 
 route('POST', '/api/paths/:id/tasks', ({ params, body }) => {
@@ -436,6 +492,6 @@ export async function api(method, url, body, headers = {}) {
     throw new HttpError(404, 'לא נמצא');
   } catch (err) {
     if (!(err instanceof HttpError)) console.error(err);
-    throw Object.assign(new Error(err instanceof HttpError ? err.message : 'משהו השתבש'), { status: err.status || 500 });
+    throw Object.assign(new Error(err instanceof HttpError ? err.message : 'משהו השתבש'), { status: err.status || 500, code: err.code });
   }
 }

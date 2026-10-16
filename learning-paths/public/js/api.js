@@ -12,6 +12,6 @@ export async function api(method, url, body, headers = {}) {
     throw Object.assign(new Error('אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.'), { status: 0 });
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.error || 'משהו השתבש'), { status: res.status });
+  if (!res.ok) throw Object.assign(new Error(data.error || 'משהו השתבש'), { status: res.status, code: data.code });
   return data;
 }

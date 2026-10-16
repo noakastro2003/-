@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
+import { BILLING_DEFAULTS } from './billing.js';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS teachers (
@@ -51,6 +52,15 @@ CREATE TABLE IF NOT EXISTS progress (
   completed_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (student_id, task_id)
 );
+CREATE TABLE IF NOT EXISTS credit_ledger (
+  id INTEGER PRIMARY KEY,
+  teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  delta INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS credit_ledger_teacher ON credit_ledger(teacher_id, id);
 CREATE TABLE IF NOT EXISTS help_requests (
   id INTEGER PRIMARY KEY,
   student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -65,7 +75,21 @@ export function openDb(file) {
   db.exec('PRAGMA foreign_keys = ON;');
   if (file !== ':memory:') db.exec('PRAGMA journal_mode = WAL;');
   db.exec(SCHEMA);
+  migrate(db);
   return db;
+}
+
+// Columns added after the first release. Teachers who signed up before credits existed
+// get the same free credits a new teacher gets.
+function migrate(db) {
+  const cols = new Set(db.prepare('PRAGMA table_info(teachers)').all().map((c) => c.name));
+  if (!cols.has('credits')) {
+    db.exec('ALTER TABLE teachers ADD COLUMN credits INTEGER NOT NULL DEFAULT 0');
+    db.prepare('UPDATE teachers SET credits = ?').run(BILLING_DEFAULTS.freeCredits);
+  }
+  if (!cols.has('sub_status')) db.exec('ALTER TABLE teachers ADD COLUMN sub_status TEXT');
+  if (!cols.has('sub_period_end')) db.exec('ALTER TABLE teachers ADD COLUMN sub_period_end TEXT');
+  if (!cols.has('sub_credits_left')) db.exec('ALTER TABLE teachers ADD COLUMN sub_credits_left INTEGER NOT NULL DEFAULT 0');
 }
 
 // Run fn inside a transaction; rolls back on throw.

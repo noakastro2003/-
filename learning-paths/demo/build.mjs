@@ -10,7 +10,7 @@ const out = path.join(root, 'demo', 'dist');
 fs.rmSync(out, { recursive: true, force: true });
 fs.cpSync(path.join(root, 'public', 'css'), path.join(out, 'css'), { recursive: true });
 fs.cpSync(path.join(root, 'public', 'js'), path.join(out, 'js'), { recursive: true });
-for (const f of ['validate.js', 'templates.js', 'logic.js', 'ai-prompt.js', 'docx.js']) {
+for (const f of ['validate.js', 'templates.js', 'logic.js', 'ai-prompt.js', 'docx.js', 'billing.js']) {
   fs.copyFileSync(path.join(root, f), path.join(out, f));
 }
 for (const f of ['demo-api.js', 'store.js', 'api.js']) {

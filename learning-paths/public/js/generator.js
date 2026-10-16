@@ -3,6 +3,8 @@ import { h, mount, toast, field } from './ui.js';
 import { go } from './app.js';
 import { TASK_TYPES } from './themes.js';
 import { DEMO } from './env.js';
+import { session } from './app.js';
+import { creditWord, cost, setCredits, showError } from './credits.js';
 
 const YOUNG = ['גן', 'א׳', 'ב׳'];
 const ACCEPT = `${DEMO ? '' : '.pdf,'}.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp`;
@@ -101,7 +103,13 @@ export async function generatorPage(app, topbar) {
     h('strong', {}, 'גררו לכאן קבצים או לחצו לבחירה'),
     h('span', { class: 'muted small' }, `דפי עבודה, סיכומים, פרק מהספר · ${DEMO ? 'Word, תמונות או טקסט (PDF רק בגרסה המלאה)' : 'PDF, Word, תמונות או טקסט'} · עד ${MAX_FILES} קבצים`));
 
-  const submit = h('button', { class: 'btn primary big', type: 'submit', disabled: !status.enabled }, '✨ צרו לי מסלול');
+  const price = cost('aiGenerate');
+  const credits = session.teacher?.credits ?? 0;
+  const short = price > credits;
+  const submit = h('button', { class: 'btn primary big', type: 'submit', disabled: !status.enabled || short }, '✨ צרו לי מסלול');
+  const costLine = price > 0 && h('p', { class: `cost-line${short ? ' short' : ''}` },
+    `יצירת מסלול עולה ${creditWord(price)} · יש לך ${credits}`,
+    short && [' · ', h('a', { href: '#/billing' }, 'למנוי ולקרדיטים נוספים')]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -116,12 +124,13 @@ export async function generatorPage(app, topbar) {
       };
       const r = await api('POST', '/api/ai/generate', payload);
       overlay.done();
+      setCredits(r.credits);
       toast(`המסלול מוכן – ${r.taskCount} משימות! עברו עליו לפני הפרסום 🎉`, 'ok');
       if (r.skipped) setTimeout(() => toast(`${r.skipped} משימות לא עברו בדיקה ולא נוספו`, 'info'), 1200);
       go(`#/path/${r.path.id}`);
     } catch (err) {
       overlay.done();
-      toast(err.message, 'error');
+      showError(err);
     }
   };
 
@@ -151,6 +160,7 @@ export async function generatorPage(app, topbar) {
       h('p', { class: 'muted small privacy' }, DEMO
         ? '🔒 בגרסת ההדגמה המחולל משתמש בחשבון Claude שלך (claude.ai יבקש אישור בפעם הראשונה). אל תצרפי מידע אישי על תלמידים.'
         : '🔒 הנושא והקבצים נשלחים לעיבוד אצל Anthropic (Claude). אל תצרפי מידע אישי על תלמידים.'),
+      costLine,
       h('div', { class: 'row center' }, submit))));
   topic.focus();
 }

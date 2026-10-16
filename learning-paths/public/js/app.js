@@ -2,6 +2,7 @@ import { api } from './api.js';
 import { h, mount } from './ui.js';
 import { homePage, authPage, dashboardPage, editorPage, topbar } from './teacher.js';
 import { generatorPage } from './generator.js';
+import { billingPage } from './plan.js';
 import { studentPage, joinCodePage } from './student.js';
 
 const app = document.getElementById('app');
@@ -15,7 +16,9 @@ export function go(hash) {
 async function loadSession() {
   if (session.loaded) return;
   try {
-    session.teacher = (await api('GET', '/api/auth/me')).teacher;
+    const me = await api('GET', '/api/auth/me');
+    session.teacher = me.teacher;
+    session.costs = me.costs || {};
   } catch {
     session.teacher = null;
   }
@@ -30,6 +33,7 @@ const routes = [
   [/^#\/s\/([A-Za-z0-9]+)$/, (m) => studentPage(app, m[1].toUpperCase())],
   [/^#\/dashboard$/, () => needTeacher(() => dashboardPage(app))],
   [/^#\/generate$/, () => needTeacher(() => generatorPage(app, topbar))],
+  [/^#\/billing$/, () => needTeacher(() => billingPage(app, topbar))],
   [/^#\/path\/(\d+)(?:\/(tasks|design|share|progress))?$/, (m) => needTeacher(() => editorPage(app, Number(m[1]), m[2] || 'tasks'))],
 ];
 

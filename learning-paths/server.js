@@ -9,12 +9,32 @@ import { HttpError } from './validate.js';
 import { TEMPLATES } from './templates.js';
 import { createGenerator, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
 import { studentContent, gradeAnswer as grade, parseAiInput, pathFromAi } from './logic.js';
+import * as billing from './billing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SESSION_MS = 30 * 24 * 3600 * 1000;
 const MAX_BODY = 256 * 1024;
 const MAX_UPLOAD_BODY = 30 * 1024 * 1024; // AI generator: files arrive base64-encoded
+// Billing settings; every one can be overridden from the environment.
+export function billingConfig(env = process.env) {
+  const d = billing.BILLING_DEFAULTS;
+  const num = (v, def) => (v !== undefined && v !== '' && Number.isInteger(Number(v)) && Number(v) >= 0 ? Number(v) : def);
+  return {
+    freeCredits: num(env.FREE_CREDITS, d.freeCredits),
+    monthlyCredits: num(env.MONTHLY_CREDITS, d.monthlyCredits),
+    periodDays: d.periodDays,
+    priceLabel: env.PRICE_LABEL || d.priceLabel,
+    costs: {
+      createPath: num(env.COST_CREATE_PATH, d.costs.createPath),
+      aiGenerate: num(env.COST_AI_GENERATE, d.costs.aiGenerate),
+    },
+    // 'test': the subscribe button activates a subscription without charging anyone.
+    // Unset: online payment is off (subscriptions can still be granted with admin.js).
+    paymentsMode: env.PAYMENTS_MODE === 'test' ? 'test' : 'off',
+  };
+}
+
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const MIME = {
@@ -117,7 +137,8 @@ function rateLimiter(limit, windowMs) {
 // ---------- app ----------
 
 // ai: { enabled, generatePath } – injectable so tests don't call the real API.
-export function createApp(db, { ai } = {}) {
+// billingCfg: see billingConfig().
+export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
   const loginLimit = rateLimiter(10, 15 * 60 * 1000);
   const joinLimit = rateLimiter(60, 15 * 60 * 1000);
   const aiLimit = rateLimiter(20, 60 * 60 * 1000);
@@ -126,7 +147,11 @@ export function createApp(db, { ai } = {}) {
 
   const q = {
     teacherByEmail: db.prepare('SELECT * FROM teachers WHERE email = ?'),
-    insertTeacher: db.prepare('INSERT INTO teachers (name, email, password_hash) VALUES (?, ?, ?)'),
+    insertTeacher: db.prepare('INSERT INTO teachers (name, email, password_hash, credits) VALUES (?, ?, ?, ?)'),
+    teacherById: db.prepare('SELECT * FROM teachers WHERE id = ?'),
+    saveAccount: db.prepare('UPDATE teachers SET credits = ?, sub_status = ?, sub_period_end = ?, sub_credits_left = ? WHERE id = ?'),
+    ledgerInsert: db.prepare('INSERT INTO credit_ledger (teacher_id, delta, action, note) VALUES (?, ?, ?, ?)'),
+    ledger: db.prepare('SELECT delta, action, note, created_at FROM credit_ledger WHERE teacher_id = ? ORDER BY id DESC LIMIT 30'),
     session: db.prepare(`SELECT t.id, t.name, t.email FROM sessions s JOIN teachers t ON t.id = s.teacher_id
                          WHERE s.token = ? AND s.expires_at > ?`),
     insertSession: db.prepare('INSERT INTO sessions (token, teacher_id, expires_at) VALUES (?, ?, ?)'),
@@ -255,6 +280,49 @@ export function createApp(db, { ai } = {}) {
     return q.taskById.get(Number(r.lastInsertRowid));
   }
 
+  // ----- credits -----
+
+  const accountOf = (row) => ({
+    credits: row.credits, subStatus: row.sub_status, subPeriodEnd: row.sub_period_end, subCreditsLeft: row.sub_credits_left,
+  });
+
+  // Loads a teacher's account, lets fn change it, and saves it. Call inside tx().
+  function changeAccount(teacherId, fn) {
+    const acc = accountOf(q.teacherById.get(teacherId));
+    const out = fn(acc);
+    q.saveAccount.run(acc.credits, acc.subStatus, acc.subPeriodEnd, acc.subCreditsLeft, teacherId);
+    return out;
+  }
+
+  // Takes the cost of `action` (inside the caller's transaction) and records it.
+  function charge(teacherId, action, note) {
+    return changeAccount(teacherId, (acc) => {
+      const taken = billing.spend(acc, action, billingCfg);
+      q.ledgerInsert.run(teacherId, -taken.cost, action, note.slice(0, 200));
+      return taken;
+    });
+  }
+
+  function refundCharge(teacherId, taken, note) {
+    tx(db, () => changeAccount(teacherId, (acc) => {
+      billing.refund(acc, taken);
+      q.ledgerInsert.run(teacherId, taken.cost, 'refund', note.slice(0, 200));
+    }));
+  }
+
+  const availableCredits = (teacherId) => billing.available(billing.refresh(accountOf(q.teacherById.get(teacherId))));
+
+  function billingOut(teacherId) {
+    const acc = accountOf(q.teacherById.get(teacherId));
+    return {
+      ...billing.summary(acc, billingCfg),
+      paymentsMode: billingCfg.paymentsMode,
+      history: q.ledger.all(teacherId).map((r) => ({
+        delta: r.delta, action: r.action, label: billing.ACTION_LABELS[r.action] || r.action, note: r.note, at: r.created_at,
+      })),
+    };
+  }
+
   // ----- student side -----
 
   // A path is visible to students when published; its owner can always preview it.
@@ -309,9 +377,13 @@ export function createApp(db, { ai } = {}) {
     const mail = v.email(ctx.body.email);
     const pw = v.password(ctx.body.password);
     if (q.teacherByEmail.get(mail)) throw new HttpError(409, 'כבר קיים חשבון עם האימייל הזה');
-    const r = q.insertTeacher.run(name, mail, hashPassword(pw));
-    const id = Number(r.lastInsertRowid);
-    return [201, { teacher: { id, name, email: mail } }, { 'Set-Cookie': startSession(ctx.req, id) }];
+    const id = tx(db, () => {
+      const r = q.insertTeacher.run(name, mail, hashPassword(pw), billingCfg.freeCredits);
+      const tid = Number(r.lastInsertRowid);
+      q.ledgerInsert.run(tid, billingCfg.freeCredits, 'signup', '');
+      return tid;
+    });
+    return [201, { teacher: { id, name, email: mail, credits: billingCfg.freeCredits } }, { 'Set-Cookie': startSession(ctx.req, id) }];
   });
 
   route('POST', '/api/auth/login', (ctx) => {
@@ -321,7 +393,7 @@ export function createApp(db, { ai } = {}) {
     const t = q.teacherByEmail.get(mail);
     const ok = checkPassword(pw, t ? t.password_hash : DUMMY_HASH) && t;
     if (!ok) throw new HttpError(401, 'אימייל או סיסמה שגויים');
-    return [200, { teacher: { id: t.id, name: t.name, email: t.email } }, { 'Set-Cookie': startSession(ctx.req, t.id) }];
+    return [200, { teacher: { id: t.id, name: t.name, email: t.email, credits: availableCredits(t.id) } }, { 'Set-Cookie': startSession(ctx.req, t.id) }];
   });
 
   route('POST', '/api/auth/logout', (ctx) => {
@@ -330,7 +402,34 @@ export function createApp(db, { ai } = {}) {
     return [200, { ok: true }, { 'Set-Cookie': sessionCookie(ctx.req, '', 0) }];
   });
 
-  route('GET', '/api/auth/me', (ctx) => ({ teacher: ctx.teacher }));
+  route('GET', '/api/auth/me', (ctx) => ({
+    teacher: ctx.teacher && { ...ctx.teacher, credits: availableCredits(ctx.teacher.id) },
+    costs: billingCfg.costs,
+  }));
+
+  route('GET', '/api/billing', (ctx) => billingOut(requireTeacher(ctx).id));
+
+  route('POST', '/api/billing/checkout', (ctx) => {
+    const teacher = requireTeacher(ctx);
+    if (billingCfg.paymentsMode !== 'test') {
+      throw new HttpError(503, 'התשלום המקוון עוד לא הופעל. כדי להצטרף למנוי, פנו למנהל/ת המערכת.');
+    }
+    tx(db, () => changeAccount(teacher.id, (acc) => {
+      billing.activate(acc, billingCfg);
+      q.ledgerInsert.run(teacher.id, billingCfg.monthlyCredits, 'subscribe', 'מצב בדיקה – ללא חיוב');
+    }));
+    return billingOut(teacher.id);
+  });
+
+  route('POST', '/api/billing/cancel', (ctx) => {
+    const teacher = requireTeacher(ctx);
+    tx(db, () => changeAccount(teacher.id, (acc) => {
+      if (acc.subStatus !== 'active') throw new HttpError(400, 'אין מנוי פעיל לביטול');
+      billing.cancel(acc);
+      q.ledgerInsert.run(teacher.id, 0, 'cancel', '');
+    }));
+    return billingOut(teacher.id);
+  });
 
   route('GET', '/api/paths', (ctx) => {
     const teacher = requireTeacher(ctx);
@@ -346,12 +445,13 @@ export function createApp(db, { ai } = {}) {
     const title = v.str(ctx.body.title, { max: 120, required: true, field: 'שם המסלול' });
     const template = TEMPLATES[ctx.body.template] || TEMPLATES.empty;
     const id = tx(db, () => {
+      charge(teacher.id, 'createPath', title);
       const r = q.insertPath.run(teacher.id, title, template.description, newCode(), JSON.stringify(v.THEME_DEFAULTS));
       const pathId = Number(r.lastInsertRowid);
       for (const t of template.tasks) insertTask(pathId, v.task(t));
       return pathId;
     });
-    return [201, { path: pathOut(q.pathById.get(id)) }];
+    return [201, { path: pathOut(q.pathById.get(id)), credits: availableCredits(teacher.id) }];
   });
 
   route('GET', '/api/paths/:id', (ctx) => {
@@ -378,15 +478,17 @@ export function createApp(db, { ai } = {}) {
 
   route('POST', '/api/paths/:id/duplicate', (ctx) => {
     const p = ownPath(ctx, ctx.params.id);
+    const title = `${p.title} (עותק)`.slice(0, 120);
     const id = tx(db, () => {
-      const r = q.insertPath.run(p.teacher_id, `${p.title} (עותק)`.slice(0, 120), p.description, newCode(), p.theme);
+      charge(p.teacher_id, 'createPath', title);
+      const r = q.insertPath.run(p.teacher_id, title, p.description, newCode(), p.theme);
       const newId = Number(r.lastInsertRowid);
       for (const t of q.tasks.all(p.id)) {
         insertTask(newId, { type: t.type, title: t.title, emoji: t.emoji, estMinutes: t.est_minutes, content: JSON.parse(t.content) });
       }
       return newId;
     });
-    return [201, { path: pathOut(q.pathById.get(id)) }];
+    return [201, { path: pathOut(q.pathById.get(id)), credits: availableCredits(p.teacher_id) }];
   });
 
   route('POST', '/api/paths/:id/tasks', (ctx) => {
@@ -410,15 +512,25 @@ export function createApp(db, { ai } = {}) {
     const input = parseAiInput(ctx.body);
     aiLimit(teacher.id);
 
-    generatePath ||= createGenerator();
-    const { title, description, theme, tasks, skipped } = pathFromAi(await generatePath(input), input);
+    // Credits are taken before the (slow) generation so two requests can't both spend
+    // the last ones, and handed back if no path comes out of it.
+    const taken = tx(db, () => charge(teacher.id, 'aiGenerate', input.topic));
+    let result;
+    try {
+      generatePath ||= createGenerator();
+      result = pathFromAi(await generatePath(input), input);
+    } catch (err) {
+      refundCharge(teacher.id, taken, input.topic);
+      throw err;
+    }
+    const { title, description, theme, tasks, skipped } = result;
     const id = tx(db, () => {
       const r = q.insertPath.run(teacher.id, title, description, newCode(), JSON.stringify(theme));
       const pathId = Number(r.lastInsertRowid);
       for (const t of tasks) insertTask(pathId, t);
       return pathId;
     });
-    return [201, { path: pathOut(q.pathById.get(id)), taskCount: tasks.length, skipped }];
+    return [201, { path: pathOut(q.pathById.get(id)), taskCount: tasks.length, skipped, credits: availableCredits(teacher.id) }];
   }, { maxBody: MAX_UPLOAD_BODY });
 
   route('PUT', '/api/paths/:id/order', (ctx) => {
@@ -598,7 +710,7 @@ export function createApp(db, { ai } = {}) {
       }
       throw new HttpError(404, 'לא נמצא');
     } catch (err) {
-      if (err instanceof HttpError) return send(res, err.status, { error: err.message });
+      if (err instanceof HttpError) return send(res, err.status, { error: err.message, ...(err.code ? { code: err.code } : {}) });
       if (err?.code === 'ERR_SQLITE_ERROR' && /UNIQUE/.test(err.message)) return send(res, 409, { error: 'הערך כבר קיים' });
       console.error(err);
       send(res, 500, { error: 'שגיאת שרת' });

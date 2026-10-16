@@ -4,6 +4,7 @@ import { session, go } from './app.js';
 import { COLORS, BACKGROUNDS, FONTS, MAPS, ICONS, TASK_EMOJIS, TASK_TYPES, TASK_GROUPS, applyTheme, fontFamily } from './themes.js';
 import { nikudBar } from './nikud.js';
 import { DEMO } from './env.js';
+import { creditBadge, creditWord, cost, setCredits, showError } from './credits.js';
 
 // ---------- shared chrome ----------
 
@@ -13,6 +14,7 @@ export function topbar(...extra) {
       h('span', { class: 'brand-mark', 'aria-hidden': 'true' }, '〰️'), 'מסלולי למידה'),
     h('div', { class: 'topbar-actions' },
       extra,
+      creditBadge(),
       DEMO && h('span', { class: 'chip chip-warn', title: 'הנתונים נשמרים רק אצלך' }, 'גרסת הדגמה'),
       session.teacher && !DEMO && h('span', { class: 'muted hide-sm' }, `שלום, ${session.teacher.name}`),
       session.teacher && !DEMO && h('button', { class: 'btn ghost small', onclick: logout }, 'יציאה')));
@@ -68,7 +70,7 @@ export function authPage(app, mode) {
     const body = { email: email.value, password: pw.value };
     if (isReg) body.name = name.value;
     busy(submit, api('POST', `/api/auth/${isReg ? 'register' : 'login'}`, body)
-      .then((r) => { session.teacher = r.teacher; go('#/dashboard'); })
+      .then(() => { session.loaded = false; go('#/dashboard'); })
       .catch((err) => { error.textContent = err.message; }));
   };
 
@@ -143,14 +145,18 @@ function newPathDialog() {
     },
   }, h('strong', {}, name), h('span', { class: 'muted' }, desc)));
   const submit = h('button', { class: 'btn primary', type: 'submit' }, 'יצירה');
+  const price = cost('createPath');
   const m = modal('מסלול חדש', h('form', {
     onsubmit: (e) => {
       e.preventDefault();
       busy(submit, api('POST', '/api/paths', { title: title.value, template })
-        .then((r) => { m.close(); go(`#/path/${r.path.id}`); })
-        .catch((err) => toast(err.message, 'error')));
+        .then((r) => { setCredits(r.credits); m.close(); go(`#/path/${r.path.id}`); })
+        .catch((err) => { if (err.status === 402) m.close(); showError(err); }));
     },
-  }, field('שם המסלול', title), h('div', { class: 'choice-row' }, options), h('div', { class: 'row end' }, submit)));
+  }, field('שם המסלול', title), h('div', { class: 'choice-row' }, options),
+    h('div', { class: 'row end wrap' },
+      price > 0 && h('span', { class: 'muted small cost-note' }, `עולה ${creditWord(price)} · יש לך ${session.teacher.credits}`),
+      submit)));
 }
 
 // ---------- editor ----------
@@ -228,9 +234,9 @@ function moreMenu(state) {
   const m = modal('אפשרויות', h('div', { class: 'stack' },
     h('button', {
       class: 'btn block', onclick: () => api('POST', `/api/paths/${state.path.id}/duplicate`)
-        .then((r) => { m.close(); toast('נוצר עותק', 'ok'); go(`#/path/${r.path.id}`); })
-        .catch((err) => toast(err.message, 'error')),
-    }, '📄 שכפול המסלול'),
+        .then((r) => { setCredits(r.credits); m.close(); toast('נוצר עותק', 'ok'); go(`#/path/${r.path.id}`); })
+        .catch((err) => { m.close(); showError(err); }),
+    }, `📄 שכפול המסלול${cost('createPath') ? ` (${creditWord(cost('createPath'))})` : ''}`),
     h('button', {
       class: 'btn danger block', onclick: async () => {
         m.close();

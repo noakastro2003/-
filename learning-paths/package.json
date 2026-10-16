@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node --no-warnings server.js",
-    "test": "node --no-warnings --test test/*.test.js"
+    "test": "node --no-warnings --test test/*.test.js",
+    "admin": "node --no-warnings admin.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.135.0"

@@ -1,0 +1,926 @@
+<title>מסע הקריאה</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@400;600;800&family=Rubik:wght@400;500;700&display=swap">
+<style>
+@font-face { font-family: "Noa Bubble"; src: url("fonts/NoaBubble-Regular.otf") format("opentype"); font-display: swap; }
+@font-face { font-family: "Noa Hand"; src: url("fonts/NoaHandwriting-Regular.otf") format("opentype"); font-display: swap; }
+
+/* Layout: a notebook page (blue ruled lines, red margin on the right) laid on a desk.
+   Home = a numbered trail of stations; a station = reading text beside one question card. */
+:root {
+  --desk: #E7EEF8;
+  --paper: #FBFDFF;
+  --rule: #DCE7F5;
+  --margin: #F1B4B4;
+  --ink: #1D2948;
+  --ink-soft: #56627F;
+  --pen: #2F6FD0;
+  --pen-soft: #E3EDFC;
+  --star: #F6B91C;
+  --star-soft: #FFF3CF;
+  --good: #23885C;
+  --good-soft: #DDF4E9;
+  --oops: #CF5B4C;
+  --oops-soft: #FCE7E3;
+  --hl: #FFE58A;
+  --owl: #8A6A4F;
+  --owl-belly: #E9D6BF;
+  --card: #FFFFFF;
+  --line: #D3DCEA;
+  --f-display: "Noa Bubble", "Rubik", "Noto Sans Hebrew", Arial, sans-serif;
+  --f-read: "Noto Sans Hebrew", Arial, sans-serif;
+  --f-ui: "Rubik", "Noto Sans Hebrew", Arial, sans-serif;
+  --f-hand: "Noa Hand", "Rubik", Arial, sans-serif;
+  --read-size: 1.35rem;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --desk: #0E1729; --paper: #15213A; --rule: #1F2E4E; --margin: #6A3442;
+  --ink: #EAF0FF; --ink-soft: #A7B4D3; --pen: #82B4FF; --pen-soft: #1F3359;
+  --star: #FFCE4A; --star-soft: #3A3218; --good: #52C994; --good-soft: #163A2C;
+  --oops: #FF8C7B; --oops-soft: #44221E; --hl: #6B5A12; --owl: #B58E6C; --owl-belly: #E2CBAE;
+  --card: #1B2A47; --line: #2C3E62; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --desk: #0E1729; --paper: #15213A; --rule: #1F2E4E; --margin: #6A3442;
+  --ink: #EAF0FF; --ink-soft: #A7B4D3; --pen: #82B4FF; --pen-soft: #1F3359;
+  --star: #FFCE4A; --star-soft: #3A3218; --good: #52C994; --good-soft: #163A2C;
+  --oops: #FF8C7B; --oops-soft: #44221E; --hl: #6B5A12; --owl: #B58E6C; --owl-belly: #E2CBAE;
+  --card: #1B2A47; --line: #2C3E62; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--desk); color: var(--ink); font-family: var(--f-ui); font-size: 16px; line-height: 1.5; }
+.app { max-width: 1120px; margin: 0 auto; padding-block: 16px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.sheet { position: relative; background-color: var(--paper); border-radius: 6px; padding: 20px 20px 28px; padding-inline-start: 34px;
+  background-image: linear-gradient(to left, transparent 22px, var(--margin) 22px, var(--margin) 24px, transparent 24px),
+    repeating-linear-gradient(to bottom, transparent 0 35px, var(--rule) 35px 36px);
+  box-shadow: 0 1px 0 var(--line), 0 10px 30px -18px rgba(20, 40, 80, .35); }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--pen); outline-offset: 2px; }
+
+/* top bar */
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.brand, .hero h1, .intro h2, .parents h2, .summary h2 { -webkit-text-stroke: 1.2px currentColor; }
+.bar .brand { font-family: var(--f-display); font-size: 1.9rem; line-height: 1; margin-inline-end: auto; background: none; border: 0; padding: 4px 0; color: var(--ink); }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 12px; font-size: .92rem; color: var(--ink); }
+.chip[aria-pressed="true"] { border-color: var(--pen); background: var(--pen-soft); }
+.chip.star-count { border-color: var(--star); background: var(--star-soft); font-weight: 700; font-variant-numeric: tabular-nums; }
+.btn { border: 0; border-radius: 14px; padding: 12px 22px; font-weight: 700; font-size: 1.08rem; background: var(--pen); color: var(--paper); box-shadow: 0 3px 0 rgba(0,0,0,.18); }
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,.18); }
+.btn.ghost { background: var(--card); color: var(--ink); border: 1.5px solid var(--line); box-shadow: none; }
+.btn.good { background: var(--good); }
+.btn[disabled] { opacity: .45; cursor: default; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+/* owl guide */
+.guide { display: flex; gap: 14px; align-items: flex-start; }
+.guide svg { flex: 0 0 64px; width: 64px; height: 64px; }
+.bubble { position: relative; background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 12px 16px; min-width: 0; flex: 1; }
+.bubble p { margin: 0; }
+.bubble p + p { margin-top: 6px; }
+
+/* home */
+.hero { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; margin-bottom: 22px; }
+.hero h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(2.4rem, 7vw, 3.8rem); line-height: 1.1; margin: 0; text-wrap: balance; }
+.hero p { margin: 6px 0 0; color: var(--ink-soft); font-size: 1.05rem; max-width: 52ch; }
+.name-field { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.name-field input { border: 1.5px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 12px; font-size: 1.1rem; width: 12em; max-width: 100%; }
+.trail { position: relative; display: grid; gap: 18px; padding: 8px 0; list-style: none; margin: 0; }
+.trail::before { content: ""; position: absolute; inset-block: 30px; inset-inline-start: 50%; border-inline-start: 4px dashed var(--line); }
+.stop { position: relative; display: flex; align-items: center; gap: 14px; width: min(100%, 470px); background: var(--card); border: 2px solid var(--line);
+  border-radius: 22px; padding: 12px 14px; text-align: start; color: var(--ink); }
+.trail li:nth-child(odd) .stop { justify-self: start; margin-inline-start: 0; }
+.trail li { display: grid; }
+.trail li:nth-child(odd) { justify-items: start; }
+.trail li:nth-child(even) { justify-items: end; }
+.stop .num { flex: 0 0 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 1.4rem; background: var(--pen-soft); color: var(--pen); border: 2px solid var(--pen); }
+.stop .meta { min-width: 0; flex: 1; }
+.stop .t { font-family: var(--f-read); font-weight: 800; font-size: 1.2rem; display: block; }
+.stop .s { color: var(--ink-soft); font-size: .92rem; display: block; }
+.stop .stars { flex: 0 0 auto; font-size: 1.25rem; letter-spacing: 2px; color: var(--line); }
+.stop .stars .on { color: var(--star); }
+.stop.done { border-color: var(--good); }
+.stop.done .num { background: var(--good); color: var(--paper); border-color: var(--good); }
+.stop.next { border-color: var(--pen); box-shadow: 0 0 0 5px var(--pen-soft); }
+.stop.locked { opacity: .55; cursor: not-allowed; }
+.stop.locked .num { background: var(--card); color: var(--ink-soft); border-color: var(--line); }
+.stop.test .num { background: var(--star-soft); border-color: var(--star); color: var(--ink); }
+.home-foot { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.cert { margin-top: 22px; border: 3px double var(--star); border-radius: 18px; padding: 18px; text-align: center; background: var(--star-soft); }
+.cert .hand { font-family: var(--f-hand); font-size: 2.2rem; line-height: 1.3; }
+
+/* station */
+.crumbs { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+.crumbs h2 { font-family: var(--f-read); font-size: 1.35rem; margin: 0; margin-inline-end: auto; }
+.dots { display: flex; gap: 6px; }
+.dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--line); display: block; }
+.dots i.cur { background: var(--pen); transform: scale(1.25); }
+.dots i.ok { background: var(--good); }
+.dots i.miss { background: var(--star); }
+.play { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .play { grid-template-columns: minmax(0, 1fr); } }
+.reading { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 10px); background: var(--card); border: 1.5px solid var(--line); border-radius: 18px; padding: 18px 20px; max-height: calc(100vh - 40px); overflow: auto; }
+@media (max-width: 860px) { .reading { position: static; max-height: none; } }
+.reading h3 { font-family: var(--f-read); font-weight: 800; font-size: calc(var(--read-size) * 1.15); margin: 0 0 8px; text-align: center; }
+.reading .kind { display: block; text-align: center; color: var(--ink-soft); font-size: .85rem; letter-spacing: .02em; margin-bottom: 6px; }
+.txt { font-family: var(--f-read); font-size: var(--read-size); line-height: 2.15; max-width: 60ch; }
+.txt p { margin: 0 0 .4em; }
+.sen { border-radius: 6px; padding: 2px 1px; transition: background-color .25s; }
+.sen.hl { background: var(--hl); box-shadow: 0 0 0 3px var(--hl); }
+.findable .sen { cursor: pointer; text-decoration: underline dotted var(--ink-soft); text-underline-offset: 6px; }
+.findable .sen:hover { background: var(--pen-soft); }
+.sen.picked { background: var(--pen-soft); box-shadow: 0 0 0 3px var(--pen); }
+.qcard { background: var(--card); border: 1.5px solid var(--line); border-radius: 18px; padding: 18px; display: grid; gap: 14px; }
+.qtag { display: inline-flex; align-self: start; justify-self: start; gap: 6px; font-size: .82rem; padding: 3px 10px; border-radius: 999px; background: var(--pen-soft); color: var(--pen); font-weight: 600; }
+.qtext { font-family: var(--f-read); font-weight: 600; font-size: calc(var(--read-size) * 1.05); line-height: 1.9; margin: 0; }
+.opts { display: grid; gap: 10px; }
+.opt { display: flex; gap: 12px; align-items: center; text-align: start; border: 2px solid var(--line); background: var(--paper); border-radius: 14px; padding: 10px 14px; font-family: var(--f-read); font-size: var(--read-size); line-height: 1.8; color: var(--ink); }
+.opt .k { flex: 0 0 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--line); font-family: var(--f-ui); font-size: 1rem; font-weight: 700; }
+.opt:hover { border-color: var(--pen); }
+.opt.sel { border-color: var(--pen); background: var(--pen-soft); }
+.opt.right { border-color: var(--good); background: var(--good-soft); }
+.opt.right .k { background: var(--good); border-color: var(--good); color: var(--paper); }
+.opt.wrong { border-color: var(--oops); background: var(--oops-soft); }
+.opt[disabled] { cursor: default; }
+.feedback { border-radius: 14px; padding: 12px 14px; font-size: 1.05rem; line-height: 1.7; }
+.feedback.good { background: var(--good-soft); border: 1.5px solid var(--good); }
+.feedback.try { background: var(--star-soft); border: 1.5px solid var(--star); }
+.feedback.info { background: var(--pen-soft); border: 1.5px solid var(--pen); }
+.feedback b { font-family: var(--f-read); }
+.feedback .r { font-family: var(--f-read); }
+.order-zone { display: grid; gap: 8px; }
+.order-zone .lbl { font-size: .9rem; color: var(--ink-soft); }
+.slot { display: flex; gap: 10px; align-items: center; min-height: 52px; border: 2px dashed var(--line); border-radius: 14px; padding: 6px 10px; background: var(--paper); font-family: var(--f-read); font-size: calc(var(--read-size) * .92); line-height: 1.7; }
+.slot .n { flex: 0 0 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--pen-soft); color: var(--pen); font-family: var(--f-ui); font-weight: 700; }
+.slot button { flex: 1; text-align: start; background: none; border: 0; padding: 4px; font: inherit; }
+.slot.filled { border-style: solid; border-color: var(--pen); }
+.slot.right { border-color: var(--good); background: var(--good-soft); }
+.slot.wrong { border-color: var(--oops); background: var(--oops-soft); }
+.pool { display: flex; flex-wrap: wrap; gap: 8px; }
+.pool button { border: 2px solid var(--pen); background: var(--card); border-radius: 12px; padding: 8px 12px; font-family: var(--f-read); font-size: calc(var(--read-size) * .9); line-height: 1.7; text-align: start; }
+textarea { width: 100%; min-height: 130px; border: 2px solid var(--line); border-radius: 14px; padding: 12px; background: var(--paper);
+  font-family: var(--f-read); font-size: var(--read-size); line-height: 1.9; resize: vertical; }
+.checklist { display: grid; gap: 8px; }
+.checklist label { display: flex; gap: 10px; align-items: center; font-size: 1.02rem; }
+.checklist input { width: 22px; height: 22px; accent-color: var(--good); }
+.model { font-family: var(--f-read); font-size: var(--read-size); line-height: 1.9; border-inline-start: 4px solid var(--good); padding-inline-start: 12px; }
+.speak { border: 1.5px solid var(--line); background: var(--paper); border-radius: 50%; width: 40px; height: 40px; display: inline-grid; place-items: center; flex: 0 0 40px; color: var(--ink); }
+.speak svg { width: 20px; height: 20px; }
+.qhead { display: flex; gap: 10px; align-items: flex-start; }
+.qhead .qtext { flex: 1; min-width: 0; }
+
+/* intro + summary */
+.intro { display: grid; gap: 18px; max-width: 760px; margin: 0 auto; }
+.intro h2 { font-family: var(--f-display); font-weight: 400; font-size: clamp(2rem, 6vw, 3rem); margin: 0; line-height: 1.15; text-wrap: balance; }
+.toolbox { background: var(--card); border: 1.5px solid var(--line); border-radius: 18px; padding: 16px 18px; }
+.toolbox h3 { margin: 0 0 8px; font-size: 1.05rem; color: var(--pen); }
+.toolbox ol { margin: 0; padding-inline-start: 1.4em; font-family: var(--f-read); font-size: calc(var(--read-size) * .92); line-height: 1.9; }
+.summary { display: grid; gap: 18px; max-width: 760px; margin: 0 auto; text-align: center; justify-items: center; }
+.big-stars { font-size: 3.4rem; letter-spacing: 8px; color: var(--line); line-height: 1; }
+.big-stars .on { color: var(--star); display: inline-block; animation: pop .5s cubic-bezier(.3,1.6,.5,1) both; }
+.big-stars .on:nth-child(2) { animation-delay: .18s; }
+.big-stars .on:nth-child(3) { animation-delay: .36s; }
+@keyframes pop { from { transform: scale(0) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.stamp { font-family: var(--f-hand); font-size: clamp(2.4rem, 9vw, 3.6rem); color: var(--oops); transform: rotate(-6deg); border: 3px solid var(--oops); border-radius: 14px; padding: 2px 22px; line-height: 1.35; animation: pop .6s .5s cubic-bezier(.3,1.6,.5,1) both; }
+.review { width: 100%; display: grid; gap: 10px; text-align: start; }
+.review .it { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 4px; }
+.review .it.ok { border-inline-start: 6px solid var(--good); }
+.review .it.miss { border-inline-start: 6px solid var(--star); }
+.review .it.open { border-inline-start: 6px solid var(--pen); }
+.review .q { font-family: var(--f-read); font-weight: 600; font-size: 1.1rem; line-height: 1.8; }
+.review .a { font-family: var(--f-read); color: var(--ink-soft); line-height: 1.8; }
+
+/* parents */
+.parents { display: grid; gap: 22px; max-width: 820px; margin: 0 auto; font-size: 1.02rem; }
+.parents h2 { font-family: var(--f-display); font-weight: 400; font-size: clamp(2rem, 6vw, 2.8rem); margin: 0; }
+.parents h3 { font-size: 1.25rem; margin: 0 0 8px; }
+.parents section { background: var(--card); border: 1.5px solid var(--line); border-radius: 18px; padding: 18px 20px; }
+.parents p { margin: 0 0 8px; max-width: 68ch; }
+.parents ul, .parents ol { margin: 0; padding-inline-start: 1.3em; display: grid; gap: 6px; }
+.skill-row { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr) 4.5em; gap: 10px; align-items: center; padding: 6px 0; }
+@media (max-width: 520px) { .skill-row { grid-template-columns: minmax(0, 1fr) 4.5em; } .skill-row .track { grid-column: 1 / -1; grid-row: 2; } }
+.track { height: 14px; background: var(--rule); border-radius: 999px; overflow: hidden; }
+.track i { display: block; height: 100%; background: var(--good); border-radius: 999px; }
+.track i.mid { background: var(--star); }
+.track i.low { background: var(--oops); }
+.pct { font-variant-numeric: tabular-nums; text-align: end; font-weight: 700; }
+.pct.na { color: var(--ink-soft); font-weight: 400; font-size: .9rem; }
+details { border-top: 1px solid var(--line); padding: 10px 0; }
+details:first-of-type { border-top: 0; }
+summary { cursor: pointer; font-weight: 700; }
+details[open] summary { margin-bottom: 8px; }
+.ask { font-family: var(--f-read); background: var(--pen-soft); border-radius: 10px; padding: 8px 12px; line-height: 1.8; }
+.danger-zone { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.confirm { background: var(--oops-soft); border: 1.5px solid var(--oops); border-radius: 12px; padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.toast { position: fixed; inset-inline: 0; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); margin: 0 auto; width: fit-content; max-width: calc(100% - 32px); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 12px; z-index: 20; }
+@media (max-width: 560px) {
+  .hero { grid-template-columns: 1fr; }
+  .trail::before { inset-inline-start: 30px; }
+  .trail li:nth-child(even) { justify-items: start; }
+  .sheet { padding-inline: 14px; padding-inline-start: 30px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="app" dir="rtl" lang="he">
+  <div class="sheet" id="root"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+document.documentElement.lang = "he";
+document.documentElement.dir = "rtl";
+
+/* ---------- skills (what the assessment checks) ---------- */
+const SKILLS = {
+  locate:  { name: "איתור מידע גלוי", kid: "מוֹצְאִים בַּטֶּקְסְט",
+    what: "למצוא בטקסט פרט שכתוב במפורש: מי, מה, איפה, מתי, כמה.",
+    home: "אחרי כל סיפור לשאול שאלת מי/מה/איפה ולבקש: \"תראה לי איפה זה כתוב\". האצבע על המשפט חשובה יותר מהתשובה.",
+    ask: "איפה זה קרה? תראה לי במשפט." },
+  sequence:{ name: "רצף ומבנה", kid: "סֵדֶר הַסִּפּוּר",
+    what: "לסדר אירועים לפי הסדר, ולזהות מילות זמן: קודם, אחר כך, בסוף.",
+    home: "לספר יחד את הסיפור במילים \"קודם... אחר כך... בסוף...\". אפשר גם לגזור משפטים מסיפור ולסדר אותם על השולחן.",
+    ask: "מה קרה קודם? ומה קרה מיד אחרי זה?" },
+  vocab:   { name: "אוצר מילים", kid: "מִלִּים חֲדָשׁוֹת",
+    what: "להבין מילה או ביטוי לפי ההקשר במשפט, ולמצוא מילה הפוכה או דומה.",
+    home: "כשמופיעה מילה חדשה, לא להסביר מיד. לשאול: \"מה לדעתך זה אומר? מה עזר לך לנחש?\" ורק אז לבדוק יחד.",
+    ask: "איזו מילה אחרת יכולה להתאים כאן?" },
+  infer:   { name: "הסקת מסקנות (מידע סמוי)", kid: "קוֹרְאִים בֵּין הַשּׁוּרוֹת",
+    what: "להבין מה שלא כתוב במפורש: איך הדמות מרגישה, למה עשתה משהו, מה הרעיון של הסיפור.",
+    home: "לשאול \"איך הוא הרגיש?\" ואז \"איך ידעת? איזו מילה רמזה לך?\". הרמז מהטקסט הוא העיקר.",
+    ask: "איך היא הרגישה? מה בסיפור רמז לך?" },
+  purpose: { name: "סוג הטקסט ומטרתו", kid: "אֵיזֶה טֶקְסְט זֶה?",
+    what: "לזהות סוג טקסט (סיפור, מידע, מכתב, הזמנה) ולמה הוא נכתב.",
+    home: "בסופר, בדואר או בעיתון לשאול: \"מה זה? סיפור? מידע? הזמנה? למה מישהו כתב את זה?\"",
+    ask: "למה לדעתך כתבו את הטקסט הזה?" },
+  opinion: { name: "הבעת עמדה ונימוק (שאלה פתוחה)", kid: "מָה דַּעְתִּי?",
+    what: "לכתוב תשובה במשפט שלם, להביע דעה ולנמק אותה עם \"כי\" ובעזרת הטקסט.",
+    home: "לתרגל בעל פה: \"אני חושב ש... כי...\". אחר כך לכתוב משפט אחד כזה. לא לתקן איות בשלב הזה, רק את הרעיון.",
+    ask: "מה דעתך? ולמה? תתחיל ב'אני חושב ש... כי...'" },
+};
+
+/* ---------- stations: from one sentence up to a full practice test ---------- */
+const STATIONS = [
+  { id: "s1", title: "מִשְׁפָּט אֶחָד", sub: "קוֹרְאִים מִשְׁפָּט וְעוֹנִים", skill: "locate",
+    owl: ["שָׁלוֹם! אֲנִי יַנְשׁוּפִי, וַאֲנִי אֲלַוֶּה אוֹתְךָ בַּמַּסָּע.", "מַתְחִילִים בְּקַלִּי קַלּוּת: בְּכָל פַּעַם מִשְׁפָּט אֶחָד וּשְׁאֵלָה אַחַת."],
+    tools: ["קוֹרְאִים אֶת הַמִּשְׁפָּט עַד הַסּוֹף.", "קוֹרְאִים אֶת הַשְּׁאֵלָה: מִי? מָה? אֵיפֹה? מָתַי? לָמָּה?", "חוֹזְרִים לַמִּשְׁפָּט וּמְחַפְּשִׂים אֶת הַתְּשׁוּבָה."],
+    parent: "פתיחה רכה: משפט אחד ושאלה אחת. המטרה היא להרגיל את הילד לקרוא את השאלה עד הסוף ולחזור למשפט.",
+    questions: [
+      { type: "mc", skill: "locate", text: ["דָּנָה אוֹכֶלֶת תַּפּוּחַ אָדֹם."], q: "מָה אוֹכֶלֶת דָּנָה?", opts: ["תַּפּוּחַ", "בָּנָנָה", "עוּגָה"], ev: ["תַּפּוּחַ"], why: "כָּתוּב: \"דָּנָה אוֹכֶלֶת תַּפּוּחַ\"." },
+      { type: "mc", skill: "locate", text: ["הַכֶּלֶב שֶׁל יוֹסִי רָץ בַּגִּנָּה."], q: "אֵיפֹה רָץ הַכֶּלֶב?", opts: ["בַּגִּנָּה", "בַּבַּיִת", "בַּיָּם"], ev: ["בַּגִּנָּה"], why: "הַמִּלָּה \"בַּגִּנָּה\" אוֹמֶרֶת לָנוּ אֵיפֹה." },
+      { type: "mc", skill: "locate", text: ["הַצִּפּוֹר הַקְּטַנָּה בָּנְתָה קֵן מִזְּרָדִים עַל הָעֵץ."], q: "מִמָּה בָּנְתָה הַצִּפּוֹר אֶת הַקֵּן?", opts: ["מִזְּרָדִים", "מֵאֲבָנִים", "מִנְּיָר"], ev: ["מִזְּרָדִים"], why: "כָּתוּב: \"קֵן מִזְּרָדִים\"." },
+      { type: "mc", skill: "locate", text: ["אַחֲרֵי הַשִּׁעוּר, נוֹעַם וְתָמָר שִׂחֲקוּ בְּכַדּוּר."], q: "מָתַי שִׂחֲקוּ נוֹעַם וְתָמָר?", opts: ["אַחֲרֵי הַשִּׁעוּר", "לִפְנֵי הַשִּׁעוּר", "בְּאֶמְצַע הַלַּיְלָה"], ev: ["אַחֲרֵי"], why: "הַמִּשְׁפָּט מַתְחִיל בַּמִּלִּים \"אַחֲרֵי הַשִּׁעוּר\"." },
+      { type: "mc", skill: "locate", text: ["בַּבֹּקֶר יָרַד גֶּשֶׁם, וְלָכֵן גַּל לָקַח מִטְרִיָּה."], q: "לָמָּה לָקַח גַּל מִטְרִיָּה?", opts: ["כִּי יָרַד גֶּשֶׁם", "כִּי הָיָה חַם מְאוֹד", "כִּי הַמִּטְרִיָּה חֲדָשָׁה"], ev: ["גֶּשֶׁם"], why: "הַמִּלָּה \"וְלָכֵן\" מְחַבֶּרֶת: יָרַד גֶּשֶׁם, וּבִגְלַל זֶה הוּא לָקַח מִטְרִיָּה." },
+      { type: "mc", skill: "locate", text: ["סַבְתָּא אָפְתָה עוּגַת שׁוֹקוֹלָד לְיוֹם הַהֻלֶּדֶת שֶׁל מִיכַל."], q: "לִכְבוֹד מָה אָפְתָה סַבְתָּא עוּגָה?", opts: ["לְיוֹם הַהֻלֶּדֶת שֶׁל מִיכַל", "לְחַג חֲנֻכָּה", "לְיוֹם הַהֻלֶּדֶת שֶׁל סַבָּא"], ev: ["הַהֻלֶּדֶת"], why: "כָּתוּב: \"לְיוֹם הַהֻלֶּדֶת שֶׁל מִיכַל\"." },
+    ] },
+
+  { id: "s2", title: "בַּלָּשֵׁי מֵידָע", sub: "הַתְּשׁוּבָה כְּתוּבָה בַּסִּפּוּר", skill: "locate",
+    owl: ["עַכְשָׁו סִפּוּר קָצָר!", "הַתְּשׁוּבוֹת מְחַכּוֹת בְּתוֹךְ הַטֶּקְסְט. בַּלָּשׁ טוֹב תָּמִיד חוֹזֵר לַטֶּקְסְט לִבְדֹּק."],
+    tools: ["קוֹרְאִים אֶת הַכּוֹתֶרֶת וְאֶת כָּל הַסִּפּוּר.", "קוֹרְאִים אֶת הַשְּׁאֵלָה וְאֶת כָּל הַתְּשׁוּבוֹת.", "מוֹצְאִים בַּסִּפּוּר אֶת הַמִּשְׁפָּט שֶׁמַּתְאִים לַשְּׁאֵלָה.", "רַק אָז בּוֹחֲרִים תְּשׁוּבָה."],
+    parent: "טקסט סיפורי קצר. כל התשובות כתובות במפורש. אם הילד טועה, האפליקציה מסמנת בצהוב את המשפט שבו נמצאת התשובה. זה בדיוק ההרגל שאנחנו רוצים: לחזור לטקסט.",
+    text: { kind: "סִפּוּר", title: "הַחֲתַלְתּוּל בַּגִּנָּה", paras: [[
+      "בְּיוֹם שִׁשִּׁי בַּבֹּקֶר יָצְאָה רוֹנִי לַגִּנָּה שֶׁלְּיַד הַבַּיִת.",
+      "לְיַד הָעֵץ הַגָּדוֹל הִיא שָׁמְעָה קוֹל קָטָן: \"מִיָּאוּ, מִיָּאוּ\".",
+      "מִתַּחַת לַשִּׂיחַ יָשַׁב חֲתַלְתּוּל אָפֹר עִם כֶּתֶם לָבָן עַל הָאַף.",
+      "רוֹנִי רָצָה הַבַּיְתָה וְהֵבִיאָה קְעָרָה קְטַנָּה עִם מַיִם.",
+      "הַחֲתַלְתּוּל שָׁתָה וְהִתְחַכֵּךְ בָּרַגְלַיִם שֶׁל רוֹנִי.",
+      "\"אֶקְרָא לְךָ עֲנָנִי,\" אָמְרָה רוֹנִי, \"כִּי אַתָּה רַךְ כְּמוֹ עָנָן.\"" ]] },
+    questions: [
+      { type: "mc", skill: "locate", q: "מָתַי יָצְאָה רוֹנִי לַגִּנָּה?", opts: ["בְּיוֹם שִׁשִּׁי בַּבֹּקֶר", "בְּיוֹם רִאשׁוֹן בָּעֶרֶב", "בְּשַׁבָּת בַּצָּהֳרַיִם", "בְּיוֹם שִׁשִּׁי בַּלַּיְלָה"], ev: ["בְּיוֹם שִׁשִּׁי"], why: "הַמִּשְׁפָּט הָרִאשׁוֹן אוֹמֵר: \"בְּיוֹם שִׁשִּׁי בַּבֹּקֶר\"." },
+      { type: "mc", skill: "locate", q: "מָה שָׁמְעָה רוֹנִי לְיַד הָעֵץ?", opts: ["\"מִיָּאוּ, מִיָּאוּ\"", "נְבִיחָה שֶׁל כֶּלֶב", "צִפְצוּף שֶׁל צִפּוֹר", "רַעַשׁ שֶׁל מְכוֹנִית"], ev: ["שָׁמְעָה"], why: "כָּתוּב: \"הִיא שָׁמְעָה קוֹל קָטָן: מִיָּאוּ, מִיָּאוּ\"." },
+      { type: "find", skill: "locate", q: "גְּעוּ בַּמִּשְׁפָּט שֶׁמְּתָאֵר אֵיךְ נִרְאָה הַחֲתַלְתּוּל.", ev: ["אָפֹר"], why: "\"חֲתַלְתּוּל אָפֹר עִם כֶּתֶם לָבָן עַל הָאַף\" מְתָאֵר אֵיךְ הוּא נִרְאָה." },
+      { type: "mc", skill: "locate", q: "מָה הֵבִיאָה רוֹנִי לַחֲתַלְתּוּל?", opts: ["קְעָרָה עִם מַיִם", "כַּדּוּר צֶמֶר", "שְׂמִיכָה רַכָּה", "קְעָרָה עִם דָּגִים"], ev: ["קְעָרָה"], why: "כָּתוּב: \"הֵבִיאָה קְעָרָה קְטַנָּה עִם מַיִם\"." },
+      { type: "mc", skill: "locate", q: "לָמָּה קָרְאָה רוֹנִי לַחֲתַלְתּוּל \"עֲנָנִי\"?", opts: ["כִּי הוּא רַךְ כְּמוֹ עָנָן", "כִּי הוּא לָבָן כֻּלּוֹ", "כִּי יָרַד גֶּשֶׁם", "כִּי הוּא אוֹהֵב לְהִסְתַּכֵּל עַל הַשָּׁמַיִם"], ev: ["עֲנָנִי"], why: "רוֹנִי אָמְרָה: \"כִּי אַתָּה רַךְ כְּמוֹ עָנָן\". הַמִּלָּה \"כִּי\" מַסְבִּירָה לָמָּה." },
+    ] },
+
+  { id: "s3", title: "סֵדֶר הַסִּפּוּר", sub: "קֹדֶם, אַחַר כָּךְ, בַּסּוֹף", skill: "sequence",
+    owl: ["לְכָל סִפּוּר יֵשׁ הַתְחָלָה, אֶמְצַע וְסוֹף.", "מִלּוֹת זְמַן כְּמוֹ \"קֹדֶם\", \"אַחַר כָּךְ\" וּ\"בָעֶרֶב\" הֵן הַשְּׁלָטִים שֶׁל הַסִּפּוּר."],
+    tools: ["קוֹרְאִים אֶת כָּל הַסִּפּוּר.", "מְחַפְּשִׂים מִלּוֹת זְמַן: קֹדֶם, אַחַר כָּךְ, כְּשֶׁ..., בַּסּוֹף.", "מְסַדְּרִים: מָה קָרָה רִאשׁוֹן? וּמָה אַחֲרָיו?"],
+    parent: "רצף אירועים. בשאלת הסידור הילד נוגע בכרטיסים לפי הסדר. אם יש טעות, הכרטיסים הנכונים נצבעים בירוק והשגויים חוזרים.",
+    text: { kind: "סִפּוּר", title: "עוּגָה לְאִמָּא", paras: [[
+      "בְּיוֹם הַהֻלֶּדֶת שֶׁל אִמָּא, אוֹרִי וְאַבָּא הֶחְלִיטוּ לֶאֱפוֹת לָהּ עוּגָה.",
+      "קֹדֶם הֵם קָנוּ בַּמַּכֹּלֶת קֶמַח, בֵּיצִים וְשׁוֹקוֹלָד.",
+      "אַחַר כָּךְ אוֹרִי עִרְבֵּב אֶת כָּל הַחֳמָרִים בִּקְעָרָה גְּדוֹלָה.",
+      "אַבָּא הִכְנִיס אֶת הָעוּגָה לַתַּנּוּר, וְהַבַּיִת הִתְמַלֵּא בְּרֵיחַ מָתוֹק.",
+      "כְּשֶׁהָעוּגָה הִתְקָרְרָה, אוֹרִי קִשֵּׁט אוֹתָהּ בְּסֻכָּרִיּוֹת צִבְעוֹנִיּוֹת.",
+      "בָּעֶרֶב חָזְרָה אִמָּא מֵהָעֲבוֹדָה, רָאֲתָה אֶת הָעוּגָה וְחִבְּקָה אֶת שְׁנֵיהֶם חָזָק." ]] },
+    questions: [
+      { type: "order", skill: "sequence", q: "סַדְּרוּ אֶת הָאֵרוּעִים לְפִי הַסֵּדֶר בַּסִּפּוּר.", items: ["קָנוּ קֶמַח, בֵּיצִים וְשׁוֹקוֹלָד", "אוֹרִי עִרְבֵּב בִּקְעָרָה", "הָעוּגָה נִכְנְסָה לַתַּנּוּר", "אוֹרִי קִשֵּׁט אֶת הָעוּגָה"], ev: ["קֹדֶם", "אַחַר כָּךְ", "לַתַּנּוּר", "קִשֵּׁט"], why: "מִלּוֹת הַזְּמַן \"קֹדֶם\", \"אַחַר כָּךְ\" וּ\"כְּשֶׁהָעוּגָה הִתְקָרְרָה\" מַרְאוֹת אֶת הַסֵּדֶר." },
+      { type: "mc", skill: "sequence", q: "מָה קָרָה מִיָּד אַחֲרֵי שֶׁאַבָּא הִכְנִיס אֶת הָעוּגָה לַתַּנּוּר?", opts: ["הַבַּיִת הִתְמַלֵּא בְּרֵיחַ מָתוֹק", "אִמָּא חָזְרָה מֵהָעֲבוֹדָה", "הֵם הָלְכוּ לַמַּכֹּלֶת", "אוֹרִי עִרְבֵּב אֶת הַחֳמָרִים"], ev: ["לַתַּנּוּר"], why: "בְּאוֹתוֹ מִשְׁפָּט כָּתוּב: \"וְהַבַּיִת הִתְמַלֵּא בְּרֵיחַ מָתוֹק\"." },
+      { type: "mc", skill: "sequence", q: "מָה עָשׂוּ אוֹרִי וְאַבָּא לִפְנֵי שֶׁאוֹרִי עִרְבֵּב אֶת הַחֳמָרִים?", opts: ["קָנוּ חֳמָרִים בַּמַּכֹּלֶת", "קִשְּׁטוּ אֶת הָעוּגָה", "חִבְּקוּ אֶת אִמָּא", "הִכְנִיסוּ אֶת הָעוּגָה לַתַּנּוּר"], ev: ["קֹדֶם"], why: "\"קֹדֶם הֵם קָנוּ בַּמַּכֹּלֶת\", וְרַק \"אַחַר כָּךְ\" אוֹרִי עִרְבֵּב." },
+      { type: "mc", skill: "sequence", q: "אֵיזוֹ מִלָּה בַּסִּפּוּר עוֹזֶרֶת לָנוּ לָדַעַת מָה קָרָה רִאשׁוֹן?", opts: ["קֹדֶם", "מָתוֹק", "גְּדוֹלָה", "חָזָק"], ev: ["קֹדֶם"], why: "\"קֹדֶם\" הִיא מִלַּת זְמַן. הִיא אוֹמֶרֶת לָנוּ מָה קָרָה בַּהַתְחָלָה." },
+      { type: "mc", skill: "sequence", q: "מָתַי רָאֲתָה אִמָּא אֶת הָעוּגָה?", opts: ["בָּעֶרֶב", "בַּבֹּקֶר", "בַּצָּהֳרַיִם", "בַּלַּיְלָה"], ev: ["בָּעֶרֶב"], why: "הַמִּשְׁפָּט הָאַחֲרוֹן מַתְחִיל בַּמִּלָּה \"בָּעֶרֶב\"." },
+    ] },
+
+  { id: "s4", title: "מִלִּים חֲדָשׁוֹת", sub: "מְגַלִּים מָה פֵּרוּשׁ הַמִּלָּה", skill: "vocab",
+    owl: ["מָה עוֹשִׂים כְּשֶׁפּוֹגְשִׁים מִלָּה שֶׁלֹּא מַכִּירִים?", "לֹא נִבְהָלִים! הַמִּשְׁפָּט שֶׁמִּסָּבִיב לַמִּלָּה נוֹתֵן רְמָזִים."],
+    tools: ["מוֹצְאִים אֶת הַמִּלָּה בַּטֶּקְסְט.", "קוֹרְאִים אֶת הַמִּשְׁפָּט שֶׁלָּהּ, וְגַם אֶת הַמִּשְׁפָּט שֶׁלִּפְנֵיהָ וְשֶׁאַחֲרֶיהָ.", "מְנַסִּים לְהַחְלִיף אֶת הַמִּלָּה בְּכָל תְּשׁוּבָה. אֵיזוֹ מַתְאִימָה?"],
+    parent: "אוצר מילים מתוך הקשר. האסטרטגיה החשובה: להחליף את המילה בכל אחת מהתשובות ולבדוק איזו \"נשמעת נכון\" במשפט.",
+    text: { kind: "סִפּוּר", title: "הַנְּמָלָה וְהַגַּרְגִּיר", paras: [[
+      "נְמָלָה קְטַנָּה מָצְאָה גַּרְגִּיר חִטָּה גָּדוֹל.",
+      "הַגַּרְגִּיר הָיָה כָּבֵד מְאוֹד, אֲבָל הַנְּמָלָה לֹא וִתְּרָה.",
+      "הִיא סָחֲבָה אוֹתוֹ לְאַט לְאַט, צַעַד אַחַר צַעַד.",
+      "בַּדֶּרֶךְ הִיא נִתְקְלָה בְּאֶבֶן, וְהַגַּרְגִּיר נָפַל.",
+      "הַנְּמָלָה הֵרִימָה אוֹתוֹ שׁוּב וְהִמְשִׁיכָה לָלֶכֶת.",
+      "כְּשֶׁהִגִּיעָה לַקֵּן, כָּל הַנְּמָלִים מָחֲאוּ לָהּ כַּפַּיִם.",
+      "\"אַתְּ חֲרוּצָה מְאוֹד!\" אָמְרוּ לָהּ. \"בִּזְכוּתֵךְ יִהְיֶה לָנוּ אֹכֶל לַחֹרֶף.\"" ]] },
+    questions: [
+      { type: "mc", skill: "vocab", q: "בַּסִּפּוּר כָּתוּב: \"הַנְּמָלָה לֹא וִתְּרָה\". מָה זֶה אוֹמֵר?", opts: ["הִיא הִמְשִׁיכָה לְנַסּוֹת", "הִיא הָלְכָה הַבַּיְתָה", "הִיא בִּקְּשָׁה עֶזְרָה", "הִיא נִרְדְּמָה"], ev: ["וִתְּרָה", "סָחֲבָה"], why: "אַחֲרֵי זֶה הִיא סָחֲבָה אֶת הַגַּרְגִּיר \"צַעַד אַחַר צַעַד\". הִיא לֹא הִפְסִיקָה." },
+      { type: "mc", skill: "vocab", q: "מָה פֵּרוּשׁ הַמִּלָּה \"סָחֲבָה\"?", opts: ["נָשְׂאָה וּמָשְׁכָה דָּבָר כָּבֵד", "אָכְלָה", "זָרְקָה רָחוֹק", "צִיְּרָה"], ev: ["סָחֲבָה", "כָּבֵד"], why: "הַגַּרְגִּיר כָּבֵד, וְהַנְּמָלָה מְבִיאָה אוֹתוֹ לַקֵּן. סוֹחֲבִים דָּבָר כָּבֵד." },
+      { type: "mc", skill: "vocab", q: "\"הִיא נִתְקְלָה בְּאֶבֶן\". מָה קָרָה לַנְּמָלָה?", opts: ["הִיא פָּגְעָה בָּאֶבֶן בְּלִי כַּוָּנָה", "הִיא מָצְאָה אֶבֶן יָפָה", "הִיא בָּנְתָה בַּיִת מֵאֲבָנִים", "הִיא זָרְקָה אֶבֶן"], ev: ["נִתְקְלָה"], why: "אַחֲרֵי שֶׁנִּתְקְלָה, \"הַגַּרְגִּיר נָפַל\". מִי שֶׁנִּתְקָל פּוֹגֵעַ בְּמַשֶּׁהוּ בְּלִי לָשִׂים לֵב." },
+      { type: "mc", skill: "vocab", q: "הַנְּמָלִים אָמְרוּ: \"אַתְּ חֲרוּצָה\". מִי הִיא חֲרוּצָה?", opts: ["מִי שֶׁעוֹבֶדֶת קָשֶׁה וְלֹא מִתְעַצֶּלֶת", "מִי שֶׁרָצָה מַהֵר", "מִי שֶׁקְּטַנָּה מְאוֹד", "מִי שֶׁאוֹהֶבֶת לִישֹׁן"], ev: ["חֲרוּצָה", "וִתְּרָה"], why: "הַנְּמָלָה עָבְדָה קָשֶׁה כָּל הַדֶּרֶךְ וְלֹא וִתְּרָה. זוֹ חֲרִיצוּת." },
+      { type: "mc", skill: "vocab", q: "אֵיזוֹ מִלָּה הֲפוּכָה לַמִּלָּה \"כָּבֵד\"?", opts: ["קַל", "גָּדוֹל", "חָזָק", "אִטִּי"], ev: ["כָּבֵד"], why: "הַהֵפֶךְ שֶׁל כָּבֵד הוּא קַל, כְּמוֹ נוֹצָה." },
+    ] },
+
+  { id: "s5", title: "בֵּין הַשּׁוּרוֹת", sub: "מָה הַסִּפּוּר לֹא אוֹמֵר בְּמִלִּים", skill: "infer",
+    owl: ["לִפְעָמִים הַתְּשׁוּבָה לֹא כְּתוּבָה בְּמִלִּים.", "אָז מְחַפְּשִׂים רְמָזִים, כְּמוֹ בַּלָּשׁ אֲמִתִּי: מָה הַדְּמוּת עוֹשָׂה? מָה קוֹרֶה לַגּוּף שֶׁלָּהּ?"],
+    tools: ["קוֹרְאִים אֶת הַשְּׁאֵלָה: אֵיךְ הִרְגִּישָׁה? לָמָּה?", "מְחַפְּשִׂים בַּסִּפּוּר רְמָזִים: מַעֲשִׂים, מִלִּים, תְּחוּשׁוֹת בַּגּוּף.", "שׁוֹאֲלִים: אֵיזוֹ תְּשׁוּבָה הַסִּפּוּר הֲכִי מַסְכִּים אִתָּהּ?"],
+    parent: "מידע סמוי, השלב שילדים מתקשים בו הכי הרבה במבדקים. המילה \"פחדה\" לא מופיעה בסיפור, אבל יש רמזים (בטן כואבת, ידיים רועדות). בבית: \"איך ידעת?\" היא השאלה הכי חשובה.",
+    text: { kind: "סִפּוּר", title: "הַהַצָּגָה שֶׁל יָעֵל", paras: [[
+      "כָּל הַשָּׁבוּעַ יָעֵל הִתְאַמְּנָה עַל הַתַּפְקִיד שֶׁלָּהּ בְּהַצָּגַת הַכִּתָּה.",
+      "בַּבֹּקֶר שֶׁל הַהַצָּגָה הַבֶּטֶן שֶׁלָּהּ כָּאֲבָה, וְהִיא כִּמְעַט לֹא אָכְלָה אֲרוּחַת בֹּקֶר.",
+      "כְּשֶׁעָלְתָה עַל הַבָּמָה, הַיָּדַיִם שֶׁלָּהּ רָעֲדוּ.",
+      "הִיא הִסְתַּכְּלָה עַל הַקָּהָל וְרָאֲתָה אֶת סַבָּא שֶׁלָּהּ מְחַיֵּךְ אֵלֶיהָ וּמְנַפְנֵף בַּיָּד.",
+      "יָעֵל לָקְחָה נְשִׁימָה עֲמֻקָּה וְאָמְרָה אֶת כָּל הַמִּשְׁפָּטִים בְּלִי לְהִתְבַּלְבֵּל.",
+      "בַּסּוֹף כֻּלָּם מָחֲאוּ כַּפַּיִם, וְיָעֵל קָפְצָה מֵרֹב שִׂמְחָה." ]] },
+    questions: [
+      { type: "mc", skill: "infer", q: "אֵיךְ הִרְגִּישָׁה יָעֵל בַּבֹּקֶר שֶׁל הַהַצָּגָה?", opts: ["מְתוּחָה וּמְפַחֶדֶת", "רְעֵבָה מְאוֹד", "מְשֻׁעֲמֶמֶת", "כּוֹעֶסֶת"], ev: ["הַבֶּטֶן", "רָעֲדוּ"], why: "לֹא כָּתוּב \"פָּחֲדָה\", אֲבָל יֵשׁ רְמָזִים: הַבֶּטֶן כָּאֲבָה, הִיא לֹא אָכְלָה וְהַיָּדַיִם רָעֲדוּ." },
+      { type: "mc", skill: "infer", q: "לָמָּה הִתְאַמְּנָה יָעֵל כָּל הַשָּׁבוּעַ?", opts: ["כִּי רָצְתָה לְהַצְלִיחַ בַּהַצָּגָה", "כִּי הַמּוֹרָה כָּעֲסָה עָלֶיהָ", "כִּי לֹא הָיָה לָהּ מָה לַעֲשׂוֹת", "כִּי הִיא לֹא אוֹהֶבֶת הַצָּגוֹת"], ev: ["הִתְאַמְּנָה"], why: "מִי שֶׁמִּתְאַמֵּן הַרְבֵּה רוֹצֶה לַעֲשׂוֹת אֶת זֶה טוֹב. זֶה לֹא כָּתוּב, אֲבָל אֶפְשָׁר לְהָבִין." },
+      { type: "mc", skill: "infer", q: "מָה עָזַר לְיָעֵל לְהֵרָגַע?", opts: ["הַחִיּוּךְ שֶׁל סַבָּא", "אֲרוּחַת הַבֹּקֶר", "הַמְּחִיאוֹת כַּפַּיִם", "הַתִּלְבֹּשֶׁת הַיָּפָה"], ev: ["סַבָּא", "נְשִׁימָה"], why: "הִיא רָאֲתָה אֶת סַבָּא מְחַיֵּךְ, וּמִיָּד אַחַר כָּךְ לָקְחָה נְשִׁימָה וְהִצְלִיחָה." },
+      { type: "find", skill: "infer", q: "גְּעוּ בַּמִּשְׁפָּט שֶׁמַּרְאֶה שֶׁיָּעֵל הָיְתָה שְׂמֵחָה בַּסּוֹף.", ev: ["קָפְצָה"], why: "\"יָעֵל קָפְצָה מֵרֹב שִׂמְחָה\" מַרְאֶה אֶת הַשִּׂמְחָה שֶׁלָּהּ." },
+      { type: "mc", skill: "infer", q: "אֵיזֶה שֵׁם אַחֵר מַתְאִים לַסִּפּוּר?", opts: ["יָעֵל הָאַמִּיצָה", "אֲרוּחַת הַבֹּקֶר", "סַבָּא הוֹלֵךְ לַיָּם", "הַכִּתָּה הַחֲדָשָׁה"], ev: [], why: "הַסִּפּוּר כֻּלּוֹ עַל יָעֵל שֶׁפָּחֲדָה וּבְכָל זֹאת עָלְתָה עַל הַבָּמָה וְהִצְלִיחָה. זֶה אֹמֶץ." },
+    ] },
+
+  { id: "s6", title: "טֶקְסְט מֵידָעִי", sub: "לוֹמְדִים עוּבְדּוֹת", skill: "purpose",
+    owl: ["לֹא כָּל טֶקְסְט הוּא סִפּוּר!", "טֶקְסְט מֵידָעִי מְלַמֵּד אוֹתָנוּ עוּבְדּוֹת. אֵין בּוֹ דְּמֻיּוֹת וְאֵין עֲלִילָה."],
+    tools: ["קוֹרְאִים אֶת הַכּוֹתֶרֶת: עַל מָה נִלְמַד?", "קוֹרְאִים מִשְׁפָּט אַחַר מִשְׁפָּט. כָּל מִשְׁפָּט מְלַמֵּד עוּבְדָּה.", "בַּשְּׁאֵלוֹת: מְחַפְּשִׂים מִלָּה מֵהַשְּׁאֵלָה בְּתוֹךְ הַטֶּקְסְט."],
+    parent: "טקסט מידעי, חלק קבוע במבדקים. ילדים רגילים לסיפורים, וכאן לומדים לזהות שהטקסט נכתב כדי ללמד, ולמצוא עובדות לפי מילת מפתח מהשאלה.",
+    text: { kind: "טֶקְסְט מֵידָעִי", title: "הַדְּבוֹרָה: חֲבֵרָה קְטַנָּה וַחֲשׁוּבָה", paras: [[
+      "הַדְּבוֹרָה הִיא חֶרֶק קָטָן. יֵשׁ לָהּ שֵׁשׁ רַגְלַיִם וְאַרְבַּע כְּנָפַיִם.",
+      "הַדְּבוֹרִים חַיּוֹת יַחַד בִּקְבוּצָה גְּדוֹלָה, בְּבַיִת שֶׁנִּקְרָא כַּוֶּרֶת.",
+      "בְּכָל כַּוֶּרֶת יֵשׁ מַלְכָּה אַחַת, וְהִיא מְטִילָה אֶת הַבֵּיצִים."
+    ], [
+      "דְּבוֹרִים אֲחֵרוֹת עָפוֹת מִפֶּרַח לְפֶרַח וְאוֹסְפוֹת צוּף.",
+      "מֵהַצּוּף הֵן מְכִינוֹת דְּבַשׁ.",
+      "כְּשֶׁהַדְּבוֹרָה עוֹבֶרֶת בֵּין הַפְּרָחִים, הִיא עוֹזֶרֶת לָהֶם לְהוֹצִיא פֵּרוֹת.",
+      "לָכֵן חָשׁוּב לִשְׁמֹר עַל הַדְּבוֹרִים וְלֹא לִפְגֹּעַ בָּהֶן." ]] },
+    questions: [
+      { type: "mc", skill: "locate", q: "כַּמָּה רַגְלַיִם יֵשׁ לַדְּבוֹרָה?", opts: ["שֵׁשׁ", "אַרְבַּע", "שְׁמוֹנֶה", "שְׁתַּיִם"], ev: ["רַגְלַיִם"], why: "כָּתוּב: \"יֵשׁ לָהּ שֵׁשׁ רַגְלַיִם\". זְהִירוּת: אַרְבַּע זֶה מִסְפַּר הַכְּנָפַיִם!" },
+      { type: "mc", skill: "locate", q: "מָה הַתַּפְקִיד שֶׁל הַמַּלְכָּה?", opts: ["הִיא מְטִילָה אֶת הַבֵּיצִים", "הִיא אוֹסֶפֶת צוּף", "הִיא שׁוֹמֶרֶת עַל הַפְּרָחִים", "הִיא בּוֹנָה אֶת הַכַּוֶּרֶת"], ev: ["מַלְכָּה"], why: "כָּתוּב: \"מַלְכָּה אַחַת, וְהִיא מְטִילָה אֶת הַבֵּיצִים\"." },
+      { type: "find", skill: "locate", q: "גְּעוּ בַּמִּשְׁפָּט שֶׁמְּסַפֵּר מָה מְכִינוֹת הַדְּבוֹרִים מֵהַצּוּף.", ev: ["דְּבַשׁ"], why: "\"מֵהַצּוּף הֵן מְכִינוֹת דְּבַשׁ\"." },
+      { type: "mc", skill: "infer", q: "לָמָּה חָשׁוּב לִשְׁמֹר עַל הַדְּבוֹרִים?", opts: ["כִּי הֵן עוֹזְרוֹת לַפְּרָחִים לְהוֹצִיא פֵּרוֹת", "כִּי יֵשׁ לָהֶן אַרְבַּע כְּנָפַיִם", "כִּי הֵן חַיּוֹת בְּכַוֶּרֶת", "כִּי הֵן קְטַנּוֹת"], ev: ["פֵּרוֹת", "לָכֵן"], why: "הַמִּלָּה \"לָכֵן\" בַּמִּשְׁפָּט הָאַחֲרוֹן מְחַבֶּרֶת אוֹתוֹ לַמִּשְׁפָּט שֶׁלְּפָנָיו: הֵן עוֹזְרוֹת לַפְּרָחִים לְהוֹצִיא פֵּרוֹת." },
+      { type: "mc", skill: "purpose", q: "לָמָּה נִכְתַּב הַטֶּקְסְט?", opts: ["כְּדֵי לְלַמֵּד אוֹתָנוּ עַל דְּבוֹרִים", "כְּדֵי לְסַפֵּר סִפּוּר מַצְחִיק", "כְּדֵי לְהַזְמִין אוֹתָנוּ לִמְסִבָּה", "כְּדֵי לְהַסְבִּיר אֵיךְ מְשַׂחֲקִים מִשְׂחָק"], ev: [], why: "בַּטֶּקְסְט יֵשׁ עוּבְדּוֹת עַל דְּבוֹרִים, וְאֵין בּוֹ דְּמֻיּוֹת אוֹ עֲלִילָה. זֶה טֶקְסְט מֵידָעִי." },
+    ] },
+
+  { id: "s7", title: "מָה דַּעְתִּי?", sub: "כּוֹתְבִים תְּשׁוּבָה וּמְנַמְּקִים", skill: "opinion",
+    owl: ["בַּמִּבְדָּק יֵשׁ גַּם שְׁאֵלוֹת שֶׁבָּהֶן כּוֹתְבִים תְּשׁוּבָה לְבַד.", "הַסּוֹד: מַתְחִילִים בְּמִלִּים מֵהַשְּׁאֵלָה, וּמוֹסִיפִים \"כִּי...\"."],
+    tools: ["קוֹרְאִים אֶת הַשְּׁאֵלָה. מָה בְּדִיּוּק שׁוֹאֲלִים?", "מַתְחִילִים אֶת הַתְּשׁוּבָה בְּמִלִּים מֵהַשְּׁאֵלָה.", "מוֹסִיפִים סִבָּה: \"כִּי...\".", "בּוֹדְקִים: כָּתַבְתִּי מִשְׁפָּט שָׁלֵם?"],
+    parent: "שאלות פתוחות. אין \"נכון/לא נכון\" אוטומטי: אחרי הכתיבה מופיעים רשימת בדיקה ותשובה לדוגמה. מומלץ לשבת ליד הילד בשלב הזה ולסמן יחד. התשובות נשמרות ומופיעות כאן בפינת ההורים.",
+    text: { kind: "מִכְתָּב", title: "מִכְתָּב מֵעוֹמֶר", paras: [
+      ["לְכִתָּה ב' שָׁלוֹם,"],
+      ["קוֹרְאִים לִי עוֹמֶר, וְעָבַרְתִּי לָגוּר בָּעִיר שֶׁלָּכֶם לִפְנֵי שָׁבוּעַ.",
+       "בְּיוֹם רִאשׁוֹן אֲנִי מַתְחִיל לִלְמֹד בַּכִּתָּה שֶׁלָּכֶם.",
+       "אֲנִי אוֹהֵב לְשַׂחֵק כַּדּוּרֶגֶל וְלִבְנוֹת דְּבָרִים מִלֶּגוֹ.",
+       "אֲנִי קְצָת דּוֹאֵג, כִּי אֲנִי עוֹד לֹא מַכִּיר אַף אֶחָד.",
+       "אֲנִי מְקַוֶּה שֶׁנִּהְיֶה חֲבֵרִים."],
+      ["לְהִתְרָאוֹת,", "עוֹמֶר"] ] },
+    questions: [
+      { type: "mc", skill: "purpose", q: "אֵיזֶה סוּג שֶׁל טֶקְסְט זֶה?", opts: ["מִכְתָּב", "שִׁיר", "מַתְכּוֹן", "טֶקְסְט מֵידָעִי"], ev: ["שָׁלוֹם,", "לְהִתְרָאוֹת"], why: "יֵשׁ פְּנִיָּה בַּהַתְחָלָה (\"לְכִתָּה ב' שָׁלוֹם\") וַחֲתִימָה בַּסּוֹף (\"עוֹמֶר\"). כָּךְ נִרְאֶה מִכְתָּב." },
+      { type: "mc", skill: "locate", q: "לָמָּה עוֹמֶר דּוֹאֵג?", opts: ["כִּי הוּא עוֹד לֹא מַכִּיר אַף אֶחָד", "כִּי אֵין לוֹ לֶגוֹ", "כִּי הוּא לֹא אוֹהֵב כַּדּוּרֶגֶל", "כִּי הַכִּתָּה רְחוֹקָה"], ev: ["דּוֹאֵג"], why: "כָּתוּב: \"אֲנִי קְצָת דּוֹאֵג, כִּי אֲנִי עוֹד לֹא מַכִּיר אַף אֶחָד\"." },
+      { type: "open", skill: "opinion", q: "מָה אַתֶּם יְכוֹלִים לַעֲשׂוֹת כְּדֵי שֶׁעוֹמֶר יַרְגִּישׁ טוֹב בַּכִּתָּה? כִּתְבוּ רַעְיוֹן אֶחָד וְהַסְבִּירוּ.",
+        model: "אֲנִי יָכוֹל לְהַזְמִין אֶת עוֹמֶר לְשַׂחֵק אִתִּי כַּדּוּרֶגֶל בַּהַפְסָקָה, כִּי הוּא כָּתַב שֶׁהוּא אוֹהֵב כַּדּוּרֶגֶל.",
+        check: ["כָּתַבְתִּי מִשְׁפָּט שָׁלֵם", "כָּתַבְתִּי מָה אֲנִי יָכוֹל לַעֲשׂוֹת", "הִסְבַּרְתִּי עִם \"כִּי\"", "הִשְׁתַּמַּשְׁתִּי בְּמַשֶּׁהוּ מֵהַמִּכְתָּב"] },
+      { type: "open", skill: "opinion", q: "הַאִם זֶה רַעְיוֹן טוֹב לִכְתֹּב מִכְתָּב לַכִּתָּה לִפְנֵי שֶׁמַּגִּיעִים? כִּתְבוּ מָה דַּעְתְּכֶם וְלָמָּה.",
+        model: "כֵּן, זֶה רַעְיוֹן טוֹב, כִּי הַיְּלָדִים כְּבָר יוֹדְעִים מָה עוֹמֶר אוֹהֵב, וְהֵם יְחַכּוּ לוֹ.",
+        check: ["עָנִיתִי \"כֵּן\" אוֹ \"לֹא\"", "הִסְבַּרְתִּי עִם \"כִּי\"", "כָּתַבְתִּי מִשְׁפָּט שָׁלֵם"] },
+    ] },
+
+  { id: "s8", title: "מִבְדָּק לְדֻגְמָה", sub: "כְּמוֹ בַּמִּבְדָּק הָאֲמִתִּי", skill: "mixed", test: true,
+    owl: ["הִגַּעְנוּ לַתַּחֲנָה הָאַחֲרוֹנָה!", "כָּאן הַכֹּל כְּמוֹ בַּמִּבְדָּק: אֵין רְמָזִים, וְהַתְּשׁוּבוֹת נִבְדָּקוֹת רַק בַּסּוֹף. אֶפְשָׁר לַחְזֹר לַסִּפּוּר כַּמָּה שֶׁרוֹצִים."],
+    tools: ["קוֹרְאִים אֶת הַכּוֹתֶרֶת וְאֶת כָּל הַסִּפּוּר.", "בְּכָל שְׁאֵלָה קוֹרְאִים אֶת כָּל הַתְּשׁוּבוֹת.", "חוֹזְרִים לַטֶּקְסְט לִבְדֹּק. זֶה מֻתָּר וְזֶה חָכָם!", "בִּשְׁאֵלָה פְּתוּחָה: מִלִּים מֵהַשְּׁאֵלָה + \"כִּי\"."],
+    parent: "מבדק דמה המשלב את כל המיומנויות. אין רמזים ואין משוב עד הסוף, כמו במבדק. בסוף מוצגים התשובות הנכונות וההסבר. כדאי לעבור יחד על מה שהיה קשה.",
+    text: { kind: "סִפּוּר", title: "הַגֶּשֶׁם הָרִאשׁוֹן", paras: [[
+      "כָּל הַקַּיִץ חִכָּה אִיתַי לַגֶּשֶׁם.",
+      "הוּא קִבֵּל מִסַּבְתָּא מַגָּפַיִם צְהֻבִּים חֲדָשִׁים, וְרָצָה מְאוֹד לִקְפֹּץ אִתָּם בִּשְׁלוּלִיּוֹת.",
+      "בְּכָל בֹּקֶר הוּא הִסְתַּכֵּל מֵהַחַלּוֹן, אֲבָל הַשָּׁמַיִם הָיוּ כְּחֻלִּים וּבְהִירִים."
+    ], [
+      "יוֹם אֶחָד, בְּאֶמְצַע הַשִּׁעוּר, הַכִּתָּה הֶחְשִׁיכָה פִּתְאוֹם.",
+      "עֲנָנִים אֲפֹרִים כִּסּוּ אֶת הַשָּׁמַיִם, וְאַחֲרֵי רֶגַע נִשְׁמַע רַעַם חָזָק.",
+      "טִיפּוֹת גְּדוֹלוֹת הִתְחִילוּ לִדְפֹּק עַל הַחַלּוֹן.",
+      "אִיתַי חִיֵּךְ חִיּוּךְ רָחָב, אֲבָל אָז נִזְכַּר: הַמַּגָּפַיִם נִשְׁאֲרוּ בַּבַּיִת!"
+    ], [
+      "כְּשֶׁנִּשְׁמַע הַצִּלְצוּל, אִיתַי רָאָה אֶת סַבְתָּא מְחַכָּה לוֹ לְיַד הַשַּׁעַר.",
+      "בַּיָּד שֶׁלָּהּ הָיוּ... הַמַּגָּפַיִם הַצְּהֻבִּים!" ]] },
+    questions: [
+      { type: "mc", skill: "locate", q: "מָה קִבֵּל אִיתַי מִסַּבְתָּא?", opts: ["מַגָּפַיִם צְהֻבִּים", "מִטְרִיָּה צְהֻבָּה", "מְעִיל גֶּשֶׁם", "כּוֹבַע חָדָשׁ"], ev: ["קִבֵּל"], why: "כָּתוּב: \"הוּא קִבֵּל מִסַּבְתָּא מַגָּפַיִם צְהֻבִּים חֲדָשִׁים\"." },
+      { type: "mc", skill: "vocab", q: "\"הַכִּתָּה הֶחְשִׁיכָה\". מָה זֶה אוֹמֵר?", opts: ["נַעֲשָׂה בַּכִּתָּה חֹשֶׁךְ", "נַעֲשָׂה בַּכִּתָּה רַעַשׁ", "נַעֲשָׂה בַּכִּתָּה קַר", "הַיְּלָדִים יָצְאוּ מֵהַכִּתָּה"], ev: ["הֶחְשִׁיכָה", "עֲנָנִים"], why: "\"הֶחְשִׁיכָה\" בָּאָה מֵהַמִּלָּה חֹשֶׁךְ. הָעֲנָנִים כִּסּוּ אֶת הַשָּׁמַיִם, וְלָכֵן נַעֲשָׂה חֹשֶׁךְ." },
+      { type: "order", skill: "sequence", q: "סַדְּרוּ אֶת הָאֵרוּעִים לְפִי הַסֵּדֶר בַּסִּפּוּר.", items: ["הַשָּׁמַיִם הָיוּ כְּחֻלִּים וּבְהִירִים", "נִשְׁמַע רַעַם חָזָק", "אִיתַי נִזְכַּר שֶׁהַמַּגָּפַיִם בַּבַּיִת", "סַבְתָּא חִכְּתָה לְיַד הַשַּׁעַר"], ev: ["כְּחֻלִּים", "רַעַם", "נִזְכַּר", "הַשַּׁעַר"], why: "בַּהַתְחָלָה חִכָּה לַגֶּשֶׁם, אַחַר כָּךְ הִגִּיעַ הַגֶּשֶׁם עִם רַעַם, אָז נִזְכַּר בַּמַּגָּפַיִם, וּבַסּוֹף סַבְתָּא הִגִּיעָה." },
+      { type: "mc", skill: "infer", q: "אֵיךְ הִרְגִּישׁ אִיתַי כְּשֶׁנִּזְכַּר שֶׁהַמַּגָּפַיִם נִשְׁאֲרוּ בַּבַּיִת?", opts: ["מְאֻכְזָב", "שָׂמֵחַ", "מְשֻׁעֲמָם", "גֵּאֶה"], ev: ["נִזְכַּר"], why: "הוּא חִכָּה כָּל הַקַּיִץ לִקְפֹּץ בַּשְּׁלוּלִיּוֹת עִם הַמַּגָּפַיִם. הַמִּלָּה \"אֲבָל\" מַרְאָה שֶׁהַשִּׂמְחָה נֶעֶצְרָה." },
+      { type: "mc", skill: "infer", q: "לָמָּה בָּאָה סַבְתָּא לְבֵית הַסֵּפֶר?", opts: ["כְּדֵי לְהָבִיא לְאִיתַי אֶת הַמַּגָּפַיִם", "כִּי אִיתַי הָיָה חוֹלֶה", "כְּדֵי לְדַבֵּר עִם הַמּוֹרָה", "כִּי הִיא פָּחֲדָה מֵהָרַעַם"], ev: ["בַּיָּד שֶׁלָּהּ"], why: "בַּיָּד שֶׁלָּהּ הָיוּ הַמַּגָּפַיִם. הִיא יָדְעָה כַּמָּה אִיתַי חִכָּה לַגֶּשֶׁם." },
+      { type: "mc", skill: "purpose", q: "לָמָּה יֵשׁ שָׁלוֹשׁ נְקֻדּוֹת (...) בַּמִּשְׁפָּט הָאַחֲרוֹן?", opts: ["כְּדֵי לִיצֹר מֶתַח וְהַפְתָּעָה", "כִּי הַמִּשְׁפָּט הוּא שְׁאֵלָה", "כִּי שָׁכְחוּ לְסַיֵּם אֶת הַמִּשְׁפָּט", "כִּי זֶה סוֹף הַשִּׁעוּר"], ev: ["הָיוּ..."], why: "שָׁלוֹשׁ נְקֻדּוֹת גּוֹרְמוֹת לַקּוֹרֵא לַעֲצֹר רֶגַע וּלְחַכּוֹת. כָּךְ הַהַפְתָּעָה חֲזָקָה יוֹתֵר." },
+      { type: "open", skill: "opinion", q: "הַאִם סַבְתָּא שֶׁל אִיתַי דּוֹאֶגֶת לוֹ? כִּתְבוּ מָה דַּעְתְּכֶם וְהַסְבִּירוּ בְּעֶזְרַת הַסִּפּוּר.",
+        model: "כֵּן, סַבְתָּא דּוֹאֶגֶת לְאִיתַי, כִּי הִיא הֵבִיאָה לוֹ אֶת הַמַּגָּפַיִם לְבֵית הַסֵּפֶר כְּשֶׁהִתְחִיל הַגֶּשֶׁם.",
+        check: ["עָנִיתִי \"כֵּן\" אוֹ \"לֹא\"", "הִסְבַּרְתִּי עִם \"כִּי\"", "הִשְׁתַּמַּשְׁתִּי בְּמַשֶּׁהוּ מֵהַסִּפּוּר", "כָּתַבְתִּי מִשְׁפָּט שָׁלֵם"] },
+    ] },
+];
+
+/* ---------- state (kept in this browser only) ---------- */
+const KEY = "reading-journey-v1";
+const blank = () => ({ name: "", nikud: true, size: 1, sound: true, unlockAll: false, st: {} });
+let S = blank();
+try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(blank(), JSON.parse(raw)); } catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+let view = { name: "home" };   // home | intro | play | summary | parents
+let run = null;                // current station run
+
+/* ---------- helpers ---------- */
+const $ = (sel, el = document) => el.querySelector(sel);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const MARKS = /[֑-ׇֽֿׁׂׅׄ]/g;
+const plain = s => String(s).replace(MARKS, "");
+const tx = s => esc(S.nikud ? s : plain(s));
+const shuffle = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+const LETTERS = ["א", "ב", "ג", "ד"];
+const starsFor = r => r >= .9 ? 3 : r >= .6 ? 2 : 1;
+const unlocked = i => S.unlockAll || i === 0 || !!(S.st[STATIONS[i - 1].id] && S.st[STATIONS[i - 1].id].done);
+const totalStars = () => STATIONS.reduce((n, s) => n + ((S.st[s.id] && S.st[s.id].stars) || 0), 0);
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, 2600); }
+
+const OWL = `<svg viewBox="0 0 64 64" aria-hidden="true">
+  <path d="M14 14 L22 22 L18 26 Z M50 14 L42 22 L46 26 Z" fill="var(--owl)"/>
+  <ellipse cx="32" cy="38" rx="21" ry="23" fill="var(--owl)"/>
+  <ellipse cx="32" cy="45" rx="13" ry="14" fill="var(--owl-belly)"/>
+  <circle cx="24" cy="30" r="8" fill="var(--paper)"/><circle cx="40" cy="30" r="8" fill="var(--paper)"/>
+  <circle cx="25" cy="31" r="3.6" fill="var(--ink)"/><circle cx="39" cy="31" r="3.6" fill="var(--ink)"/>
+  <path d="M29 37 L35 37 L32 42 Z" fill="var(--star)"/>
+  <path d="M17 26 Q24 20 30 25 M34 25 Q40 20 47 26" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>`;
+const SPEAK = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;
+
+/* sound + speech, both only after a tap */
+let actx = null;
+function chime(good) {
+  if (!S.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const notes = good ? [660, 880, 1175] : [392, 330];
+    notes.forEach((f, i) => {
+      const o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + i * .11;
+      o.type = "sine"; o.frequency.value = f; o.connect(g); g.connect(actx.destination);
+      g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(.18, t0 + .02); g.gain.exponentialRampToValueAtTime(.0001, t0 + .3);
+      o.start(t0); o.stop(t0 + .32);
+    });
+  } catch (e) {}
+}
+function speak(text) {
+  if (!("speechSynthesis" in window)) { toast("אין הקראה במכשיר הזה"); return; }
+  const voices = speechSynthesis.getVoices();
+  const he = voices.find(v => /^he|^iw/i.test(v.lang));
+  if (voices.length && !he) { toast("אין קול בעברית במכשיר הזה"); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text); u.lang = "he-IL"; u.rate = .85; if (he) u.voice = he;
+  speechSynthesis.speak(u);
+}
+
+/* ---------- top bar ---------- */
+function bar() {
+  return `<div class="bar">
+    <button class="brand" data-go="home" aria-label="למפת המסע">${view.name === "home" ? "" : "מסע הקריאה"}</button>
+    <span class="chip star-count" title="כוכבים שנאספו">★ ${totalStars()} / ${STATIONS.length * 3}</span>
+    <button class="chip" data-act="nikud" aria-pressed="${S.nikud}">${S.nikud ? "נִקּוּד: כֵּן" : "ניקוד: לא"}</button>
+    <button class="chip" data-act="size" aria-label="גודל אותיות">אותיות ${["רגילות", "גדולות", "ענקיות"][S.size - 1] || "רגילות"}</button>
+    <button class="chip" data-act="sound" aria-pressed="${S.sound}">${S.sound ? "צלילים: כן" : "צלילים: לא"}</button>
+    ${view.name !== "parents" ? `<button class="chip" data-go="parents">פינת ההורים</button>` : ""}
+  </div>`;
+}
+
+/* ---------- home: the trail ---------- */
+function renderHome() {
+  const nextIdx = STATIONS.findIndex((s, i) => unlocked(i) && !(S.st[s.id] && S.st[s.id].done));
+  const allDone = STATIONS.every(s => S.st[s.id] && S.st[s.id].done);
+  const hello = S.name ? `שָׁלוֹם ${esc(S.name)}!` : "שָׁלוֹם!";
+  return bar() + `
+  <div class="hero">
+    <div>
+      <h1>מסע הקריאה</h1>
+      <p>${S.nikud ? "שְׁמוֹנֶה תַּחֲנוֹת שֶׁמְּכִינוֹת אוֹתָנוּ לַמִּבְדָּק בַּהֲבָנַת הַנִּקְרָא. בְּכָל תַּחֲנָה אוֹסְפִים כּוֹכָבִים." : "שמונה תחנות שמכינות אותנו למבדק בהבנת הנקרא. בכל תחנה אוספים כוכבים."}</p>
+      <form class="name-field" id="nameForm">
+        <label for="kidName">${tx("אֵיךְ קוֹרְאִים לְךָ?")}</label>
+        <input id="kidName" maxlength="20" autocomplete="off" value="${esc(S.name)}" placeholder="השם שלי">
+        <button class="btn ghost" type="submit">${tx("שְׁמֹר")}</button>
+      </form>
+    </div>
+    <div class="guide" style="max-width:300px">${OWL}<div class="bubble"><p style="font-family:var(--f-read);font-size:1.1rem;line-height:1.8">${tx(hello)} ${tx(nextIdx === -1 ? "סִיַּמְתָּ אֶת כָּל הַמַּסָּע!" : "בּוֹא נַמְשִׁיךְ לַתַּחֲנָה הַבָּאָה.")}</p></div></div>
+  </div>
+  <ol class="trail">
+    ${STATIONS.map((s, i) => {
+      const r = S.st[s.id] || {}, open = unlocked(i), stars = r.stars || 0;
+      const cls = ["stop", r.done ? "done" : "", i === nextIdx ? "next" : "", open ? "" : "locked", s.test ? "test" : ""].join(" ");
+      return `<li><button class="${cls}" data-station="${i}" ${open ? "" : 'aria-disabled="true"'}>
+        <span class="num">${i + 1}</span>
+        <span class="meta"><span class="t">${tx(s.title)}</span><span class="s">${tx(s.sub)}</span></span>
+        <span class="stars" aria-label="${stars} כוכבים">${[1, 2, 3].map(k => `<span class="${k <= stars ? "on" : ""}">★</span>`).join("")}</span>
+      </button></li>`;
+    }).join("")}
+  </ol>
+  ${allDone ? `<div class="cert"><div class="hand">כל הכבוד${S.name ? " " + esc(S.name) : ""}!</div><p>${tx("סִיַּמְתָּ אֶת מַסַּע הַקְּרִיאָה וְאָסַפְתָּ")} ${totalStars()} ${tx("כּוֹכָבִים. אַתָּה מוּכָן לַמִּבְדָּק!")}</p></div>` : ""}
+  <div class="home-foot">
+    <span style="color:var(--ink-soft)">כל תחנה לוקחת 10 עד 15 דקות. מומלץ תחנה אחת ביום.</span>
+    <button class="btn ghost" data-go="parents">להורים: איך לעזור בבית</button>
+  </div>`;
+}
+
+/* ---------- station intro ---------- */
+function renderIntro() {
+  const s = STATIONS[run.i];
+  return bar() + `<div class="intro">
+    <div class="crumbs"><span class="chip">${tx("תַּחֲנָה")} ${run.i + 1}</span>${s.skill !== "mixed" ? `<span class="chip">${tx(SKILLS[s.skill].kid)}</span>` : ""}</div>
+    <h2>${esc(plain(s.title))}</h2>
+    <div class="guide">${OWL}<div class="bubble">${s.owl.map(l => `<p style="font-family:var(--f-read);font-size:calc(var(--read-size)*.95);line-height:1.9">${tx(l)}</p>`).join("")}</div>
+      <button class="speak" data-say="${esc(s.owl.join(" "))}" aria-label="הקראה">${SPEAK}</button></div>
+    <div class="toolbox"><h3>${tx("אַרְגַּז הַכֵּלִים שֶׁלִּי")}</h3><ol>${s.tools.map(t => `<li>${tx(t)}</li>`).join("")}</ol></div>
+    <div class="row"><button class="btn" data-act="start">${tx("יוֹצְאִים לַדֶּרֶךְ")}</button><button class="btn ghost" data-go="home">${tx("חֲזָרָה לַמַּפָּה")}</button></div>
+  </div>`;
+}
+
+/* ---------- play ---------- */
+function textFor(s, q) { return q.text ? { kind: "", title: "", paras: [q.text] } : s.text; }
+function evMatch(sentence, ev) { return (ev || []).some(f => sentence.includes(f)); }
+
+function renderText(s, q, st) {
+  const T = textFor(s, q);
+  let k = 0;
+  const paras = T.paras.map(p => `<p>${p.map(sen => {
+    const idx = k++;
+    const hl = st.hint && evMatch(sen, q.ev) ? " hl" : "";
+    const picked = st.picked === idx ? " picked" : "";
+    const tap = q.type === "find" && !st.locked ? ' role="button" tabindex="0"' : "";
+    return `<span class="sen${hl}${picked}" data-sen="${idx}"${tap}>${tx(sen)}</span>`;
+  }).join(" ")}</p>`).join("");
+  return `<article class="reading" id="reading">
+    ${T.kind ? `<span class="kind">${tx(T.kind)}</span>` : ""}
+    ${T.title ? `<h3>${tx(T.title)}</h3>` : ""}
+    <div class="txt ${q.type === "find" && !st.locked ? "findable" : ""}">${paras}</div>
+  </article>`;
+}
+
+function qStateNew(q) {
+  return { tries: 0, locked: false, hint: false, sel: null, wrongs: [], picked: null,
+    order: [], pool: q.type === "order" ? shuffle(q.items.map((_, i) => i)) : [], marks: null,
+    opts: q.type === "mc" ? shuffle(q.opts.map((_, i) => i)) : [], text: "", checked: [], showModel: false };
+}
+
+function renderPlay() {
+  const s = STATIONS[run.i], q = s.questions[run.qi], st = run.q;
+  const dots = s.questions.map((qq, i) => {
+    const r = run.res[i];
+    return `<i class="${i === run.qi ? "cur" : r === true ? "ok" : r === false ? (s.test ? "ok" : "miss") : r === "open" ? "ok" : ""}"></i>`;
+  }).join("");
+  return bar() + `
+  <div class="crumbs"><h2>${tx(s.title)}</h2><span class="chip">${tx("שְׁאֵלָה")} ${run.qi + 1} ${tx("מִתּוֹךְ")} ${s.questions.length}</span><div class="dots" aria-hidden="true">${dots}</div></div>
+  <div class="play">
+    ${renderText(s, q, st)}
+    <section class="qcard" aria-live="polite">
+      <span class="qtag">${tx(SKILLS[q.skill].kid)}</span>
+      <div class="qhead"><p class="qtext">${tx(q.q)}</p><button class="speak" data-say="${esc(q.q + (q.type === "mc" ? " " + st.opts.map(o => q.opts[o]).join(". ") : ""))}" aria-label="הקראת השאלה">${SPEAK}</button></div>
+      ${renderAnswer(s, q, st)}
+    </section>
+  </div>`;
+}
+
+function renderAnswer(s, q, st) {
+  const nextBtn = `<button class="btn" data-act="next">${run.qi + 1 < s.questions.length ? tx("לַשְּׁאֵלָה הַבָּאָה") : tx("לְסִיּוּם הַתַּחֲנָה")}</button>`;
+  if (q.type === "mc") {
+    const opts = st.opts.map((oi, k) => {
+      let c = "opt";
+      if (s.test) { if (st.sel === oi) c += " sel"; }
+      else if (st.locked && oi === 0) c += " right";
+      else if (st.wrongs.includes(oi)) c += " wrong";
+      return `<button class="${c}" data-opt="${oi}" ${st.locked || st.wrongs.includes(oi) ? "disabled" : ""}><span class="k">${LETTERS[k]}</span><span>${tx(q.opts[oi])}</span></button>`;
+    }).join("");
+    if (s.test) return `<div class="opts">${opts}</div><div class="row"><button class="btn" data-act="testnext" ${st.sel === null ? "disabled" : ""}>${tx("הַמְשֵׁךְ")}</button></div>`;
+    return `<div class="opts">${opts}</div>${feedback(q, st)}${st.locked ? `<div class="row">${nextBtn}</div>` : ""}`;
+  }
+  if (q.type === "find") {
+    const picked = st.picked !== null ? textFor(s, q).paras.flat()[st.picked] : null;
+    return `<div class="feedback info">${tx("גְּעוּ בַּמִּשְׁפָּט בַּטֶּקְסְט.")} ${picked ? `<br>${tx("בְּחַרְתֶּם:")} <span class="r">${tx(picked)}</span>` : ""}</div>
+      ${st.locked ? "" : `<div class="row"><button class="btn" data-act="checkfind" ${st.picked === null ? "disabled" : ""}>${tx("בְּדִיקָה")}</button></div>`}
+      ${feedback(q, st)}${st.locked ? `<div class="row">${nextBtn}</div>` : ""}`;
+  }
+  if (q.type === "order") {
+    const slots = q.items.map((_, k) => {
+      const it = st.order[k];
+      const mark = st.marks && st.marks[k] !== undefined ? (st.marks[k] ? " right" : " wrong") : "";
+      return `<div class="slot${it !== undefined ? " filled" : ""}${mark}"><span class="n">${k + 1}</span>${it !== undefined ? `<button data-unorder="${k}" ${st.locked ? "disabled" : ""}>${tx(q.items[it])}</button>` : ""}</div>`;
+    }).join("");
+    const pool = st.pool.map(i => `<button data-order="${i}">${tx(q.items[i])}</button>`).join("");
+    const full = st.order.length === q.items.length;
+    return `<div class="order-zone"><span class="lbl">${tx("גְּעוּ בַּכַּרְטִיסִים לְפִי הַסֵּדֶר:")}</span>${pool ? `<div class="pool">${pool}</div>` : ""}${slots}</div>
+      ${st.locked ? "" : `<div class="row"><button class="btn" data-act="${s.test ? "testnext" : "checkorder"}" ${full ? "" : "disabled"}>${s.test ? tx("הַמְשֵׁךְ") : tx("בְּדִיקָה")}</button></div>`}
+      ${s.test ? "" : feedback(q, st)}${st.locked && !s.test ? `<div class="row">${nextBtn}</div>` : ""}`;
+  }
+  if (q.type === "open") {
+    const ta = `<label for="ans-${s.id}-${run.qi}" style="color:var(--ink-soft)">${tx("הַתְּשׁוּבָה שֶׁלִּי:")}</label><textarea id="ans-${s.id}-${run.qi}" data-input="open" ${st.showModel ? "readonly" : ""}>${esc(st.text)}</textarea>`;
+    if (s.test) return `${ta}<div class="row"><button class="btn" data-act="testnext" ${st.text.trim().length < 3 ? "disabled" : ""}>${tx("הַמְשֵׁךְ")}</button></div>`;
+    if (!st.showModel) return `${ta}<div class="row"><button class="btn" data-act="openDone" ${st.text.trim().length < 3 ? "disabled" : ""}>${tx("סִיַּמְתִּי לִכְתֹּב")}</button></div>`;
+    return `${ta}<div class="feedback info"><b>${tx("בּוֹדְקִים יַחַד (עִם אַבָּא אוֹ אִמָּא):")}</b>
+      <div class="checklist" style="margin-top:8px">${q.check.map((c, k) => `<label><input type="checkbox" data-check="${k}" ${st.checked.includes(k) ? "checked" : ""}>${tx(c)}</label>`).join("")}</div></div>
+      <div class="feedback good"><b>${tx("תְּשׁוּבָה לְדֻגְמָה:")}</b><div class="model" style="margin-top:6px">${tx(q.model)}</div>
+      <div style="margin-top:6px;font-size:.95rem">${tx("יֵשׁ עוֹד הַרְבֵּה תְּשׁוּבוֹת נְכוֹנוֹת! הָעִקָּר: מִשְׁפָּט שָׁלֵם וְהֶסְבֵּר.")}</div></div>
+      <div class="row">${nextBtn}</div>`;
+  }
+  return "";
+}
+
+function feedback(q, st) {
+  if (st.locked && st.tries === 1) return `<div class="feedback good"><b>${tx(pick(["מְצֻיָּן!", "נָכוֹן!", "כָּל הַכָּבוֹד!", "יָפֶה מְאוֹד!"]))}</b> <span class="r">${tx(q.why)}</span></div>`;
+  if (st.locked) return `<div class="feedback info"><b>${tx("הַתְּשׁוּבָה הַנְּכוֹנָה מְסֻמֶּנֶת.")}</b> <span class="r">${tx(q.why)}</span></div>`;
+  if (st.tries === 1) {
+    const where = q.ev && q.ev.length ? "סִמַּנְתִּי לְךָ בַּצָּהֹב אֶת הַמָּקוֹם בַּטֶּקְסְט. קְרָא שׁוּב וְנַסֵּה." : "קְרָא שׁוּב אֶת הַטֶּקְסְט וְנַסֵּה שׁוּב.";
+    const extra = q.type === "order" ? " הַכַּרְטִיסִים בַּיָּרֹק בַּמָּקוֹם. חַפֵּשׂ מִלּוֹת זְמַן." : "";
+    return `<div class="feedback try"><b>${tx("כִּמְעַט!")}</b> ${tx(where + extra)}</div>`;
+  }
+  return "";
+}
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+function settle(correctFirst) {
+  run.res[run.qi] = correctFirst;
+}
+
+function answerMC(oi) {
+  const s = STATIONS[run.i], q = s.questions[run.qi], st = run.q;
+  if (s.test) { st.sel = oi; return draw(); }
+  st.tries++;
+  if (oi === 0) { st.locked = true; settle(st.tries === 1); chime(true); }
+  else { st.wrongs.push(oi); st.hint = true; chime(false);
+    if (st.tries >= 2) { st.locked = true; settle(false); } }
+  draw(); revealHint();
+}
+function checkFind() {
+  const s = STATIONS[run.i], q = s.questions[run.qi], st = run.q;
+  const sen = textFor(s, q).paras.flat()[st.picked];
+  st.tries++;
+  if (evMatch(sen, q.ev)) { st.locked = true; st.hint = true; st.picked = null; settle(st.tries === 1); chime(true); }
+  else { chime(false); st.picked = null; if (st.tries >= 2) { st.locked = true; st.hint = true; settle(false); } }
+  draw();
+}
+function checkOrder() {
+  const q = STATIONS[run.i].questions[run.qi], st = run.q;
+  st.tries++;
+  const marks = st.order.map((it, k) => it === k);
+  if (marks.every(Boolean)) { st.locked = true; st.marks = marks; settle(st.tries === 1); chime(true); }
+  else if (st.tries >= 2) { st.order = q.items.map((_, k) => k); st.pool = []; st.marks = st.order.map(() => true); st.locked = true; st.hint = true; settle(false); chime(false); }
+  else {
+    chime(false); st.hint = true;
+    // keep the cards that are in place, send the others back to the pool
+    const keep = []; st.marks = {};
+    st.order.forEach((it, k) => { if (it === k) { keep[k] = it; st.marks[k] = true; } });
+    st.pool = shuffle(st.order.filter((it, k) => it !== k));
+    st.order = keep;
+  }
+  draw();
+}
+
+function nextQ() {
+  const s = STATIONS[run.i];
+  if (s.test) {   // store the test answer, score at the end
+    const q = s.questions[run.qi], st = run.q;
+    if (q.type === "mc") run.ans[run.qi] = st.sel, run.res[run.qi] = st.sel === 0;
+    if (q.type === "order") run.ans[run.qi] = st.order.slice(), run.res[run.qi] = st.order.every((it, k) => it === k);
+  }
+  const q = s.questions[run.qi];
+  if (q.type === "open") { run.res[run.qi] = "open"; run.open[q.q] = run.q.text.trim(); }
+  if (run.qi + 1 < s.questions.length) { run.qi++; run.q = qStateNew(s.questions[run.qi]); view = { name: "play" }; draw(); scrollTop(); }
+  else finish();
+}
+
+function finish() {
+  const s = STATIONS[run.i];
+  const scored = s.questions.map((q, i) => [q, run.res[i]]).filter(([q]) => q.type !== "open");
+  const right = scored.filter(([, r]) => r === true).length;
+  const stars = starsFor(scored.length ? right / scored.length : 1);
+  const prev = S.st[s.id] || {};
+  S.st[s.id] = {
+    done: true, stars: Math.max(stars, prev.stars || 0), last: stars, when: Date.now(),
+    first: Object.fromEntries(s.questions.map((q, i) => [i, run.res[i]])),
+    open: Object.assign({}, prev.open || {}, run.open),
+  };
+  save();
+  run.stars = stars; run.right = right; run.scored = scored.length;
+  view = { name: "summary" }; draw(); scrollTop();
+  if (stars >= 2) chime(true);
+}
+
+function renderSummary() {
+  const s = STATIONS[run.i], stars = run.stars;
+  const msg = stars === 3 ? "וָואוּ! עֲבוֹדָה מְצֻיֶּנֶת!" : stars === 2 ? "יָפֶה מְאוֹד! עוֹד קְצָת תִּרְגּוּל וְזֶה מֻשְׁלָם." : "הִתְחָלָה טוֹבָה! כְּדַאי לְנַסּוֹת אֶת הַתַּחֲנָה שׁוּב.";
+  const stamp = stars === 3 ? "כל הכבוד!" : stars === 2 ? "יפה מאוד!" : "ממשיכים!";
+  const hasNext = run.i + 1 < STATIONS.length;
+  let review = "";
+  if (s.test) {
+    review = `<div class="review">${s.questions.map((q, i) => {
+      const r = run.res[i];
+      if (q.type === "open") return `<div class="it open"><span class="q">${tx(q.q)}</span><span class="a">${tx("כָּתַבְתָּ:")} ${esc(run.open[q.q] || "")}</span><span class="a">${tx("לְדֻגְמָה:")} ${tx(q.model)}</span></div>`;
+      const right = q.type === "mc" ? q.opts[0] : q.items.join(" ← ");
+      const mine = q.type === "mc" ? (run.ans[i] != null ? q.opts[run.ans[i]] : "") : (run.ans[i] || []).map(k => q.items[k]).join(" ← ");
+      return `<div class="it ${r ? "ok" : "miss"}"><span class="q">${i + 1}. ${tx(q.q)}</span>
+        ${r ? `<span class="a">✓ ${tx(right)}</span>` : `<span class="a">${tx("עָנִיתָ:")} ${tx(mine)}</span><span class="a"><b>${tx("נָכוֹן:")}</b> ${tx(right)}</span>`}
+        <span class="a">${tx(q.why)}</span></div>`;
+    }).join("")}</div>`;
+  }
+  return bar() + `<div class="summary">
+    <h2 style="font-family:var(--f-display);font-weight:400;font-size:clamp(2rem,6vw,3rem);margin:0">${esc(plain(s.title))}</h2>
+    <div class="big-stars" aria-label="${stars} כוכבים">${[1, 2, 3].map(k => `<span class="${k <= stars ? "on" : ""}">★</span>`).join("")}</div>
+    <div class="stamp">${stamp}</div>
+    <div class="guide" style="text-align:start;max-width:520px">${OWL}<div class="bubble"><p style="font-family:var(--f-read);font-size:1.15rem;line-height:1.9">${tx(msg)}</p>
+      <p>${tx("עֲנִיתָ נָכוֹן בַּפַּעַם הָרִאשׁוֹנָה עַל")} ${run.right} ${tx("מִתּוֹךְ")} ${run.scored} ${tx("שְׁאֵלוֹת.")}</p></div></div>
+    ${review}
+    <div class="row" style="justify-content:center">
+      ${hasNext ? `<button class="btn good" data-act="nextStation">${tx("לַתַּחֲנָה הַבָּאָה")}</button>` : ""}
+      <button class="btn ghost" data-act="again">${tx("לְנַסּוֹת שׁוּב")}</button>
+      <button class="btn ghost" data-go="home">${tx("לַמַּפָּה")}</button>
+    </div>
+  </div>`;
+}
+
+/* ---------- parents ---------- */
+function skillStats() {
+  const out = {};
+  Object.keys(SKILLS).forEach(k => out[k] = { right: 0, n: 0 });
+  STATIONS.forEach(s => {
+    const r = S.st[s.id]; if (!r || !r.first) return;
+    s.questions.forEach((q, i) => {
+      if (q.type === "open") { if (r.first[i] === "open") { out.opinion.n++; out.opinion.right++; } return; }
+      if (r.first[i] === true || r.first[i] === false) { out[q.skill].n++; if (r.first[i] === true) out[q.skill].right++; }
+    });
+  });
+  return out;
+}
+
+function renderParents() {
+  const stats = skillStats();
+  const any = Object.values(stats).some(v => v.n);
+  const opens = [];
+  STATIONS.forEach(s => { const r = S.st[s.id]; if (r && r.open) Object.entries(r.open).forEach(([q, a]) => a && opens.push({ s: s.title, q, a })); });
+  const rows = Object.entries(SKILLS).map(([k, sk]) => {
+    const v = stats[k];
+    if (k === "opinion") return `<div class="skill-row"><span>${sk.name}</span><div class="track"><i style="width:${v.n ? 100 : 0}%"></i></div><span class="pct ${v.n ? "" : "na"}">${v.n ? v.n + " תשובות" : "עוד לא"}</span></div>`;
+    const p = v.n ? Math.round(100 * v.right / v.n) : null;
+    return `<div class="skill-row"><span>${sk.name}</span><div class="track"><i class="${p === null ? "" : p >= 80 ? "" : p >= 60 ? "mid" : "low"}" style="width:${p || 0}%"></i></div><span class="pct ${p === null ? "na" : ""}">${p === null ? "עוד לא" : p + "%"}</span></div>`;
+  }).join("");
+  const weakest = Object.entries(stats).filter(([k, v]) => k !== "opinion" && v.n >= 3).sort((a, b) => a[1].right / a[1].n - b[1].right / b[1].n)[0];
+  return bar() + `<div class="parents">
+    <div><h2>פינת ההורים</h2><p style="color:var(--ink-soft)">מה האפליקציה מתרגלת, איך לעקוב אחרי ההתקדמות ואיך לעזור בבית ב-10 דקות ביום.</p></div>
+
+    <section>
+      <h3>ההתקדמות${S.name ? " של " + esc(S.name) : ""}</h3>
+      <p style="color:var(--ink-soft)">אחוז התשובות הנכונות <b>בניסיון הראשון</b>, לפי מיומנות. ההתקדמות נשמרת בדפדפן הזה בלבד.</p>
+      ${rows}
+      ${any && weakest && weakest[1].right / weakest[1].n < .8 ? `<p style="margin-top:10px"><b>כדאי לחזק:</b> ${SKILLS[weakest[0]].name}. ${SKILLS[weakest[0]].home}</p>` : ""}
+      ${!any ? `<p style="margin-top:10px">עוד אין נתונים. אחרי התחנה הראשונה יופיעו כאן התוצאות.</p>` : ""}
+    </section>
+
+    ${opens.length ? `<section><h3>תשובות פתוחות שנכתבו</h3><p style="color:var(--ink-soft)">כדאי לקרוא יחד ולשאול: "האם הסברת למה? איפה בטקסט ראית את זה?"</p>
+      <div class="review">${opens.map(o => `<div class="it open"><span class="a">${tx(o.s)}</span><span class="q">${tx(o.q)}</span><span class="a" style="color:var(--ink)">${esc(o.a)}</span></div>`).join("")}</div></section>` : ""}
+
+    <section>
+      <h3>מה בודק המבדק בהבנת הנקרא?</h3>
+      <p>המבדק בודק אם הילד <b>מבין</b> את מה שהוא קורא, ולא רק קורא נכון. בדרך כלל יש בו טקסט סיפורי וטקסט מידעי, שאלות רב-ברירה (אמריקאיות), שאלות סידור, ושאלות פתוחות שבהן כותבים תשובה. הילד קורא לבד ועונה לבד.</p>
+      <p>האפליקציה בנויה בהדרגה: מתחילים במשפט אחד, עוברים לסיפור קצר, ומשם לכל מיומנות בנפרד. התחנה האחרונה היא מבדק דמה שמשלב הכל, בלי רמזים.</p>
+    </section>
+
+    <section>
+      <h3>המסלול: מה לומדים בכל תחנה</h3>
+      ${STATIONS.map((s, i) => `<details><summary>תחנה ${i + 1}: ${plain(s.title)}${S.st[s.id] && S.st[s.id].done ? " ✓" : ""}</summary><p>${s.parent}</p></details>`).join("")}
+    </section>
+
+    <section>
+      <h3>שש המיומנויות ואיך מתרגלים אותן בבית</h3>
+      ${Object.values(SKILLS).map(sk => `<details><summary>${sk.name}</summary><p><b>מה זה:</b> ${sk.what}</p><p><b>בבית:</b> ${sk.home}</p><div class="ask">שאלה לשאול: "${sk.ask}"</div></details>`).join("")}
+    </section>
+
+    <section>
+      <h3>ארגז הכלים של הילד</h3>
+      <p>אלה האסטרטגיות שהאפליקציה חוזרת עליהן. כשהילד מתלבט, אפשר להזכיר אותן במקום לתת תשובה:</p>
+      <ol>
+        <li>קוראים את הכותרת ומנחשים על מה הטקסט.</li>
+        <li>קוראים את <b>כל</b> הטקסט לפני השאלות.</li>
+        <li>קוראים את השאלה עד הסוף, ואת <b>כל</b> התשובות, גם אחרי שנראה שמצאנו.</li>
+        <li>חוזרים לטקסט ומחפשים מילה מהשאלה. מותר וחכם לחזור!</li>
+        <li>בשאלה פתוחה: מתחילים במילים מהשאלה ומוסיפים "כי...".</li>
+      </ol>
+    </section>
+
+    <section>
+      <h3>טיפים לעבודה משותפת</h3>
+      <ul>
+        <li><b>קצר וקבוע:</b> תחנה אחת ביום, 10 עד 15 דקות. עדיף כל יום קצת מאשר הרבה פעם בשבוע.</li>
+        <li><b>לא לתת תשובות:</b> במקום "זו תשובה ב'", לשאול "איפה זה כתוב?" או "מה עזר לך להחליט?".</li>
+        <li><b>לשבח מאמץ ואסטרטגיה:</b> "ראיתי שחזרת לטקסט לבדוק, מצוין!" עדיף על "אתה חכם".</li>
+        <li><b>טעות היא רמז:</b> כשהילד טועה, האפליקציה מסמנת בצהוב את המשפט הרלוונטי. תנו לו לקרוא שוב לבד.</li>
+        <li><b>הקראה:</b> כפתור הרמקול מקריא את ההוראות והשאלות. הוא עוזר בהתחלה, אבל במבדק הילד קורא לבד, אז כדאי להפחית בו בהדרגה.</li>
+        <li><b>ניקוד:</b> הטקסטים מנוקדים. ילד שקורא בשטף יכול לנסות גם בלי ניקוד (כפתור "ניקוד" למעלה).</li>
+        <li><b>לחזור על תחנות:</b> אפשר לשחק כל תחנה שוב. סדר התשובות מתערבב בכל פעם.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h3>הגדרות</h3>
+      <div class="danger-zone">
+        <button class="btn ghost" data-act="unlockAll">${S.unlockAll ? "נעילת תחנות לפי הסדר" : "פתיחת כל התחנות"}</button>
+        <button class="btn ghost" data-act="askReset">איפוס ההתקדמות</button>
+      </div>
+      <div id="confirmZone"></div>
+    </section>
+    <div class="row"><button class="btn" data-go="home">חזרה למסע</button></div>
+  </div>`;
+}
+
+/* ---------- draw + events ---------- */
+function draw() {
+  document.documentElement.style.setProperty("--read-size", [1.35, 1.6, 1.9][S.size - 1] + "rem");
+  const R = $("#root");
+  R.innerHTML = view.name === "home" ? renderHome() : view.name === "intro" ? renderIntro() : view.name === "play" ? renderPlay()
+    : view.name === "summary" ? renderSummary() : renderParents();
+}
+function scrollTop() { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); } }
+function revealHint() {
+  const el = document.querySelector(".sen.hl");
+  if (el && window.matchMedia("(max-width: 860px)").matches) el.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+function go(name) { view = { name }; draw(); scrollTop(); }
+function startStation(i) { run = { i, qi: 0, res: {}, ans: {}, open: {}, q: null }; view = { name: "intro" }; draw(); scrollTop(); }
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("button, [data-sen]"); if (!t) return;
+  const d = t.dataset;
+  if (d.go) return go(d.go);
+  if (d.say) return speak(d.say);
+  if (d.station !== undefined) {
+    const i = +d.station;
+    if (!unlocked(i)) return toast("קודם מסיימים את התחנה הקודמת");
+    return startStation(i);
+  }
+  if (d.opt !== undefined) return answerMC(+d.opt);
+  if (d.sen !== undefined && view.name === "play") {
+    const q = STATIONS[run.i].questions[run.qi];
+    if (q.type === "find" && !run.q.locked) { run.q.picked = +d.sen; draw(); }
+    return;
+  }
+  if (d.order !== undefined) { const st = run.q, i = +d.order; st.pool = st.pool.filter(x => x !== i); const k = firstEmpty(st.order); st.order[k] = i; if (st.marks) delete st.marks[k]; return draw(); }
+  if (d.unorder !== undefined) { const st = run.q, k = +d.unorder; if (st.marks && st.marks[k]) return; st.pool.push(st.order[k]); delete st.order[k]; st.order = compact(st.order, st.marks); return draw(); }
+  if (d.check !== undefined) return;
+  switch (d.act) {
+    case "nikud": S.nikud = !S.nikud; save(); return draw();
+    case "size": S.size = S.size % 3 + 1; save(); return draw();
+    case "sound": S.sound = !S.sound; save(); return draw();
+    case "start": run.qi = 0; run.q = qStateNew(STATIONS[run.i].questions[0]); view = { name: "play" }; draw(); return scrollTop();
+    case "next": case "testnext": return nextQ();
+    case "checkfind": return checkFind();
+    case "checkorder": return checkOrder();
+    case "openDone": run.q.showModel = true; chime(true); return draw();
+    case "nextStation": return startStation(run.i + 1);
+    case "again": return startStation(run.i);
+    case "unlockAll": S.unlockAll = !S.unlockAll; save(); toast(S.unlockAll ? "כל התחנות פתוחות" : "התחנות נפתחות לפי הסדר"); return draw();
+    case "askReset":
+      $("#confirmZone").innerHTML = `<div class="confirm" style="margin-top:10px"><span>למחוק את כל הכוכבים והתשובות בדפדפן הזה?</span><button class="btn" style="background:var(--oops)" data-act="doReset">כן, למחוק</button><button class="btn ghost" data-act="noReset">ביטול</button></div>`; return;
+    case "noReset": $("#confirmZone").innerHTML = ""; return;
+    case "doReset": { const keep = { nikud: S.nikud, size: S.size, sound: S.sound }; S = Object.assign(blank(), keep); save(); toast("ההתקדמות אופסה"); return draw(); }
+  }
+});
+// order slots: fill the first empty position; when a card is removed, keep confirmed (green) cards in place
+function firstEmpty(arr) { let k = 0; while (arr[k] !== undefined) k++; return k; }
+function compact(order, marks) {
+  const out = []; const loose = [];
+  order.forEach((it, k) => { if (it === undefined) return; if (marks && marks[k]) out[k] = it; else loose.push(it); });
+  let k = 0; loose.forEach(it => { while (out[k] !== undefined) k++; out[k] = it; });
+  return out;
+}
+document.addEventListener("keydown", e => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches('[data-sen][role="button"]')) { e.preventDefault(); e.target.click(); }
+});
+document.addEventListener("change", e => {
+  const c = e.target.closest("[data-check]"); if (!c) return;
+  const k = +c.dataset.check, st = run.q;
+  st.checked = c.checked ? [...st.checked, k] : st.checked.filter(x => x !== k);
+});
+document.addEventListener("input", e => {
+  if (e.target.dataset.input !== "open") return;
+  run.q.text = e.target.value;
+  const btn = document.querySelector('[data-act="openDone"], [data-act="testnext"]');
+  if (btn) btn.disabled = run.q.text.trim().length < 3;
+});
+document.addEventListener("submit", e => {
+  if (e.target.id !== "nameForm") return;
+  e.preventDefault();
+  S.name = $("#kidName").value.trim().slice(0, 20); save(); draw(); toast(S.name ? "נעים מאוד, " + S.name + "!" : "השם נמחק");
+});
+if ("speechSynthesis" in window) { try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; } catch (e) {} }
+
+if (location.hash === "#parents") view = { name: "parents" };
+draw();
+</script>

@@ -547,6 +547,11 @@ img.flag { width: 34px; height: 34px; object-fit: contain; top: -14px; }
 .leaf { aspect-ratio: 3 / 4; }
 .sticker img { width: 78%; height: 78%; object-fit: contain; }
 .try-bar { position: absolute; left: 50%; bottom: 3%; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, .95); color: var(--ink); border-radius: 999px; padding: 5px 6px 5px 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); white-space: nowrap; font-family: var(--f-read); font-size: .9rem; }
+.buy-btn { display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 999px; padding: 5px 6px 5px 14px; padding-inline: 14px 5px;
+  background: linear-gradient(180deg, #FFD54A, #FFB000); color: #3A2600; box-shadow: 0 3px 0 #C27C00; font-family: var(--f-read); font-weight: 800; font-size: 1rem; white-space: nowrap; }
+.buy-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #C27C00; }
+.buy-btn .price { display: inline-flex; align-items: center; gap: 4px; background: #FFFFFF; border-radius: 999px; padding: 3px 10px 3px 6px; font-family: var(--f-fun); font-weight: 700; font-size: 1rem; line-height: 1; direction: ltr; }
+.buy-btn .price img { width: 20px; height: 20px; object-fit: contain; }
 .try-bar .btn { padding: 6px 12px; font-size: .95rem; border-radius: 999px; }
 .try-bar .btn.ghost { padding: 6px 10px; }
 @media (max-width: 420px) { .try-l { display: none; } }
@@ -1328,7 +1333,7 @@ function renderShop() {
         <img src="img/furn-${s.img}.webp" alt=""><span class="spot-l">${tx(s.name)}</span></button>`).join("")}
       <div class="on-stage ${hop ? "hop" : ""}">${avatarSVG(stageAv, "float")}</div>
       ${tr ? `<div class="try-bar"><span class="try-l">${tx("מוֹדְדִים:")} <b>${tx(tr.name)}</b></span>
-        <button class="btn go" data-act="buyTry">${tx("לִקְנוֹת")} · ${coinTag(tr.price)}</button>
+        <button class="buy-btn" data-act="buyTry"><span>${tx("לִקְנוֹת")}</span><span class="price"><img src="img/ui-coin.webp" alt="מטבעות"><bdi>${tr.price}</bdi></span></button>
         <button class="btn ghost" data-act="cancelTry" aria-label="להוריד">✕</button></div>` : ""}
       <span class="wallet-tag">${coinTag(S.coins)}</span>
       <button class="snap" data-act="photo" aria-label="צילום לאלבום">📸 ${tx("צִלּוּם")}</button>

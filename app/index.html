@@ -448,6 +448,64 @@ img.flag { width: 34px; height: 34px; object-fit: contain; top: -14px; }
 .avatar .av-base { z-index: 1; }
 .avatar .av-pet, .avatar .av-face, .avatar .av-hand { z-index: 2; }
 .avatar .av-hat { z-index: 3; }
+/* dressing room */
+.dress { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; max-width: 1040px; margin: 0 auto; }
+@media (max-width: 760px) { .dress { grid-template-columns: minmax(0, 1fr); } }
+.room { position: relative; aspect-ratio: 733 / 1024; width: 100%; max-width: 520px; margin: 0 auto; border-radius: 26px; overflow: hidden; background-size: cover; background-position: center; box-shadow: 0 24px 60px -24px rgba(0, 0, 0, .8), inset 0 0 0 3px rgba(255, 255, 255, .25); }
+.spot { position: absolute; background: none; border: 0; padding: 0; display: grid; justify-items: center; gap: 2px; z-index: 2; transition: transform .2s; }
+.spot img { width: 100%; height: auto; filter: drop-shadow(0 6px 8px rgba(20, 10, 60, .45)); transition: filter .25s; }
+.spot:hover img { filter: drop-shadow(0 0 10px rgba(255, 220, 120, .9)); }
+.spot.on img { filter: drop-shadow(0 0 0 #FFF) drop-shadow(0 0 14px rgba(255, 210, 80, 1)); animation: wiggle .5s ease; }
+@keyframes wiggle { 30% { transform: rotate(-4deg) scale(1.05); } 60% { transform: rotate(3deg) scale(1.05); } }
+.spot-l { font-family: var(--f-read); font-weight: 700; font-size: .78rem; line-height: 1.3; color: var(--ink); background: rgba(255, 255, 255, .92); border-radius: 999px; padding: 1px 8px; white-space: nowrap; box-shadow: 0 2px 0 rgba(0, 0, 0, .2); }
+.spot.on .spot-l { background: var(--star); color: #3A2600; }
+.on-stage { position: absolute; left: 50%; bottom: 15%; width: 46%; transform: translateX(-50%); z-index: 1; }
+.on-stage.hop .avatar { animation: hop .7s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes hop { 30% { transform: translateY(-16%) rotate(-6deg) scale(1.06); } 60% { transform: translateY(0) rotate(4deg); } }
+.wallet-tag { position: absolute; top: 10px; inset-inline-start: 10px; z-index: 3; background: var(--card); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-family: var(--f-fun); font-weight: 700; box-shadow: 0 3px 0 rgba(0, 0, 0, .25); }
+.snap { position: absolute; top: 10px; inset-inline-end: 10px; z-index: 3; border: 0; background: var(--star); color: #3A2600; border-radius: 999px; padding: 6px 14px; font-family: var(--f-read); font-weight: 800; box-shadow: 0 3px 0 #C27C00; }
+.flash { position: absolute; inset: 0; background: #FFFFFF; opacity: 0; pointer-events: none; z-index: 5; }
+.flash.go { animation: flash .6s ease-out; }
+@keyframes flash { 10% { opacity: .95; } to { opacity: 0; } }
+.drawer h2 { display: flex; align-items: center; gap: 10px; font-size: clamp(1.5rem, 4.5vw, 2rem); }
+.drawer .h-ic { width: 44px; height: 44px; }
+
+/* album book */
+.album-wrap { display: grid; gap: 16px; max-width: 940px; margin: 0 auto; }
+.book { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); perspective: 1600px; max-width: 470px; width: 100%; margin: 0 auto; }
+.book.spread { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); max-width: 940px; }
+.leaf { transform-origin: right center; }
+.book.spread .leaf:nth-child(2) { transform-origin: left center; }
+.leaf.turn-next { animation: turnNext .55s cubic-bezier(.3, .7, .3, 1) both; animation-delay: var(--d); }
+.leaf.turn-prev { animation: turnPrev .55s cubic-bezier(.3, .7, .3, 1) both; animation-delay: var(--d); }
+@keyframes turnNext { from { transform: rotateY(-80deg); filter: brightness(.7); } }
+@keyframes turnPrev { from { transform: rotateY(80deg); filter: brightness(.7); } }
+.page { position: relative; aspect-ratio: 3 / 4; border-radius: 6px 18px 18px 6px; padding: 22px 20px 34px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.book.spread .leaf:nth-child(1) .page { border-radius: 18px 6px 6px 18px; }
+.page.paper { background: #FFF9EC; color: var(--ink);
+  background-image: radial-gradient(circle at 20% 15%, rgba(255, 220, 160, .35), transparent 55%), repeating-linear-gradient(0deg, transparent 0 31px, rgba(120, 140, 200, .08) 31px 32px);
+  box-shadow: inset 14px 0 18px -14px rgba(90, 60, 20, .35), 0 18px 40px -18px rgba(0, 0, 0, .7); }
+.page h3 { margin: 0; text-align: center; font-family: var(--f-fun); font-size: 1.35rem; color: var(--pen); }
+.pnum { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-family: var(--f-fun); color: #B9A27A; font-size: .9rem; }
+.sgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px 8px; align-content: start; }
+.sgrid .sticker { width: 74px; height: 74px; font-size: 2.5rem; }
+.sgrid .sticker-slot { padding: 2px; gap: 6px; }
+.sgrid .sticker-slot .nm { font-size: .8rem; }
+.page.cover { background: linear-gradient(160deg, #4A2BB5, #241466 70%); color: #FFFFFF; box-shadow: inset 0 0 0 8px #FFC531, inset 0 0 0 11px #241466, inset 0 0 0 13px #FFC531, 0 18px 40px -18px rgba(0, 0, 0, .8); align-items: center; justify-content: center; }
+.cover-in { display: grid; justify-items: center; gap: 10px; text-align: center; }
+.cover-top { font-family: var(--f-read); font-size: 1.05rem; opacity: .85; }
+.page.cover h2 { margin: 0; font-family: var(--f-fun); font-size: 2.2rem; color: #FFD54A; text-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
+.cover-av { width: 55%; max-width: 200px; }
+.cover-count { background: rgba(255, 255, 255, .15); border-radius: 999px; padding: 4px 14px; font-family: var(--f-fun); font-weight: 700; }
+.pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.polaroid { margin: 0; background: #FFFFFF; padding: 8px 8px 4px; border-radius: 4px; box-shadow: 0 6px 14px rgba(40, 30, 10, .25); transform: rotate(var(--tilt)); }
+.ph-in { background: radial-gradient(circle at 50% 40%, #3A47B0, #141B5C); border-radius: 2px; padding: 6px 12px 2px; }
+.polaroid figcaption { text-align: center; font-family: var(--f-hand); font-size: 1.2rem; color: var(--ink-soft); }
+.empty-note { font-family: var(--f-read); font-size: 1.05rem; line-height: 1.8; text-align: center; margin: auto 0; color: var(--ink-soft); }
+.book-nav { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.pdots { display: flex; gap: 6px; }
+.pdots i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255, 255, 255, .3); display: block; }
+.pdots i.on { background: var(--star); }
 </style>
 
 <div class="app" dir="rtl" lang="he">
@@ -778,7 +836,7 @@ const ALL = TRACKS.flatMap(t => t.stations);
 /* ---------- state (kept in this browser only) ---------- */
 const KEY = "reading-journey-v1";
 const blank = () => ({ name: "", nikud: true, size: 1, sound: true, unlockAll: false, track: 0, st: {},
-  av: { type: "astro", color: "#4D8CFF", chosen: false }, owned: [], coins: 0, days: [], testDate: "2026-11-02" });
+  av: { type: "astro", color: "#4D8CFF", chosen: false }, owned: [], coins: 0, days: [], photos: [], testDate: "2026-11-02" });
 let S = blank();
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(blank(), JSON.parse(raw)); } catch (e) {}
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
@@ -1028,6 +1086,14 @@ function sfx(name) {
     if (name === "oops") { tone(330, t, .18, "sine", .12); tone(262, t + .14, .26, "sine", .12); }
     if (name === "coin") { tone(988, t, .08, "square", .05); tone(1319, t + .08, .25, "square", .05); }
     if (name === "tap") tone(660, t, .06, "sine", .06);
+    if (name === "snap") { tone(1800, t, .03, "square", .05); tone(900, t + .05, .05, "square", .04); }
+    if (name === "page") {
+      const len = actx.sampleRate * .35, buf = actx.createBuffer(1, len, actx.sampleRate), data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / len) * .6;
+      const src = actx.createBufferSource(), flt = actx.createBiquadFilter(), g = actx.createGain();
+      src.buffer = buf; flt.type = "highpass"; flt.frequency.value = 1200; g.gain.value = .25;
+      src.connect(flt); flt.connect(g); g.connect(actx.destination); src.start(t);
+    }
     if (name === "fanfare") [[523, 0], [659, .12], [784, .24], [1047, .4], [784, .58], [1047, .7]].forEach(([f, d]) => { tone(f, t + d, .35, "triangle", .15); tone(f / 2, t + d, .35, "sine", .06); });
     if (name === "whoosh") {
       const len = actx.sampleRate * 1.2, buf = actx.createBuffer(1, len, actx.sampleRate), data = buf.getChannelData(0);
@@ -1186,49 +1252,109 @@ function renderHome() {
   </div>`;
 }
 
-/* ---------- dressing room ---------- */
+/* ---------- dressing room: a drawn room; each piece of furniture opens its drawer ---------- */
+const ROOM_SPOTS = [
+  { cat: "hat", img: "wardrobe", name: "כּוֹבָעִים", style: "left:0;top:21%;width:25%" },
+  { cat: "face", img: "shelf", name: "מִשְׁקָפַיִם", style: "right:0;top:23%;width:25%" },
+  { cat: "char", img: "mirror", name: "מַרְאָה", style: "left:6%;top:52%;width:13%" },
+  { cat: "back", img: "rack", name: "עַל הַגַּב", style: "right:7%;top:45%;width:10%" },
+  { cat: "pet", img: "petbed", name: "חַיּוֹת", style: "left:1%;bottom:3%;width:25%" },
+  { cat: "hand", img: "chest", name: "בַּיָּד", style: "right:1%;bottom:4%;width:24%" },
+];
+const coinTag = n => `<img class="tic" src="img/ui-coin.webp" alt=""> ${n}`;
+function drawerItems(cat) {
+  if (cat === "char") return `<div class="items">${CHARS.map(ch => `<button class="shop-item ${S.av.type === ch.id ? "on" : ""}" data-char="${ch.id}">${avatarSVG({ ...S.av, type: ch.id })}<span class="nm">${tx(ch.name)}</span></button>`).join("")}</div>
+    <span class="lbl-s" style="margin-top:12px">${tx("צֶבַע הַחֲלִיפָה:")}</span>
+    <div class="row">${SUITS.map(c => `<button class="swatch-big ${S.av.color === c ? "on" : ""}" data-suit="${c}" style="background:${c}" aria-label="צבע"></button>`).join("")}</div>`;
+  return `<div class="items"><button class="shop-item ${!S.av[cat] ? "on" : ""}" data-wear="" data-slot="${cat}"><span class="e" style="font-size:2.2rem;line-height:64px">🚫</span><span class="nm">${tx("בְּלִי")}</span></button>` +
+    SHOP.filter(it => it.slot === cat).map(it => {
+      const own = S.owned.includes(it.id), on = S.av[cat] === it.id, poor = !own && S.coins < it.price;
+      return `<button class="shop-item ${on ? "on" : ""} ${poor ? "poor" : ""}" data-item="${it.id}"><img class="e" src="${it.img}" alt=""><span class="nm">${tx(it.name)}</span>
+        <span class="pr ${own ? "own" : ""}">${on ? tx("לוֹבֵשׁ ✓") : own ? tx("שֶׁלִּי") : coinTag(it.price)}</span></button>`;
+    }).join("") + `</div>`;
+}
 function renderShop() {
-  const cat = ui.shopCat || "char";
-  const cats = [["char", "דְּמוּת"], ["color", "צֶבַע"], ...SLOTS.map(s => [s.id, s.name])];
-  let items = "";
-  if (cat === "char") items = CHARS.map(ch => `<button class="shop-item ${S.av.type === ch.id ? "on" : ""}" data-char="${ch.id}">${avatarSVG({ ...S.av, type: ch.id })}<span class="nm">${tx(ch.name)}</span><span class="pr own">${tx("חִנָּם")}</span></button>`).join("");
-  else if (cat === "color") items = SUITS.map(c => `<button class="shop-item ${S.av.color === c ? "on" : ""}" data-suit="${c}"><span class="swatch-big" style="background:${c}"></span><span class="pr own">${tx("חִנָּם")}</span></button>`).join("");
-  else {
-    items = `<button class="shop-item ${!S.av[cat] ? "on" : ""}" data-wear="" data-slot="${cat}"><span class="e">🚫</span><span class="nm">${tx("בְּלִי")}</span></button>` +
-      SHOP.filter(it => it.slot === cat).map(it => {
-        const own = S.owned.includes(it.id), on = S.av[cat] === it.id, poor = !own && S.coins < it.price;
-        return `<button class="shop-item ${on ? "on" : ""} ${poor ? "poor" : ""}" data-item="${it.id}"><img class="e" src="${it.img}" alt=""><span class="nm">${tx(it.name)}</span>
-          <span class="pr ${own ? "own" : ""}">${on ? tx("לוֹבֵשׁ ✓") : own ? tx("שֶׁלִּי") : `<img class="tic" src="img/ui-coin.webp" alt=""> ${it.price}`}</span></button>`;
-      }).join("");
-  }
-  return bar() + `<div class="panel">
-    <h2><img class="h-ic" src="img/ui-gift.webp" alt=""> ${tx("חֲדַר הַהַלְבָּשָׁה")}</h2>
-    <div class="shop-grid">
-      <div class="stage">${avatarSVG(S.av, "float")}<span class="wallet"><img class="ic" src="img/ui-coin.webp" alt=""> ${S.coins}</span></div>
-      <div>
-        <div class="cats" role="tablist">${cats.map(([id, nm]) => `<button class="${cat === id ? "on" : ""}" data-cat="${id}">${tx(nm)}</button>`).join("")}</div>
-        <div class="items">${items}</div>
-      </div>
+  const cat = ui.shopCat || "char", spot = ROOM_SPOTS.find(s => s.cat === cat);
+  const hop = ui.hop; ui.hop = false;
+  return bar() + `<div class="dress">
+    <div class="room" style="background-image:url(img/room-bg.webp)">
+      ${ROOM_SPOTS.map(s => `<button class="spot ${s.cat === cat ? "on" : ""}" data-cat="${s.cat}" style="${s.style}" aria-label="${plain(s.name)}">
+        <img src="img/furn-${s.img}.webp" alt=""><span class="spot-l">${tx(s.name)}</span></button>`).join("")}
+      <div class="on-stage ${hop ? "hop" : ""}">${avatarSVG(S.av, "float")}</div>
+      <span class="wallet-tag">${coinTag(S.coins)}</span>
+      <button class="snap" data-act="photo" aria-label="צילום לאלבום">📸 ${tx("צִלּוּם")}</button>
+      <div class="flash" id="flash"></div>
     </div>
-    <p class="how">${tx("אֵיךְ מַרְוִיחִים מַטְבְּעוֹת?")} ${tx("כָּל תְּשׁוּבָה נְכוֹנָה בַּפַּעַם הָרִאשׁוֹנָה")} = <img class="tic" src="img/ui-coin.webp" alt=""> ${COIN_RIGHT}. ${tx("כָּל כּוֹכָב בְּסוֹף מְשִׂימָה")} = <img class="tic" src="img/ui-coin.webp" alt=""> ${COIN_STAR}.</p>
-    <div class="row"><button class="btn" data-go="home">🚀 ${tx("חֲזָרָה לַמַּפָּה")}</button></div>
+    <div class="panel drawer">
+      <h2><img class="h-ic" src="img/furn-${spot.img}.webp" alt=""> ${tx(spot.cat === "char" ? "דְּמוּת וְצֶבַע" : spot.name)}</h2>
+      ${drawerItems(cat)}
+      <p class="how">${tx("גְּעוּ בָּרָהִיטִים בַּחֶדֶר כְּדֵי לִפְתֹּחַ אוֹתָם.")} ${tx("כָּל תְּשׁוּבָה נְכוֹנָה בַּפַּעַם הָרִאשׁוֹנָה")} = ${coinTag(COIN_RIGHT)}. ${tx("כָּל כּוֹכָב בְּסוֹף מְשִׂימָה")} = ${coinTag(COIN_STAR)}.</p>
+      <div class="row"><button class="btn" data-go="home">🚀 ${tx("חֲזָרָה לַמַּפָּה")}</button><button class="btn ghost" data-go="album">${tx("לָאַלְבּוֹם")}</button></div>
+    </div>
   </div>`;
 }
+function takePhoto() {
+  S.photos = [{ ...S.av, when: Date.now() }, ...(S.photos || [])].slice(0, 24); save();
+  const f = $("#flash"); if (f) { f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
+  sfx("snap"); toast("הַתְּמוּנָה נִשְׁמְרָה בָּאַלְבּוֹם!");
+}
 
-/* ---------- sticker album ---------- */
-function renderAlbum() {
-  const got = ALL.filter(done).length;
-  return bar() + `<div class="panel">
-    <h2><img class="h-ic" src="img/ui-chest.webp" alt=""> ${tx("אַלְבּוֹם הַמַּדְבֵּקוֹת")}</h2>
-    <p style="margin:0;font-family:var(--f-read)">${tx("עַל כָּל כּוֹכַב לֶכֶת שֶׁמְּסַיְּמִים מְקַבְּלִים מַדְבֵּקָה. עִם 3 כּוֹכָבִים הִיא נַעֲשֵׂית זְהֻבָּה!")} <b>${got} / ${ALL.length}</b></p>
-    ${TRACKS.map(tr => `<div><h3 style="margin:0 0 10px;font-family:var(--f-read)">${tx(tr.name)}</h3><div class="album">
+/* ---------- album: a real book with a cover, sticker pages, photo pages and page turns ---------- */
+function albumPages() {
+  const pages = [{ kind: "cover" }];
+  TRACKS.forEach((tr, t) => pages.push({ kind: "stickers", t }));
+  const ph = S.photos || [];
+  for (let i = 0; i < Math.max(1, ph.length); i += 4) pages.push({ kind: "photos", list: ph.slice(i, i + 4), first: i === 0 });
+  pages.push({ kind: "back" });
+  return pages;
+}
+const dmy = ts => { const d = new Date(ts); return `${d.getDate()}/${d.getMonth() + 1}`; };
+function pageHTML(p, n) {
+  if (p.kind === "cover") return `<div class="page cover"><div class="cover-in">
+      <span class="cover-top">${tx("הָאַלְבּוֹם שֶׁל")}</span>
+      <h2>${esc(S.name || "חוֹקֵר הֶחָלָל")}</h2>
+      <div class="cover-av">${avatarSVG(S.av)}</div>
+      <span class="cover-count"><img class="tic" src="img/ui-star.webp" alt=""> ${ALL.filter(done).length} / ${ALL.length} ${tx("מַדְבֵּקוֹת")}</span>
+    </div></div>`;
+  if (p.kind === "back") return `<div class="page cover back"><div class="cover-in"><img src="img/ui-rocket.webp" alt="" style="width:90px;transform:scaleX(-1)"><span class="cover-top">${tx("הַמַּסָּע נִמְשָׁךְ...")}</span></div></div>`;
+  if (p.kind === "stickers") {
+    const tr = TRACKS[p.t];
+    return `<div class="page paper"><h3>${tx(tr.name)}</h3><div class="sgrid">
       ${tr.stations.map((s, i) => {
-        const r = S.st[s.id];
-        const tilt = ((i * 37) % 13) - 6;
+        const r = S.st[s.id], tilt = ((i * 37) % 13) - 6;
         return `<div class="sticker-slot">${r && r.done ? `<span class="sticker ${r.stars === 3 ? "gold" : ""}" style="--tilt:${tilt}deg">${STICKERS[s.id]}</span>` : `<span class="sticker empty">?</span>`}<span class="nm">${tx(s.title)}</span></div>`;
-      }).join("")}</div></div>`).join("")}
-    <div class="row"><button class="btn" data-go="home">🚀 ${tx("חֲזָרָה לַמַּפָּה")}</button></div>
+      }).join("")}</div><span class="pnum">${n}</span></div>`;
+  }
+  return `<div class="page paper"><h3>${tx("הַתְּמוּנוֹת שֶׁלִּי")}</h3>
+    ${p.list.length ? `<div class="pgrid">${p.list.map((ph, i) => `<figure class="polaroid" style="--tilt:${(i % 2 ? 3 : -3)}deg"><div class="ph-in">${avatarSVG(ph)}</div><figcaption>${dmy(ph.when)}</figcaption></figure>`).join("")}</div>`
+      : `<p class="empty-note">${tx("עוֹד אֵין תְּמוּנוֹת. בַּחֲדַר הַהַלְבָּשָׁה יֵשׁ כַּפְתּוֹר 📸, וְכָל תְּמוּנָה תַּגִּיעַ לְכָאן!")}</p>`}
+    <span class="pnum">${n}</span></div>`;
+}
+function renderAlbum() {
+  const pages = albumPages(), spread = innerWidth >= 760, step = spread ? 2 : 1;
+  let at = Math.max(0, Math.min(ui.page || 0, pages.length - 1));
+  if (spread && at % 2) at -= 1;
+  ui.page = at;
+  const shown = pages.slice(at, at + step);
+  const turn = ui.turn; ui.turn = null;
+  const last = at + step >= pages.length;
+  return bar() + `<div class="album-wrap">
+    <div class="book ${spread ? "spread" : ""}" id="book">
+      ${shown.map((p, k) => `<div class="leaf ${turn ? "turn-" + turn : ""}" style="--d:${k * 0.06}s">${pageHTML(p, at + k)}</div>`).join("")}
+    </div>
+    <div class="book-nav">
+      <button class="btn ghost" data-act="pagePrev" ${at === 0 ? "disabled" : ""}>→ ${tx("הַקּוֹדֵם")}</button>
+      <span class="pdots">${pages.map((_, i) => `<i class="${i >= at && i < at + step ? "on" : ""}"></i>`).join("")}</span>
+      <button class="btn" data-act="pageNext" ${last ? "disabled" : ""}>${tx("הַבָּא")} ←</button>
+    </div>
+    <div class="row" style="justify-content:center"><button class="btn ghost" data-go="home">🚀 ${tx("חֲזָרָה לַמַּפָּה")}</button><button class="btn ghost" data-go="shop">${tx("לַחֲדַר הַהַלְבָּשָׁה")}</button></div>
   </div>`;
+}
+function turnPage(dir) {
+  const pages = albumPages(), step = innerWidth >= 760 ? 2 : 1;
+  const next = (ui.page || 0) + dir * step;
+  if (next < 0 || next >= pages.length) return;
+  ui.page = next; ui.turn = dir > 0 ? "next" : "prev"; sfx("page"); draw();
 }
 
 /* ---------- station intro ---------- */
@@ -1977,22 +2103,22 @@ function revealHint() {
   const el = document.querySelector(".sen.hl");
   if (el && window.matchMedia("(max-width: 860px)").matches) el.scrollIntoView({ behavior: "smooth", block: "center" });
 }
-function go(name) { view = { name }; draw(); scrollTop(); }
+function go(name) { if (name === "album" && view.name !== "album") ui.page = 0; view = { name }; draw(); scrollTop(); }
 function startStation(t, i) { run = { t, i, qi: 0, res: {}, ans: {}, open: {}, q: null, coins: 0 }; view = { name: "intro" }; draw(); scrollTop(); }
 
 document.addEventListener("click", e => {
   const t = e.target.closest("button, [data-sen], [data-tgt], [data-iw]"); if (!t) return;
   const d = t.dataset;
   lastRect = t.getBoundingClientRect();
-  if (d.char) { S.av.type = d.char; save(); sfx("tap"); sparks(lastRect, 8); return draw(); }
-  if (d.suit) { S.av.color = d.suit; save(); sfx("tap"); return draw(); }
-  if (d.cat) { ui.shopCat = d.cat; return draw(); }
-  if (d.wear !== undefined) { S.av[d.slot] = null; save(); return draw(); }
+  if (d.char) { S.av.type = d.char; save(); ui.hop = true; sfx("tap"); sparks(lastRect, 8); return draw(); }
+  if (d.suit) { S.av.color = d.suit; save(); ui.hop = true; sfx("tap"); return draw(); }
+  if (d.cat) { ui.shopCat = d.cat; sfx("tap"); return draw(); }
+  if (d.wear !== undefined) { S.av[d.slot] = null; save(); ui.hop = true; return draw(); }
   if (d.item) {
     const it = SHOP.find(x => x.id === d.item);
-    if (S.owned.includes(it.id)) { S.av[it.slot] = S.av[it.slot] === it.id ? null : it.id; save(); sfx("tap"); return draw(); }
+    if (S.owned.includes(it.id)) { S.av[it.slot] = S.av[it.slot] === it.id ? null : it.id; save(); ui.hop = true; sfx("tap"); return draw(); }
     if (S.coins < it.price) { sfx("oops"); return toast(`חֲסֵרִים עוֹד ${it.price - S.coins} מַטְבְּעוֹת. קָדִימָה לַמְּשִׂימָה הַבָּאָה!`); }
-    S.coins -= it.price; S.owned.push(it.id); S.av[it.slot] = it.id; save(); sfx("coin"); draw(); sparks(lastRect, 16); return;
+    S.coins -= it.price; S.owned.push(it.id); S.av[it.slot] = it.id; save(); ui.hop = true; sfx("coin"); draw(); sparks(lastRect, 16); const st = $(".on-stage"); if (st) sparks(st.getBoundingClientRect(), 18); return;
   }
   if (d.go) return go(d.go);
   if (d.say) return speak(d.say);
@@ -2020,6 +2146,9 @@ document.addEventListener("click", e => {
   if (d.unorder !== undefined) { const st = run.q, k = +d.unorder; if (st.marks && st.marks[k]) return; st.pool.push(st.order[k]); delete st.order[k]; st.order = compact(st.order, st.marks); return draw(); }
   switch (d.act) {
     case "settings": ui.settings = !ui.settings; return draw();
+    case "photo": return takePhoto();
+    case "pageNext": return turnPage(1);
+    case "pagePrev": return turnPage(-1);
     case "helloDone": { const n = $("#kidName"); if (n) S.name = n.value.trim().slice(0, 20); S.av.chosen = true; save(); fxQueue.push({ k: "party" }); return go("home"); }
     case "nikud": S.nikud = !S.nikud; save(); return draw();
     case "size": S.size = S.size % 3 + 1; save(); return draw();
@@ -2075,6 +2204,13 @@ if ("speechSynthesis" in window) { try { speechSynthesis.getVoices(); speechSynt
 document.addEventListener("change", e => {
   if (e.target.id !== "testDate") return;
   S.testDate = e.target.value; save(); toast("תאריך המבדק נשמר");
+});
+let swipeX = null;
+document.addEventListener("pointerdown", e => { swipeX = e.target.closest("#book") ? e.clientX : null; });
+document.addEventListener("pointerup", e => {
+  if (swipeX === null || view.name !== "album") return;
+  const dx = e.clientX - swipeX; swipeX = null;
+  if (Math.abs(dx) > 50) turnPage(dx > 0 ? 1 : -1);
 });
 makeSky();
 if (!S.av.chosen) view = { name: "hello" };

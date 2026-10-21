@@ -1406,25 +1406,90 @@ function renderBoard(q, st, live) {
 }
 
 function sceneSVG(view) {
-  const f = id => colorOf(view, id) || "#FFFFFF";
-  const ink = 'stroke="#2B3550" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"';
-  const rays = Array.from({ length: 8 }, (_, k) => { const a = k * Math.PI / 4; return `M${(365 + 30 * Math.cos(a)).toFixed(1)} ${(48 + 30 * Math.sin(a)).toFixed(1)}L${(365 + 40 * Math.cos(a)).toFixed(1)} ${(48 + 40 * Math.sin(a)).toFixed(1)}`; }).join("");
-  const cloud = "M0 0a14 14 0 0 1 8-24a18 18 0 0 1 32-4a14 14 0 0 1 14 28z";
-  const petals = Array.from({ length: 5 }, (_, k) => { const a = k * 2 * Math.PI / 5 - Math.PI / 2; return `<circle cx="${(392 + 9 * Math.cos(a)).toFixed(1)}" cy="${(214 + 9 * Math.sin(a)).toFixed(1)}" r="6" fill="${f("flower")}" ${ink}/>`; }).join("");
-  return `<svg class="scene-svg" viewBox="8 2 410 262" role="img" aria-label="תמונה: שמש, שני עננים, עץ עם ציפור, בית, ילדה, ילד, כדור, כלב ופרח">
-    <rect width="420" height="280" fill="#FFFFFF"/>
-    <path d="M0 222 Q110 214 210 222 T420 220" fill="none" ${ink}/>
-    <g data-tgt="sun"><circle cx="365" cy="48" r="44" fill="transparent"/><path d="${rays}" fill="none" ${ink}/><circle cx="365" cy="48" r="22" fill="${f("sun")}" ${ink}/></g>
-    <g><path transform="translate(185 64)" d="${cloud}" fill="#FFFFFF" ${ink}/></g>
-    <g><path transform="translate(100 88)" d="${cloud}" fill="#FFFFFF" ${ink}/></g>
-    <g data-tgt="tree"><rect x="42" y="150" width="18" height="70" fill="${f("tree")}" ${ink}/><circle cx="51" cy="132" r="38" fill="${f("tree")}" ${ink}/></g>
-    <g data-tgt="bird"><rect x="32" y="76" width="50" height="28" fill="transparent"/><path d="M44 92 L36 86 L38 96 Z" fill="${f("bird")}" ${ink}/><ellipse cx="54" cy="94" rx="11" ry="7" fill="${f("bird")}" ${ink}/><circle cx="65" cy="88" r="5.5" fill="${f("bird")}" ${ink}/><path d="M70 87 L76 89 L70 91 Z" fill="#2B3550"/><circle cx="66" cy="87" r="1.2" fill="#2B3550"/></g>
-    <g data-tgt="house"><rect x="140" y="148" width="86" height="72" fill="${f("house")}" ${ink}/><path d="M132 150 L183 108 L234 150 Z" fill="${f("house")}" ${ink}/><rect x="174" y="184" width="20" height="36" fill="#FFFFFF" ${ink}/><rect x="150" y="160" width="18" height="16" fill="#FFFFFF" ${ink}/><rect x="198" y="160" width="18" height="16" fill="#FFFFFF" ${ink}/></g>
-    <g data-tgt="girl"><circle cx="275" cy="155" r="5" fill="${f("girl")}" ${ink}/><circle cx="262" cy="160" r="11" fill="${f("girl")}" ${ink}/><path d="M262 172 L246 208 L278 208 Z" fill="${f("girl")}" ${ink}/><path d="M256 208v14M268 208v14M255 182l-10 12M269 182l10 12" fill="none" ${ink}/></g>
-    <g data-tgt="boy"><circle cx="345" cy="158" r="11" fill="${f("boy")}" ${ink}/><rect x="333" y="170" width="24" height="28" rx="3" fill="${f("boy")}" ${ink}/><path d="M339 198v24M351 198v24M333 176l-10 14M357 176l10 14" fill="none" ${ink}/></g>
-    <g data-tgt="ball"><rect x="285" y="222" width="40" height="38" fill="transparent"/><circle cx="305" cy="240" r="12" fill="${f("ball")}" ${ink}/><path d="M294 236 Q305 244 316 236" fill="none" ${ink}/></g>
-    <g data-tgt="dog"><rect x="62" y="206" width="74" height="52" fill="transparent"/><path d="M72 230 Q62 222 66 214" fill="none" ${ink}/><ellipse cx="95" cy="232" rx="24" ry="12" fill="${f("dog")}" ${ink}/><path d="M80 242v12M110 242v12" fill="none" ${ink}/><circle cx="122" cy="220" r="10" fill="${f("dog")}" ${ink}/><ellipse cx="118" cy="214" rx="4" ry="8" fill="${f("dog")}" ${ink}/><circle cx="126" cy="218" r="1.3" fill="#2B3550"/></g>
-    <g data-tgt="flower"><rect x="374" y="196" width="36" height="58" fill="transparent"/><path d="M392 250 V222" fill="none" ${ink}/><path d="M392 240 Q382 234 380 240 Q386 246 392 242" fill="#FFFFFF" ${ink}/>${petals}<circle cx="392" cy="214" r="5" fill="#FFFFFF" ${ink}/></g>
+  const f = (id, def = "#FFFFFF") => colorOf(view, id) || def;
+  const K = "#1E2440";
+  const ink = `stroke="${K}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`;
+  const thin = `stroke="${K}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`;
+  const P = (x, y) => `${x.toFixed(1)} ${y.toFixed(1)}`;
+  const rays = Array.from({ length: 12 }, (_, k) => { const a = k * Math.PI / 6; return `M${P(530 + 46 * Math.cos(a), 66 + 46 * Math.sin(a))}L${P(530 + 60 * Math.cos(a), 66 + 60 * Math.sin(a))}`; }).join("");
+  const cloud = (x, y, s) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 0 A20 20 0 0 1 16 -30 A28 28 0 0 1 66 -40 A22 22 0 0 1 102 -18 A18 18 0 0 1 100 0 Z" fill="#FFFFFF" ${ink}/>`;
+  const petals = Array.from({ length: 6 }, (_, k) => { const a = k * Math.PI / 3; return `<circle cx="${(566 + 13 * Math.cos(a)).toFixed(1)}" cy="${(258 + 13 * Math.sin(a)).toFixed(1)}" r="9.5" fill="${f("flower")}" ${ink}/>`; }).join("");
+  const tufts = [30, 150, 250, 330, 470, 590].map(x => `<path d="M${x - 8} 326 l4 -10 l4 8 l4 -12 l4 14" fill="none" ${thin}/>`).join("");
+  return `<svg class="scene-svg" viewBox="0 0 600 345" role="img" aria-label="תמונה: שמש, שני עננים, עץ ועליו ציפור, בית, כלב, ילדה, כדור, ילד ופרח">
+    <rect x="0" y="0" width="600" height="400" fill="#FFFFFF"/>
+    <path d="M0 324 Q150 314 300 322 T600 320" fill="none" ${ink}/>${tufts}
+    ${cloud(196, 92, 1)}${cloud(338, 124, .82)}
+
+    <g data-tgt="sun"><circle cx="530" cy="66" r="64" fill="transparent"/>
+      <path d="${rays}" fill="none" ${ink}/><circle cx="530" cy="66" r="38" fill="${f("sun")}" ${ink}/>
+      <circle cx="517" cy="60" r="3.5" fill="${K}"/><circle cx="543" cy="60" r="3.5" fill="${K}"/>
+      <path d="M516 74 Q530 86 544 74" fill="none" ${thin}/></g>
+
+    <g data-tgt="tree" transform="translate(-6 0)">
+      <path d="M78 324 L84 214 L104 214 L110 324 Z" fill="${f("tree")}" ${ink}/>
+      <path d="M94 250 L118 230" fill="none" ${ink}/>
+      <path d="M40 206 A34 34 0 0 1 30 146 A42 42 0 0 1 72 92 A46 46 0 0 1 144 98 A40 40 0 0 1 166 166 A34 34 0 0 1 130 214 Z" fill="${f("tree")}" ${ink}/>
+      <path d="M62 150 q8 -8 16 0 M112 132 q8 -8 16 0 M100 184 q8 -8 16 0" fill="none" ${thin}/></g>
+
+    <g data-tgt="bird" transform="translate(-6 0)"><rect x="60" y="44" width="78" height="54" fill="transparent"/>
+      <path d="M84 70 L66 58 L70 76 Z" fill="${f("bird")}" ${ink}/>
+      <ellipse cx="96" cy="74" rx="20" ry="14" fill="${f("bird")}" ${ink}/>
+      <circle cx="116" cy="60" r="11" fill="${f("bird")}" ${ink}/>
+      <path d="M126 57 L137 61 L126 65 Z" fill="#FFB020" ${thin}/>
+      <circle cx="119" cy="58" r="2.6" fill="${K}"/>
+      <path d="M88 70 Q98 62 106 74" fill="none" ${thin}/>
+      <path d="M92 88 v8 M102 88 v8" fill="none" ${thin}/></g>
+
+    <g data-tgt="house">
+      <rect x="296" y="154" width="20" height="40" fill="${f("house")}" ${ink}/>
+      <rect x="220" y="216" width="130" height="108" fill="${f("house")}" ${ink}/>
+      <path d="M204 220 L285 150 L366 220 Z" fill="${f("house")}" ${ink}/>
+      <path d="M268 324 V274 A17 17 0 0 1 302 274 V324" fill="#FFFFFF" ${ink}/><circle cx="295" cy="298" r="2.8" fill="${K}"/>
+      <rect x="232" y="236" width="30" height="28" fill="#FFFFFF" ${ink}/><path d="M247 236 V264 M232 250 H262" fill="none" ${thin}/>
+      <rect x="308" y="236" width="30" height="28" fill="#FFFFFF" ${ink}/><path d="M323 236 V264 M308 250 H338" fill="none" ${thin}/></g>
+
+    <g data-tgt="dog" transform="translate(-6 0)"><rect x="110" y="250" width="110" height="80" fill="transparent"/>
+      <path d="M126 290 Q112 282 116 264" fill="none" ${ink}/>
+      <rect x="132" y="296" width="10" height="26" rx="4" fill="${f("dog")}" ${ink}/><rect x="168" y="296" width="10" height="26" rx="4" fill="${f("dog")}" ${ink}/>
+      <rect x="148" y="298" width="10" height="24" rx="4" fill="${f("dog")}" ${ink}/><rect x="180" y="296" width="10" height="26" rx="4" fill="${f("dog")}" ${ink}/>
+      <ellipse cx="156" cy="292" rx="34" ry="16" fill="${f("dog")}" ${ink}/>
+      <circle cx="194" cy="270" r="16" fill="${f("dog")}" ${ink}/>
+      <ellipse cx="208" cy="277" rx="10" ry="7" fill="${f("dog")}" ${ink}/>
+      <circle cx="216" cy="275" r="3.5" fill="${K}"/>
+      <circle cx="196" cy="265" r="2.8" fill="${K}"/>
+      <ellipse cx="183" cy="270" rx="6" ry="13" fill="${f("dog")}" ${ink} transform="rotate(15 183 270)"/>
+      <path d="M180 284 Q190 290 200 286" fill="none" stroke="#E5484D" stroke-width="4" stroke-linecap="round"/></g>
+
+    <g data-tgt="girl"><rect x="370" y="182" width="72" height="146" fill="transparent"/>
+      <path d="M396 290 V318 M412 290 V318" fill="none" ${ink}/>
+      <ellipse cx="394" cy="320" rx="8" ry="4.5" fill="${K}"/><ellipse cx="414" cy="320" rx="8" ry="4.5" fill="${K}"/>
+      <path d="M396 244 L376 272 M412 244 L432 272" fill="none" ${ink}/>
+      <path d="M404 236 L374 292 L434 292 Z" fill="${f("girl")}" ${ink}/>
+      <circle cx="384" cy="208" r="8" fill="#FFFFFF" ${ink}/><circle cx="424" cy="208" r="8" fill="#FFFFFF" ${ink}/>
+      <circle cx="404" cy="214" r="20" fill="#FFFFFF" ${ink}/>
+      <path d="M385 208 Q392 190 404 194 Q416 190 423 208 Q412 200 404 202 Q394 200 385 208 Z" fill="${K}"/>
+      <circle cx="397" cy="214" r="2.6" fill="${K}"/><circle cx="411" cy="214" r="2.6" fill="${K}"/>
+      <path d="M397 223 Q404 229 411 223" fill="none" ${thin}/></g>
+
+    <g data-tgt="ball"><rect x="438" y="288" width="40" height="40" fill="transparent"/>
+      <circle cx="458" cy="306" r="17" fill="${f("ball")}" ${ink}/>
+      <path d="M458 289 Q448 306 458 323 M458 289 Q468 306 458 323 M441 306 H475" fill="none" ${thin}/></g>
+
+    <g data-tgt="boy"><rect x="484" y="180" width="68" height="148" fill="transparent"/>
+      <path d="M509 286 V318 M527 286 V318" fill="none" ${ink}/>
+      <ellipse cx="507" cy="320" rx="8" ry="4.5" fill="${K}"/><ellipse cx="529" cy="320" rx="8" ry="4.5" fill="${K}"/>
+      <path d="M502 240 L488 270 M534 240 L548 270" fill="none" ${ink}/>
+      <rect x="500" y="232" width="36" height="40" rx="8" fill="${f("boy")}" ${ink}/>
+      <rect x="502" y="268" width="32" height="20" rx="3" fill="#FFFFFF" ${ink}/><path d="M518 272 V288" fill="none" ${thin}/>
+      <circle cx="518" cy="212" r="20" fill="#FFFFFF" ${ink}/>
+      <path d="M498 210 Q500 190 518 190 Q536 190 538 210 Q528 200 518 203 Q506 200 498 210 Z" fill="${K}"/>
+      <circle cx="511" cy="213" r="2.6" fill="${K}"/><circle cx="525" cy="213" r="2.6" fill="${K}"/>
+      <path d="M511 222 Q518 228 525 222" fill="none" ${thin}/></g>
+
+    <g data-tgt="flower"><rect x="544" y="236" width="46" height="90" fill="transparent"/>
+      <path d="M566 324 V272" fill="none" ${ink}/>
+      <path d="M566 304 Q550 292 546 302 Q554 312 566 306 Z" fill="#FFFFFF" ${ink}/>
+      ${petals}<circle cx="566" cy="258" r="8" fill="#FFFFFF" ${ink}/></g>
   </svg>`;
 }
 

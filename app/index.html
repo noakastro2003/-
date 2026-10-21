@@ -222,6 +222,74 @@ details[open] summary { margin-bottom: 8px; }
   .sheet { padding-inline: 14px; padding-inline-start: 30px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* instructions track */
+.tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.tab { flex: 1 1 240px; min-width: 0; text-align: start; border: 2px solid var(--line); background: var(--card); border-radius: 18px; padding: 12px 14px; color: var(--ink); display: grid; gap: 2px; }
+.tab.on { border-color: var(--pen); box-shadow: 0 0 0 4px var(--pen-soft); }
+.tab .tn { font-family: var(--f-read); font-weight: 800; font-size: 1.15rem; }
+.tab .ts { font-size: .9rem; color: var(--ink-soft); }
+.badge { display: inline-block; background: var(--star); color: #1D2948; border-radius: 999px; font-family: var(--f-read); font-size: .78rem; font-weight: 700; padding: 1px 10px; margin-inline-start: 8px; vertical-align: middle; }
+.task { max-width: 820px; margin: 0 auto; }
+.instr { display: flex; gap: 10px; align-items: flex-start; background: var(--star-soft); border: 2px solid var(--star); border-radius: 16px; padding: 10px 14px; }
+.instr .lbl { display: block; font-size: .8rem; font-weight: 700; color: var(--ink-soft); }
+.itext { font-family: var(--f-read); font-weight: 600; font-size: calc(var(--read-size) * 1.1); line-height: 2.1; margin: 0; }
+.iw { border-radius: 8px; padding: 1px 3px; }
+.iw.tap { cursor: pointer; border-bottom: 2px dotted var(--ink-soft); }
+.iw.tap:hover { background: var(--pen-soft); }
+.iw.v { background: var(--pen); color: var(--paper); border-bottom-color: transparent; }
+.iw.n { background: var(--good); color: var(--paper); border-bottom-color: transparent; }
+.lbl-s { display: block; font-size: .9rem; color: var(--ink-soft); margin: 4px 0 6px; }
+.wait { opacity: .4; pointer-events: none; filter: grayscale(.5); }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.tool { display: inline-flex; align-items: center; gap: 6px; border: 2px solid var(--line); background: var(--card); border-radius: 12px; padding: 7px 12px; font-family: var(--f-read); font-size: 1rem; color: var(--ink); }
+.tool svg { width: 22px; height: 22px; flex: 0 0 22px; }
+.tool.on { border-color: var(--pen); background: var(--pen-soft); color: var(--pen); box-shadow: 0 0 0 3px var(--pen-soft); }
+.tool.clear { margin-inline-start: auto; border-style: dashed; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px 4px; align-items: center; margin-top: 10px; }
+.sw { width: 38px; height: 38px; border-radius: 50%; border: 3px solid var(--card); box-shadow: 0 0 0 2px var(--line); }
+.sw.on { box-shadow: 0 0 0 3px var(--ink); }
+.swl { font-family: var(--f-read); font-size: .95rem; margin-inline-end: 12px; }
+.board { position: relative; margin-top: 12px; padding: 22px 12px; border-radius: 16px; background: var(--paper); border: 1.5px dashed var(--line); }
+.board.scene { padding: 8px; background: #FFFFFF; }
+.ov { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.tiles { display: flex; flex-wrap: wrap; gap: 22px 26px; justify-content: center; }
+.tile { display: inline-block; cursor: pointer; font-family: var(--f-read); font-size: calc(var(--read-size) * 1.1); line-height: 1.8; padding: 2px 10px; border-radius: 10px; color: var(--ink); }
+.tile:hover, .lt:hover { background: var(--pen-soft); }
+.tiles.letters { gap: 18px; }
+.tiles.letters .tile { font-size: calc(var(--read-size) * 1.6); font-weight: 600; min-width: 1.5em; text-align: center; }
+.cols { display: flex; justify-content: space-between; gap: 24px; padding-inline: 4%; }
+.col { display: grid; gap: 22px; justify-items: center; }
+.sent { font-family: var(--f-read); font-size: calc(var(--read-size) * 1.3); line-height: 2.8; text-align: center; margin: 0; }
+.sent .tile { font-size: inherit; padding: 2px 4px; }
+.wd { white-space: nowrap; }
+.lt { cursor: pointer; display: inline-block; padding: 0 1px; border-radius: 6px; }
+.scene-svg { display: block; width: 100%; height: auto; }
+.scene-svg [data-tgt] { cursor: pointer; }
+.still .tile, .still .lt, .still [data-tgt] { cursor: default; }
+.fill-sent { font-family: var(--f-read); font-size: calc(var(--read-size) * 1.2); line-height: 2.4; text-align: center; margin: 4px 0; }
+.blank { display: inline-block; min-width: 4.5em; border-bottom: 3px solid var(--ink-soft); text-align: center; padding: 0 6px; line-height: 1.6; }
+.blank.ok { color: var(--good); border-color: var(--good); font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.chip-o { border: 2px solid var(--pen); background: var(--card); border-radius: 12px; padding: 4px 18px; font-family: var(--f-read); font-size: var(--read-size); line-height: 1.8; color: var(--ink); }
+.chip-o.sel { background: var(--pen-soft); }
+.chip-o.right { border-color: var(--good); background: var(--good-soft); }
+.chip-o.wrong { border-color: var(--oops); background: var(--oops-soft); opacity: .6; text-decoration: line-through; }
+.bank, .slots { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.bank button, .sl { width: 54px; height: 58px; border-radius: 12px; font-family: var(--f-read); font-size: 1.9rem; font-weight: 600; color: var(--ink); }
+.bank button { border: 2px solid var(--pen); background: var(--card); }
+.bank button[disabled] { opacity: .25; }
+.sl { border: 0; border-bottom: 3px solid var(--ink-soft); background: var(--paper); border-radius: 6px 6px 0 0; }
+.plines { display: grid; gap: 12px; }
+.pline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-family: var(--f-read); font-size: calc(var(--read-size) * 1.15); line-height: 2; }
+.pslot { width: 46px; height: 46px; border: 2px dashed var(--pen); border-radius: 10px; background: var(--card); color: var(--ink); font-size: 1.9rem; font-weight: 800; line-height: 1; }
+.pslot.right { border-style: solid; border-color: var(--good); background: var(--good-soft); }
+.pslot.wrong { border-color: var(--oops); background: var(--oops-soft); }
+.verbs { display: grid; gap: 6px; }
+.verbs div { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+.verbs .vb { font-family: var(--f-read); font-weight: 800; color: var(--pen); }
+@media (max-width: 560px) { .tool span { font-size: .92rem; } .cols { padding-inline: 0; } .board.scene { margin-inline: -10px; padding: 4px; } }
+@media (hover: none) { .tile:hover, .lt:hover, .iw.tap:hover { background: none; } }
 </style>
 
 <div class="app" dir="rtl" lang="he">
@@ -426,15 +494,139 @@ const STATIONS = [
     ] },
 ];
 
+/* ---------- instructions track (ביצוע הוראות) ---------- */
+SKILLS.instr = { name: "ביצוע הוראות", kid: "מְבַצְּעִים הוֹרָאוֹת",
+  what: "לקרוא הוראה, להבין מה לעשות (הקיפו, סמנו X, מתחו קו, צבעו, כתבו, העתיקו), על מה, וכמה, ולעשות בדיוק את זה.",
+  home: "לתת הוראות בעל פה עם מספר ומקום: \"תביא שתי כפיות ומזלג אחד\", \"תגיד לי את האות השנייה במילה שולחן\". לבקש מהילד לחזור על ההוראה במילים שלו לפני שהוא עושה.",
+  ask: "מה ההוראה מבקשת לעשות? על מה? כמה?" };
+SKILLS.lang = { name: "ידע לשוני", kid: "יֶדַע לְשׁוֹנִי",
+  what: "משפחות מילים (אותו שורש), מילים הפוכות, מילות קישור (לכן, מפני, כדי) וסימני פיסוק (נקודה וסימן שאלה).",
+  home: "משחק משפחות: אומרים מילה (\"לצייר\") ומחפשים יחד קרובים (ציור, צייר, מצייר). משחק הפכים בזמן נסיעה.",
+  ask: "איזו מילה מאותה משפחה? מה ההפך?" };
+const SKILL_ORDER = ["instr", "locate", "sequence", "vocab", "infer", "purpose", "opinion", "lang"];
+
+const W = (...items) => ({ kind: "words", items });
+const L = (...items) => ({ kind: "letters", items });
+const SCENE = { kind: "scene" };
+
+const H = [
+  { id: "h1", title: "מִלּוֹת הוֹרָאָה", sub: "מָה עוֹשִׂים כְּשֶׁכָּתוּב...?", skill: "instr", scaffold: 2,
+    owl: ["בַּמִּבְדָּק יֵשׁ הַרְבֵּה הוֹרָאוֹת. מִי שֶׁמֵּבִין אֶת הַהוֹרָאָה, מַצְלִיחַ!", "בְּכָל הוֹרָאָה יֵשׁ מִלָּה שֶׁאוֹמֶרֶת מָה לַעֲשׂוֹת. קוֹרְאִים לָהּ מִלַּת פְּעֻלָּה. נְחַפֵּשׂ אוֹתָהּ קֹדֶם."],
+    tools: ["קוֹרְאִים אֶת כָּל הַהוֹרָאָה.", "מוֹצְאִים אֶת מִלַּת הַפְּעֻלָּה: מָה עוֹשִׂים?", "בּוֹחֲרִים אֶת הַכְּלִי הַמַּתְאִים: עִגּוּל, קַו, X אוֹ צֶבַע.", "עוֹשִׂים בְּדִיּוּק מָה שֶׁבִּקְּשׁוּ."],
+    parent: "היכרות עם מילות ההוראה: הקיפו, סמנו X, מתחו קו מתחת, מתחו קו מ... אל, צבעו, העתיקו. לפני כל משימה הילד נוגע במילת הפעולה, ורק אז בוחר כלי (עיגול, קו, X, צבע). כך הוא לומד שההוראה קובעת מה עושים.",
+    questions: [
+      { type: "mc", skill: "instr", q: "מָה עוֹשִׂים כְּשֶׁכָּתוּב בַּהוֹרָאָה \"הַקִּיפוּ\"?", opts: ["מְצַיְּרִים עִגּוּל מִסָּבִיב", "מְצַיְּרִים קַו מִתַּחַת", "כּוֹתְבִים אֶת הַמִּלָּה שׁוּב", "מוֹחֲקִים"], why: "לְהַקִּיף = לְצַיֵּר עִגּוּל מִסָּבִיב, כְּמוֹ גָּדֵר שֶׁמַּקִּיפָה גִּנָּה." },
+      { type: "mark", skill: "instr", q: "הַקִּיפוּ אֶת הַמִּלָּה כֶּלֶב.", verb: ["הַקִּיפוּ"], board: W("חָתוּל", "כֶּלֶב", "פָּרָה", "סוּס"), expect: [{ t: "circle", id: "i1" }], why: "צִיַּרְנוּ עִגּוּל מִסָּבִיב לַמִּלָּה \"כֶּלֶב\"." },
+      { type: "mark", skill: "instr", q: "סַמְּנוּ X עַל הַמִּלָּה תַּפּוּחַ.", verb: ["סַמְּנוּ"], board: W("בָּנָנָה", "אַגָּס", "תַּפּוּחַ", "עֲנָבִים"), expect: [{ t: "x", id: "i2" }], why: "\"סַמְּנוּ X\" = מְצַיְּרִים אִיקְס עַל הַמִּלָּה." },
+      { type: "mc", skill: "instr", q: "מָה עוֹשִׂים כְּשֶׁכָּתוּב \"מִתְחוּ קַו מִתַּחַת\"?", opts: ["מְצַיְּרִים קַו יָשָׁר מִתַּחַת לַמִּלָּה", "מְצַיְּרִים עִגּוּל מִסָּבִיב", "צוֹבְעִים אֶת הַמִּלָּה", "מְצַיְּרִים X עַל הַמִּלָּה"], why: "\"מִתְחוּ קַו\" = מְצַיְּרִים קַו. \"מִתַּחַת\" = לְמַטָּה, מִתַּחַת לַמִּלָּה." },
+      { type: "mark", skill: "instr", q: "מִתְחוּ קַו מִתַּחַת לַמִּלָּה שֶׁמֶשׁ.", verb: ["מִתְחוּ"], board: W("יָרֵחַ", "כּוֹכָב", "שֶׁמֶשׁ", "עָנָן"), expect: [{ t: "under", id: "i2" }], why: "צִיַּרְנוּ קַו מִתַּחַת לַמִּלָּה \"שֶׁמֶשׁ\"." },
+      { type: "mark", skill: "instr", q: "מִתְחוּ קַו מֵהַמִּלָּה חָתוּל אֶל הַמִּלָּה חָלָב.", verb: ["מִתְחוּ"], board: { kind: "columns", a: ["חָתוּל", "דְּבוֹרָה"], b: ["דְּבַשׁ", "חָלָב"] }, expect: [{ t: "line", id: "a0", id2: "b1" }], why: "קַו \"מִ... אֶל...\" מְחַבֵּר בֵּין שְׁתֵּי מִלִּים: מַתְחִילִים בְּ\"חָתוּל\" וּמַגִּיעִים לְ\"חָלָב\"." },
+      { type: "mark", skill: "instr", q: "צִבְעוּ בְּצָהֹב אֶת הַמִּלָּה בָּנָנָה.", verb: ["צִבְעוּ"], board: W("עַגְבָנִיָּה", "בָּנָנָה", "מְלָפְפוֹן", "גֶּזֶר"), expect: [{ t: "color", id: "i1", c: "yellow" }], why: "בּוֹחֲרִים צֶבַע צָהֹב, וְצוֹבְעִים רַק אֶת \"בָּנָנָה\"." },
+      { type: "mc", skill: "instr", q: "מָה עוֹשִׂים כְּשֶׁכָּתוּב \"הַעְתִּיקוּ\"?", opts: ["כּוֹתְבִים שׁוּב בְּדִיּוּק אֶת אוֹתָהּ מִלָּה", "כּוֹתְבִים מִלָּה אַחֶרֶת", "מַקִּיפִים אֶת הַמִּלָּה", "מוֹחֲקִים אֶת הַמִּלָּה"], why: "לְהַעְתִּיק = לִכְתֹּב שׁוּב בְּדִיּוּק אוֹתוֹ דָּבָר, אוֹת אַחַר אוֹת." },
+    ] },
+
+  { id: "h2", title: "כַּמָּה בְּדִיּוּק?", sub: "לֹא יוֹתֵר וְלֹא פָּחוֹת", skill: "instr", scaffold: 2,
+    owl: ["הַרְבֵּה הוֹרָאוֹת אוֹמְרוֹת כַּמָּה: \"שְׁנַיִם\", \"שְׁלוֹשָׁה\".", "אִם בִּקְּשׁוּ שְׁלוֹשָׁה, מְסַמְּנִים שְׁלוֹשָׁה. לֹא אַרְבָּעָה וְלֹא שְׁנַיִם!"],
+    tools: ["מוֹצְאִים אֶת מִלַּת הַפְּעֻלָּה: מָה עוֹשִׂים?", "מוֹצְאִים אֶת הַמִּסְפָּר: כַּמָּה?", "מְסַמְּנִים, וְסוֹפְרִים בַּסּוֹף: יֵצֵא בְּדִיּוּק כַּמָּה שֶׁבִּקְּשׁוּ?"],
+    parent: "הטעות הנפוצה ביותר בהוראות: לסמן יותר או פחות ממה שביקשו. כאן הילד נוגע גם במילת הפעולה וגם במילת המספר, ורק אז מבצע. אחרי טעות הוא מקבל משוב מדויק (\"ביקשו 3, סימנתם 4\").",
+    questions: [
+      { type: "mark", skill: "instr", q: "הַקִּיפוּ שְׁלוֹשָׁה שֵׁמוֹת שֶׁל פֵּרוֹת.", verb: ["הַקִּיפוּ"], num: "שְׁלוֹשָׁה", board: W("תַּפּוּחַ", "כִּסֵּא", "עֲנָבִים", "מַחְבֶּרֶת", "אַגָּס", "נַעַל"), expect: [{ t: "circle", id: "i0" }, { t: "circle", id: "i2" }, { t: "circle", id: "i4" }], why: "תַּפּוּחַ, עֲנָבִים וְאַגָּס הֵם פֵּרוֹת. שְׁלוֹשָׁה בְּדִיּוּק." },
+      { type: "mark", skill: "instr", q: "סַמְּנוּ X עַל שְׁנֵי שֵׁמוֹת שֶׁל בַּעֲלֵי חַיִּים.", verb: ["סַמְּנוּ"], num: "שְׁנֵי", board: W("אַרְיֵה", "שֻׁלְחָן", "כּוֹבַע", "פַּרְפַּר", "עֵט", "מְנוֹרָה"), expect: [{ t: "x", id: "i0" }, { t: "x", id: "i3" }], why: "אַרְיֵה וּפַרְפַּר הֵם בַּעֲלֵי חַיִּים." },
+      { type: "mark", skill: "instr", q: "מִתְחוּ קַו מִתַּחַת לְאַרְבָּעָה כְּלֵי תַּחְבּוּרָה.", verb: ["מִתְחוּ"], num: "אַרְבָּעָה", board: W("אוֹטוֹבּוּס", "כַּפִּית", "רַכֶּבֶת", "עוּגָה", "אוֹפַנַּיִם", "פֶּרַח", "מָטוֹס", "סֵפֶר"), expect: [{ t: "under", id: "i0" }, { t: "under", id: "i2" }, { t: "under", id: "i4" }, { t: "under", id: "i6" }], why: "אוֹטוֹבּוּס, רַכֶּבֶת, אוֹפַנַּיִם וּמָטוֹס. בְּכֻלָּם נוֹסְעִים אוֹ טָסִים." },
+      { type: "mark", skill: "instr", q: "צִבְעוּ בְּכָחֹל שְׁנֵי שֵׁמוֹת שֶׁל כְּלֵי נְגִינָה.", verb: ["צִבְעוּ"], num: "שְׁנֵי", board: W("תֹּף", "מַזְלֵג", "סִיר", "כִּנּוֹר", "חַלּוֹן", "מִטָּה"), expect: [{ t: "color", id: "i0", c: "blue" }, { t: "color", id: "i3", c: "blue" }], why: "תֹּף וְכִנּוֹר הֵם כְּלֵי נְגִינָה, וְצוֹבְעִים אוֹתָם בְּכָחֹל." },
+      { type: "mark", skill: "instr", q: "הַקִּיפוּ אֶת הַמִּלָּה הָאַחַת שֶׁלֹּא מַתְאִימָה לַקְּבוּצָה.", verb: ["הַקִּיפוּ"], num: "הָאַחַת", board: W("אָדֹם", "כָּחֹל", "כֶּלֶב", "יָרֹק", "צָהֹב"), expect: [{ t: "circle", id: "i2" }], why: "כָּל הַמִּלִּים הֵן צְבָעִים, חוּץ מִ\"כֶּלֶב\"." },
+      { type: "mark", skill: "instr", q: "הַקִּיפוּ שְׁנֵי דְּבָרִים שֶׁלּוֹבְשִׁים בַּחֹרֶף.", verb: ["הַקִּיפוּ"], num: "שְׁנֵי", board: W("בֶּגֶד יָם", "מְעִיל", "סַנְדָּלִים", "כְּפָפוֹת", "מִשְׁקְפֵי שֶׁמֶשׁ"), expect: [{ t: "circle", id: "i1" }, { t: "circle", id: "i3" }], why: "בַּחֹרֶף קַר, וְלוֹבְשִׁים מְעִיל וּכְפָפוֹת." },
+    ] },
+
+  { id: "h3", title: "מַחְסַן אוֹתִיּוֹת", sub: "מוֹצְאִים אוֹתִיּוֹת וּבוֹנִים מִלִּים", skill: "instr", scaffold: 1,
+    owl: ["מַחְסָן הוּא מָקוֹם שֶׁשּׁוֹמְרִים בּוֹ דְּבָרִים. בְּמַחְסַן אוֹתִיּוֹת יֵשׁ... אוֹתִיּוֹת!", "לִפְעָמִים מְחַפְּשִׂים בּוֹ אוֹתִיּוֹת שֶׁל מִלָּה, וְלִפְעָמִים בּוֹנִים מֵהָאוֹתִיּוֹת מִלָּה."],
+    tools: ["קוֹרְאִים אֶת הַמִּלָּה לְאַט, אוֹת אַחַר אוֹת.", "מְחַפְּשִׂים כָּל אוֹת בַּמַּחְסָן.", "בּוֹנִים מִלָּה? מְנַסִּים לְהַגִּיד אוֹתָהּ בְּקוֹל וּבוֹדְקִים שֶׁהִשְׁתַּמַּשְׁנוּ בְּכָל הָאוֹתִיּוֹת."],
+    parent: "משימות \"מחסן אותיות\", כמו בדף \"ביצוע הוראות\": מוצאים את אותיות המילה במחסן ומקיפים כל אחת, ובונים מילה מאותיות מבולבלות. שימו לב לאותיות סופיות (ם, ן, ך, ף, ץ).",
+    questions: [
+      { type: "mark", skill: "instr", q: "אֵילוּ אוֹתִיּוֹת יֵשׁ בַּמִּלָּה כַּדּוּר? מִצְאוּ אוֹתָן בַּמַּחְסָן וְהַקִּיפוּ כָּל אַחַת מֵהֶן.", verb: ["וְהַקִּיפוּ"], board: L("ש", "כ", "ת", "ד", "א", "ו", "נ", "ר", "ס", "ה"), expect: [{ t: "circle", id: "i1" }, { t: "circle", id: "i3" }, { t: "circle", id: "i5" }, { t: "circle", id: "i7" }], why: "בַּמִּלָּה כַּדּוּר יֵשׁ 4 אוֹתִיּוֹת: כ, ד, ו, ר." },
+      { type: "mark", skill: "instr", q: "אֵילוּ אוֹתִיּוֹת יֵשׁ בַּמִּלָּה גְּשָׁמִים? מִצְאוּ אוֹתָן בַּמַּחְסָן וְהַקִּיפוּ כָּל אַחַת מֵהֶן.", verb: ["וְהַקִּיפוּ"], board: L("ק", "ג", "ל", "ש", "ב", "מ", "ו", "י", "ם", "ע"), expect: [{ t: "circle", id: "i1" }, { t: "circle", id: "i3" }, { t: "circle", id: "i5" }, { t: "circle", id: "i7" }, { t: "circle", id: "i8" }], why: "ג, ש, מ, י, ם. שִׂימוּ לֵב: בְּסוֹף הַמִּלָּה יֵשׁ ם סוֹפִית!" },
+      { type: "build", skill: "instr", q: "כִּתְבוּ מִלָּה מִן הָאוֹתִיּוֹת שֶׁבַּמַּחְסָן.", verb: ["כִּתְבוּ"], bank: ["מ", "ש", "ש"], word: "שמש", why: "שׁ־מ־שׁ: שֶׁמֶשׁ." },
+      { type: "build", skill: "instr", q: "כִּתְבוּ מִלָּה מִן הָאוֹתִיּוֹת שֶׁבַּמַּחְסָן.", verb: ["כִּתְבוּ"], bank: ["ו", "ל", "ן", "ח"], word: "חלון", why: "ח־ל־ו־ן: חַלּוֹן. הָאוֹת ן סוֹפִית, וְלָכֵן הִיא בַּסּוֹף." },
+      { type: "build", skill: "instr", q: "כִּתְבוּ מִלָּה מִן הָאוֹתִיּוֹת שֶׁבַּמַּחְסָן.", verb: ["כִּתְבוּ"], bank: ["ד", "ג", "ה", "י", "ל"], word: "גלידה", why: "ג־ל־י־ד־ה: גְּלִידָה." },
+      { type: "mark", skill: "lang", q: "הַקִּיפוּ בַּמַּחְסָן אֶת כָּל הָאוֹתִיּוֹת הַסּוֹפִיּוֹת.", verb: ["הַקִּיפוּ"], board: L("ך", "מ", "ם", "נ", "ן", "פ", "ף", "צ", "ץ", "כ"), expect: [{ t: "circle", id: "i0" }, { t: "circle", id: "i2" }, { t: "circle", id: "i4" }, { t: "circle", id: "i6" }, { t: "circle", id: "i8" }], why: "הָאוֹתִיּוֹת הַסּוֹפִיּוֹת הֵן ך, ם, ן, ף, ץ. כּוֹתְבִים אוֹתָן רַק בְּסוֹף מִלָּה." },
+    ] },
+
+  { id: "h4", title: "מָקוֹם בַּמִּשְׁפָּט", sub: "רִאשׁוֹנָה, שְׁנִיָּה, אֶמְצָעִית, אַחֲרוֹנָה", skill: "instr", scaffold: 1,
+    owl: ["בְּעִבְרִית קוֹרְאִים מִיָּמִין לִשְׂמֹאל.", "לָכֵן הַמִּלָּה הָרִאשׁוֹנָה הִיא הַיְּמָנִית בְּיוֹתֵר, וְגַם הָאוֹת הָרִאשׁוֹנָה בְּכָל מִלָּה הִיא הַיְּמָנִית."],
+    tools: ["מוֹצְאִים אֶת הַמִּלָּה: רִאשׁוֹנָה? אֶמְצָעִית? אַחֲרוֹנָה?", "סוֹפְרִים מִיָּמִין: 1, 2, 3...", "אִם צָרִיךְ אוֹת: סוֹפְרִים אֶת הָאוֹתִיּוֹת בַּמִּלָּה, שׁוּב מִיָּמִין."],
+    parent: "הוראות מסוג \"הקיפו את האות השלישית במילה האמצעית\". צריך לזהות את המילה הנכונה, ואז את האות בתוכה. טעות נפוצה: לספור משמאל. בבית אפשר לשחק עם שלטים ברחוב: \"מה האות השנייה במילה הראשונה?\"",
+    questions: [
+      { type: "mark", skill: "instr", q: "הַקִּיפוּ אֶת הַמִּלָּה הַשְּׁנִיָּה בַּמִּשְׁפָּט.", verb: ["הַקִּיפוּ"], board: { kind: "sentence", text: "אַבָּא קָנָה לֶחֶם טָרִי.", unit: "word" }, expect: [{ t: "circle", id: "w1" }], hint: "זִכְרוּ: סוֹפְרִים אֶת הַמִּלִּים מִיָּמִין.", why: "סוֹפְרִים מִיָּמִין: אַבָּא (1), קָנָה (2)." },
+      { type: "mark", skill: "instr", q: "הַקִּיפוּ אֶת הָאוֹת הָרִאשׁוֹנָה בַּמִּלָּה הָאַחֲרוֹנָה.", verb: ["הַקִּיפוּ"], board: { kind: "sentence", text: "הַיְּלָדִים שִׂחֲקוּ בַּגַּן.", unit: "letter" }, expect: [{ t: "circle", id: "w2l0" }], hint: "קֹדֶם מוֹצְאִים אֶת הַמִּלָּה הָאַחֲרוֹנָה (הַשְּׂמָאלִית), וְרַק אָז אֶת הָאוֹת.", why: "הַמִּלָּה הָאַחֲרוֹנָה הִיא \"בַּגַּן\", וְהָאוֹת הָרִאשׁוֹנָה בָּהּ הִיא ב." },
+      { type: "mark", skill: "instr", q: "הַקִּיפוּ אֶת הָאוֹת הַשְּׁלִישִׁית בַּמִּלָּה הָאֶמְצָעִית.", verb: ["הַקִּיפוּ"], board: { kind: "sentence", text: "נוֹעָה אוֹכֶלֶת אֲבַטִּיחַ.", unit: "letter" }, expect: [{ t: "circle", id: "w1l2" }], hint: "הַמִּלָּה הָאֶמְצָעִית הִיא זוֹ שֶׁבָּאֶמְצַע. סוֹפְרִים בָּהּ אוֹתִיּוֹת מִיָּמִין.", why: "הַמִּלָּה הָאֶמְצָעִית: \"אוֹכֶלֶת\". סוֹפְרִים: א (1), ו (2), כ (3)." },
+      { type: "mark", skill: "instr", q: "מִתְחוּ קַו מִתַּחַת לַמִּלָּה הָאַחֲרוֹנָה בַּמִּשְׁפָּט.", verb: ["מִתְחוּ"], board: { kind: "sentence", text: "הַחֲתוּלָה שֶׁלִּי יְשֵׁנָה עַל הַסַּפָּה.", unit: "word" }, expect: [{ t: "under", id: "w4" }], hint: "הַמִּלָּה הָאַחֲרוֹנָה הִיא הַשְּׂמָאלִית, לִפְנֵי הַנְּקֻדָּה.", why: "הַמִּלָּה הָאַחֲרוֹנָה הִיא \"הַסַּפָּה\"." },
+      { type: "build", skill: "instr", q: "בַּמִּשְׁפָּט יֵשׁ מִלָּה שֶׁחוֹזֶרֶת שָׁלוֹשׁ פְּעָמִים. הַעְתִּיקוּ אוֹתָהּ.", verb: ["הַעְתִּיקוּ"], sentence: "בַּבֹּקֶר אָכַלְתִּי תַּפּוּחַ, בַּצָּהֳרַיִם לָקַחְתִּי תַּפּוּחַ לַגַּן, וּבָעֶרֶב סַבְתָּא נָתְנָה לִי עוֹד תַּפּוּחַ.", hintWord: "תַּפּוּחַ", bank: ["ח", "ת", "א", "ו", "ל", "פ"], word: "תפוח", why: "הַמִּלָּה \"תַּפּוּחַ\" מוֹפִיעָה שָׁלוֹשׁ פְּעָמִים. מַעְתִּיקִים אוֹתָהּ בְּדִיּוּק: ת־פ־ו־ח." },
+      { type: "mark", skill: "instr", q: "הַקִּיפוּ אֶת הָאוֹת הָאַחֲרוֹנָה בַּמִּלָּה הָרִאשׁוֹנָה.", verb: ["הַקִּיפוּ"], board: { kind: "sentence", text: "שִׁירָה צִיְּרָה פַּרְפַּר צִבְעוֹנִי.", unit: "letter" }, expect: [{ t: "circle", id: "w0l3" }], hint: "הַמִּלָּה הָרִאשׁוֹנָה הִיא הַיְּמָנִית. הָאוֹת הָאַחֲרוֹנָה בָּהּ הִיא הַשְּׂמָאלִית.", why: "הַמִּלָּה הָרִאשׁוֹנָה: \"שִׁירָה\". הָאוֹת הָאַחֲרוֹנָה: ה." },
+    ] },
+
+  { id: "h5", title: "הוֹרָאוֹת עַל תְּמוּנָה", sub: "מַקִּיפִים, מוֹתְחִים קַו וְצוֹבְעִים", skill: "instr", scaffold: 1,
+    owl: ["עַכְשָׁו הַהוֹרָאוֹת הֵן עַל תְּמוּנָה.", "שִׂימוּ לֵב: יֵשׁ הוֹרָאוֹת עִם שְׁנֵי דְּבָרִים לַעֲשׂוֹת. עוֹשִׂים אֶת שְׁנֵיהֶם!"],
+    tools: ["מִסְתַּכְּלִים עַל כָּל הַתְּמוּנָה.", "מוֹצְאִים בַּהוֹרָאָה: מָה עוֹשִׂים? עַל מָה?", "\"מִ... אֶל...\": קַו מִדָּבָר אֶחָד לַדָּבָר הַשֵּׁנִי.", "יֵשׁ \"וְ\" אוֹ \"אַחַר כָּךְ\"? יֵשׁ עוֹד מְשִׂימָה!"],
+    parent: "ביצוע הוראות על תמונה, כמו בדף \"מילוי הוראות על תמונה\": הקפה, X, קו מ... אל, צביעה בצבע מסוים, והוראות בשני שלבים. התמונה בסגנון דף צביעה, כמו בדף מבדק.",
+    questions: [
+      { type: "mark", skill: "instr", q: "הַקִּיפוּ אֶת הַשֶּׁמֶשׁ.", verb: ["הַקִּיפוּ"], board: SCENE, expect: [{ t: "circle", id: "sun" }], why: "צִיַּרְנוּ עִגּוּל מִסָּבִיב לַשֶּׁמֶשׁ." },
+      { type: "mark", skill: "instr", q: "מִתְחוּ קַו מֵהַכֶּלֶב אֶל הַכַּדּוּר.", verb: ["מִתְחוּ"], board: SCENE, expect: [{ t: "line", id: "dog", id2: "ball" }], why: "קַו שֶׁמַּתְחִיל בַּכֶּלֶב וְנִגְמָר בַּכַּדּוּר." },
+      { type: "mark", skill: "instr", q: "צִבְעוּ אֶת הַכַּדּוּר בְּאָדֹם.", verb: ["צִבְעוּ"], board: SCENE, expect: [{ t: "color", id: "ball", c: "red" }], why: "רַק הַכַּדּוּר, וְרַק בְּאָדֹם." },
+      { type: "mark", skill: "instr", q: "סַמְּנוּ X עַל הַצִּפּוֹר שֶׁעַל הָעֵץ.", verb: ["סַמְּנוּ"], board: SCENE, expect: [{ t: "x", id: "bird" }], why: "הַ־X עַל הַצִּפּוֹר, לֹא עַל הָעֵץ." },
+      { type: "mc", skill: "instr", q: "כַּמָּה עֲנָנִים יֵשׁ בַּתְּמוּנָה?", board: SCENE, opts: ["שְׁנַיִם", "אֶחָד", "שְׁלוֹשָׁה", "אַרְבָּעָה"], why: "יֵשׁ שְׁנֵי עֲנָנִים בַּשָּׁמַיִם." },
+      { type: "mark", skill: "instr", q: "מִי עוֹמֵד קָרוֹב יוֹתֵר לַבַּיִת: הַיֶּלֶד אוֹ הַיַּלְדָּה? הַקִּיפוּ אוֹתוֹ.", verb: ["הַקִּיפוּ"], board: SCENE, expect: [{ t: "circle", id: "girl" }], why: "הַיַּלְדָּה עוֹמֶדֶת לְיַד הַבַּיִת, וְהַיֶּלֶד רָחוֹק יוֹתֵר." },
+      { type: "mark", skill: "instr", q: "צִבְעוּ אֶת הַשֶּׁמֶשׁ בְּצָהֹב, וְאַחַר כָּךְ מִתְחוּ קַו מֵהַשֶּׁמֶשׁ אֶל הַפֶּרַח.", verb: ["צִבְעוּ", "מִתְחוּ"], board: SCENE, expect: [{ t: "color", id: "sun", c: "yellow" }, { t: "line", id: "sun", id2: "flower" }], why: "בַּהוֹרָאָה שְׁנֵי דְּבָרִים: לִצְבֹּעַ אֶת הַשֶּׁמֶשׁ בְּצָהֹב, וְגַם לִמְתֹּחַ קַו אֶל הַפֶּרַח." },
+    ] },
+
+  { id: "h6", title: "מַשְׁלִימִים מִשְׁפָּטִים", sub: "מַחְסַן מִלִּים, מִשְׁפָּחוֹת, הֲפָכִים, פִּסּוּק", skill: "lang", scaffold: 0,
+    owl: ["בַּמִּבְדָּק יֵשׁ גַּם מְשִׂימוֹת שֶׁל הַשְׁלָמָה.", "לִפְנֵי שֶׁבּוֹחֲרִים מִלָּה, קוֹרְאִים אֶת כָּל הַמִּשְׁפָּט עִם הַמִּלָּה בִּפְנִים. זֶה נִשְׁמָע נָכוֹן?"],
+    tools: ["קוֹרְאִים אֶת הַהוֹרָאָה: מָה מַשְׁלִימִים? מִלָּה מֵהַמַּחְסָן? מֵאוֹתָהּ מִשְׁפָּחָה? הֲפוּכָה?", "מְנַסִּים כָּל מִלָּה בַּמִּשְׁפָּט.", "קוֹרְאִים שׁוּב אֶת הַמִּשְׁפָּט הַמָּלֵא."],
+    parent: "משימות הידע הלשוני מהדף \"המגרש\" ומ\"השלמת משפטים\": מחסן מילים (לכן, מפני, כדי), משפחות מילים, הפכים, חיבור קווים בין הפכים, ונקודה או סימן שאלה. מכאן והלאה אין יותר שלב של נגיעה במילת הפעולה. הילד אמור לעשות את זה בראש.",
+    questions: [
+      { type: "fill", skill: "lang", q: "הַעְתִּיקוּ מִמַּחְסַן הַמִּלִּים אֶת הַמִּלָּה הַחֲסֵרָה.", sentence: "יָרַד גֶּשֶׁם, ___ לָקַחְתִּי מִטְרִיָּה.", opts: ["לָכֵן", "מִפְּנֵי", "כְּדֵי", "לִפְנֵי"], why: "\"לָכֵן\" = בִּגְלַל זֶה. יָרַד גֶּשֶׁם, וּבִגְלַל זֶה לָקַחְתִּי מִטְרִיָּה." },
+      { type: "fill", skill: "lang", q: "הַעְתִּיקוּ מִמַּחְסַן הַמִּלִּים אֶת הַמִּלָּה הַחֲסֵרָה.", sentence: "מִיכַל שָׂמְחָה ___ שֶׁקִּבְּלָה מַתָּנָה.", opts: ["מִפְּנֵי", "לָכֵן", "כְּדֵי", "לִפְנֵי"], why: "\"מִפְּנֵי שֶׁ...\" = כִּי. הִיא שָׂמְחָה כִּי קִבְּלָה מַתָּנָה." },
+      { type: "fill", skill: "lang", q: "הַעְתִּיקוּ מִמַּחְסַן הַמִּלִּים אֶת הַמִּלָּה הַחֲסֵרָה.", sentence: "קַמְתִּי מֻקְדָּם ___ לְהַסְפִּיק לָאוֹטוֹבּוּס.", opts: ["כְּדֵי", "מִפְּנֵי", "לָכֵן", "לִפְנֵי"], why: "\"כְּדֵי\" אוֹמֶרֶת מָה הַמַּטָּרָה: קַמְתִּי מֻקְדָּם, וְהַמַּטָּרָה: לְהַסְפִּיק." },
+      { type: "fill", skill: "lang", q: "הַשְׁלִימוּ מִלָּה מֵאוֹתָהּ מִשְׁפָּחָה שֶׁל הַמִּלָּה \"לְצַיֵּר\".", sentence: "הַ___ שֶׁל רוֹנִי תָּלוּי עַל הַקִּיר.", opts: ["צִיּוּר", "צֶבַע", "תְּמוּנָה", "דַּף"], why: "\"לְצַיֵּר\" וְ\"צִיּוּר\" מֵאוֹתָהּ מִשְׁפָּחָה: צ־י־ר." },
+      { type: "fill", skill: "lang", q: "הַשְׁלִימוּ מִלָּה מֵאוֹתָהּ מִשְׁפָּחָה שֶׁל הַמִּלָּה \"אוֹפֶה\".", sentence: "הָאוֹפֶה אוֹפֶה לֶחֶם טָרִי בַּ___.", opts: ["מַאֲפִיָּה", "מַכֹּלֶת", "חֲנוּת", "מִטְבָּח"], why: "\"אוֹפֶה\" וּ\"מַאֲפִיָּה\" מֵאוֹתָהּ מִשְׁפָּחָה: א־פ־ה." },
+      { type: "fill", skill: "lang", q: "הַשְׁלִימוּ מִלָּה שֶׁהַפֵּרוּשׁ שֶׁלָּהּ הָפוּךְ לַמִּלָּה \"כָּבֵד\".", sentence: "הַתִּיק שֶׁל דָּנִי כָּבֵד, וְהַתִּיק שֶׁל רוֹנִי ___.", opts: ["קַל", "גָּדוֹל", "יָפֶה", "חָדָשׁ"], why: "הַהֵפֶךְ שֶׁל כָּבֵד הוּא קַל." },
+      { type: "fill", skill: "lang", q: "הַשְׁלִימוּ מִלָּה שֶׁהַפֵּרוּשׁ שֶׁלָּהּ הָפוּךְ לַמִּלָּה \"אֲרֻכִּים\".", sentence: "בַּקַּיִץ הַיָּמִים אֲרֻכִּים, וּבַחֹרֶף הַיָּמִים ___.", opts: ["קְצָרִים", "קָרִים", "גְּשׁוּמִים", "יָפִים"], why: "הַהֵפֶךְ שֶׁל אָרֹךְ הוּא קָצָר." },
+      { type: "mark", skill: "lang", q: "מִתְחוּ קַו בֵּין כָּל מִלָּה לַמִּלָּה הַהֲפוּכָה לָהּ.", verb: ["מִתְחוּ"], board: { kind: "columns", a: ["גָּדוֹל", "מָהִיר", "פָּתוּחַ"], b: ["סָגוּר", "קָטָן", "אִטִּי"] }, expect: [{ t: "line", id: "a0", id2: "b1" }, { t: "line", id: "a1", id2: "b2" }, { t: "line", id: "a2", id2: "b0" }], why: "גָּדוֹל–קָטָן, מָהִיר–אִטִּי, פָּתוּחַ–סָגוּר. שְׁלוֹשָׁה קַוִּים, אֶחָד לְכָל מִלָּה." },
+      { type: "punct", skill: "lang", q: "כִּתְבוּ נְקֻדָּה (.) אוֹ סִימַן שְׁאֵלָה (?) בַּסּוֹף שֶׁל כָּל מִשְׁפָּט.", lines: [{ t: "מָה אַתָּה רוֹצֶה לֶאֱכֹל", a: "?" }, { t: "אֲנִי רוֹצֶה פִּיצָה", a: "." }, { t: "הַאִם גַּם אַתְּ רוֹצָה פִּיצָה", a: "?" }], why: "שְׁאֵלָה נִגְמֶרֶת בְּסִימַן שְׁאֵלָה (?). מִשְׁפָּט שֶׁמְּסַפֵּר מַשֶּׁהוּ נִגְמָר בִּנְקֻדָּה (.)." },
+    ] },
+
+  { id: "h7", title: "מִבְדַּק הוֹרָאוֹת", sub: "כְּמוֹ בַּמִּבְדָּק, בְּלִי רְמָזִים", skill: "mixed", test: true,
+    owl: ["הַתַּחֲנָה הָאַחֲרוֹנָה בַּמַּסְלוּל!", "אֵין רְמָזִים, וְהַבְּדִיקָה רַק בַּסּוֹף. קִרְאוּ כָּל הוֹרָאָה פַּעֲמַיִם לִפְנֵי שֶׁמַּתְחִילִים."],
+    tools: ["קוֹרְאִים אֶת הַהוֹרָאָה פַּעֲמַיִם.", "מָה עוֹשִׂים? עַל מָה? כַּמָּה? אֵיפֹה?", "עוֹשִׂים בְּדִיּוּק מָה שֶׁבִּקְּשׁוּ.", "בּוֹדְקִים: עָשִׂיתִי הַכֹּל? לֹא יוֹתֵר וְלֹא פָּחוֹת?"],
+    parent: "מבדק דמה של ביצוע הוראות: כל סוגי ההוראות, בלי שלב מילת הפעולה, בלי רמזים, ומשוב רק בסוף. כדאי לעבור יחד על מה שלא הצליח ולשאול: \"מה ההוראה ביקשה?\"",
+    questions: [
+      { type: "mark", skill: "instr", q: "הַקִּיפוּ שְׁנֵי שֵׁמוֹת שֶׁל יְרָקוֹת.", board: W("גֶּזֶר", "מַחְבֶּרֶת", "שָׁעוֹן", "מְלָפְפוֹן", "כַּדּוּר", "סַפָּה"), expect: [{ t: "circle", id: "i0" }, { t: "circle", id: "i3" }], why: "גֶּזֶר וּמְלָפְפוֹן הֵם יְרָקוֹת. מַקִּיפִים שְׁנַיִם בְּדִיּוּק." },
+      { type: "mark", skill: "instr", q: "אֵילוּ אוֹתִיּוֹת יֵשׁ בַּמִּלָּה מַחְבֶּרֶת? מִצְאוּ אוֹתָן בַּמַּחְסָן וְהַקִּיפוּ כָּל אַחַת מֵהֶן.", board: L("ת", "ע", "מ", "ש", "ב", "י", "ר", "ח", "ל", "ג"), expect: [{ t: "circle", id: "i0" }, { t: "circle", id: "i2" }, { t: "circle", id: "i4" }, { t: "circle", id: "i6" }, { t: "circle", id: "i7" }], why: "מ, ח, ב, ר, ת." },
+      { type: "build", skill: "instr", q: "כִּתְבוּ מִלָּה מִן הָאוֹתִיּוֹת שֶׁבַּמַּחְסָן.", bank: ["ז", "ו", "פ", "ת"], word: "תפוז", why: "ת־פ־ו־ז: תַּפּוּז." },
+      { type: "mark", skill: "instr", q: "הַקִּיפוּ אֶת הָאוֹת הַשְּׁנִיָּה בַּמִּלָּה הָרִאשׁוֹנָה.", board: { kind: "sentence", text: "דָּנִי קָפַץ לַבְּרֵכָה.", unit: "letter" }, expect: [{ t: "circle", id: "w0l1" }], why: "הַמִּלָּה הָרִאשׁוֹנָה: \"דָּנִי\". הָאוֹת הַשְּׁנִיָּה: נ." },
+      { type: "mark", skill: "instr", q: "מִתְחוּ קַו מִתַּחַת לַמִּלָּה הַשְּׁלִישִׁית בַּמִּשְׁפָּט.", board: { kind: "sentence", text: "הַיּוֹם יָרַד גֶּשֶׁם חָזָק מְאוֹד.", unit: "word" }, expect: [{ t: "under", id: "w2" }], why: "סוֹפְרִים מִיָּמִין: הַיּוֹם (1), יָרַד (2), גֶּשֶׁם (3)." },
+      { type: "mark", skill: "instr", q: "סַמְּנוּ X עַל הַבַּיִת, וְהַקִּיפוּ אֶת הַכֶּלֶב.", board: SCENE, expect: [{ t: "x", id: "house" }, { t: "circle", id: "dog" }], why: "שְׁנֵי דְּבָרִים: X עַל הַבַּיִת, וְעִגּוּל מִסָּבִיב לַכֶּלֶב." },
+      { type: "mark", skill: "lang", q: "מִתְחוּ קַו בֵּין כָּל מִלָּה לַמִּלָּה הַהֲפוּכָה לָהּ.", board: { kind: "columns", a: ["גָּבוֹהַּ", "חַם", "שָׂמֵחַ"], b: ["קַר", "עָצוּב", "נָמוּךְ"] }, expect: [{ t: "line", id: "a0", id2: "b2" }, { t: "line", id: "a1", id2: "b0" }, { t: "line", id: "a2", id2: "b1" }], why: "גָּבוֹהַּ–נָמוּךְ, חַם–קַר, שָׂמֵחַ–עָצוּב." },
+      { type: "fill", skill: "lang", q: "הַעְתִּיקוּ מִמַּחְסַן הַמִּלִּים אֶת הַמִּלָּה הַחֲסֵרָה.", sentence: "שָׁכַחְתִּי אֶת הַמְּעִיל בַּבַּיִת, ___ הָיָה לִי קַר.", opts: ["לָכֵן", "מִפְּנֵי", "כְּדֵי", "לִפְנֵי"], why: "שָׁכַחְתִּי מְעִיל, וּבִגְלַל זֶה (לָכֵן) הָיָה לִי קַר." },
+      { type: "punct", skill: "lang", q: "כִּתְבוּ נְקֻדָּה (.) אוֹ סִימַן שְׁאֵלָה (?) בַּסּוֹף שֶׁל כָּל מִשְׁפָּט.", lines: [{ t: "אֵיפֹה הַתִּיק שֶׁלִּי", a: "?" }, { t: "הַתִּיק עַל הַכִּסֵּא", a: "." }], why: "\"אֵיפֹה\" פּוֹתַחַת שְׁאֵלָה, וְלָכֵן בַּסּוֹף סִימַן שְׁאֵלָה. הַמִּשְׁפָּט הַשֵּׁנִי מְסַפֵּר, וּבַסּוֹף נְקֻדָּה." },
+    ] },
+];
+
+const TRACKS = [
+  { id: "h", name: "מַסְלוּל הַהוֹרָאוֹת", sub: "קוֹרְאִים הוֹרָאָה וְעוֹשִׂים בְּדִיּוּק מָה שֶׁבִּקְּשׁוּ", badge: "הֲכִי חָשׁוּב לַמִּבְדָּק", stations: H },
+  { id: "r", name: "מַסְלוּל הַהֲבָנָה", sub: "קוֹרְאִים טֶקְסְט וְעוֹנִים עַל שְׁאֵלוֹת", stations: STATIONS },
+];
+const ALL = TRACKS.flatMap(t => t.stations);
+
 /* ---------- state (kept in this browser only) ---------- */
 const KEY = "reading-journey-v1";
-const blank = () => ({ name: "", nikud: true, size: 1, sound: true, unlockAll: false, st: {} });
+const blank = () => ({ name: "", nikud: true, size: 1, sound: true, unlockAll: false, track: 0, st: {} });
 let S = blank();
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(blank(), JSON.parse(raw)); } catch (e) {}
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 
 let view = { name: "home" };   // home | intro | play | summary | parents
-let run = null;                // current station run
+let run = null;                // current station run: { t, i, qi, res, ans, open, q }
+const ST = () => TRACKS[run.t].stations[run.i];
 
 /* ---------- helpers ---------- */
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -445,8 +637,12 @@ const tx = s => esc(S.nikud ? s : plain(s));
 const shuffle = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 const LETTERS = ["א", "ב", "ג", "ד"];
 const starsFor = r => r >= .9 ? 3 : r >= .6 ? 2 : 1;
-const unlocked = i => S.unlockAll || i === 0 || !!(S.st[STATIONS[i - 1].id] && S.st[STATIONS[i - 1].id].done);
-const totalStars = () => STATIONS.reduce((n, s) => n + ((S.st[s.id] && S.st[s.id].stars) || 0), 0);
+const done = s => !!(S.st[s.id] && S.st[s.id].done);
+const unlocked = (t, i) => S.unlockAll || i === 0 || done(TRACKS[t].stations[i - 1]);
+const totalStars = () => ALL.reduce((n, s) => n + ((S.st[s.id] && S.st[s.id].stars) || 0), 0);
+const isTask = q => ["mark", "build", "fill", "punct"].includes(q.type) || !!q.board;
+const isChoice = q => q.type === "mc" || q.type === "fill";
+const pick = a => a[Math.floor(Math.random() * a.length)];
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, 2600); }
 
 const OWL = `<svg viewBox="0 0 64 64" aria-hidden="true">
@@ -489,7 +685,7 @@ function speak(text) {
 function bar() {
   return `<div class="bar">
     <button class="brand" data-go="home" aria-label="למפת המסע">${view.name === "home" ? "" : "מסע הקריאה"}</button>
-    <span class="chip star-count" title="כוכבים שנאספו">★ ${totalStars()} / ${STATIONS.length * 3}</span>
+    <span class="chip star-count" title="כוכבים שנאספו">★ ${totalStars()} / ${ALL.length * 3}</span>
     <button class="chip" data-act="nikud" aria-pressed="${S.nikud}">${S.nikud ? "נִקּוּד: כֵּן" : "ניקוד: לא"}</button>
     <button class="chip" data-act="size" aria-label="גודל אותיות">אותיות ${["רגילות", "גדולות", "ענקיות"][S.size - 1] || "רגילות"}</button>
     <button class="chip" data-act="sound" aria-pressed="${S.sound}">${S.sound ? "צלילים: כן" : "צלילים: לא"}</button>
@@ -497,27 +693,36 @@ function bar() {
   </div>`;
 }
 
-/* ---------- home: the trail ---------- */
+/* ---------- home: two tracks, each a trail ---------- */
 function renderHome() {
-  const nextIdx = STATIONS.findIndex((s, i) => unlocked(i) && !(S.st[s.id] && S.st[s.id].done));
-  const allDone = STATIONS.every(s => S.st[s.id] && S.st[s.id].done);
+  const t = Math.min(S.track || 0, TRACKS.length - 1), T = TRACKS[t];
+  const nextIdx = T.stations.findIndex((s, i) => unlocked(t, i) && !done(s));
+  const allDone = ALL.every(done);
   const hello = S.name ? `שָׁלוֹם ${esc(S.name)}!` : "שָׁלוֹם!";
   return bar() + `
   <div class="hero">
     <div>
       <h1>מסע הקריאה</h1>
-      <p>${S.nikud ? "שְׁמוֹנֶה תַּחֲנוֹת שֶׁמְּכִינוֹת אוֹתָנוּ לַמִּבְדָּק בַּהֲבָנַת הַנִּקְרָא. בְּכָל תַּחֲנָה אוֹסְפִים כּוֹכָבִים." : "שמונה תחנות שמכינות אותנו למבדק בהבנת הנקרא. בכל תחנה אוספים כוכבים."}</p>
+      <p>${tx("שְׁנֵי מַסְלוּלִים שֶׁמְּכִינִים אוֹתָנוּ לַמִּבְדָּק: בִּצּוּעַ הוֹרָאוֹת וַהֲבָנַת הַנִּקְרָא. בְּכָל תַּחֲנָה אוֹסְפִים כּוֹכָבִים.")}</p>
       <form class="name-field" id="nameForm">
         <label for="kidName">${tx("אֵיךְ קוֹרְאִים לְךָ?")}</label>
         <input id="kidName" maxlength="20" autocomplete="off" value="${esc(S.name)}" placeholder="השם שלי">
         <button class="btn ghost" type="submit">${tx("שְׁמֹר")}</button>
       </form>
     </div>
-    <div class="guide" style="max-width:300px">${OWL}<div class="bubble"><p style="font-family:var(--f-read);font-size:1.1rem;line-height:1.8">${tx(hello)} ${tx(nextIdx === -1 ? "סִיַּמְתָּ אֶת כָּל הַמַּסָּע!" : "בּוֹא נַמְשִׁיךְ לַתַּחֲנָה הַבָּאָה.")}</p></div></div>
+    <div class="guide" style="max-width:300px">${OWL}<div class="bubble"><p style="font-family:var(--f-read);font-size:1.1rem;line-height:1.8">${tx(hello)} ${tx(nextIdx === -1 ? "סִיַּמְתָּ אֶת הַמַּסְלוּל הַזֶּה!" : "בּוֹא נַמְשִׁיךְ לַתַּחֲנָה הַבָּאָה.")}</p></div></div>
+  </div>
+  <div class="tabs" role="tablist">
+    ${TRACKS.map((tr, k) => {
+      const d = tr.stations.filter(done).length;
+      return `<button class="tab ${k === t ? "on" : ""}" role="tab" aria-selected="${k === t}" data-track="${k}">
+        <span class="tn">${tx(tr.name)}${tr.badge ? `<span class="badge">${tx(tr.badge)}</span>` : ""}</span>
+        <span class="ts">${tx(tr.sub)}</span><span class="ts">${d} / ${tr.stations.length} ${tx("תַּחֲנוֹת")}</span></button>`;
+    }).join("")}
   </div>
   <ol class="trail">
-    ${STATIONS.map((s, i) => {
-      const r = S.st[s.id] || {}, open = unlocked(i), stars = r.stars || 0;
+    ${T.stations.map((s, i) => {
+      const r = S.st[s.id] || {}, open = unlocked(t, i), stars = r.stars || 0;
       const cls = ["stop", r.done ? "done" : "", i === nextIdx ? "next" : "", open ? "" : "locked", s.test ? "test" : ""].join(" ");
       return `<li><button class="${cls}" data-station="${i}" ${open ? "" : 'aria-disabled="true"'}>
         <span class="num">${i + 1}</span>
@@ -526,7 +731,7 @@ function renderHome() {
       </button></li>`;
     }).join("")}
   </ol>
-  ${allDone ? `<div class="cert"><div class="hand">כל הכבוד${S.name ? " " + esc(S.name) : ""}!</div><p>${tx("סִיַּמְתָּ אֶת מַסַּע הַקְּרִיאָה וְאָסַפְתָּ")} ${totalStars()} ${tx("כּוֹכָבִים. אַתָּה מוּכָן לַמִּבְדָּק!")}</p></div>` : ""}
+  ${allDone ? `<div class="cert"><div class="hand">כל הכבוד${S.name ? " " + esc(S.name) : ""}!</div><p>${tx("סִיַּמְתָּ אֶת שְׁנֵי הַמַּסְלוּלִים וְאָסַפְתָּ")} ${totalStars()} ${tx("כּוֹכָבִים. אַתָּה מוּכָן לַמִּבְדָּק!")}</p></div>` : ""}
   <div class="home-foot">
     <span style="color:var(--ink-soft)">כל תחנה לוקחת 10 עד 15 דקות. מומלץ תחנה אחת ביום.</span>
     <button class="btn ghost" data-go="parents">להורים: איך לעזור בבית</button>
@@ -535,9 +740,9 @@ function renderHome() {
 
 /* ---------- station intro ---------- */
 function renderIntro() {
-  const s = STATIONS[run.i];
+  const s = ST();
   return bar() + `<div class="intro">
-    <div class="crumbs"><span class="chip">${tx("תַּחֲנָה")} ${run.i + 1}</span>${s.skill !== "mixed" ? `<span class="chip">${tx(SKILLS[s.skill].kid)}</span>` : ""}</div>
+    <div class="crumbs"><span class="chip">${tx(TRACKS[run.t].name)}</span><span class="chip">${tx("תַּחֲנָה")} ${run.i + 1}</span></div>
     <h2>${esc(plain(s.title))}</h2>
     <div class="guide">${OWL}<div class="bubble">${s.owl.map(l => `<p style="font-family:var(--f-read);font-size:calc(var(--read-size)*.95);line-height:1.9">${tx(l)}</p>`).join("")}</div>
       <button class="speak" data-say="${esc(s.owl.join(" "))}" aria-label="הקראה">${SPEAK}</button></div>
@@ -546,7 +751,7 @@ function renderIntro() {
   </div>`;
 }
 
-/* ---------- play ---------- */
+/* ---------- reading text (comprehension track) ---------- */
 function textFor(s, q) { return q.text ? { kind: "", title: "", paras: [q.text] } : s.text; }
 function evMatch(sentence, ev) { return (ev || []).some(f => sentence.includes(f)); }
 
@@ -567,20 +772,29 @@ function renderText(s, q, st) {
   </article>`;
 }
 
-function qStateNew(q) {
+/* ---------- per-question state ---------- */
+function qStateNew(q, s) {
+  const sc = (s && s.scaffold) || 0;
   return { tries: 0, locked: false, hint: false, sel: null, wrongs: [], picked: null,
-    order: [], pool: q.type === "order" ? shuffle(q.items.map((_, i) => i)) : [], marks: null,
-    opts: q.type === "mc" ? shuffle(q.opts.map((_, i) => i)) : [], text: "", checked: [], showModel: false };
+    order: [], pool: q.type === "order" ? shuffle(q.items.map((_, i) => i)) : [], marks: [],
+    opts: isChoice(q) ? shuffle(q.opts.map((_, i) => i)) : [], text: "", checked: [], showModel: false,
+    // instruction tasks
+    stage: sc >= 1 && q.verb ? "verb" : "do", needNum: sc >= 2 && !!q.num, foundV: [], foundN: null, stageMsg: null,
+    tool: null, color: null, pending: null, bad: null, reveal: false, fbMsg: null, msg: null,
+    bank: q.type === "build" ? shuffle(q.bank.map((_, i) => i)) : [], slots: [],
+    p: q.type === "punct" ? q.lines.map(() => "") : [], pmarks: null };
 }
 
+/* ---------- play ---------- */
 function renderPlay() {
-  const s = STATIONS[run.i], q = s.questions[run.qi], st = run.q;
+  const s = ST(), q = s.questions[run.qi], st = run.q;
   const dots = s.questions.map((qq, i) => {
     const r = run.res[i];
     return `<i class="${i === run.qi ? "cur" : r === true ? "ok" : r === false ? (s.test ? "ok" : "miss") : r === "open" ? "ok" : ""}"></i>`;
   }).join("");
-  return bar() + `
-  <div class="crumbs"><h2>${tx(s.title)}</h2><span class="chip">${tx("שְׁאֵלָה")} ${run.qi + 1} ${tx("מִתּוֹךְ")} ${s.questions.length}</span><div class="dots" aria-hidden="true">${dots}</div></div>
+  const head = `<div class="crumbs"><h2>${tx(s.title)}</h2><span class="chip">${tx("שְׁאֵלָה")} ${run.qi + 1} ${tx("מִתּוֹךְ")} ${s.questions.length}</span><div class="dots" aria-hidden="true">${dots}</div></div>`;
+  if (isTask(q) || !(q.text || s.text)) return bar() + head + `<div class="task"><section class="qcard" aria-live="polite">${renderTask(s, q, st)}</section></div>`;
+  return bar() + head + `
   <div class="play">
     ${renderText(s, q, st)}
     <section class="qcard" aria-live="polite">
@@ -591,8 +805,10 @@ function renderPlay() {
   </div>`;
 }
 
+const nextLabel = s => run.qi + 1 < s.questions.length ? tx("לַשְּׁאֵלָה הַבָּאָה") : tx("לְסִיּוּם הַתַּחֲנָה");
+
 function renderAnswer(s, q, st) {
-  const nextBtn = `<button class="btn" data-act="next">${run.qi + 1 < s.questions.length ? tx("לַשְּׁאֵלָה הַבָּאָה") : tx("לְסִיּוּם הַתַּחֲנָה")}</button>`;
+  const nextBtn = `<button class="btn" data-act="next">${nextLabel(s)}</button>`;
   if (q.type === "mc") {
     const opts = st.opts.map((oi, k) => {
       let c = "opt";
@@ -617,7 +833,7 @@ function renderAnswer(s, q, st) {
       return `<div class="slot${it !== undefined ? " filled" : ""}${mark}"><span class="n">${k + 1}</span>${it !== undefined ? `<button data-unorder="${k}" ${st.locked ? "disabled" : ""}>${tx(q.items[it])}</button>` : ""}</div>`;
     }).join("");
     const pool = st.pool.map(i => `<button data-order="${i}">${tx(q.items[i])}</button>`).join("");
-    const full = st.order.length === q.items.length;
+    const full = st.order.filter(x => x !== undefined).length === q.items.length;
     return `<div class="order-zone"><span class="lbl">${tx("גְּעוּ בַּכַּרְטִיסִים לְפִי הַסֵּדֶר:")}</span>${pool ? `<div class="pool">${pool}</div>` : ""}${slots}</div>
       ${st.locked ? "" : `<div class="row"><button class="btn" data-act="${s.test ? "testnext" : "checkorder"}" ${full ? "" : "disabled"}>${s.test ? tx("הַמְשֵׁךְ") : tx("בְּדִיקָה")}</button></div>`}
       ${s.test ? "" : feedback(q, st)}${st.locked && !s.test ? `<div class="row">${nextBtn}</div>` : ""}`;
@@ -637,22 +853,312 @@ function renderAnswer(s, q, st) {
 
 function feedback(q, st) {
   if (st.locked && st.tries === 1) return `<div class="feedback good"><b>${tx(pick(["מְצֻיָּן!", "נָכוֹן!", "כָּל הַכָּבוֹד!", "יָפֶה מְאוֹד!"]))}</b> <span class="r">${tx(q.why)}</span></div>`;
-  if (st.locked) return `<div class="feedback info"><b>${tx("הַתְּשׁוּבָה הַנְּכוֹנָה מְסֻמֶּנֶת.")}</b> <span class="r">${tx(q.why)}</span></div>`;
+  if (st.locked) return `<div class="feedback info"><b>${tx(isTask(q) && q.type !== "fill" && q.type !== "mc" ? "כָּךְ עוֹשִׂים אֶת זֶה:" : "הַתְּשׁוּבָה הַנְּכוֹנָה מְסֻמֶּנֶת.")}</b> <span class="r">${tx(q.why)}</span></div>`;
   if (st.tries === 1) {
-    const where = q.ev && q.ev.length ? "סִמַּנְתִּי לְךָ בַּצָּהֹב אֶת הַמָּקוֹם בַּטֶּקְסְט. קְרָא שׁוּב וְנַסֵּה." : "קְרָא שׁוּב אֶת הַטֶּקְסְט וְנַסֵּה שׁוּב.";
+    if (st.fbMsg) return `<div class="feedback try"><b>${tx("כִּמְעַט!")}</b> ${tx(st.fbMsg)}</div>`;
+    const where = q.ev && q.ev.length ? "סִמַּנְתִּי לְךָ בַּצָּהֹב אֶת הַמָּקוֹם בַּטֶּקְסְט. קְרָא שׁוּב וְנַסֵּה." : isTask(q) || !(q.text || ST().text) ? "קִרְאוּ שׁוּב אֶת הַהוֹרָאָה וְנַסּוּ שׁוּב." : "קְרָא שׁוּב אֶת הַטֶּקְסְט וְנַסֵּה שׁוּב.";
     const extra = q.type === "order" ? " הַכַּרְטִיסִים בַּיָּרֹק בַּמָּקוֹם. חַפֵּשׂ מִלּוֹת זְמַן." : "";
     return `<div class="feedback try"><b>${tx("כִּמְעַט!")}</b> ${tx(where + extra)}</div>`;
   }
   return "";
 }
-const pick = a => a[Math.floor(Math.random() * a.length)];
 
-function settle(correctFirst) {
-  run.res[run.qi] = correctFirst;
+/* ---------- instruction tasks ---------- */
+const TOOLS = {
+  circle: { label: "עִגּוּל מִסָּבִיב", meaning: "עִגּוּל מִסָּבִיב (\"הַקִּיפוּ\")", icon: `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="7" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>` },
+  under: { label: "קַו מִתַּחַת", meaning: "קַו מִתַּחַת (\"מִתְחוּ קַו מִתַּחַת\")", icon: `<svg viewBox="0 0 24 24"><path d="M7 6v6M12 6v6M17 6v6" stroke="currentColor" stroke-width="1.6" opacity=".45"/><path d="M3 18h18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>` },
+  x: { label: "סִימוּן X", meaning: "סִימוּן X (\"סַמְּנוּ X\")", icon: `<svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>` },
+  line: { label: "קַו מְחַבֵּר", meaning: "קַו מְחַבֵּר (\"מִתְחוּ קַו מִ... אֶל...\")", icon: `<svg viewBox="0 0 24 24"><circle cx="5" cy="17" r="2.5" fill="currentColor"/><circle cx="19" cy="7" r="2.5" fill="currentColor"/><path d="M5 17L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>` },
+  color: { label: "צֶבַע", meaning: "צְבִיעָה (\"צִבְעוּ\")", icon: `<svg viewBox="0 0 24 24"><path d="M14 3l7 7-9 9H5v-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M5 19l4-4" stroke="currentColor" stroke-width="2"/></svg>` },
+};
+const TOOL_ORDER = ["circle", "under", "x", "line", "color"];
+const COLORS = { red: { name: "אָדֹם", v: "#E5484D" }, yellow: { name: "צָהֹב", v: "#F5C518" }, blue: { name: "כָּחֹל", v: "#3B82F6" }, green: { name: "יָרֹק", v: "#22A55B" } };
+const mkey = m => m.t === "line" ? "line:" + [m.id, m.id2].sort().join("|") : m.t === "color" ? "color:" + m.id + ":" + m.c : m.t + ":" + m.id;
+const markOk = (q, marks) => { const exp = new Set(q.expect.map(mkey)); const got = marks.map(mkey); return got.length === exp.size && got.every(k => exp.has(k)); };
+
+function diagnose(q, marks) {
+  const exp = q.expect, expKeys = new Set(exp.map(mkey)), expTools = new Set(exp.map(m => m.t));
+  if (!marks.length) return "עוֹד לֹא סִמַּנְתֶּם כְּלוּם.";
+  if (marks.some(m => !expTools.has(m.t))) return `בַּהוֹרָאָה בִּקְּשׁוּ: ${[...expTools].map(t => TOOLS[t].meaning).join(" וְגַם ")}. בִּדְקוּ שׁוּב אֶת מִלַּת הַפְּעֻלָּה.`;
+  if (marks.some(m => m.t === "color" && exp.some(e => e.t === "color" && e.id === m.id && e.c !== m.c))) return "שִׂימוּ לֵב לַצֶּבַע שֶׁבִּקְּשׁוּ בַּהוֹרָאָה.";
+  if (expTools.size > 1) {
+    const did = new Set(marks.filter(m => expKeys.has(mkey(m))).map(m => m.t));
+    if (did.size < expTools.size) return "עֲשִׂיתֶם רַק חֵלֶק. בַּהוֹרָאָה יֵשׁ שְׁנֵי דְּבָרִים לַעֲשׂוֹת.";
+  }
+  if (exp.length > 1 && marks.length !== exp.length) return `בַּהוֹרָאָה בִּקְּשׁוּ ${exp.length}, וְסִמַּנְתֶּם ${marks.length}. לֹא יוֹתֵר וְלֹא פָּחוֹת!`;
+  if (exp.length === 1 && marks.length > 1) return "בִּקְּשׁוּ לְסַמֵּן רַק דָּבָר אֶחָד.";
+  return q.hint || "יֵשׁ סִימוּן שֶׁלֹּא בַּמָּקוֹם הַנָּכוֹן. קִרְאוּ שׁוּב אֶת הַהוֹרָאָה.";
 }
 
+function renderInstr(q, st) {
+  const words = q.q.split(" ");
+  const tapping = st.stage === "verb" || st.stage === "num";
+  const body = words.map((w, k) => {
+    const c = ["iw", tapping ? "tap" : "", st.foundV.includes(k) ? "v" : "", st.foundN === k ? "n" : ""].join(" ");
+    return `<span class="${c}" data-iw="${k}"${tapping ? ' role="button" tabindex="0"' : ""}>${tx(w)}</span>`;
+  }).join(" ");
+  return `<div class="instr"><div style="flex:1;min-width:0"><span class="lbl">${tx("הוֹרָאָה")}</span><p class="itext">${body}</p></div>
+    <button class="speak" data-say="${esc(q.q)}" aria-label="הקראת ההוראה">${SPEAK}</button></div>`;
+}
+
+function stageHint(q, st) {
+  if (st.stage === "verb") {
+    const ask = q.verb.length > 1 ? `מָה צָרִיךְ לַעֲשׂוֹת? בַּהוֹרָאָה הַזֹּאת יֵשׁ ${q.verb.length} מִלּוֹת פְּעֻלָּה. גְּעוּ בְּכֻלָּן.` : "מָה צָרִיךְ לַעֲשׂוֹת? גְּעוּ בְּמִלַּת הַפְּעֻלָּה בַּהוֹרָאָה.";
+    const bad = st.stageMsg === "bad" ? `<br>${tx("לֹא זוֹ. מִלַּת הַפְּעֻלָּה אוֹמֶרֶת מָה לַעֲשׂוֹת, כְּמוֹ: הַקִּיפוּ, סַמְּנוּ, כִּתְבוּ.")}` : "";
+    const more = st.foundV.length ? `<br>${tx("יָפֶה! יֵשׁ עוֹד אַחַת.")}` : "";
+    return `<div class="feedback ${st.stageMsg === "bad" ? "try" : "info"}"><b>${tx("שָׁלָב 1:")}</b> ${tx(ask)}${bad}${more}</div>`;
+  }
+  if (st.stage === "num") return `<div class="feedback ${st.stageMsg === "bad" ? "try" : "info"}"><b>${tx("שָׁלָב 2:")}</b> ${tx("יָפֶה! וְעַכְשָׁו: כַּמָּה? גְּעוּ בַּמִּלָּה שֶׁאוֹמֶרֶת כַּמָּה.")}${st.stageMsg === "bad" ? `<br>${tx("לֹא זוֹ. חַפְּשׂוּ מִלָּה שֶׁל מִסְפָּר.")}` : ""}</div>`;
+  return "";
+}
+
+function tapInstrWord(k) {
+  const q = ST().questions[run.qi], st = run.q, w = q.q.split(" ")[k];
+  if (st.stage === "verb") {
+    const hit = q.verb.some(v => w.includes(v)) && !st.foundV.includes(k);
+    if (hit) { st.foundV.push(k); st.stageMsg = null; chime(true);
+      if (st.foundV.length >= q.verb.length) st.stage = st.needNum ? "num" : "do"; }
+    else if (!st.foundV.includes(k)) { st.stageMsg = "bad"; chime(false); }
+  } else if (st.stage === "num") {
+    if (w.includes(q.num)) { st.foundN = k; st.stage = "do"; st.stageMsg = null; chime(true); }
+    else { st.stageMsg = "bad"; chime(false); }
+  }
+  draw();
+}
+
+function renderTask(s, q, st) {
+  const tag = `<span class="qtag">${tx(SKILLS[q.skill].kid)}</span>`;
+  const wait = st.stage !== "do" ? " wait" : "";
+  const nextBtn = `<button class="btn" data-act="next">${nextLabel(s)}</button>`;
+  const after = s.test ? "" : `${feedback(q, st)}${st.locked ? `<div class="row">${nextBtn}</div>` : ""}`;
+  let body = "";
+  if (q.type === "mc" || q.type === "fill") {
+    const board = q.board ? renderBoard(q, st, false) : "";
+    let sentence = "";
+    if (q.type === "fill") {
+      const [a, b] = q.sentence.split("___");
+      const shown = s.test ? (st.sel !== null ? q.opts[st.sel] : "") : st.locked ? q.opts[0] : "";
+      sentence = `<p class="fill-sent">${tx(a)}<span class="blank${!s.test && st.locked ? " ok" : ""}">${shown ? tx(shown) : "&nbsp;"}</span>${tx(b)}</p>`;
+    }
+    const opts = st.opts.map((oi, k) => {
+      let c = q.type === "fill" ? "chip-o" : "opt";
+      if (s.test) { if (st.sel === oi) c += " sel"; }
+      else if (st.locked && oi === 0) c += " right";
+      else if (st.wrongs.includes(oi)) c += " wrong";
+      const inner = q.type === "fill" ? tx(q.opts[oi]) : `<span class="k">${LETTERS[k]}</span><span>${tx(q.opts[oi])}</span>`;
+      return `<button class="${c}" data-opt="${oi}" ${st.locked || st.wrongs.includes(oi) ? "disabled" : ""}>${inner}</button>`;
+    }).join("");
+    body = `${board}${sentence}${q.type === "fill" ? `<span class="lbl-s">${tx("מַחְסַן מִלִּים:")}</span><div class="chips">${opts}</div>` : `<div class="opts">${opts}</div>`}
+      ${s.test ? `<div class="row"><button class="btn" data-act="testnext" ${st.sel === null ? "disabled" : ""}>${tx("הַמְשֵׁךְ")}</button></div>` : after}`;
+    return tag + (q.type === "fill" ? renderInstr(q, st) : `<div class="qhead"><p class="qtext">${tx(q.q)}</p><button class="speak" data-say="${esc(q.q)}" aria-label="הקראת השאלה">${SPEAK}</button></div>`) + body;
+  }
+  if (q.type === "mark") {
+    const tools = TOOL_ORDER.map(t => `<button class="tool ${st.tool === t ? "on" : ""}" data-tool="${t}" ${st.locked ? "disabled" : ""}>${TOOLS[t].icon}<span>${tx(TOOLS[t].label)}</span></button>`).join("");
+    const sw = st.tool === "color" ? `<div class="swatches">${Object.entries(COLORS).map(([k, c]) => `<button class="sw ${st.color === k ? "on" : ""}" data-color="${k}" style="background:${c.v}" aria-label="${c.name}" title="${c.name}"></button><span class="swl">${tx(c.name)}</span>`).join("")}</div>` : "";
+    const pickMsg = st.msg === "pick" ? `<div class="feedback try">${tx("קֹדֶם בּוֹחֲרִים כְּלִי: מָה הַהוֹרָאָה מְבַקֶּשֶׁת לַעֲשׂוֹת?")}</div>`
+      : st.msg === "pickColor" ? `<div class="feedback try">${tx("בַּחֲרוּ צֶבַע.")}</div>` : "";
+    const canGo = st.marks.length > 0;
+    body = `<div class="${wait.trim()}">
+        <span class="lbl-s">${tx("בַּחֲרוּ כְּלִי:")}</span>
+        <div class="tools" role="toolbar">${tools}${st.locked ? "" : `<button class="tool clear" data-act="clearMarks">${tx("מְחִיקָה")}</button>`}</div>${sw}
+        ${pickMsg}
+        ${renderBoard(q, st, !st.locked)}
+      </div>
+      ${st.locked || st.stage !== "do" ? "" : `<div class="row"><button class="btn" data-act="${s.test ? "testnext" : "checkmark"}" ${canGo ? "" : "disabled"}>${s.test ? tx("הַמְשֵׁךְ") : tx("בְּדִיקָה")}</button></div>`}
+      ${after}`;
+    return tag + renderInstr(q, st) + stageHint(q, st) + body;
+  }
+  if (q.type === "build") {
+    const sent = q.sentence ? `<p class="fill-sent">${q.sentence.split(" ").map(w => `<span class="${st.hint && q.hintWord && w.includes(q.hintWord) ? "sen hl" : ""}">${tx(w)}</span>`).join(" ")}</p>` : "";
+    const used = new Set(st.slots);
+    const bank = st.bank.map(i => `<button data-bk="${i}" ${used.has(i) || st.locked ? "disabled" : ""}>${esc(q.bank[i])}</button>`).join("");
+    const slots = q.word.split("").map((_, k) => {
+      const i = st.slots[k];
+      return `<button class="sl" data-bs="${k}" ${i === undefined || st.locked ? "disabled" : ""}>${i !== undefined ? esc(q.bank[i]) : ""}</button>`;
+    }).join("");
+    const full = st.slots.filter(x => x !== undefined).length === q.word.length;
+    body = `<div class="${wait.trim()}">${sent}
+        <span class="lbl-s">${tx(q.sentence ? "מַחְסַן אוֹתִיּוֹת. גְּעוּ בָּאוֹתִיּוֹת לְפִי הַסֵּדֶר:" : "מַחְסַן הָאוֹתִיּוֹת. גְּעוּ בָּאוֹתִיּוֹת לְפִי הַסֵּדֶר:")}</span>
+        <div class="bank">${bank}</div>
+        <span class="lbl-s">${tx("הַמִּלָּה שֶׁלִּי:")}</span>
+        <div class="slots" dir="rtl">${slots}</div>
+      </div>
+      ${st.locked || st.stage !== "do" ? "" : `<div class="row"><button class="btn" data-act="${s.test ? "testnext" : "checkbuild"}" ${full ? "" : "disabled"}>${s.test ? tx("הַמְשֵׁךְ") : tx("בְּדִיקָה")}</button></div>`}
+      ${after}`;
+    return tag + renderInstr(q, st) + stageHint(q, st) + body;
+  }
+  if (q.type === "punct") {
+    const lines = q.lines.map((l, k) => {
+      const m = st.pmarks ? (st.pmarks[k] ? " right" : " wrong") : "";
+      return `<div class="pline"><span>${tx(l.t)}</span><button class="pslot${m}" data-pu="${k}" ${st.locked ? "disabled" : ""} aria-label="סימן פיסוק">${st.p[k] || ""}</button></div>`;
+    }).join("");
+    const full = st.p.every(Boolean);
+    body = `<div class="${wait.trim()}"><span class="lbl-s">${tx("גְּעוּ בַּמִּשְׁבֶּצֶת כְּדֵי לְהַחְלִיף בֵּין . לְ־?")}</span><div class="plines">${lines}</div></div>
+      ${st.locked || st.stage !== "do" ? "" : `<div class="row"><button class="btn" data-act="${s.test ? "testnext" : "checkpunct"}" ${full ? "" : "disabled"}>${s.test ? tx("הַמְשֵׁךְ") : tx("בְּדִיקָה")}</button></div>`}
+      ${after}`;
+    return tag + renderInstr(q, st) + stageHint(q, st) + body;
+  }
+  return "";
+}
+
+/* boards: words, letters, sentence, columns, scene. Marks are drawn on an SVG overlay. */
+const colorOf = (st, id) => { const m = st && st.marks.find(m => m.t === "color" && m.id === id); return m ? COLORS[m.c].v : null; };
+function clusters(word) { return word.match(/[א-ת][֑-ׇ]*|[^א-ת]+/g) || []; }
+function renderBoard(q, st, live) {
+  const b = q.board, marks = st.reveal ? q.expect : st.marks;
+  const vm = { marks };
+  const bg = id => { const c = colorOf(vm, id); return c ? ` style="background:${c}66;box-shadow:inset 0 0 0 2px ${c}"` : ""; };
+  const tgt = (id, inner, cls = "tile") => `<span class="${cls}${st.pending === id ? " pend" : ""}" data-tgt="${id}"${live ? ' role="button" tabindex="0"' : ""}${bg(id)}>${inner}</span>`;
+  let inner = "";
+  if (b.kind === "words" || b.kind === "letters") inner = `<div class="tiles ${b.kind === "letters" ? "letters" : ""}">${b.items.map((w, k) => tgt("i" + k, b.kind === "letters" ? esc(w) : tx(w))).join("")}</div>`;
+  else if (b.kind === "columns") inner = `<div class="cols"><div class="col">${b.a.map((w, k) => tgt("a" + k, tx(w))).join("")}</div><div class="col">${b.b.map((w, k) => tgt("b" + k, tx(w))).join("")}</div></div>`;
+  else if (b.kind === "sentence") {
+    const words = b.text.split(" ");
+    inner = `<p class="sent">${words.map((w, wi) => {
+      if (b.unit === "word") return tgt("w" + wi, tx(w));
+      let li = 0;
+      return `<span class="wd">${clusters(w).map(c => /^[א-ת]/.test(c) ? tgt(`w${wi}l${li++}`, tx(c), "lt") : esc(c)).join("")}</span>`;
+    }).join(" ")}</p>`;
+  }
+  else if (b.kind === "scene") inner = sceneSVG(vm);
+  return `<div class="board ${b.kind}${live ? "" : " still"}" id="board">${inner}<svg class="ov" id="ov" aria-hidden="true"></svg></div>`;
+}
+
+function sceneSVG(view) {
+  const f = id => colorOf(view, id) || "#FFFFFF";
+  const ink = 'stroke="#2B3550" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"';
+  const rays = Array.from({ length: 8 }, (_, k) => { const a = k * Math.PI / 4; return `M${(365 + 30 * Math.cos(a)).toFixed(1)} ${(48 + 30 * Math.sin(a)).toFixed(1)}L${(365 + 40 * Math.cos(a)).toFixed(1)} ${(48 + 40 * Math.sin(a)).toFixed(1)}`; }).join("");
+  const cloud = "M0 0a14 14 0 0 1 8-24a18 18 0 0 1 32-4a14 14 0 0 1 14 28z";
+  const petals = Array.from({ length: 5 }, (_, k) => { const a = k * 2 * Math.PI / 5 - Math.PI / 2; return `<circle cx="${(392 + 9 * Math.cos(a)).toFixed(1)}" cy="${(214 + 9 * Math.sin(a)).toFixed(1)}" r="6" fill="${f("flower")}" ${ink}/>`; }).join("");
+  return `<svg class="scene-svg" viewBox="8 2 410 262" role="img" aria-label="תמונה: שמש, שני עננים, עץ עם ציפור, בית, ילדה, ילד, כדור, כלב ופרח">
+    <rect width="420" height="280" fill="#FFFFFF"/>
+    <path d="M0 222 Q110 214 210 222 T420 220" fill="none" ${ink}/>
+    <g data-tgt="sun"><circle cx="365" cy="48" r="44" fill="transparent"/><path d="${rays}" fill="none" ${ink}/><circle cx="365" cy="48" r="22" fill="${f("sun")}" ${ink}/></g>
+    <g><path transform="translate(185 64)" d="${cloud}" fill="#FFFFFF" ${ink}/></g>
+    <g><path transform="translate(100 88)" d="${cloud}" fill="#FFFFFF" ${ink}/></g>
+    <g data-tgt="tree"><rect x="42" y="150" width="18" height="70" fill="${f("tree")}" ${ink}/><circle cx="51" cy="132" r="38" fill="${f("tree")}" ${ink}/></g>
+    <g data-tgt="bird"><rect x="32" y="76" width="50" height="28" fill="transparent"/><path d="M44 92 L36 86 L38 96 Z" fill="${f("bird")}" ${ink}/><ellipse cx="54" cy="94" rx="11" ry="7" fill="${f("bird")}" ${ink}/><circle cx="65" cy="88" r="5.5" fill="${f("bird")}" ${ink}/><path d="M70 87 L76 89 L70 91 Z" fill="#2B3550"/><circle cx="66" cy="87" r="1.2" fill="#2B3550"/></g>
+    <g data-tgt="house"><rect x="140" y="148" width="86" height="72" fill="${f("house")}" ${ink}/><path d="M132 150 L183 108 L234 150 Z" fill="${f("house")}" ${ink}/><rect x="174" y="184" width="20" height="36" fill="#FFFFFF" ${ink}/><rect x="150" y="160" width="18" height="16" fill="#FFFFFF" ${ink}/><rect x="198" y="160" width="18" height="16" fill="#FFFFFF" ${ink}/></g>
+    <g data-tgt="girl"><circle cx="275" cy="155" r="5" fill="${f("girl")}" ${ink}/><circle cx="262" cy="160" r="11" fill="${f("girl")}" ${ink}/><path d="M262 172 L246 208 L278 208 Z" fill="${f("girl")}" ${ink}/><path d="M256 208v14M268 208v14M255 182l-10 12M269 182l10 12" fill="none" ${ink}/></g>
+    <g data-tgt="boy"><circle cx="345" cy="158" r="11" fill="${f("boy")}" ${ink}/><rect x="333" y="170" width="24" height="28" rx="3" fill="${f("boy")}" ${ink}/><path d="M339 198v24M351 198v24M333 176l-10 14M357 176l10 14" fill="none" ${ink}/></g>
+    <g data-tgt="ball"><rect x="285" y="222" width="40" height="38" fill="transparent"/><circle cx="305" cy="240" r="12" fill="${f("ball")}" ${ink}/><path d="M294 236 Q305 244 316 236" fill="none" ${ink}/></g>
+    <g data-tgt="dog"><rect x="62" y="206" width="74" height="52" fill="transparent"/><path d="M72 230 Q62 222 66 214" fill="none" ${ink}/><ellipse cx="95" cy="232" rx="24" ry="12" fill="${f("dog")}" ${ink}/><path d="M80 242v12M110 242v12" fill="none" ${ink}/><circle cx="122" cy="220" r="10" fill="${f("dog")}" ${ink}/><ellipse cx="118" cy="214" rx="4" ry="8" fill="${f("dog")}" ${ink}/><circle cx="126" cy="218" r="1.3" fill="#2B3550"/></g>
+    <g data-tgt="flower"><rect x="374" y="196" width="36" height="58" fill="transparent"/><path d="M392 250 V222" fill="none" ${ink}/><path d="M392 240 Q382 234 380 240 Q386 246 392 242" fill="#FFFFFF" ${ink}/>${petals}<circle cx="392" cy="214" r="5" fill="#FFFFFF" ${ink}/></g>
+  </svg>`;
+}
+
+/* overlay painter: hand-drawn circle, underline, X and connecting line */
+function paintOverlay() {
+  const b = $("#board"), ov = $("#ov");
+  if (!b || !ov || !run || !run.q) return;
+  const q = ST().questions[run.qi], st = run.q;
+  const br = b.getBoundingClientRect();
+  ov.setAttribute("viewBox", `0 0 ${br.width} ${br.height}`);
+  const R = id => { const el = b.querySelector(`[data-tgt="${id}"]`); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left - br.left, y: r.top - br.top, w: r.width, h: r.height }; };
+  const marks = st.reveal ? q.expect : st.marks;
+  let out = "";
+  const seed = s => [...s].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const path = (d, col, extra = "") => `<path d="${d}" fill="none" stroke="${col}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`;
+  const ellipse = (r, sd, col, extra) => {
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2, rx = r.w / 2 + 8, ry = r.h / 2 + 6, st0 = -0.5 + (sd % 7) * 0.05;
+    let d = "";
+    for (let a = 0; a <= Math.PI * 2 + 0.45; a += 0.15) {
+      const k = 1 + 0.045 * Math.sin(3 * a + sd) + (a > Math.PI * 2 ? 0.06 : 0);
+      d += (d ? "L" : "M") + (cx + rx * k * Math.cos(a + st0)).toFixed(1) + " " + (cy + ry * k * Math.sin(a + st0)).toFixed(1);
+    }
+    return path(d, col, extra);
+  };
+  const edge = (r, tx_, ty_) => {
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2, dx = tx_ - cx, dy = ty_ - cy;
+    const s = Math.min((r.w / 2 + 4) / Math.abs(dx || 1e-6), (r.h / 2 + 4) / Math.abs(dy || 1e-6));
+    return [cx + dx * s, cy + dy * s];
+  };
+  marks.forEach(m => {
+    if (m.t === "color") return;
+    const r = R(m.id); if (!r) return;
+    const bad = !st.reveal && st.bad && st.bad.includes(mkey(m));
+    const col = st.reveal ? "var(--good)" : bad ? "var(--oops)" : "var(--pen)";
+    const sd = seed(m.id);
+    if (m.t === "circle") out += ellipse(r, sd, col);
+    if (m.t === "under") { const y = r.y + r.h + 2; out += path(`M${r.x + r.w + 2} ${y} Q${r.x + r.w / 2} ${y + 4} ${r.x - 2} ${y + 1}`, col); }
+    if (m.t === "x") { const i = Math.min(r.w, r.h) * 0.12; out += path(`M${r.x + i} ${r.y + i}L${r.x + r.w - i} ${r.y + r.h - i}M${r.x + r.w - i} ${r.y + i}L${r.x + i} ${r.y + r.h - i}`, col); }
+    if (m.t === "line") {
+      const r2 = R(m.id2); if (!r2) return;
+      const [x1, y1] = edge(r, r2.x + r2.w / 2, r2.y + r2.h / 2), [x2, y2] = edge(r2, r.x + r.w / 2, r.y + r.h / 2);
+      out += path(`M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`, col) + `<circle cx="${x1.toFixed(1)}" cy="${y1.toFixed(1)}" r="4" fill="${col}"/><circle cx="${x2.toFixed(1)}" cy="${y2.toFixed(1)}" r="4" fill="${col}"/>`;
+    }
+  });
+  if (st.pending && !st.reveal) { const r = R(st.pending); if (r) out += ellipse(r, 3, "var(--pen)", 'stroke-dasharray="6 6" opacity=".7"'); }
+  ov.innerHTML = out;
+}
+window.addEventListener("resize", () => requestAnimationFrame(paintOverlay));
+
+function tapTarget(id) {
+  const s = ST(), q = s.questions[run.qi], st = run.q;
+  if (q.type !== "mark" || st.locked || st.stage !== "do") return;
+  st.bad = null; st.msg = null;
+  if (!st.tool) { st.msg = "pick"; return draw(); }
+  const toggle = m => { const k = mkey(m), i = st.marks.findIndex(x => mkey(x) === k); if (i >= 0) st.marks.splice(i, 1); else st.marks.push(m); };
+  if (st.tool === "line") {
+    if (!st.pending) st.pending = id;
+    else if (st.pending === id) st.pending = null;
+    else { toggle({ t: "line", id: st.pending, id2: id }); st.pending = null; }
+  } else if (st.tool === "color") {
+    if (!st.color) { st.msg = "pickColor"; return draw(); }
+    const i = st.marks.findIndex(m => m.t === "color" && m.id === id);
+    const same = i >= 0 && st.marks[i].c === st.color;
+    if (i >= 0) st.marks.splice(i, 1);
+    if (!same) st.marks.push({ t: "color", id, c: st.color });
+  } else toggle({ t: st.tool, id });
+  draw();
+}
+
+function checkMark() {
+  const q = ST().questions[run.qi], st = run.q;
+  st.tries++; st.pending = null;
+  if (markOk(q, st.marks)) { st.locked = true; settle(st.tries === 1); chime(true); }
+  else {
+    chime(false);
+    const exp = new Set(q.expect.map(mkey));
+    st.bad = st.marks.map(mkey).filter(k => !exp.has(k));
+    st.fbMsg = diagnose(q, st.marks);
+    if (st.tries >= 2) { st.locked = true; st.reveal = true; settle(false); }
+  }
+  draw();
+}
+function buildWord(q, st) { return st.slots.map(i => q.bank[i]).join(""); }
+function checkBuild() {
+  const q = ST().questions[run.qi], st = run.q;
+  st.tries++;
+  if (buildWord(q, st) === q.word) { st.locked = true; settle(st.tries === 1); chime(true); }
+  else {
+    chime(false); st.hint = true;
+    st.fbMsg = q.sentence ? "חַפְּשׂוּ אֶת הַמִּלָּה שֶׁמּוֹפִיעָה שָׁלוֹשׁ פְּעָמִים (סִמַּנְתִּי אוֹתָהּ בַּצָּהֹב), וְהַעְתִּיקוּ אוֹת אַחַר אוֹת." : `רֶמֶז: הָאוֹת הָרִאשׁוֹנָה הִיא ${q.word[0]}.`;
+    st.slots = [];
+    if (st.tries >= 2) { // show the right word
+      const left = st.bank.slice(); st.slots = q.word.split("").map(ch => { const k = left.findIndex(i => q.bank[i] === ch); return left.splice(k, 1)[0]; });
+      st.locked = true; settle(false);
+    }
+  }
+  draw();
+}
+function checkPunct() {
+  const q = ST().questions[run.qi], st = run.q;
+  st.tries++;
+  st.pmarks = q.lines.map((l, k) => st.p[k] === l.a);
+  if (st.pmarks.every(Boolean)) { st.locked = true; settle(st.tries === 1); chime(true); }
+  else {
+    chime(false); st.fbMsg = "מִשְׁפָּט שֶׁשּׁוֹאֵל, נִגְמָר בְּ־?. מִשְׁפָּט שֶׁמְּסַפֵּר, נִגְמָר בְּ־.";
+    if (st.tries >= 2) { st.p = q.lines.map(l => l.a); st.pmarks = q.lines.map(() => true); st.locked = true; settle(false); }
+  }
+  draw();
+}
+
+/* ---------- comprehension answers ---------- */
+function settle(correctFirst) { run.res[run.qi] = correctFirst; }
+
 function answerMC(oi) {
-  const s = STATIONS[run.i], q = s.questions[run.qi], st = run.q;
+  const s = ST(), st = run.q;
   if (s.test) { st.sel = oi; return draw(); }
   st.tries++;
   if (oi === 0) { st.locked = true; settle(st.tries === 1); chime(true); }
@@ -661,7 +1167,7 @@ function answerMC(oi) {
   draw(); revealHint();
 }
 function checkFind() {
-  const s = STATIONS[run.i], q = s.questions[run.qi], st = run.q;
+  const s = ST(), q = s.questions[run.qi], st = run.q;
   const sen = textFor(s, q).paras.flat()[st.picked];
   st.tries++;
   if (evMatch(sen, q.ev)) { st.locked = true; st.hint = true; st.picked = null; settle(st.tries === 1); chime(true); }
@@ -669,7 +1175,7 @@ function checkFind() {
   draw();
 }
 function checkOrder() {
-  const q = STATIONS[run.i].questions[run.qi], st = run.q;
+  const q = ST().questions[run.qi], st = run.q;
   st.tries++;
   const marks = st.order.map((it, k) => it === k);
   if (marks.every(Boolean)) { st.locked = true; st.marks = marks; settle(st.tries === 1); chime(true); }
@@ -686,20 +1192,21 @@ function checkOrder() {
 }
 
 function nextQ() {
-  const s = STATIONS[run.i];
+  const s = ST(), q = s.questions[run.qi], st = run.q;
   if (s.test) {   // store the test answer, score at the end
-    const q = s.questions[run.qi], st = run.q;
-    if (q.type === "mc") run.ans[run.qi] = st.sel, run.res[run.qi] = st.sel === 0;
+    if (isChoice(q)) run.ans[run.qi] = st.sel, run.res[run.qi] = st.sel === 0;
     if (q.type === "order") run.ans[run.qi] = st.order.slice(), run.res[run.qi] = st.order.every((it, k) => it === k);
+    if (q.type === "mark") run.res[run.qi] = markOk(q, st.marks);
+    if (q.type === "build") run.ans[run.qi] = buildWord(q, st), run.res[run.qi] = buildWord(q, st) === q.word;
+    if (q.type === "punct") run.ans[run.qi] = st.p.slice(), run.res[run.qi] = q.lines.every((l, k) => st.p[k] === l.a);
   }
-  const q = s.questions[run.qi];
-  if (q.type === "open") { run.res[run.qi] = "open"; run.open[q.q] = run.q.text.trim(); }
-  if (run.qi + 1 < s.questions.length) { run.qi++; run.q = qStateNew(s.questions[run.qi]); view = { name: "play" }; draw(); scrollTop(); }
+  if (q.type === "open") { run.res[run.qi] = "open"; run.open[q.q] = st.text.trim(); }
+  if (run.qi + 1 < s.questions.length) { run.qi++; run.q = qStateNew(s.questions[run.qi], s); view = { name: "play" }; draw(); scrollTop(); }
   else finish();
 }
 
 function finish() {
-  const s = STATIONS[run.i];
+  const s = ST();
   const scored = s.questions.map((q, i) => [q, run.res[i]]).filter(([q]) => q.type !== "open");
   const right = scored.filter(([, r]) => r === true).length;
   const stars = starsFor(scored.length ? right / scored.length : 1);
@@ -716,20 +1223,23 @@ function finish() {
 }
 
 function renderSummary() {
-  const s = STATIONS[run.i], stars = run.stars;
+  const s = ST(), stars = run.stars, T = TRACKS[run.t];
   const msg = stars === 3 ? "וָואוּ! עֲבוֹדָה מְצֻיֶּנֶת!" : stars === 2 ? "יָפֶה מְאוֹד! עוֹד קְצָת תִּרְגּוּל וְזֶה מֻשְׁלָם." : "הִתְחָלָה טוֹבָה! כְּדַאי לְנַסּוֹת אֶת הַתַּחֲנָה שׁוּב.";
   const stamp = stars === 3 ? "כל הכבוד!" : stars === 2 ? "יפה מאוד!" : "ממשיכים!";
-  const hasNext = run.i + 1 < STATIONS.length;
+  const hasNext = run.i + 1 < T.stations.length;
   let review = "";
   if (s.test) {
     review = `<div class="review">${s.questions.map((q, i) => {
       const r = run.res[i];
       if (q.type === "open") return `<div class="it open"><span class="q">${tx(q.q)}</span><span class="a">${tx("כָּתַבְתָּ:")} ${esc(run.open[q.q] || "")}</span><span class="a">${tx("לְדֻגְמָה:")} ${tx(q.model)}</span></div>`;
-      const right = q.type === "mc" ? q.opts[0] : q.items.join(" ← ");
-      const mine = q.type === "mc" ? (run.ans[i] != null ? q.opts[run.ans[i]] : "") : (run.ans[i] || []).map(k => q.items[k]).join(" ← ");
-      return `<div class="it ${r ? "ok" : "miss"}"><span class="q">${i + 1}. ${tx(q.q)}</span>
-        ${r ? `<span class="a">✓ ${tx(right)}</span>` : `<span class="a">${tx("עָנִיתָ:")} ${tx(mine)}</span><span class="a"><b>${tx("נָכוֹן:")}</b> ${tx(right)}</span>`}
-        <span class="a">${tx(q.why)}</span></div>`;
+      let right = "", mine = "";
+      if (isChoice(q)) { right = q.opts[0]; mine = run.ans[i] != null ? q.opts[run.ans[i]] : ""; }
+      else if (q.type === "order") { right = q.items.join(" ← "); mine = (run.ans[i] || []).map(k => q.items[k]).join(" ← "); }
+      else if (q.type === "build") { right = q.word; mine = run.ans[i] || ""; }
+      else if (q.type === "punct") { right = q.lines.map(l => l.t + l.a).join("  "); mine = q.lines.map((l, k) => l.t + ((run.ans[i] || [])[k] || "")).join("  "); }
+      const detail = right ? (r ? `<span class="a">✓ ${tx(right)}</span>` : `<span class="a">${tx("עָנִיתָ:")} ${tx(mine)}</span><span class="a"><b>${tx("נָכוֹן:")}</b> ${tx(right)}</span>`)
+        : `<span class="a">${r ? "✓ " + tx("בִּצַּעְתָּ בְּדִיּוּק!") : tx("לֹא בְּדִיּוּק. כָּךְ הָיָה צָרִיךְ:")}</span>`;
+      return `<div class="it ${r ? "ok" : "miss"}"><span class="q">${i + 1}. ${tx(q.q)}</span>${detail}<span class="a">${tx(q.why)}</span></div>`;
     }).join("")}</div>`;
   }
   return bar() + `<div class="summary">
@@ -737,7 +1247,7 @@ function renderSummary() {
     <div class="big-stars" aria-label="${stars} כוכבים">${[1, 2, 3].map(k => `<span class="${k <= stars ? "on" : ""}">★</span>`).join("")}</div>
     <div class="stamp">${stamp}</div>
     <div class="guide" style="text-align:start;max-width:520px">${OWL}<div class="bubble"><p style="font-family:var(--f-read);font-size:1.15rem;line-height:1.9">${tx(msg)}</p>
-      <p>${tx("עֲנִיתָ נָכוֹן בַּפַּעַם הָרִאשׁוֹנָה עַל")} ${run.right} ${tx("מִתּוֹךְ")} ${run.scored} ${tx("שְׁאֵלוֹת.")}</p></div></div>
+      <p>${tx(s.test ? "בִּצַּעְתָּ נָכוֹן" : "עֲנִיתָ נָכוֹן בַּפַּעַם הָרִאשׁוֹנָה עַל")} ${run.right} ${tx("מִתּוֹךְ")} ${run.scored}${tx(s.test ? "." : " שְׁאֵלוֹת.")}</p></div></div>
     ${review}
     <div class="row" style="justify-content:center">
       ${hasNext ? `<button class="btn good" data-act="nextStation">${tx("לַתַּחֲנָה הַבָּאָה")}</button>` : ""}
@@ -751,7 +1261,7 @@ function renderSummary() {
 function skillStats() {
   const out = {};
   Object.keys(SKILLS).forEach(k => out[k] = { right: 0, n: 0 });
-  STATIONS.forEach(s => {
+  ALL.forEach(s => {
     const r = S.st[s.id]; if (!r || !r.first) return;
     s.questions.forEach((q, i) => {
       if (q.type === "open") { if (r.first[i] === "open") { out.opinion.n++; out.opinion.right++; } return; }
@@ -761,16 +1271,27 @@ function skillStats() {
   return out;
 }
 
+const VERBS = [
+  ["הַקִּיפוּ", "מציירים עיגול מסביב למילה, לאות או לציור"],
+  ["סַמְּנוּ X", "מציירים איקס על הדבר"],
+  ["מִתְחוּ קַו מִתַּחַת", "קו ישר מתחת למילה"],
+  ["מִתְחוּ קַו מִ... אֶל...", "קו שמחבר בין שני דברים: מתחילים בראשון ומגיעים לשני"],
+  ["צִבְעוּ", "צובעים, בצבע שביקשו"],
+  ["כִּתְבוּ", "כותבים בעצמנו מילה או משפט"],
+  ["הַעְתִּיקוּ", "כותבים שוב בדיוק את מה שכתוב, אות אחר אות"],
+  ["הַשְׁלִימוּ", "כותבים את המילה החסרה בקו הריק"],
+];
+
 function renderParents() {
   const stats = skillStats();
   const any = Object.values(stats).some(v => v.n);
   const opens = [];
-  STATIONS.forEach(s => { const r = S.st[s.id]; if (r && r.open) Object.entries(r.open).forEach(([q, a]) => a && opens.push({ s: s.title, q, a })); });
-  const rows = Object.entries(SKILLS).map(([k, sk]) => {
-    const v = stats[k];
+  ALL.forEach(s => { const r = S.st[s.id]; if (r && r.open) Object.entries(r.open).forEach(([q, a]) => a && opens.push({ s: s.title, q, a })); });
+  const rows = SKILL_ORDER.map(k => {
+    const sk = SKILLS[k], v = stats[k];
     if (k === "opinion") return `<div class="skill-row"><span>${sk.name}</span><div class="track"><i style="width:${v.n ? 100 : 0}%"></i></div><span class="pct ${v.n ? "" : "na"}">${v.n ? v.n + " תשובות" : "עוד לא"}</span></div>`;
     const p = v.n ? Math.round(100 * v.right / v.n) : null;
-    return `<div class="skill-row"><span>${sk.name}</span><div class="track"><i class="${p === null ? "" : p >= 80 ? "" : p >= 60 ? "mid" : "low"}" style="width:${p || 0}%"></i></div><span class="pct ${p === null ? "na" : ""}">${p === null ? "עוד לא" : p + "%"}</span></div>`;
+    return `<div class="skill-row"><span>${k === "instr" ? "<b>" + sk.name + "</b>" : sk.name}</span><div class="track"><i class="${p === null ? "" : p >= 80 ? "" : p >= 60 ? "mid" : "low"}" style="width:${p || 0}%"></i></div><span class="pct ${p === null ? "na" : ""}">${p === null ? "עוד לא" : p + "%"}</span></div>`;
   }).join("");
   const weakest = Object.entries(stats).filter(([k, v]) => k !== "opinion" && v.n >= 3).sort((a, b) => a[1].right / a[1].n - b[1].right / b[1].n)[0];
   return bar() + `<div class="parents">
@@ -784,30 +1305,53 @@ function renderParents() {
       ${!any ? `<p style="margin-top:10px">עוד אין נתונים. אחרי התחנה הראשונה יופיעו כאן התוצאות.</p>` : ""}
     </section>
 
+    <section>
+      <h3>ביצוע הוראות: החלק החשוב ביותר</h3>
+      <p>חלק גדול מהמבדק הוא <b>ביצוע הוראות</b>: על אותיות, על מילים, על משפט ועל תמונה. ילדים שמבינים את הטקסט מפסידים כאן נקודות רק כי לא קראו את ההוראה עד הסוף. לכן מסלול ההוראות הוא הראשון באפליקציה.</p>
+      <p><b>הטעויות הנפוצות:</b></p>
+      <ul>
+        <li>מסמנים יותר או פחות ממה שביקשו (ביקשו שלושה, הקיפו ארבעה).</li>
+        <li>עושים פעולה אחרת (מותחים קו מתחת במקום להקיף).</li>
+        <li>סופרים משמאל במקום מימין ("המילה השנייה", "האות הראשונה").</li>
+        <li>בהוראה עם שני חלקים ("צבעו... ואחר כך מתחו קו...") עושים רק את הראשון.</li>
+        <li>מעתיקים עם שינוי או שגיאה, במקום אות אחר אות.</li>
+      </ul>
+      <p style="margin-top:10px"><b>איך המסלול בנוי:</b> בתחנות הראשונות הילד נוגע קודם במילת הפעולה, ובתחנה 2 גם במילת המספר, ורק אחר כך מבצע. בהמשך העזרה הזו נעלמת, ובמבדק הדמה אין רמזים בכלל. הילד בוחר בעצמו כלי (עיגול, קו מתחת, X, קו מחבר, צבע), כך שאי אפשר להצליח בלי להבין את ההוראה.</p>
+      <p style="margin-top:10px"><b>מילון ההוראות</b> (כדאי לתלות על המקרר):</p>
+      <div class="verbs">${VERBS.map(([v, m]) => `<div><span class="vb">${v}</span><span>${m}</span></div>`).join("")}</div>
+      <p style="margin-top:10px"><b>משחקים לבית:</b></p>
+      <ul>
+        <li><b>"המורה אומרת":</b> הוראות בעל פה עם מספר ומקום: "תביא שתי כפיות ומזלג אחד", "תשים את הספר השלישי על הכיסא".</li>
+        <li><b>עיתון ועט:</b> "הקף שלוש מילים שמתחילות באות מ", "מתח קו מתחת למילה האחרונה בכותרת".</li>
+        <li><b>הוראה בשני שלבים:</b> "קודם תסגור את הדלת, ואחר כך תדליק את האור". אחרי שהילד מצליח, עוברים לכתב.</li>
+        <li><b>תגיד לי במילים שלך:</b> לפני כל דף עבודה, לבקש מהילד להסביר מה ההוראה מבקשת.</li>
+      </ul>
+    </section>
+
     ${opens.length ? `<section><h3>תשובות פתוחות שנכתבו</h3><p style="color:var(--ink-soft)">כדאי לקרוא יחד ולשאול: "האם הסברת למה? איפה בטקסט ראית את זה?"</p>
       <div class="review">${opens.map(o => `<div class="it open"><span class="a">${tx(o.s)}</span><span class="q">${tx(o.q)}</span><span class="a" style="color:var(--ink)">${esc(o.a)}</span></div>`).join("")}</div></section>` : ""}
 
     <section>
-      <h3>מה בודק המבדק בהבנת הנקרא?</h3>
-      <p>המבדק בודק אם הילד <b>מבין</b> את מה שהוא קורא, ולא רק קורא נכון. בדרך כלל יש בו טקסט סיפורי וטקסט מידעי, שאלות רב-ברירה (אמריקאיות), שאלות סידור, ושאלות פתוחות שבהן כותבים תשובה. הילד קורא לבד ועונה לבד.</p>
-      <p>האפליקציה בנויה בהדרגה: מתחילים במשפט אחד, עוברים לסיפור קצר, ומשם לכל מיומנות בנפרד. התחנה האחרונה היא מבדק דמה שמשלב הכל, בלי רמזים.</p>
+      <h3>מה בודק המבדק?</h3>
+      <p>המבדק בודק אם הילד <b>מבין</b> את מה שהוא קורא ויודע לבצע הוראות כתובות. יש בו טקסט סיפורי, ביצוע הוראות, שאלות רב-ברירה (אמריקאיות), שאלות פתוחות שבהן כותבים תשובה, ומשימות ידע לשוני (משפחות מילים, הפכים, סימני פיסוק). הילד קורא לבד ועונה לבד.</p>
+      <p>האפליקציה בנויה בהדרגה: בכל מסלול מתחילים ממשימה קטנה, וכל תחנה מוסיפה עוד קצת. התחנה האחרונה בכל מסלול היא מבדק דמה בלי רמזים.</p>
     </section>
 
-    <section>
-      <h3>המסלול: מה לומדים בכל תחנה</h3>
-      ${STATIONS.map((s, i) => `<details><summary>תחנה ${i + 1}: ${plain(s.title)}${S.st[s.id] && S.st[s.id].done ? " ✓" : ""}</summary><p>${s.parent}</p></details>`).join("")}
-    </section>
+    ${TRACKS.map(tr => `<section>
+      <h3>${plain(tr.name)}: מה לומדים בכל תחנה</h3>
+      ${tr.stations.map((s, i) => `<details><summary>תחנה ${i + 1}: ${plain(s.title)}${done(s) ? " ✓" : ""}</summary><p>${s.parent}</p></details>`).join("")}
+    </section>`).join("")}
 
     <section>
-      <h3>שש המיומנויות ואיך מתרגלים אותן בבית</h3>
-      ${Object.values(SKILLS).map(sk => `<details><summary>${sk.name}</summary><p><b>מה זה:</b> ${sk.what}</p><p><b>בבית:</b> ${sk.home}</p><div class="ask">שאלה לשאול: "${sk.ask}"</div></details>`).join("")}
+      <h3>המיומנויות ואיך מתרגלים אותן בבית</h3>
+      ${SKILL_ORDER.map(k => SKILLS[k]).map(sk => `<details><summary>${sk.name}</summary><p><b>מה זה:</b> ${sk.what}</p><p><b>בבית:</b> ${sk.home}</p><div class="ask">שאלה לשאול: "${sk.ask}"</div></details>`).join("")}
     </section>
 
     <section>
       <h3>ארגז הכלים של הילד</h3>
       <p>אלה האסטרטגיות שהאפליקציה חוזרת עליהן. כשהילד מתלבט, אפשר להזכיר אותן במקום לתת תשובה:</p>
       <ol>
-        <li>קוראים את הכותרת ומנחשים על מה הטקסט.</li>
+        <li>קוראים את ההוראה פעמיים. מה עושים? על מה? כמה? איפה?</li>
         <li>קוראים את <b>כל</b> הטקסט לפני השאלות.</li>
         <li>קוראים את השאלה עד הסוף, ואת <b>כל</b> התשובות, גם אחרי שנראה שמצאנו.</li>
         <li>חוזרים לטקסט ומחפשים מילה מהשאלה. מותר וחכם לחזור!</li>
@@ -819,10 +1363,10 @@ function renderParents() {
       <h3>טיפים לעבודה משותפת</h3>
       <ul>
         <li><b>קצר וקבוע:</b> תחנה אחת ביום, 10 עד 15 דקות. עדיף כל יום קצת מאשר הרבה פעם בשבוע.</li>
-        <li><b>לא לתת תשובות:</b> במקום "זו תשובה ב'", לשאול "איפה זה כתוב?" או "מה עזר לך להחליט?".</li>
-        <li><b>לשבח מאמץ ואסטרטגיה:</b> "ראיתי שחזרת לטקסט לבדוק, מצוין!" עדיף על "אתה חכם".</li>
-        <li><b>טעות היא רמז:</b> כשהילד טועה, האפליקציה מסמנת בצהוב את המשפט הרלוונטי. תנו לו לקרוא שוב לבד.</li>
-        <li><b>הקראה:</b> כפתור הרמקול מקריא את ההוראות והשאלות. הוא עוזר בהתחלה, אבל במבדק הילד קורא לבד, אז כדאי להפחית בו בהדרגה.</li>
+        <li><b>לא לתת תשובות:</b> במקום "זו תשובה ב'", לשאול "מה ההוראה ביקשה?" או "איפה זה כתוב?".</li>
+        <li><b>לשבח מאמץ ואסטרטגיה:</b> "ראיתי שקראת את ההוראה פעמיים, מצוין!" עדיף על "אתה חכם".</li>
+        <li><b>טעות היא רמז:</b> אחרי טעות האפליקציה אומרת מה בדיוק לא התאים להוראה (פעולה, כמות, צבע, מקום). תנו לילד לנסות שוב לבד.</li>
+        <li><b>הקראה:</b> כפתור הרמקול מקריא את ההוראה. הוא עוזר בהתחלה, אבל במבדק הילד קורא לבד, אז כדאי להפחית בו בהדרגה.</li>
         <li><b>ניקוד:</b> הטקסטים מנוקדים. ילד שקורא בשטף יכול לנסות גם בלי ניקוד (כפתור "ניקוד" למעלה).</li>
         <li><b>לחזור על תחנות:</b> אפשר לשחק כל תחנה שוב. סדר התשובות מתערבב בכל פעם.</li>
       </ul>
@@ -846,6 +1390,7 @@ function draw() {
   const R = $("#root");
   R.innerHTML = view.name === "home" ? renderHome() : view.name === "intro" ? renderIntro() : view.name === "play" ? renderPlay()
     : view.name === "summary" ? renderSummary() : renderParents();
+  if (view.name === "play") requestAnimationFrame(paintOverlay);
 }
 function scrollTop() { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); } }
 function revealHint() {
@@ -853,38 +1398,50 @@ function revealHint() {
   if (el && window.matchMedia("(max-width: 860px)").matches) el.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 function go(name) { view = { name }; draw(); scrollTop(); }
-function startStation(i) { run = { i, qi: 0, res: {}, ans: {}, open: {}, q: null }; view = { name: "intro" }; draw(); scrollTop(); }
+function startStation(t, i) { run = { t, i, qi: 0, res: {}, ans: {}, open: {}, q: null }; view = { name: "intro" }; draw(); scrollTop(); }
 
 document.addEventListener("click", e => {
-  const t = e.target.closest("button, [data-sen]"); if (!t) return;
+  const t = e.target.closest("button, [data-sen], [data-tgt], [data-iw]"); if (!t) return;
   const d = t.dataset;
   if (d.go) return go(d.go);
   if (d.say) return speak(d.say);
+  if (d.track !== undefined) { S.track = +d.track; save(); return draw(); }
   if (d.station !== undefined) {
-    const i = +d.station;
-    if (!unlocked(i)) return toast("קודם מסיימים את התחנה הקודמת");
-    return startStation(i);
+    const i = +d.station, tr = S.track || 0;
+    if (!unlocked(tr, i)) return toast("קודם מסיימים את התחנה הקודמת");
+    return startStation(tr, i);
   }
+  if (view.name !== "play" && d.act === undefined) return;
+  if (d.iw !== undefined) return tapInstrWord(+d.iw);
+  if (d.tgt !== undefined) return tapTarget(d.tgt);
+  if (d.tool) { const st = run.q; st.tool = st.tool === d.tool ? null : d.tool; st.pending = null; st.msg = null; return draw(); }
+  if (d.color) { run.q.color = d.color; run.q.msg = null; return draw(); }
+  if (d.bk !== undefined) { const st = run.q, q = ST().questions[run.qi]; if (st.slots.length < q.word.length) st.slots.push(+d.bk); st.fbMsg = null; return draw(); }
+  if (d.bs !== undefined) { run.q.slots.splice(+d.bs, 1); return draw(); }
+  if (d.pu !== undefined) { const st = run.q, k = +d.pu; st.p[k] = st.p[k] === "." ? "?" : "."; if (st.pmarks) st.pmarks = null; return draw(); }
   if (d.opt !== undefined) return answerMC(+d.opt);
-  if (d.sen !== undefined && view.name === "play") {
-    const q = STATIONS[run.i].questions[run.qi];
+  if (d.sen !== undefined) {
+    const q = ST().questions[run.qi];
     if (q.type === "find" && !run.q.locked) { run.q.picked = +d.sen; draw(); }
     return;
   }
   if (d.order !== undefined) { const st = run.q, i = +d.order; st.pool = st.pool.filter(x => x !== i); const k = firstEmpty(st.order); st.order[k] = i; if (st.marks) delete st.marks[k]; return draw(); }
   if (d.unorder !== undefined) { const st = run.q, k = +d.unorder; if (st.marks && st.marks[k]) return; st.pool.push(st.order[k]); delete st.order[k]; st.order = compact(st.order, st.marks); return draw(); }
-  if (d.check !== undefined) return;
   switch (d.act) {
     case "nikud": S.nikud = !S.nikud; save(); return draw();
     case "size": S.size = S.size % 3 + 1; save(); return draw();
     case "sound": S.sound = !S.sound; save(); return draw();
-    case "start": run.qi = 0; run.q = qStateNew(STATIONS[run.i].questions[0]); view = { name: "play" }; draw(); return scrollTop();
+    case "start": run.qi = 0; run.q = qStateNew(ST().questions[0], ST()); view = { name: "play" }; draw(); return scrollTop();
     case "next": case "testnext": return nextQ();
     case "checkfind": return checkFind();
     case "checkorder": return checkOrder();
+    case "checkmark": return checkMark();
+    case "checkbuild": return checkBuild();
+    case "checkpunct": return checkPunct();
+    case "clearMarks": run.q.marks = []; run.q.pending = null; run.q.bad = null; return draw();
     case "openDone": run.q.showModel = true; chime(true); return draw();
-    case "nextStation": return startStation(run.i + 1);
-    case "again": return startStation(run.i);
+    case "nextStation": return startStation(run.t, run.i + 1);
+    case "again": return startStation(run.t, run.i);
     case "unlockAll": S.unlockAll = !S.unlockAll; save(); toast(S.unlockAll ? "כל התחנות פתוחות" : "התחנות נפתחות לפי הסדר"); return draw();
     case "askReset":
       $("#confirmZone").innerHTML = `<div class="confirm" style="margin-top:10px"><span>למחוק את כל הכוכבים והתשובות בדפדפן הזה?</span><button class="btn" style="background:var(--oops)" data-act="doReset">כן, למחוק</button><button class="btn ghost" data-act="noReset">ביטול</button></div>`; return;
@@ -901,7 +1458,7 @@ function compact(order, marks) {
   return out;
 }
 document.addEventListener("keydown", e => {
-  if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches('[data-sen][role="button"]')) { e.preventDefault(); e.target.click(); }
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches('[role="button"]:not(button)')) { e.preventDefault(); e.target.click(); }
 });
 document.addEventListener("change", e => {
   const c = e.target.closest("[data-check]"); if (!c) return;

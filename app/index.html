@@ -1,4 +1,4 @@
-<title>מסע הקריאה</title>
+<title>גלקסיית המילים</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -555,6 +555,10 @@ img.flag { width: 34px; height: 34px; object-fit: contain; top: -14px; }
 .try-bar .btn { padding: 6px 12px; font-size: .95rem; border-radius: 999px; }
 .try-bar .btn.ghost { padding: 6px 10px; }
 @media (max-width: 420px) { .try-l { display: none; } }
+.credit { margin: 22px 0 6px; text-align: center; font-family: var(--f-hand); font-weight: 700; font-size: 1.35rem; line-height: 1.9; color: var(--on-space); opacity: .92; text-shadow: 0 2px 8px rgba(0, 0, 0, .5); }
+.credit .heart { color: #FF6FC8; font-family: var(--f-ui); }
+.credit .who { white-space: nowrap; }
+.page.cover .credit { margin-top: 14px; font-size: 1.1rem; color: #FFE7A3; }
 </style>
 
 <div class="app" dir="rtl" lang="he">
@@ -1237,7 +1241,7 @@ function galaxyHTML(t) {
 function bar() {
   const home = view.name === "home";
   return `<div class="bar">
-    <button class="brand" data-go="home" aria-label="למפת המסע">${home ? "" : "מסע הקריאה"}</button>
+    <button class="brand" data-go="home" aria-label="גלקסיית המילים: למפה">גלקסיית המילים</button>
     <span class="chip hud" title="כוכבים"><img class="ic" src="img/ui-star.webp" alt="">${totalStars()}</span>
     <span class="chip hud" id="coinChip" title="מטבעות"><img class="ic" src="img/ui-coin.webp" alt="">${S.coins}</span>
     ${home ? `<button class="chip" data-go="album"><img class="ic" src="img/ui-chest.webp" alt="">${tx("אַלְבּוֹם")}</button><button class="chip" data-go="shop"><img class="ic" src="img/ui-gift.webp" alt="">${tx("חֲדַר הַלְבָּשָׁה")}</button>` : ""}
@@ -1254,7 +1258,7 @@ function bar() {
 /* ---------- first visit: pick a character ---------- */
 function renderHello() {
   return `<div class="panel" style="margin-top:12px">
-    <h2>${tx("בָּרוּךְ הַבָּא לַמַּסָּע בֶּחָלָל!")}</h2>
+    <h2>${tx("בָּרוּךְ הַבָּא לְגַלַּקְסְיַת הַמִּלִּים!")}</h2>
     <p style="margin:0;font-family:var(--f-read);font-size:1.1rem;line-height:1.8">${tx("בְּכָל כּוֹכַב לֶכֶת מְחַכָּה מְשִׂימַת קְרִיאָה. עַל כָּל תְּשׁוּבָה נְכוֹנָה מְקַבְּלִים מַטְבְּעוֹת, וּבָהֶם קוֹנִים בְּגָדִים וְחַיּוֹת לַדְּמוּת שֶׁלְּךָ.")}</p>
     <form class="name-field" id="nameForm">
       <label for="kidName" style="font-family:var(--f-read);font-weight:600">${tx("אֵיךְ קוֹרְאִים לְךָ?")}</label>
@@ -1298,7 +1302,8 @@ function renderHome() {
   <div class="home-foot">
     <span>כל כוכב לכת לוקח 10 עד 15 דקות. מומלץ אחד ביום.</span>
     <button class="btn ghost" data-go="parents">להורים: איך לעזור בבית</button>
-  </div>`;
+  </div>
+  ${CREDIT()}`;
 }
 
 /* ---------- dressing room: a drawn room; each piece of furniture opens its drawer ---------- */
@@ -1310,6 +1315,7 @@ const ROOM_SPOTS = [
   { cat: "pet", img: "petbed", name: "חַיּוֹת", style: "left:1%;bottom:3%;width:25%" },
   { cat: "hand", img: "chest", name: "בַּיָּד", style: "right:1%;bottom:4%;width:24%" },
 ];
+const CREDIT = () => `<p class="credit">${tx("נוֹצַר בְּאַהֲבָה עַל יְדֵי")} <span class="who">${tx("נוֹעָה קַסְטְרוֹ")} <span class="heart">♥</span></span></p>`;
 const coinTag = n => `<img class="tic" src="img/ui-coin.webp" alt=""> ${n}`;
 function drawerItems(cat) {
   if (cat === "char") return `<div class="items">${CHARS.map(ch => `<button class="shop-item ${S.av.type === ch.id ? "on" : ""}" data-char="${ch.id}">${avatarSVG({ ...S.av, type: ch.id })}<span class="nm">${tx(ch.name)}</span></button>`).join("")}</div>
@@ -1372,7 +1378,7 @@ function pageHTML(p, n) {
       <div class="cover-av">${avatarSVG(S.av)}</div>
       <span class="cover-count"><img class="tic" src="img/ui-star.webp" alt=""> ${ALL.filter(done).length} / ${ALL.length} ${tx("מַדְבֵּקוֹת")}</span>
     </div></div>`;
-  if (p.kind === "back") return `<div class="page cover back"><div class="cover-in"><img src="img/ui-rocket.webp" alt="" style="width:90px"><span class="cover-top">${tx("הַמַּסָּע נִמְשָׁךְ...")}</span></div></div>`;
+  if (p.kind === "back") return `<div class="page cover back"><div class="cover-in"><img src="img/ui-rocket.webp" alt="" style="width:90px"><span class="cover-top">${tx("הַמַּסָּע נִמְשָׁךְ...")}</span>${CREDIT()}</div></div>`;
   if (p.kind === "inside") return `<div class="page paper inside"><div class="plate"><span>${tx("הַסֵּפֶר הַזֶּה שַׁיָּךְ לְ:")}</span><b>${esc(S.name || "")}</b>
       <img src="img/ui-ufo.webp" alt="" style="width:70px"></div><span class="pnum">${n}</span></div>`;
   if (p.kind === "blank") return `<div class="page paper"><span class="pnum">${n}</span></div>`;
@@ -2232,6 +2238,7 @@ function renderParents() {
       <div id="confirmZone"></div>
     </section>
     <div class="row"><button class="btn" data-go="home">חזרה למסע</button></div>
+    ${CREDIT()}
   </div>`;
 }
 

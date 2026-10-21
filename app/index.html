@@ -413,11 +413,12 @@ details[open] summary { margin-bottom: 8px; }
 .panel .toolbox { background: var(--paper); border: 0; }
 .intro .qtag { margin-bottom: 4px; }
 /* illustrated art */
-.avatar { position: relative; width: 100%; }
+.avatar { position: relative; width: 100%; isolation: isolate; }
+.avatar .av-tint { position: absolute; inset: 0; z-index: 1; mix-blend-mode: multiply; opacity: .9; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; pointer-events: none; }
 .avatar .av-base { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
 .avatar .av-acc { position: absolute; height: auto; transform: translate(-50%, -50%); filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .25)); }
 .avatar .av-hat { z-index: 2; }
-.avatar .av-halo { position: absolute; left: 12%; right: 12%; bottom: -2%; height: 14%; border-radius: 50%; background: radial-gradient(closest-side, var(--halo), transparent); opacity: .85; }
+.avatar .av-halo { position: absolute; left: 12%; right: 12%; bottom: -2%; height: 14%; border-radius: 50%; background: radial-gradient(closest-side, var(--halo), transparent); opacity: .6; }
 .orb { background: none !important; box-shadow: none !important; width: 104px; height: 104px; }
 .orb::before, .orb::after { display: none; }
 .pimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .45)); transition: filter .3s; }
@@ -819,7 +820,7 @@ function speak(text) {
 }
 
 /* ---------- the child's character ---------- */
-const SUITS = ["#FF6B6B", "#FFA928", "#2FCB8A", "#4D8CFF", "#A66BFF", "#FF6FC8"];
+const SUITS = ["#FFFFFF", "#FF6B6B", "#FFA928", "#FFD43B", "#2FCB8A", "#4D8CFF", "#A66BFF", "#FF6FC8"];
 const CHARS = [
   { id: "astro", name: "אַסְטְרוֹנָאוּט" },
   { id: "robot", name: "רוֹבּוֹט" },
@@ -840,6 +841,16 @@ const SHOP = [
   { slot: "hat", id: "tophat", name: "מִגְבַּעַת", price: 25 },
   { slot: "hat", id: "grad", name: "כּוֹבַע חָכָם", price: 30 },
   { slot: "hat", id: "crown", name: "כֶּתֶר", price: 45 },
+  { slot: "hat", id: "tiara", name: "נֵזֶר", price: 40, fit: [3, .85] },
+  { slot: "hat", id: "partyhat", file: "party", name: "כּוֹבַע מְסִבָּה", price: 20, fit: [-5, .7] },
+  { slot: "hat", id: "catears", name: "אָזְנֵי חָתוּל", price: 20, fit: [4, 1.1] },
+  { slot: "hat", id: "bunnyears", name: "אָזְנֵי אַרְנָב", price: 25, fit: [-3, 1] },
+  { slot: "hat", id: "flowercrown", name: "זֵר פְּרָחִים", price: 25, fit: [5, 1.15] },
+  { slot: "hat", id: "chef", name: "כּוֹבַע שֶׁף", price: 25, fit: [-3, .9] },
+  { slot: "hat", id: "cowboy", name: "כּוֹבַע בּוֹקֵרִים", price: 30, fit: [1, 1.25] },
+  { slot: "hat", id: "pirate", name: "כּוֹבַע פִּירָאטִים", price: 35, fit: [1, 1.2] },
+  { slot: "hat", id: "wizard", name: "כּוֹבַע קוֹסֵם", price: 40, fit: [-5, 1.15] },
+  { slot: "hat", id: "headphones", name: "אוֹזְנִיּוֹת", price: 30, fit: [22, 1.7] },
   { slot: "face", id: "glasses", name: "מִשְׁקָפַיִם", price: 15 },
   { slot: "face", id: "shades", name: "מִשְׁקְפֵי שֶׁמֶשׁ", price: 25 },
   { slot: "hand", id: "balloon", name: "בָּלוֹן", price: 15 },
@@ -864,7 +875,7 @@ const SHOP = [
   { slot: "back", id: "angel", name: "כַּנְפֵי מַלְאָךְ", price: 50, fit: [-6, 1.3] },
   { slot: "back", id: "dragonwings", name: "כַּנְפֵי דְּרָקוֹן", price: 55, fit: [-8, 1.3] },
   { slot: "back", id: "jetpack", name: "תַּרְמִיל רָקֵטָה", price: 60, fit: [4, .8] },
-].map(it => ({ ...it, img: `img/${it.slot === "pet" ? "pet" : it.slot === "back" ? "back" : "acc"}-${it.id}.webp` }));
+].map(it => ({ ...it, img: `img/${it.slot === "pet" ? "pet" : it.slot === "back" ? "back" : "acc"}-${it.file || it.id}.webp` }));
 const STICKERS = { h1: "🚀", h2: "🛸", h3: "🛰️", h4: "🔭", h5: "🌙", h6: "☄️", h7: "🏆",
   s1: "⭐", s2: "👽", s3: "🪐", s4: "🌍", s5: "🌠", s6: "🌞", s7: "🧑‍🚀", s8: "🏅" };
 const PLANETS = [["#FF8A65", "#C2361A"], ["#FFD54F", "#E07B00"], ["#4DD0E1", "#00727F"], ["#C77DFF", "#6A1B9A"],
@@ -872,6 +883,8 @@ const PLANETS = [["#FF8A65", "#C2361A"], ["#FFD54F", "#E07B00"], ["#4DD0E1", "#0
 const COIN_RIGHT = 3, COIN_STAR = 5;
 
 const AV_ART = { astro: "img/char-astro.webp", robot: "img/char-robot.webp" };
+// the white parts of each drawn suit, used to paint the chosen colour while keeping the drawing's shading
+const AV_MASK = { astro: "img/mask-astro.webp", robot: "img/mask-robot.webp" };
 // where each accessory sits on each character: [centre x %, centre y %, width %]
 const ANCHORS = {
   astro: { ratio: 1, hat: [50, 5, 40], face: [50, 27, 30], hand: [87, 55, 20], pet: [13, 86, 30], back: [50, 50, 80] },
@@ -922,7 +935,8 @@ function baseSVG(type, c) {
 }
 function avatarSVG(av = S.av, cls = "") {
   const type = ANCHORS[av.type] ? av.type : "astro", A = ANCHORS[type], c = av.color || SUITS[3];
-  const base = AV_ART[type] ? `<img class="av-base" src="${AV_ART[type]}" alt="">` : baseSVG(type, c);
+  const tint = AV_MASK[type] && c.toUpperCase() !== "#FFFFFF" ? `<span class="av-tint" style="background:${c};-webkit-mask-image:url(${AV_MASK[type]});mask-image:url(${AV_MASK[type]})"></span>` : "";
+  const base = AV_ART[type] ? `<img class="av-base" src="${AV_ART[type]}" alt="">${tint}` : baseSVG(type, c === "#FFFFFF" ? "#E8ECF8" : c);
   const acc = slot => { const it = SHOP.find(x => x.id === av[slot]); if (!it) return ""; const [x, y, w] = A[slot], [dy, k] = it.fit || [0, 1];
     return `<img class="av-acc av-${slot}" src="${it.img}" alt="" style="left:${x}%;top:${y + dy}%;width:${w * k}%">`; };
   return `<div class="avatar ${cls}" style="aspect-ratio:${A.ratio};--halo:${c}" aria-hidden="true"><span class="av-halo"></span>${acc("back")}${base}${acc("pet")}${acc("hat")}${acc("face")}${acc("hand")}</div>`;

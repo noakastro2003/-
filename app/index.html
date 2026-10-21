@@ -823,6 +823,7 @@ function speak(text) {
 const SUITS = ["#FFFFFF", "#FF6B6B", "#FFA928", "#FFD43B", "#2FCB8A", "#4D8CFF", "#A66BFF", "#FF6FC8"];
 const CHARS = [
   { id: "astro", name: "אַסְטְרוֹנָאוּט" },
+  { id: "girl", name: "אַסְטְרוֹנָאוּטִית" },
   { id: "robot", name: "רוֹבּוֹט" },
   { id: "alien", name: "חַיְזָר" },
   { id: "cat", name: "חֲתוּל חָלָל" },
@@ -882,15 +883,16 @@ const PLANETS = [["#FF8A65", "#C2361A"], ["#FFD54F", "#E07B00"], ["#4DD0E1", "#0
   ["#7EDC8A", "#1E7A36"], ["#FF8FC0", "#B0175C"], ["#8FC3FF", "#1B54B8"], ["#FFC15E", "#B85A00"]];
 const COIN_RIGHT = 3, COIN_STAR = 5;
 
-const AV_ART = { astro: "img/char-astro.webp", robot: "img/char-robot.webp" };
+const AV_ART = { astro: "img/char-astro.webp", girl: "img/char-girl.webp", robot: "img/char-robot.webp", alien: "img/char-alien.webp", cat: "img/char-cat.webp" };
 // the white parts of each drawn suit, used to paint the chosen colour while keeping the drawing's shading
-const AV_MASK = { astro: "img/mask-astro.webp", robot: "img/mask-robot.webp" };
+const AV_MASK = { astro: "img/mask-astro.webp", girl: "img/mask-girl.webp", robot: "img/mask-robot.webp", alien: "img/mask-alien.webp", cat: "img/mask-cat.webp" };
 // where each accessory sits on each character: [centre x %, centre y %, width %]
 const ANCHORS = {
   astro: { ratio: 1, hat: [50, 5, 40], face: [50, 27, 30], hand: [87, 55, 20], pet: [13, 86, 30], back: [50, 50, 80] },
   robot: { ratio: 1, hat: [50, 11, 38], face: [50, 33, 32], hand: [88, 68, 20], pet: [13, 86, 30], back: [50, 54, 78] },
-  alien: { ratio: 148 / 170, hat: [50, 10, 46], face: [50, 33, 46], hand: [82, 72, 22], pet: [12, 88, 34], back: [50, 58, 82] },
-  cat: { ratio: 148 / 170, hat: [50, 8, 44], face: [50, 35, 40], hand: [82, 72, 22], pet: [12, 88, 34], back: [50, 58, 82] },
+  girl: { ratio: 1, hat: [50, 5, 42], face: [50, 28, 30], hand: [81, 61, 20], pet: [14, 87, 30], back: [50, 52, 78] },
+  alien: { ratio: 1, hat: [50, 5, 42], face: [50, 29, 32], hand: [87, 59, 20], pet: [13, 87, 30], back: [50, 52, 80] },
+  cat: { ratio: 1, hat: [50, 5, 42], face: [50, 30, 30], hand: [87, 59, 20], pet: [12, 88, 28], back: [50, 52, 80] },
 };
 function baseSVG(type, c) {
   const ink = 'stroke="#1B2147" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';

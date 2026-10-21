@@ -4,8 +4,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Sans+Hebrew:wght@400;600;800&family=Rubik:wght@400;500;700&display=swap">
 <style>
-@font-face { font-family: "Noa Bubble"; src: url("fonts/NoaBubble-Regular.otf") format("opentype"); font-display: swap; }
-@font-face { font-family: "Noa Hand"; src: url("fonts/NoaHandwriting-Regular.otf") format("opentype"); font-display: swap; }
+@font-face { font-family: "Noa Nikud"; src: url("fonts/NoaNikud-Bold.otf") format("opentype"); font-weight: 400 900; font-display: swap; }
 
 /* Layout: a space adventure. A starfield backdrop; every bit of reading sits on light "mission cards" so text stays crisp.
    Home = a galaxy map: planets on a dotted route, the child's own character hovering at the next stop. */
@@ -30,11 +29,11 @@
   --card: #FFFFFF;
   --line: #DCE0F2;
   --coin: #FFB300;
-  --f-display: "Noa Bubble", "Fredoka", "Rubik", sans-serif;
+  --f-display: "Fredoka", "Rubik", "Noto Sans Hebrew", sans-serif;
   --f-fun: "Fredoka", "Rubik", "Noto Sans Hebrew", Arial, sans-serif;
   --f-read: "Noto Sans Hebrew", Arial, sans-serif;
   --f-ui: "Rubik", "Noto Sans Hebrew", Arial, sans-serif;
-  --f-hand: "Noa Hand", "Rubik", Arial, sans-serif;
+  --f-hand: "Noa Nikud", "Rubik", Arial, sans-serif;
   --read-size: 1.35rem;
   color-scheme: dark;
 }
@@ -71,7 +70,9 @@ button { cursor: pointer; }
 
 /* top bar */
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
-.brand { font-family: var(--f-display); font-size: 1.9rem; line-height: 1; margin-inline-end: auto; background: none; border: 0; padding: 4px 0; color: var(--on-space); -webkit-text-stroke: 1.2px currentColor; }
+.brand { font-family: var(--f-display); font-weight: 700; font-size: 1.85rem; line-height: 1.1; margin-inline-end: auto; border: 0; padding: 2px 2px 4px; letter-spacing: .01em;
+  color: transparent; background: linear-gradient(180deg, #FFF6B8 0%, #FFD23F 45%, #FF9A1F 100%); -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(1.5px 0 0 #2A1670) drop-shadow(-1.5px 0 0 #2A1670) drop-shadow(0 1.5px 0 #2A1670) drop-shadow(0 -1.5px 0 #2A1670) drop-shadow(0 3px 0 #2A1670) drop-shadow(0 0 12px rgba(255, 200, 60, .45)); }
 .chip { display: inline-flex; align-items: center; gap: 6px; border: 0; background: var(--card); border-radius: 999px; padding: 7px 13px; font-size: .95rem; font-weight: 500; box-shadow: 0 3px 0 rgba(0, 0, 0, .25); }
 .chip[aria-pressed="true"] { background: var(--pen-soft); }
 .chip.hud { font-family: var(--f-fun); font-weight: 700; font-variant-numeric: tabular-nums; font-size: 1.05rem; }
@@ -224,7 +225,7 @@ textarea { width: 100%; min-height: 130px; border: 2px solid var(--line); border
 
 /* intro + summary */
 .intro { display: grid; gap: 18px; max-width: 760px; margin: 0 auto; }
-.intro h2 { font-family: var(--f-display); font-weight: 400; font-size: clamp(2rem, 6vw, 3rem); margin: 0; line-height: 1.15; text-wrap: balance; }
+.intro h2 { font-family: var(--f-display); font-weight: 700; font-size: clamp(2rem, 6vw, 3rem); margin: 0; line-height: 1.15; text-wrap: balance; }
 .toolbox { background: var(--card); border: 1.5px solid var(--line); border-radius: 18px; padding: 16px 18px; }
 .toolbox h3 { margin: 0 0 8px; font-size: 1.05rem; color: var(--pen); }
 .toolbox ol { margin: 0; padding-inline-start: 1.4em; font-family: var(--f-read); font-size: calc(var(--read-size) * .92); line-height: 1.9; }
@@ -234,7 +235,7 @@ textarea { width: 100%; min-height: 130px; border: 2px solid var(--line); border
 .big-stars .on:nth-child(2) { animation-delay: .18s; }
 .big-stars .on:nth-child(3) { animation-delay: .36s; }
 @keyframes pop { from { transform: scale(0) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
-.stamp { font-family: var(--f-hand); font-size: clamp(2.4rem, 9vw, 3.6rem); color: var(--oops); transform: rotate(-6deg); border: 3px solid var(--oops); border-radius: 14px; padding: 2px 22px; line-height: 1.35; animation: pop .6s .5s cubic-bezier(.3,1.6,.5,1) both; }
+.stamp { font-family: var(--f-hand); font-weight: 700; font-size: clamp(2.2rem, 8vw, 3.2rem); color: var(--oops); transform: rotate(-6deg); border: 3px solid var(--oops); border-radius: 14px; padding: 2px 22px; line-height: 1.35; animation: pop .6s .5s cubic-bezier(.3,1.6,.5,1) both; }
 .review { width: 100%; display: grid; gap: 10px; text-align: start; }
 .review .it { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 4px; }
 .review .it.ok { border-inline-start: 6px solid var(--good); }
@@ -245,7 +246,7 @@ textarea { width: 100%; min-height: 130px; border: 2px solid var(--line); border
 
 /* parents */
 .parents { display: grid; gap: 22px; max-width: 820px; margin: 0 auto; font-size: 1.02rem; }
-.parents h2 { font-family: var(--f-display); font-weight: 400; font-size: clamp(2rem, 6vw, 2.8rem); margin: 0; }
+.parents h2 { font-family: var(--f-display); font-weight: 700; font-size: clamp(2rem, 6vw, 2.8rem); margin: 0; }
 .parents h3 { font-size: 1.25rem; margin: 0 0 8px; }
 .parents section { background: var(--card); border: 1.5px solid var(--line); border-radius: 18px; padding: 18px 20px; }
 .parents p { margin: 0 0 8px; max-width: 68ch; }
@@ -351,7 +352,7 @@ details[open] summary { margin-bottom: 8px; }
 .summary { text-align: center; justify-items: center; }
 .big-stars { font-size: 3.6rem; letter-spacing: 8px; color: var(--line); line-height: 1; }
 .big-stars .on { color: var(--star); text-shadow: 0 0 18px rgba(255, 197, 49, .6); }
-.stamp { color: var(--pen); border-color: var(--pen); }
+.stamp { color: var(--pen); border-color: var(--pen); line-height: 1.7; padding: 0 22px; }
 .earned { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 .earned span { display: inline-flex; align-items: center; gap: 6px; background: var(--star-soft); border-radius: 999px; padding: 6px 16px; font-family: var(--f-fun); font-weight: 700; font-size: 1.2rem; }
 .new-sticker { display: grid; justify-items: center; gap: 6px; }
@@ -501,7 +502,7 @@ img.flag { width: 34px; height: 34px; object-fit: contain; top: -14px; }
 .pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .polaroid { margin: 0; background: #FFFFFF; padding: 8px 8px 4px; border-radius: 4px; box-shadow: 0 6px 14px rgba(40, 30, 10, .25); transform: rotate(var(--tilt)); }
 .ph-in { background: radial-gradient(circle at 50% 40%, #3A47B0, #141B5C); border-radius: 2px; padding: 6px 12px 2px; }
-.polaroid figcaption { text-align: center; font-family: var(--f-hand); font-size: 1.2rem; color: var(--ink-soft); }
+.polaroid figcaption { text-align: center; font-family: var(--f-hand); font-weight: 700; font-size: 1.35rem; color: var(--ink); }
 .empty-note { font-family: var(--f-read); font-size: 1.05rem; line-height: 1.8; text-align: center; margin: auto 0; color: var(--ink-soft); }
 .book-nav { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
 .pdots { display: flex; gap: 6px; }
@@ -539,7 +540,7 @@ img.flag { width: 34px; height: 34px; object-fit: contain; top: -14px; }
 .album-wrap { overflow: hidden; padding-block: 6px; }
 .page.inside { justify-content: center; align-items: center; }
 .plate { display: grid; justify-items: center; gap: 8px; border: 3px double #C9A86A; border-radius: 14px; padding: 18px 22px; font-family: var(--f-read); text-align: center; }
-.plate b { font-family: var(--f-hand); font-size: 2rem; color: var(--pen); min-width: 6em; border-bottom: 2px dashed #C9A86A; }
+.plate b { font-family: var(--f-hand); font-weight: 700; font-size: 2.6rem; line-height: 1.5; color: #2A1F8F; min-width: 6em; border-bottom: 2px dashed #C9A86A; }
 .book3d .cover-av { width: 50%; }
 .book3d.spread .sgrid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); }
 @media (max-width: 480px) { .book3d .page { padding: 16px 14px 30px; } .sgrid .sticker { width: 64px; height: 64px; font-size: 2.1rem; } }
@@ -1288,7 +1289,7 @@ function renderHome() {
     }).join("")}
   </div>
   ${galaxyHTML(t)}
-  ${allDone ? `<div class="cert"><div class="hand">כל הכבוד${S.name ? " " + esc(S.name) : ""}!</div><p style="font-family:var(--f-read)">${tx("עָבַרְתָּ אֶת כָּל כּוֹכְבֵי הַלֶּכֶת וְאָסַפְתָּ")} ${totalStars()} ${tx("כּוֹכָבִים. אַתָּה מוּכָן לְיוֹם הַשִּׁגּוּר!")}</p></div>` : ""}
+  ${allDone ? `<div class="cert"><div class="hand">${tx("כָּל הַכָּבוֹד")}${S.name ? " " + esc(S.name) : ""}!</div><p style="font-family:var(--f-read)">${tx("עָבַרְתָּ אֶת כָּל כּוֹכְבֵי הַלֶּכֶת וְאָסַפְתָּ")} ${totalStars()} ${tx("כּוֹכָבִים. אַתָּה מוּכָן לְיוֹם הַשִּׁגּוּר!")}</p></div>` : ""}
   <div class="home-foot">
     <span>כל כוכב לכת לוקח 10 עד 15 דקות. מומלץ אחד ביום.</span>
     <button class="btn ghost" data-go="parents">להורים: איך לעזור בבית</button>
@@ -2065,7 +2066,7 @@ function finish() {
 function renderSummary() {
   const s = ST(), stars = run.stars, T = TRACKS[run.t];
   const msg = stars === 3 ? "וָואוּ! עֲבוֹדָה מְצֻיֶּנֶת!" : stars === 2 ? "יָפֶה מְאוֹד! עוֹד קְצָת תִּרְגּוּל וְזֶה מֻשְׁלָם." : "הִתְחָלָה טוֹבָה! כְּדַאי לְנַסּוֹת אֶת הַמְּשִׂימָה שׁוּב.";
-  const stamp = stars === 3 ? "כל הכבוד!" : stars === 2 ? "יפה מאוד!" : "ממשיכים!";
+  const stamp = stars === 3 ? "כָּל הַכָּבוֹד!" : stars === 2 ? "יָפֶה מְאוֹד!" : "מַמְשִׁיכִים!";
   const hasNext = run.i + 1 < T.stations.length;
   let review = "";
   if (s.test) {
@@ -2087,7 +2088,7 @@ function renderSummary() {
     <div class="big-stars" aria-label="${stars} כוכבים">${[1, 2, 3].map(k => `<span class="${k <= stars ? "on" : ""}">★</span>`).join("")}</div>
     <div class="earned"><span><img class="ic" src="img/ui-coin.webp" alt=""> +${run.coins}</span></div>
     ${run.newSticker || run.goldUp ? `<div class="new-sticker"><span class="lbl">${tx(run.newSticker ? "מַדְבֵּקָה חֲדָשָׁה לָאַלְבּוֹם!" : "הַמַּדְבֵּקָה שֶׁלְּךָ נַעֲשְׂתָה זְהֻבָּה!")}</span><span class="sticker reveal ${stars === 3 ? "gold" : ""}">${STICKERS[s.id]}</span></div>` : ""}
-    <div class="stamp">${stamp}</div>
+    <div class="stamp">${tx(stamp)}</div>
     <div class="guide" style="text-align:start;max-width:520px">${avatarSVG(S.av)}<div class="bubble"><p style="font-family:var(--f-read);font-size:1.15rem;line-height:1.9">${tx(msg)}</p>
       <p>${tx(s.test ? "בִּצַּעְתָּ נָכוֹן" : "עֲנִיתָ נָכוֹן בַּפַּעַם הָרִאשׁוֹנָה עַל")} ${run.right} ${tx("מִתּוֹךְ")} ${run.scored}${tx(s.test ? "." : " שְׁאֵלוֹת.")}</p></div></div>
     ${review}

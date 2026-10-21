@@ -401,6 +401,25 @@ details[open] summary { margin-bottom: 8px; }
 .panel.intro h2, .panel.summary h2 { font-family: var(--f-fun); -webkit-text-stroke: 0; color: var(--ink); }
 .panel .toolbox { background: var(--paper); border: 0; }
 .intro .qtag { margin-bottom: 4px; }
+/* illustrated art */
+.avatar { position: relative; width: 100%; }
+.avatar .av-base { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+.avatar .av-acc { position: absolute; height: auto; transform: translate(-50%, -50%); filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .25)); }
+.avatar .av-hat { z-index: 2; }
+.avatar .av-halo { position: absolute; left: 12%; right: 12%; bottom: -2%; height: 14%; border-radius: 50%; background: radial-gradient(closest-side, var(--halo), transparent); opacity: .85; }
+.orb { background: none !important; box-shadow: none !important; width: 104px; height: 104px; }
+.orb::before, .orb::after { display: none; }
+.pimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .45)); transition: filter .3s; }
+.planet.test .orb { width: 124px; height: 124px; }
+.pn { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: rgba(20, 24, 70, .72); border: 2px solid rgba(255, 255, 255, .85); font-size: 1.25rem; }
+.planet.locked .orb { filter: grayscale(.95) brightness(.5); }
+.planet.done .pimg { filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 10px rgba(47, 203, 138, .9)); }
+.planet.next .orb { animation: none; }
+.planet.next .pimg { animation: pglow 1.8s ease-in-out infinite; }
+@keyframes pglow { 50% { filter: drop-shadow(0 0 18px rgba(255, 197, 49, .95)); transform: scale(1.06); } }
+.mini-planet { width: 76px; height: 76px; object-fit: contain; flex: 0 0 76px; }
+.shop-item img.e { width: 64px; height: 64px; object-fit: contain; }
+@media (max-width: 560px) { .orb { width: 92px; height: 92px; } .planet.test .orb { width: 110px; height: 110px; } }
 </style>
 
 <div class="app" dir="rtl" lang="he">
@@ -787,37 +806,39 @@ const SLOTS = [
   { id: "pet", name: "חַיַּת מַחְמָד" },
 ];
 const SHOP = [
-  { slot: "hat", id: "flower", e: "🌸", name: "פֶּרַח", price: 10 },
-  { slot: "hat", id: "cap", e: "🧢", name: "כּוֹבַע", price: 15 },
-  { slot: "hat", id: "bow", e: "🎀", name: "סֶרֶט", price: 15 },
-  { slot: "hat", id: "tophat", e: "🎩", name: "מִגְבַּעַת", price: 25 },
-  { slot: "hat", id: "grad", e: "🎓", name: "כּוֹבַע חָכָם", price: 30 },
-  { slot: "hat", id: "crown", e: "👑", name: "כֶּתֶר", price: 45 },
-  { slot: "face", id: "glasses", e: "👓", name: "מִשְׁקָפַיִם", price: 15 },
-  { slot: "face", id: "shades", e: "🕶️", name: "מִשְׁקְפֵי שֶׁמֶשׁ", price: 25 },
-  { slot: "hand", id: "star", e: "⭐", name: "כּוֹכָב", price: 10 },
-  { slot: "hand", id: "balloon", e: "🎈", name: "בָּלוֹן", price: 15 },
-  { slot: "hand", id: "icecream", e: "🍦", name: "גְּלִידָה", price: 15 },
-  { slot: "hand", id: "books", e: "📚", name: "סְפָרִים", price: 20 },
-  { slot: "hand", id: "wand", e: "🪄", name: "שַׁרְבִיט", price: 30 },
-  { slot: "pet", id: "turtle", e: "🐢", name: "צָב", price: 25 },
-  { slot: "pet", id: "dog", e: "🐶", name: "כֶּלֶב", price: 30 },
-  { slot: "pet", id: "kitten", e: "🐱", name: "חָתוּל", price: 30 },
-  { slot: "pet", id: "octopus", e: "🐙", name: "תְּמָנוּן", price: 35 },
-  { slot: "pet", id: "dino", e: "🦖", name: "דִּינוֹזָאוּר", price: 40 },
-  { slot: "pet", id: "unicorn", e: "🦄", name: "חַד־קֶרֶן", price: 50 },
-];
+  { slot: "hat", id: "flower", name: "פֶּרַח", price: 10 },
+  { slot: "hat", id: "cap", name: "כּוֹבַע", price: 15 },
+  { slot: "hat", id: "bow", name: "סֶרֶט", price: 15 },
+  { slot: "hat", id: "tophat", name: "מִגְבַּעַת", price: 25 },
+  { slot: "hat", id: "grad", name: "כּוֹבַע חָכָם", price: 30 },
+  { slot: "hat", id: "crown", name: "כֶּתֶר", price: 45 },
+  { slot: "face", id: "glasses", name: "מִשְׁקָפַיִם", price: 15 },
+  { slot: "face", id: "shades", name: "מִשְׁקְפֵי שֶׁמֶשׁ", price: 25 },
+  { slot: "hand", id: "balloon", name: "בָּלוֹן", price: 15 },
+  { slot: "hand", id: "wand", name: "שַׁרְבִיט קֶסֶם", price: 30 },
+  { slot: "pet", id: "turtle", name: "צָב", price: 25 },
+  { slot: "pet", id: "dog", name: "כֶּלֶב", price: 30 },
+  { slot: "pet", id: "kitten", name: "חָתוּל", price: 30 },
+  { slot: "pet", id: "octopus", name: "תְּמָנוּן", price: 35 },
+  { slot: "pet", id: "dino", name: "דִּינוֹזָאוּר", price: 40 },
+  { slot: "pet", id: "unicorn", name: "חַד־קֶרֶן", price: 50 },
+].map(it => ({ ...it, img: `img/${it.slot === "pet" ? "pet" : "acc"}-${it.id}.webp` }));
 const STICKERS = { h1: "🚀", h2: "🛸", h3: "🛰️", h4: "🔭", h5: "🌙", h6: "☄️", h7: "🏆",
   s1: "⭐", s2: "👽", s3: "🪐", s4: "🌍", s5: "🌠", s6: "🌞", s7: "🧑‍🚀", s8: "🏅" };
 const PLANETS = [["#FF8A65", "#C2361A"], ["#FFD54F", "#E07B00"], ["#4DD0E1", "#00727F"], ["#C77DFF", "#6A1B9A"],
   ["#7EDC8A", "#1E7A36"], ["#FF8FC0", "#B0175C"], ["#8FC3FF", "#1B54B8"], ["#FFC15E", "#B85A00"]];
 const COIN_RIGHT = 3, COIN_STAR = 5;
 
-function avatarSVG(av = S.av, cls = "") {
-  const c = av.color || SUITS[3], type = av.type || "astro";
+const AV_ART = { astro: "img/char-astro.webp", robot: "img/char-robot.webp" };
+// where each accessory sits on each character: [centre x %, centre y %, width %]
+const ANCHORS = {
+  astro: { ratio: 1, hat: [50, 5, 40], face: [50, 27, 30], hand: [87, 55, 20], pet: [13, 86, 30] },
+  robot: { ratio: 1, hat: [50, 11, 38], face: [50, 33, 32], hand: [88, 68, 20], pet: [13, 86, 30] },
+  alien: { ratio: 148 / 170, hat: [50, 10, 46], face: [50, 33, 46], hand: [82, 72, 22], pet: [12, 88, 34] },
+  cat: { ratio: 148 / 170, hat: [50, 8, 44], face: [50, 35, 40], hand: [82, 72, 22], pet: [12, 88, 34] },
+};
+function baseSVG(type, c) {
   const ink = 'stroke="#1B2147" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
-  const item = slot => { const it = SHOP.find(x => x.id === av[slot]); return it ? it.e : ""; };
-  const em = (e, x, y, size) => e ? `<text x="${x}" y="${y}" font-size="${size}" text-anchor="middle" dominant-baseline="central">${e}</text>` : "";
   const body = `
     <rect x="40" y="112" width="16" height="26" rx="7" fill="${c}" ${ink}/><rect x="64" y="112" width="16" height="26" rx="7" fill="${c}" ${ink}/>
     <rect x="37" y="132" width="21" height="11" rx="5.5" fill="#1B2147"/><rect x="62" y="132" width="21" height="11" rx="5.5" fill="#1B2147"/>
@@ -825,9 +846,8 @@ function avatarSVG(av = S.av, cls = "") {
     <rect x="31" y="70" width="58" height="50" rx="19" fill="${c}" ${ink}/>
     <rect x="46" y="82" width="28" height="16" rx="5" fill="#FFFFFF" stroke="#1B2147" stroke-width="2"/>
     <circle cx="53" cy="90" r="2.7" fill="#FF5A5A"/><circle cx="60" cy="90" r="2.7" fill="#FFC531"/><circle cx="67" cy="90" r="2.7" fill="#2FCB8A"/>`;
-  const hat = item("hat");
   let head = "";
-  if (type === "astro") head = `${hat ? "" : `<path d="M60 14V5" ${ink}/><circle cx="60" cy="4" r="4.5" fill="#FFC531" stroke="#1B2147" stroke-width="2"/>`}
+  if (type === "astro") head = `<path d="M60 14V5" ${ink}/><circle cx="60" cy="4" r="4.5" fill="#FFC531" stroke="#1B2147" stroke-width="2"/>
     <circle cx="60" cy="44" r="32" fill="#F4F6FF" ${ink}/>
     <rect x="33" y="27" width="54" height="36" rx="18" fill="#28337E" stroke="#1B2147" stroke-width="2.5"/>
     <ellipse cx="50" cy="44" rx="5.5" ry="6.5" fill="#FFFFFF"/><ellipse cx="70" cy="44" rx="5.5" ry="6.5" fill="#FFFFFF"/>
@@ -835,14 +855,14 @@ function avatarSVG(av = S.av, cls = "") {
     <path d="M53 54 Q60 59 67 54" stroke="#FFFFFF" stroke-width="2.6" fill="none" stroke-linecap="round"/>
     <circle cx="42" cy="53" r="3" fill="#FF8FB1" opacity=".8"/><circle cx="78" cy="53" r="3" fill="#FF8FB1" opacity=".8"/>
     <path d="M39 34 Q43 30 49 30" stroke="#FFFFFF" stroke-width="3" opacity=".55" fill="none" stroke-linecap="round"/>`;
-  if (type === "robot") head = `${hat ? "" : `<path d="M60 14V5" ${ink}/><circle cx="60" cy="4" r="4.5" fill="#FF5A5A" stroke="#1B2147" stroke-width="2"/>`}
+  if (type === "robot") head = `<path d="M60 14V5" ${ink}/><circle cx="60" cy="4" r="4.5" fill="#FF5A5A" stroke="#1B2147" stroke-width="2"/>
     <rect x="20" y="34" width="10" height="18" rx="4" fill="#AEB8D6" stroke="#1B2147" stroke-width="2.5"/><rect x="90" y="34" width="10" height="18" rx="4" fill="#AEB8D6" stroke="#1B2147" stroke-width="2.5"/>
     <rect x="27" y="13" width="66" height="58" rx="15" fill="#DCE3F5" ${ink}/>
     <rect x="36" y="23" width="48" height="36" rx="10" fill="#1E2A5A"/>
     <circle cx="50" cy="40" r="6.5" fill="#5CE1FF"/><circle cx="70" cy="40" r="6.5" fill="#5CE1FF"/>
     <circle cx="52" cy="38" r="2" fill="#FFFFFF"/><circle cx="72" cy="38" r="2" fill="#FFFFFF"/>
     <path d="M51 51 Q60 56 69 51" stroke="#5CE1FF" stroke-width="3" fill="none" stroke-linecap="round"/>`;
-  if (type === "alien") head = `${hat ? "" : `<path d="M47 18 L39 4 M73 18 L81 4" ${ink}/><circle cx="39" cy="4" r="4.5" fill="#FF6FC8" stroke="#1B2147" stroke-width="2"/><circle cx="81" cy="4" r="4.5" fill="#FF6FC8" stroke="#1B2147" stroke-width="2"/>`}
+  if (type === "alien") head = `<path d="M47 18 L39 4 M73 18 L81 4" ${ink}/><circle cx="39" cy="4" r="4.5" fill="#FF6FC8" stroke="#1B2147" stroke-width="2"/><circle cx="81" cy="4" r="4.5" fill="#FF6FC8" stroke="#1B2147" stroke-width="2"/>
     <ellipse cx="60" cy="42" rx="35" ry="30" fill="#7BE07B" ${ink}/>
     <circle cx="45" cy="40" r="7" fill="#FFFFFF" stroke="#1B2147" stroke-width="2"/><circle cx="60" cy="31" r="7" fill="#FFFFFF" stroke="#1B2147" stroke-width="2"/><circle cx="75" cy="40" r="7" fill="#FFFFFF" stroke="#1B2147" stroke-width="2"/>
     <circle cx="46" cy="41" r="3.4" fill="#1B2147"/><circle cx="61" cy="32" r="3.4" fill="#1B2147"/><circle cx="76" cy="41" r="3.4" fill="#1B2147"/>
@@ -856,10 +876,14 @@ function avatarSVG(av = S.av, cls = "") {
     <path d="M44 52 L30 50 M44 55 L31 57 M76 52 L90 50 M76 55 L89 57" stroke="#1B2147" stroke-width="1.6" stroke-linecap="round"/>
     <circle cx="60" cy="40" r="38" fill="#BDE7FF" fill-opacity=".18" stroke="#BDE7FF" stroke-width="3"/>
     <path d="M34 26 Q40 14 54 10" stroke="#FFFFFF" stroke-width="3" opacity=".6" fill="none" stroke-linecap="round"/>`;
-  return `<svg class="avatar ${cls}" viewBox="-14 -18 148 170" aria-hidden="true">
-    ${em(item("pet"), -2, 132, 30)}${body}${head}
-    ${em(hat, 60, type === "cat" ? 2 : 6, 34)}${em(item("face"), 60, type === "alien" ? 38 : 43, 34)}${em(item("hand"), 104, 108, 26)}
-  </svg>`;
+  return `<svg class="av-base" viewBox="-14 -18 148 170">${body}${head}</svg>`;
+}
+function avatarSVG(av = S.av, cls = "") {
+  const type = ANCHORS[av.type] ? av.type : "astro", A = ANCHORS[type], c = av.color || SUITS[3];
+  const base = AV_ART[type] ? `<img class="av-base" src="${AV_ART[type]}" alt="">` : baseSVG(type, c);
+  const acc = slot => { const it = SHOP.find(x => x.id === av[slot]); if (!it) return ""; const [x, y, w] = A[slot];
+    return `<img class="av-acc av-${slot}" src="${it.img}" alt="" style="left:${x}%;top:${y}%;width:${w}%">`; };
+  return `<div class="avatar ${cls}" style="aspect-ratio:${A.ratio};--halo:${c}" aria-hidden="true"><span class="av-halo"></span>${base}${acc("pet")}${acc("hat")}${acc("face")}${acc("hand")}</div>`;
 }
 
 /* ---------- dates: countdown to the assessment ("launch day") ---------- */
@@ -978,6 +1002,7 @@ function makeSky() {
 }
 
 /* ---------- galaxy map ---------- */
+const planetArt = (t, i, s) => s.test ? "img/planet-final.webp" : `img/planet-${(i + t * 3) % 8}.webp`;
 const planetPos = i => ({ x: 50 + 26 * Math.sin(i * 1.35 + .5), y: 90 + i * 150 });
 function galaxyHTML(t) {
   const T = TRACKS[t], n = T.stations.length, H = 90 + (n - 1) * 150 + 130;
@@ -987,11 +1012,10 @@ function galaxyHTML(t) {
   for (let i = 1; i < n; i++) d += ` C${pts[i - 1].x} ${pts[i - 1].y + 75} ${pts[i].x} ${pts[i].y - 75} ${pts[i].x} ${pts[i].y}`;
   const planets = T.stations.map((s, i) => {
     const r = S.st[s.id] || {}, open = unlocked(t, i), stars = r.stars || 0, p = pts[i];
-    const [c1, c2] = s.test ? ["#FFE27A", "#E08A00"] : PLANETS[(i + t * 3) % PLANETS.length];
+    const art = planetArt(t, i, s);
     const cls = ["planet", r.done ? "done" : "", i === nextIdx ? "next" : "", open ? "" : "locked", s.test ? "test" : ""].join(" ");
-    return `<button class="${cls}" style="left:${p.x}%;top:${p.y}px;--c1:${c1};--c2:${c2}" data-station="${i}" ${open ? "" : 'aria-disabled="true"'} aria-label="${esc(plain(s.title))}">
-      ${s.test || i % 3 === 1 ? `<span class="ring"></span>` : ""}
-      <span class="orb">${r.done ? `<span class="flag">🚩</span>` : ""}<span class="pn">${open ? (s.test ? "🏁" : i + 1) : "🔒"}</span></span>
+    return `<button class="${cls}" style="left:${p.x}%;top:${p.y}px" data-station="${i}" ${open ? "" : 'aria-disabled="true"'} aria-label="${esc(plain(s.title))}">
+      <span class="orb"><img class="pimg" src="${art}" alt="">${r.done ? `<span class="flag">🚩</span>` : ""}${s.test && open ? "" : `<span class="pn">${open ? i + 1 : "🔒"}</span>`}</span>
       <span class="plabel"><b>${tx(s.title)}</b><span class="pstars">${[1, 2, 3].map(k => `<span class="${k <= stars ? "on" : ""}">★</span>`).join("")}</span></span>
     </button>`;
   }).join("");
@@ -1085,7 +1109,7 @@ function renderShop() {
     items = `<button class="shop-item ${!S.av[cat] ? "on" : ""}" data-wear="" data-slot="${cat}"><span class="e">🚫</span><span class="nm">${tx("בְּלִי")}</span></button>` +
       SHOP.filter(it => it.slot === cat).map(it => {
         const own = S.owned.includes(it.id), on = S.av[cat] === it.id, poor = !own && S.coins < it.price;
-        return `<button class="shop-item ${on ? "on" : ""} ${poor ? "poor" : ""}" data-item="${it.id}"><span class="e">${it.e}</span><span class="nm">${tx(it.name)}</span>
+        return `<button class="shop-item ${on ? "on" : ""} ${poor ? "poor" : ""}" data-item="${it.id}"><img class="e" src="${it.img}" alt=""><span class="nm">${tx(it.name)}</span>
           <span class="pr ${own ? "own" : ""}">${on ? tx("לוֹבֵשׁ ✓") : own ? tx("שֶׁלִּי") : "🪙 " + it.price}</span></button>`;
       }).join("");
   }
@@ -1121,9 +1145,9 @@ function renderAlbum() {
 
 /* ---------- station intro ---------- */
 function renderIntro() {
-  const s = ST(), [c1, c2] = s.test ? ["#FFE27A", "#E08A00"] : PLANETS[(run.i + run.t * 3) % PLANETS.length];
+  const s = ST();
   return bar() + `<div class="panel intro">
-    <div class="intro-head"><span class="orb mini-orb" style="--c1:${c1};--c2:${c2}"><span class="pn">${s.test ? "🏁" : run.i + 1}</span></span>
+    <div class="intro-head"><img class="mini-planet" src="${planetArt(run.t, run.i, s)}" alt="">
       <div><span class="qtag">${tx(TRACKS[run.t].name)}</span><h2>${esc(plain(s.title))}</h2></div></div>
     <div class="guide">${avatarSVG(S.av)}<div class="bubble">${s.owl.map(l => `<p style="font-family:var(--f-read);font-size:calc(var(--read-size)*.95);line-height:1.9">${tx(l)}</p>`).join("")}</div>
       <button class="speak" data-say="${esc(s.owl.join(" "))}" aria-label="הקראה">${SPEAK}</button></div>

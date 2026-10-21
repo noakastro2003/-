@@ -46,6 +46,7 @@ body::before { content: ""; position: fixed; inset: 0; z-index: -2;
     radial-gradient(ellipse 50% 40% at 92% 28%, rgba(0, 190, 255, .22), transparent 70%),
     radial-gradient(ellipse 70% 40% at 50% 105%, rgba(255, 80, 180, .2), transparent 70%),
     linear-gradient(180deg, var(--space), var(--space-2)); }
+body::after { content: ""; position: fixed; inset: 0; z-index: -2; background: url("img/bg-portrait.webp") center / cover no-repeat; }
 #sky { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
 #sky i { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #FFFFFF; opacity: .7; animation: twinkle 3s ease-in-out infinite; }
 #sky i.big { width: 3px; height: 3px; box-shadow: 0 0 6px #FFFFFF; }
@@ -420,6 +421,22 @@ details[open] summary { margin-bottom: 8px; }
 .mini-planet { width: 76px; height: 76px; object-fit: contain; flex: 0 0 76px; }
 .shop-item img.e { width: 64px; height: 64px; object-fit: contain; }
 @media (max-width: 560px) { .orb { width: 92px; height: 92px; } .planet.test .orb { width: 110px; height: 110px; } }
+.chip .ic { width: 24px; height: 24px; object-fit: contain; }
+.chip.icon .ic { width: 26px; height: 26px; }
+.tic { width: 18px; height: 18px; object-fit: contain; vertical-align: -3px; }
+.h-ic { width: 40px; height: 40px; object-fit: contain; vertical-align: -6px; }
+.tab .gx img { width: 40px; height: 40px; object-fit: contain; }
+img.flag { width: 34px; height: 34px; object-fit: contain; top: -14px; }
+.pn img { width: 24px; height: 24px; object-fit: contain; }
+.prog .rk { width: 34px; height: auto; font-size: 0; transform: translate(50%, -55%); }
+.speak img { width: 24px; height: 24px; object-fit: contain; }
+#fx .spark.coin img { width: 30px; height: 30px; display: block; }
+.earned .ic { width: 26px; height: 26px; }
+.wallet .ic { width: 26px; height: 26px; vertical-align: -5px; }
+.avatar .av-back { z-index: 0; }
+.avatar .av-base { z-index: 1; }
+.avatar .av-pet, .avatar .av-face, .avatar .av-hand { z-index: 2; }
+.avatar .av-hat { z-index: 3; }
 </style>
 
 <div class="app" dir="rtl" lang="he">
@@ -777,7 +794,7 @@ const isChoice = q => q.type === "mc" || q.type === "fill";
 const pick = a => a[Math.floor(Math.random() * a.length)];
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, 2600); }
 
-const SPEAK = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;
+const SPEAK = `<img src="img/ui-speaker.webp" alt="">`;
 
 /* speech + sound, both only after a tap */
 let actx = null;
@@ -804,6 +821,7 @@ const SLOTS = [
   { id: "face", name: "מִשְׁקָפַיִם" },
   { id: "hand", name: "בַּיָּד" },
   { id: "pet", name: "חַיַּת מַחְמָד" },
+  { id: "back", name: "עַל הַגַּב" },
 ];
 const SHOP = [
   { slot: "hat", id: "flower", name: "פֶּרַח", price: 10 },
@@ -822,7 +840,21 @@ const SHOP = [
   { slot: "pet", id: "octopus", name: "תְּמָנוּן", price: 35 },
   { slot: "pet", id: "dino", name: "דִּינוֹזָאוּר", price: 40 },
   { slot: "pet", id: "unicorn", name: "חַד־קֶרֶן", price: 50 },
-].map(it => ({ ...it, img: `img/${it.slot === "pet" ? "pet" : "acc"}-${it.id}.webp` }));
+  { slot: "pet", id: "bunny", name: "אַרְנָב", price: 25 },
+  { slot: "pet", id: "penguin", name: "פִּינְגְּוִין", price: 30 },
+  { slot: "pet", id: "fox", name: "שׁוּעָל", price: 30 },
+  { slot: "pet", id: "panda", name: "פַּנְדָּה", price: 35 },
+  { slot: "pet", id: "owl", name: "יַנְשׁוּף קוֹרֵא", price: 35 },
+  { slot: "pet", id: "blob", name: "חַיְזָרוֹן", price: 35 },
+  { slot: "pet", id: "robodog", name: "כֶּלֶב רוֹבּוֹט", price: 45 },
+  { slot: "pet", id: "dragon", name: "דְּרָקוֹן", price: 50 },
+  { slot: "back", id: "cape", name: "גְּלִימַת גִּבּוֹר", price: 35, fit: [8, 1] },
+  { slot: "back", id: "rainbowcape", name: "גְּלִימַת קֶשֶׁת", price: 40, fit: [8, 1] },
+  { slot: "back", id: "butterfly", name: "כַּנְפֵי פַּרְפַּר", price: 45, fit: [-4, 1.25] },
+  { slot: "back", id: "angel", name: "כַּנְפֵי מַלְאָךְ", price: 50, fit: [-6, 1.3] },
+  { slot: "back", id: "dragonwings", name: "כַּנְפֵי דְּרָקוֹן", price: 55, fit: [-8, 1.3] },
+  { slot: "back", id: "jetpack", name: "תַּרְמִיל רָקֵטָה", price: 60, fit: [4, .8] },
+].map(it => ({ ...it, img: `img/${it.slot === "pet" ? "pet" : it.slot === "back" ? "back" : "acc"}-${it.id}.webp` }));
 const STICKERS = { h1: "🚀", h2: "🛸", h3: "🛰️", h4: "🔭", h5: "🌙", h6: "☄️", h7: "🏆",
   s1: "⭐", s2: "👽", s3: "🪐", s4: "🌍", s5: "🌠", s6: "🌞", s7: "🧑‍🚀", s8: "🏅" };
 const PLANETS = [["#FF8A65", "#C2361A"], ["#FFD54F", "#E07B00"], ["#4DD0E1", "#00727F"], ["#C77DFF", "#6A1B9A"],
@@ -832,10 +864,10 @@ const COIN_RIGHT = 3, COIN_STAR = 5;
 const AV_ART = { astro: "img/char-astro.webp", robot: "img/char-robot.webp" };
 // where each accessory sits on each character: [centre x %, centre y %, width %]
 const ANCHORS = {
-  astro: { ratio: 1, hat: [50, 5, 40], face: [50, 27, 30], hand: [87, 55, 20], pet: [13, 86, 30] },
-  robot: { ratio: 1, hat: [50, 11, 38], face: [50, 33, 32], hand: [88, 68, 20], pet: [13, 86, 30] },
-  alien: { ratio: 148 / 170, hat: [50, 10, 46], face: [50, 33, 46], hand: [82, 72, 22], pet: [12, 88, 34] },
-  cat: { ratio: 148 / 170, hat: [50, 8, 44], face: [50, 35, 40], hand: [82, 72, 22], pet: [12, 88, 34] },
+  astro: { ratio: 1, hat: [50, 5, 40], face: [50, 27, 30], hand: [87, 55, 20], pet: [13, 86, 30], back: [50, 50, 80] },
+  robot: { ratio: 1, hat: [50, 11, 38], face: [50, 33, 32], hand: [88, 68, 20], pet: [13, 86, 30], back: [50, 54, 78] },
+  alien: { ratio: 148 / 170, hat: [50, 10, 46], face: [50, 33, 46], hand: [82, 72, 22], pet: [12, 88, 34], back: [50, 58, 82] },
+  cat: { ratio: 148 / 170, hat: [50, 8, 44], face: [50, 35, 40], hand: [82, 72, 22], pet: [12, 88, 34], back: [50, 58, 82] },
 };
 function baseSVG(type, c) {
   const ink = 'stroke="#1B2147" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
@@ -881,9 +913,9 @@ function baseSVG(type, c) {
 function avatarSVG(av = S.av, cls = "") {
   const type = ANCHORS[av.type] ? av.type : "astro", A = ANCHORS[type], c = av.color || SUITS[3];
   const base = AV_ART[type] ? `<img class="av-base" src="${AV_ART[type]}" alt="">` : baseSVG(type, c);
-  const acc = slot => { const it = SHOP.find(x => x.id === av[slot]); if (!it) return ""; const [x, y, w] = A[slot];
-    return `<img class="av-acc av-${slot}" src="${it.img}" alt="" style="left:${x}%;top:${y}%;width:${w}%">`; };
-  return `<div class="avatar ${cls}" style="aspect-ratio:${A.ratio};--halo:${c}" aria-hidden="true"><span class="av-halo"></span>${base}${acc("pet")}${acc("hat")}${acc("face")}${acc("hand")}</div>`;
+  const acc = slot => { const it = SHOP.find(x => x.id === av[slot]); if (!it) return ""; const [x, y, w] = A[slot], [dy, k] = it.fit || [0, 1];
+    return `<img class="av-acc av-${slot}" src="${it.img}" alt="" style="left:${x}%;top:${y + dy}%;width:${w * k}%">`; };
+  return `<div class="avatar ${cls}" style="aspect-ratio:${A.ratio};--halo:${c}" aria-hidden="true"><span class="av-halo"></span>${acc("back")}${base}${acc("pet")}${acc("hat")}${acc("face")}${acc("hand")}</div>`;
 }
 
 /* ---------- dates: countdown to the assessment ("launch day") ---------- */
@@ -929,7 +961,7 @@ function flyCoins(rect, amount) {
   const L = fxLayer(), tr = tgt.getBoundingClientRect();
   const n = Math.min(amount, 5);
   for (let i = 0; i < n; i++) {
-    const s = document.createElement("span"); s.className = "spark"; s.textContent = "🪙"; s.style.fontSize = "1.6rem";
+    const s = document.createElement("span"); s.className = "spark coin"; s.innerHTML = `<img src="img/ui-coin.webp" alt="">`;
     s.style.left = rect.left + rect.width / 2 + "px"; s.style.top = rect.top + rect.height / 2 + "px"; L.appendChild(s);
     const dx = tr.left + tr.width / 2 - (rect.left + rect.width / 2), dy = tr.top + tr.height / 2 - (rect.top + rect.height / 2);
     s.animate([{ transform: "translate(-50%,-50%) scale(.6)", opacity: 0 }, { transform: `translate(calc(-50% + ${(Math.random() - .5) * 60}px), calc(-50% - 50px)) scale(1.1)`, opacity: 1, offset: .3 },
@@ -1002,7 +1034,8 @@ function makeSky() {
 }
 
 /* ---------- galaxy map ---------- */
-const planetArt = (t, i, s) => s.test ? "img/planet-final.webp" : `img/planet-${(i + t * 3) % 8}.webp`;
+const PLANET_ORDER = [[0, 1, 2, 3, 4, 5], [8, 9, 6, 11, 12, 13, 10]];
+const planetArt = (t, i, s) => s.test ? "img/planet-final.webp" : `img/planet-${PLANET_ORDER[t][i] ?? (i % 14)}.webp`;
 const planetPos = i => ({ x: 50 + 26 * Math.sin(i * 1.35 + .5), y: 90 + i * 150 });
 function galaxyHTML(t) {
   const T = TRACKS[t], n = T.stations.length, H = 90 + (n - 1) * 150 + 130;
@@ -1015,7 +1048,7 @@ function galaxyHTML(t) {
     const art = planetArt(t, i, s);
     const cls = ["planet", r.done ? "done" : "", i === nextIdx ? "next" : "", open ? "" : "locked", s.test ? "test" : ""].join(" ");
     return `<button class="${cls}" style="left:${p.x}%;top:${p.y}px" data-station="${i}" ${open ? "" : 'aria-disabled="true"'} aria-label="${esc(plain(s.title))}">
-      <span class="orb"><img class="pimg" src="${art}" alt="">${r.done ? `<span class="flag">🚩</span>` : ""}${s.test && open ? "" : `<span class="pn">${open ? i + 1 : "🔒"}</span>`}</span>
+      <span class="orb"><img class="pimg" src="${art}" alt="">${r.done ? `<img class="flag" src="img/ui-flag.webp" alt="">` : ""}${s.test && open ? "" : `<span class="pn">${open ? i + 1 : `<img src="img/ui-lock.webp" alt="נעול">`}</span>`}</span>
       <span class="plabel"><b>${tx(s.title)}</b><span class="pstars">${[1, 2, 3].map(k => `<span class="${k <= stars ? "on" : ""}">★</span>`).join("")}</span></span>
     </button>`;
   }).join("");
@@ -1035,11 +1068,11 @@ function bar() {
   const home = view.name === "home";
   return `<div class="bar">
     <button class="brand" data-go="home" aria-label="למפת המסע">${home ? "" : "מסע הקריאה"}</button>
-    <span class="chip hud" title="כוכבים"><span class="ic">⭐</span>${totalStars()}</span>
-    <span class="chip hud" id="coinChip" title="מטבעות"><span class="ic">🪙</span>${S.coins}</span>
-    ${home ? `<button class="chip" data-go="album">📒 ${tx("אַלְבּוֹם")}</button><button class="chip" data-go="shop">👕 ${tx("חֲדַר הַלְבָּשָׁה")}</button>` : ""}
+    <span class="chip hud" title="כוכבים"><img class="ic" src="img/ui-star.webp" alt="">${totalStars()}</span>
+    <span class="chip hud" id="coinChip" title="מטבעות"><img class="ic" src="img/ui-coin.webp" alt="">${S.coins}</span>
+    ${home ? `<button class="chip" data-go="album"><img class="ic" src="img/ui-chest.webp" alt="">${tx("אַלְבּוֹם")}</button><button class="chip" data-go="shop"><img class="ic" src="img/ui-gift.webp" alt="">${tx("חֲדַר הַלְבָּשָׁה")}</button>` : ""}
     ${view.name !== "parents" ? `<button class="chip" data-go="parents">להורים</button>` : ""}
-    <button class="chip icon" data-act="settings" aria-pressed="${ui.settings}" aria-label="הגדרות">⚙️</button>
+    <button class="chip icon" data-act="settings" aria-pressed="${ui.settings}" aria-label="הגדרות"><img class="ic" src="img/ui-gear.webp" alt=""></button>
   </div>
   ${ui.settings ? `<div class="settings">
     <button class="chip" data-act="nikud" aria-pressed="${S.nikud}">${S.nikud ? "נִקּוּד: כֵּן" : "ניקוד: לא"}</button>
@@ -1085,9 +1118,9 @@ function renderHome() {
     ${TRACKS.map((tr, k) => {
       const d = tr.stations.filter(done).length;
       return `<button class="tab ${k === t ? "on" : ""}" role="tab" aria-selected="${k === t}" data-track="${k}">
-        <span class="gx">${k === 0 ? "🛸" : "🪐"}</span>
+        <span class="gx"><img src="img/ui-${k === 0 ? "ufo" : "ringed"}.webp" alt=""></span>
         <span class="tt"><span class="tn">${tx(tr.name)}${tr.badge ? `<span class="badge">${tx(tr.badge)}</span>` : ""}</span>
-        <span class="ts">${tx(tr.sub)}</span><span class="ts">🚩 ${d} / ${tr.stations.length}</span></span></button>`;
+        <span class="ts">${tx(tr.sub)}</span><span class="ts"><img class="tic" src="img/ui-flag.webp" alt=""> ${d} / ${tr.stations.length}</span></span></button>`;
     }).join("")}
   </div>
   ${galaxyHTML(t)}
@@ -1110,19 +1143,19 @@ function renderShop() {
       SHOP.filter(it => it.slot === cat).map(it => {
         const own = S.owned.includes(it.id), on = S.av[cat] === it.id, poor = !own && S.coins < it.price;
         return `<button class="shop-item ${on ? "on" : ""} ${poor ? "poor" : ""}" data-item="${it.id}"><img class="e" src="${it.img}" alt=""><span class="nm">${tx(it.name)}</span>
-          <span class="pr ${own ? "own" : ""}">${on ? tx("לוֹבֵשׁ ✓") : own ? tx("שֶׁלִּי") : "🪙 " + it.price}</span></button>`;
+          <span class="pr ${own ? "own" : ""}">${on ? tx("לוֹבֵשׁ ✓") : own ? tx("שֶׁלִּי") : `<img class="tic" src="img/ui-coin.webp" alt=""> ${it.price}`}</span></button>`;
       }).join("");
   }
   return bar() + `<div class="panel">
-    <h2>👕 ${tx("חֲדַר הַהַלְבָּשָׁה")}</h2>
+    <h2><img class="h-ic" src="img/ui-gift.webp" alt=""> ${tx("חֲדַר הַהַלְבָּשָׁה")}</h2>
     <div class="shop-grid">
-      <div class="stage">${avatarSVG(S.av, "float")}<span class="wallet">🪙 ${S.coins}</span></div>
+      <div class="stage">${avatarSVG(S.av, "float")}<span class="wallet"><img class="ic" src="img/ui-coin.webp" alt=""> ${S.coins}</span></div>
       <div>
         <div class="cats" role="tablist">${cats.map(([id, nm]) => `<button class="${cat === id ? "on" : ""}" data-cat="${id}">${tx(nm)}</button>`).join("")}</div>
         <div class="items">${items}</div>
       </div>
     </div>
-    <p class="how">${tx("אֵיךְ מַרְוִיחִים מַטְבְּעוֹת?")} ${tx("כָּל תְּשׁוּבָה נְכוֹנָה בַּפַּעַם הָרִאשׁוֹנָה")} = 🪙 ${COIN_RIGHT}. ${tx("כָּל כּוֹכָב בְּסוֹף מְשִׂימָה")} = 🪙 ${COIN_STAR}.</p>
+    <p class="how">${tx("אֵיךְ מַרְוִיחִים מַטְבְּעוֹת?")} ${tx("כָּל תְּשׁוּבָה נְכוֹנָה בַּפַּעַם הָרִאשׁוֹנָה")} = <img class="tic" src="img/ui-coin.webp" alt=""> ${COIN_RIGHT}. ${tx("כָּל כּוֹכָב בְּסוֹף מְשִׂימָה")} = <img class="tic" src="img/ui-coin.webp" alt=""> ${COIN_STAR}.</p>
     <div class="row"><button class="btn" data-go="home">🚀 ${tx("חֲזָרָה לַמַּפָּה")}</button></div>
   </div>`;
 }
@@ -1131,7 +1164,7 @@ function renderShop() {
 function renderAlbum() {
   const got = ALL.filter(done).length;
   return bar() + `<div class="panel">
-    <h2>📒 ${tx("אַלְבּוֹם הַמַּדְבֵּקוֹת")}</h2>
+    <h2><img class="h-ic" src="img/ui-chest.webp" alt=""> ${tx("אַלְבּוֹם הַמַּדְבֵּקוֹת")}</h2>
     <p style="margin:0;font-family:var(--f-read)">${tx("עַל כָּל כּוֹכַב לֶכֶת שֶׁמְּסַיְּמִים מְקַבְּלִים מַדְבֵּקָה. עִם 3 כּוֹכָבִים הִיא נַעֲשֵׂית זְהֻבָּה!")} <b>${got} / ${ALL.length}</b></p>
     ${TRACKS.map(tr => `<div><h3 style="margin:0 0 10px;font-family:var(--f-read)">${tx(tr.name)}</h3><div class="album">
       ${tr.stations.map((s, i) => {
@@ -1196,7 +1229,7 @@ function renderPlay() {
   const dots = s.questions.map((qq, i) => {
     const r = run.res[i];
     return `<i class="${i === run.qi ? "cur" : r === true ? "ok" : r === false ? (s.test ? "ok" : "miss") : r === "open" ? "ok" : ""}"></i>`;
-  }).join("") + `<span class="rk" style="inset-inline-start:${((run.qi + .5) / s.questions.length * 100).toFixed(1)}%">🚀</span>`;
+  }).join("") + `<img class="rk" src="img/ui-rocket.webp" alt="" style="inset-inline-start:${((run.qi + .5) / s.questions.length * 100).toFixed(1)}%">`;
   const head = `<div class="crumbs"><h2>${tx(s.title)}</h2><span class="chip">${tx("שְׁאֵלָה")} ${run.qi + 1} ${tx("מִתּוֹךְ")} ${s.questions.length}</span><div class="prog" aria-hidden="true">${dots}</div></div>`;
   if (isTask(q) || !(q.text || s.text)) return bar() + head + `<div class="task"><section class="qcard" aria-live="polite">${renderTask(s, q, st)}</section></div>`;
   return bar() + head + `
@@ -1723,7 +1756,7 @@ function renderSummary() {
   return bar() + `<div class="panel summary">
     <h2>${esc(plain(s.title))}</h2>
     <div class="big-stars" aria-label="${stars} כוכבים">${[1, 2, 3].map(k => `<span class="${k <= stars ? "on" : ""}">★</span>`).join("")}</div>
-    <div class="earned"><span>🪙 +${run.coins}</span></div>
+    <div class="earned"><span><img class="ic" src="img/ui-coin.webp" alt=""> +${run.coins}</span></div>
     ${run.newSticker || run.goldUp ? `<div class="new-sticker"><span class="lbl">${tx(run.newSticker ? "מַדְבֵּקָה חֲדָשָׁה לָאַלְבּוֹם!" : "הַמַּדְבֵּקָה שֶׁלְּךָ נַעֲשְׂתָה זְהֻבָּה!")}</span><span class="sticker reveal ${stars === 3 ? "gold" : ""}">${STICKERS[s.id]}</span></div>` : ""}
     <div class="stamp">${stamp}</div>
     <div class="guide" style="text-align:start;max-width:520px">${avatarSVG(S.av)}<div class="bubble"><p style="font-family:var(--f-read);font-size:1.15rem;line-height:1.9">${tx(msg)}</p>

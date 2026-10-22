@@ -691,6 +691,10 @@ function deviceId() {
   try { let d = localStorage.getItem("gm-device"); if (!d) { d = "d" + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem("gm-device", d); } return d; } catch (e) { return ""; }
 }
 async function syncMyProgress() {
+  if (ON_SITE && S.code) {
+    try { await api("progress", { method: "POST", body: { code: S.code, rec: myRecord(), state: S } }); ui.synced = Date.now(); } catch (e) {}
+    return;
+  }
   if (ON_SITE) {
     const dev = deviceId(); if (!dev) return;
     const id = (dev + "-" + b64e(profileId(S)).replace(/[^A-Za-z0-9]/g, "")).slice(0, 120);
@@ -720,14 +724,14 @@ async function copyCode() {
 }
 
 /* teacher: live class table */
-const CLS = { progress: [], roster: [], loaded: false, err: "" };
+const CLS = { progress: [], roster: [], students: [], loaded: false, err: "" };
 let clsUnsubs = null;
 async function watchClass() {
   if (clsUnsubs) return;
   clsUnsubs = [];
   if (ON_SITE) {
     const pull = async () => {
-      try { const d = await api("progress", { teacher: true }); CLS.progress = d.progress.map(r => ({ ...r, src: "progress" })); CLS.roster = d.roster.map(r => ({ ...r, src: "roster" })); CLS.err = ""; }
+      try { const [d, st] = await Promise.all([api("progress", { teacher: true }), api("students", { teacher: true })]); CLS.students = st.students; CLS.progress = d.progress.map(r => ({ ...r, src: "progress" })); CLS.roster = d.roster.map(r => ({ ...r, src: "roster" })); CLS.err = ""; }
       catch (e) { CLS.err = e.code; }
       CLS.loaded = true; if (view.name === "teacher" && !ui.typing) draw();
     };
@@ -744,9 +748,12 @@ async function watchClass() {
 }
 function classRows() {
   // one row per child; a roster code and an automatic record for the same name and class: keep the newer
-  const byKey = {};
+  const byKey = {}, studs = Object.fromEntries((CLS.students || []).map(x => [x.code, x]));
+  (CLS.students || []).forEach(x => { byKey["c:" + x.code] = { ...x, st: {}, empty: true, src: "student" }; });
   [...CLS.roster, ...CLS.progress].forEach(r => {
-    const key = (r.k || "") + "|" + (r.n || r.id);
+    if (r.code && studs[r.code]) r = { ...r, n: studs[r.code].n, k: studs[r.code].k };
+    const key = r.code ? "c:" + r.code : (r.k || "") + "|" + (r.n || r.id);
+    if (byKey[key] && byKey[key].empty) delete byKey[key];
     if (!byKey[key] || (r.t || 0) > (byKey[key].t || 0)) byKey[key] = r;
   });
   return Object.values(byKey).map(r => {
@@ -767,7 +774,7 @@ function classDashboardHTML() {
   const avg = k => { const v = shown.map(x => x.pct(k)).filter(p => p !== null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
   const table = shown.length ? `<div class="ttable"><table class="cls">
       <thead><tr><th>תלמיד</th><th>כיתה</th><th>תחנות</th><th>⭐</th>${TABLE_SKILLS.map(k => `<th>${SKILLS[k].name}</th>`).join("")}<th>כדאי לחזק</th><th>עודכן</th><th></th></tr></thead>
-      <tbody>${shown.map(x => `<tr><td class="tn">${esc(x.r.n || "ללא שם")}${x.r.src === "progress" ? ` <span class="src" title="נשלח אוטומטית מהחשבון">●</span>` : ""}</td><td>${esc(x.r.k || "")}</td>
+      <tbody>${shown.map(x => `<tr><td class="tn">${esc(x.r.n || "ללא שם")}${x.r.code ? ` <span class="kcode">${esc(x.r.code)}</span>` : ""}${x.r.empty ? ` <span class="how">עוד לא שיחק</span>` : x.r.src === "progress" ? ` <span class="src" title="נשלח אוטומטית">●</span>` : ""}</td><td>${esc(x.r.k || "")}</td>
         <td>${x.doneN}/${ALL.length}</td><td>${x.stars}</td>${TABLE_SKILLS.map(k => pctCell(x.pct(k))).join("")}
         <td>${x.weak ? SKILLS[x.weak].name : "–"}</td><td>${x.r.t ? fmtDate(ymd(new Date(x.r.t))) : ""}</td>
         <td>${x.r.src === "roster" ? `<button class="mini" data-delrow="${esc(x.r.id)}" aria-label="מחיקה">✕</button>` : ""}</td></tr>`).join("")}
@@ -780,12 +787,45 @@ function classDashboardHTML() {
     <p class="how">אחוז התשובות הנכונות בניסיון הראשון, לפי מיומנות. ירוק 80% ומעלה, צהוב 60% עד 79%, אדום מתחת ל־60%.</p>
     ${classes.length > 1 ? `<div class="row">${["", ...classes].map(c => `<button class="chip klass ${klass === c ? "on" : ""}" data-kf="${esc(c)}">${c ? esc(c) : "כל הכיתות"}</button>`).join("")}</div>` : ""}
     ${table}
+    ${ON_SITE ? studentsHTML(classes) : ""}
     <div class="paste">
       <label for="codeIn"><b>הוספה או עדכון של תלמיד מקוד:</b> ההורה מעתיק את הקוד מ"פינת ההורים" ושולח לך. אפשר להדביק כמה קודים יחד.</label>
       <textarea id="codeIn" rows="3" placeholder="GM1-..."></textarea>
       <div class="row"><button class="btn" data-act="addCodes">הוספה לטבלה</button>${ui.codeMsg ? `<span class="how">${esc(ui.codeMsg)}</span>` : ""}</div>
     </div>
   </section>`;
+}
+function studentsHTML(classes) {
+  const list = (CLS.students || []).slice().sort((a, b) => (a.k || "").localeCompare(b.k || "", "he") || a.n.localeCompare(b.n, "he"));
+  const opts = [...new Set([...(CFG.classes || []), ...classes])];
+  return `<div class="studs">
+    <h4>תלמידים וקודים</h4>
+    <p class="how">כל תלמיד מקבל קוד קבוע של 6 ספרות. הילד כותב אותו פעם אחת בכניסה למשחק, ומאז ההתקדמות שלו מגיעה לכאן מכל מכשיר, וגם נשמרת אם הוא עובר למכשיר אחר.</p>
+    <div class="row add-stud">
+      <input id="newName" maxlength="40" placeholder="שם התלמיד">
+      ${opts.length ? `<select id="newKlass">${opts.map(c => `<option>${esc(c)}</option>`).join("")}</select>` : `<input id="newKlass" maxlength="20" placeholder="כיתה">`}
+      <button class="btn" data-act="addStudent">הוספה וקבלת קוד</button>
+    </div>
+    ${list.length ? `<div class="ttable"><table class="codes"><thead><tr><th>תלמיד</th><th>כיתה</th><th>קוד</th><th></th></tr></thead><tbody>
+      ${list.map(x => `<tr><td>${esc(x.n)}</td><td>${esc(x.k || "")}</td><td class="kcode big">${esc(x.code)}</td><td><button class="mini" data-delstudent="${esc(x.code)}" aria-label="מחיקה">✕</button></td></tr>`).join("")}
+      </tbody></table></div>
+      <div class="row"><button class="btn ghost" data-act="copyList">העתקת רשימת הקודים</button><span class="how">אפשר להדביק בהודעה להורים או במסמך להדפסה.</span></div>` : ""}
+  </div>`;
+}
+async function addStudent() {
+  const n = ($("#newName") || {}).value || "", k = ($("#newKlass") || {}).value || "";
+  if (!n.trim()) return toast("כתבו את שם התלמיד");
+  try { const r = await api("students", { method: "POST", teacher: true, body: { n: n.trim(), k } }); CLS.students = [...(CLS.students || []), { code: r.code, n: n.trim(), k }]; toast(`${n.trim()}: הקוד ${r.code}`); draw(); const f = $("#newName"); if (f) f.focus(); }
+  catch (e) { toast("ההוספה לא הצליחה. נסו שוב."); }
+}
+async function delStudent(code) {
+  if (ui.confirmDel !== code) { ui.confirmDel = code; return toast("לחצו שוב על ✕ כדי למחוק את התלמיד ואת ההתקדמות שלו"); }
+  ui.confirmDel = null;
+  try { await api("students?code=" + code, { method: "DELETE", teacher: true }); CLS.students = CLS.students.filter(x => x.code !== code); CLS.progress = CLS.progress.filter(x => x.code !== code); draw(); } catch (e) { toast("המחיקה לא הצליחה"); }
+}
+async function copyList() {
+  const text = "קודים למשחק גלקסיית המילים (" + location.origin + "):\n" + (CLS.students || []).map(x => `${x.n}${x.k ? " (" + x.k + ")" : ""}: ${x.code}`).join("\n");
+  try { await navigator.clipboard.writeText(text); toast("הרשימה הועתקה"); } catch (e) { toast("ההעתקה לא הצליחה בדפדפן הזה"); }
 }
 async function addCodes() {
   const t = $("#codeIn"); if (!t) return;
@@ -826,7 +866,7 @@ const blank = () => ({ name: "", nikud: true, size: 1, sound: true, unlockAll: f
   av: { type: "astro", color: "#4D8CFF", chosen: false }, owned: [], coins: 0, days: [], photos: [], testDate: "2026-11-02" });
 let S = blank();
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(blank(), JSON.parse(raw)); } catch (e) {}
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+function save() { S.saved = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 // several children can share one device: logging out parks the current child's progress, the welcome screen lists them
 const PKEY = "reading-journey-profiles";
 function loadProfiles() { try { return JSON.parse(localStorage.getItem(PKEY) || "{}") || {}; } catch (e) { return {}; } }
@@ -1221,6 +1261,11 @@ function renderHello() {
   return `<div class="panel" style="margin-top:12px">
     <h2>${tx("בָּרוּךְ הַבָּא לְגַלַּקְסְיַת הַמִּלִּים!")}</h2>
     <p style="margin:0;font-family:var(--f-read);font-size:1.1rem;line-height:1.8">${tx("בְּכָל כּוֹכַב לֶכֶת מְחַכָּה מְשִׂימַת קְרִיאָה. עַל כָּל תְּשׁוּבָה נְכוֹנָה מְקַבְּלִים מַטְבְּעוֹת, וּבָהֶם קוֹנִים בְּגָדִים וְחַיּוֹת לַדְּמוּת שֶׁלְּךָ.")}</p>
+    ${ON_SITE ? `<div class="codebox">
+      ${S.code ? `<b>${tx("מְחֻבָּר עִם קוֹד")} ${esc(S.code)} ✓</b>` : `<label for="kidCode"><b>${tx("יֵשׁ לְךָ קוֹד מֵהַמּוֹרָה?")}</b> ${tx("כִּתְבוּ אוֹתוֹ כָּאן, וְהַמּוֹרָה תִּרְאֶה אֶת הַהִתְקַדְּמוּת שֶׁלְּךָ.")}</label>
+      <div class="row"><input id="kidCode" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="123456" dir="ltr"><button class="btn" data-act="codeLogin">${tx("כְּנִיסָה")}</button></div>
+      ${ui.codeErr ? `<p class="feedback try">${tx(ui.codeErr)}</p>` : ""}`}
+    </div>` : ""}
     <form class="name-field" id="nameForm">
       <label for="kidName" style="font-family:var(--f-read);font-weight:600">${tx("אֵיךְ קוֹרְאִים לְךָ?")}</label>
       <input id="kidName" maxlength="20" autocomplete="off" value="${esc(S.name)}" placeholder="השם שלי">
@@ -2326,6 +2371,7 @@ document.addEventListener("click", e => {
   if (d.login) return login(d.login);
   if (d.kf !== undefined) { ui.klassFilter = d.kf; return draw(); }
   if (d.delrow) return delRow(d.delrow);
+  if (d.delstudent) return delStudent(d.delstudent);
   if (d.role) { if (d.role === "teacher") return go("teacher"); view = { name: "hello" }; return draw(); }
   if (d.klass !== undefined) { S.klass = d.klass; save(); sfx("tap"); return draw(); }
   if (d.feat) { const [tt, i] = d.feat.split(":").map(Number); S.track = tt; save(); if (!unlocked(tt, i)) { draw(); return toast("קֹדֶם מְסַיְּמִים אֶת הַתַּחֲנוֹת שֶׁלִּפְנֵי"); } return startStation(tt, i); }
@@ -2358,6 +2404,9 @@ document.addEventListener("click", e => {
     case "writeDone": return writeDone();
     case "saveCfg": return saveConfig();
     case "logout": return logout();
+    case "codeLogin": return codeLogin(($("#kidCode") || {}).value);
+    case "addStudent": return addStudent();
+    case "copyList": return copyList();
     case "copyCode": return copyCode();
     case "addCodes": return addCodes();
     case "resetDraft": ui.draft = null; ui.saveMsg = ""; return draw();
@@ -2408,6 +2457,25 @@ document.addEventListener("change", e => {
   const k = +c.dataset.check, st = run.q;
   st.checked = c.checked ? [...st.checked, k] : st.checked.filter(x => x !== k);
 });
+async function codeLogin(code) {
+  code = String(code || "").replace(/\D/g, "");
+  if (code.length !== 6) { ui.codeErr = "הַקּוֹד הוּא 6 סְפָרוֹת."; return draw(); }
+  try {
+    const me = await api("me?code=" + code);
+    const prefs = { nikud: S.nikud, size: S.size, sound: S.sound };
+    if (me.state && me.state.av && me.state.av.chosen) {
+      S = Object.assign(blank(), me.state, prefs, { code }); save(); ui.codeErr = "";
+      view = { name: "home" }; ui.scrollMe = true; draw(); return toast(`בָּרוּךְ שׁוּבְךָ, ${S.name || ""}!`);
+    }
+    S.code = code; S.name = me.n || S.name; S.klass = me.k || S.klass; save(); ui.codeErr = "";
+    draw(); toast(`שָׁלוֹם ${S.name}! עַכְשָׁו בַּחֲרוּ דְּמוּת.`);
+  } catch (e) { ui.codeErr = e.status === 404 ? "הַקּוֹד לֹא נִמְצָא. בִּדְקוּ אוֹתוֹ עִם הַמּוֹרָה." : "אֵין חִבּוּר לָאִינְטֶרְנֶט. נַסּוּ שׁוּב."; draw(); }
+}
+// a child with a code who played on another device since: take the newer saved game
+if (ON_SITE && S.code) api("me?code=" + S.code).then(me => {
+  if (me.state && (me.state.saved || 0) > (S.saved || 0) + 1000) { S = Object.assign(blank(), me.state, { nikud: S.nikud, size: S.size, sound: S.sound, code: S.code }); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (view.name !== "play") draw(); }
+}).catch(() => {});
+
 // teacher form fields update the draft settings; nothing is saved until "save and publish"
 function cfgInput(e) {
   const el = e.target, val = el.type === "checkbox" ? el.checked : el.value;

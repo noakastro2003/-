@@ -630,3 +630,10 @@ table.cls .src { color: var(--good); font-size: .7rem; }
 .mini { border: 0; background: none; color: var(--ink-soft); font-size: 1rem; padding: 2px 6px; }
 .tlogin { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .tlogin input { border: 2px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 1.05rem; background: var(--paper); color: var(--ink); min-width: 0; flex: 1 1 200px; }
+.codebox { display: grid; gap: 8px; background: var(--star-soft); border: 2px solid var(--star); border-radius: 16px; padding: 12px 14px; font-family: var(--f-read); }
+.codebox input { border: 2px solid var(--line); border-radius: 12px; padding: 8px 12px; font-size: 1.4rem; letter-spacing: .25em; width: 8.5em; max-width: 100%; background: var(--paper); color: var(--ink); text-align: center; }
+.studs { display: grid; gap: 10px; border-top: 1px dashed var(--line); padding-top: 12px; }
+.studs h4 { margin: 0; }
+.add-stud input, .add-stud select { border: 2px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--paper); color: var(--ink); font-family: var(--f-read); font-size: 1rem; }
+.kcode { font-family: ui-monospace, monospace; direction: ltr; unicode-bidi: isolate; color: var(--pen); font-size: .85rem; }
+.kcode.big { font-size: 1.15rem; font-weight: 700; letter-spacing: .12em; }

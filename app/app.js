@@ -2303,6 +2303,10 @@ async function tapi(path, opts = {}) {
   return data;
 }
 let TEACHER = null, MYSTUDENTS = null;
+// a class sign-up link (?join=ABCDE): remembered for this visit, the teacher's name shown on the sign-in screen
+const JOIN = (() => { try { const q = new URLSearchParams(location.search).get("join"); if (q) sessionStorage.setItem("gm-join", q.toUpperCase()); return sessionStorage.getItem("gm-join") || ""; } catch (e) { return ""; } })();
+let JOIN_TEACHER = null;
+if (ON_SITE && /^[A-Z0-9]{5}$/.test(JOIN)) api("class?code=" + JOIN).then(t => { JOIN_TEACHER = t; if (view.name === "welcome") draw(); }).catch(() => {});
 function applyStudentInfo(me) {
   if (me && me.cfg) CFG = { ...CFG_DEFAULT, ...me.cfg };
   if (me && me.teacher) S.teacherName = me.teacher.name;
@@ -2315,6 +2319,7 @@ function renderSiteWelcome() {
   return `<div class="panel welcome" style="margin-top:12px">
     <div class="brand big">גלקסיית המילים</div>
     <p class="w-sub">${tx("מִשְׂחַק הֲכָנָה לַמִּבְדָּק בְּשָׂפָה, לְכִתָּה ב'")}</p>
+    ${JOIN_TEACHER ? `<div class="join-banner">${tx("הַהַרְשָׁמָה הִיא לַכִּתָּה שֶׁל")} <b>${esc(JOIN_TEACHER.name)}</b>${JOIN_TEACHER.school ? " · " + esc(JOIN_TEACHER.school) : ""}</div>` : ""}
     ${profiles.length ? `<div class="who-plays"><b>${tx("מִי מְשַׂחֵק עַכְשָׁו?")}</b><div class="roles">${profiles.map(([id, st]) =>
       `<button class="role small" data-login="${esc(id)}"><span class="role-av">${avatarSVG(st.av || {})}</span><b>${esc(st.name || "שַׂחְקָן")}</b><span>${st.code ? "קוד " + esc(st.code) : esc(st.klass || "")}</span></button>`).join("")}</div></div>` : ""}
     <div class="signin">
@@ -2334,7 +2339,10 @@ function renderSiteWelcome() {
 // a new student: sign up and get a code (if the site can't be reached, play now and get the code later)
 async function registerStudent() {
   if (S.code) return S.code;
-  try { const r = await api("students/register", { method: "POST", body: { n: S.name || "תַּלְמִיד", k: S.klass || "" } }); S.code = r.code; save(); return r.code; }
+  try {
+    const r = await api("students/register", { method: "POST", body: { n: S.name || "תַּלְמִיד", k: S.klass || "", join: JOIN } });
+    S.code = r.code; if (r.teacher) { S.teacherName = r.teacher.name; S.joined = true; } save(); return r.code;
+  }
   catch (e) { return null; }
 }
 async function siteHelloDone() {
@@ -2353,7 +2361,7 @@ function renderMyCode() {
   return `<div class="panel mycode">
     <h2>${tx("הַקּוֹד שֶׁלְּךָ")}</h2>
     <div class="bigcode" dir="ltr">${esc(S.code || "")}</div>
-    <p>${tx("שִׁלְחוּ אֶת הַקּוֹד לַמּוֹרָה, כְּדֵי שֶׁהִיא תִּרְאֶה אֶת הַהִתְקַדְּמוּת שֶׁלְּךָ.")}</p>
+    <p>${S.joined ? tx("כְּבָר הִצְטָרַפְתֶּם לַכִּתָּה שֶׁל") + " " + esc(S.teacherName || "") + tx(". הִיא רוֹאָה אֶת הַהִתְקַדְּמוּת שֶׁלָּכֶם, וְאֵין צֹרֶךְ לִשְׁלֹחַ לָהּ אֶת הַקּוֹד.") : tx("שִׁלְחוּ אֶת הַקּוֹד לַמּוֹרָה, כְּדֵי שֶׁהִיא תִּרְאֶה אֶת הַהִתְקַדְּמוּת שֶׁלְּךָ.")}</p>
     <p>${tx("שִׁמְרוּ אוֹתוֹ: בְּמַחְשֵׁב אוֹ בְּטַאבְּלֶט אַחֵר נִכְנָסִים עִם הַקּוֹד, וְהַכֹּל מְחַכֶּה לָכֶם שָׁם.")}</p>
     <div class="row" style="justify-content:center"><button class="btn" data-act="copyMyCode">${tx("הַעְתָּקַת הַקּוֹד")}</button><button class="btn go" data-go="home">🚀 ${tx("לַמַּסָּע!")}</button></div>
     <p class="how">${tx("אֶת הַקּוֹד אֶפְשָׁר לִמְצֹא גַּם אַחַר כָּךְ, בְּגַלְגַּל הַשִּׁנַּיִם לְמַעְלָה וּבְפִנַּת הַהוֹרִים.")}</p>
@@ -2388,15 +2396,30 @@ function renderSiteTeacher() {
   if (!TEACHER) return bar() + teacherAuthHTML();
   if (MYSTUDENTS === null) { MYSTUDENTS = []; loadMyStudents(); }
   const tab = ui.ttab || "students";
-  const tabs = [["students", "התלמידים שלי"], ["settings", "הגדרות לכיתה"], ["guide", "מדריך"]];
+  const tabs = [["students", "התלמידים שלי"], ["settings", "הגדרות לכיתה"], ["account", "החשבון שלי"], ["guide", "מדריך"], ...(TEACHER.admin ? [["admin", "ניהול מורות"]] : [])];
   return bar() + `<div class="panel teacher">
     <div class="t-head"><h2>שלום ${esc(TEACHER.name)}</h2><span class="how">${esc(TEACHER.school || "")} · שם משתמש: ${esc(TEACHER.user)}</span>
       <button class="btn ghost" data-act="teacherLogout">יציאה</button></div>
+    ${ui.recovery ? `<div class="recovery"><b>קוד השחזור שלך: <span dir="ltr" class="kcode big">${esc(ui.recovery)}</span></b>
+      <p>אם תשכחי את הסיסמה, בעזרת הקוד הזה תוכלי לבחור סיסמה חדשה. רשמי אותו במקום בטוח. הוא מוצג רק עכשיו.</p>
+      <div class="row"><button class="btn ghost" data-act="copyRecovery">העתקה</button><button class="btn" data-act="hideRecovery">שמרתי את הקוד</button></div></div>` : ""}
     <div class="cats ttabs">${tabs.map(([id, nm]) => `<button class="${tab === id ? "on" : ""}" data-ttab="${id}">${nm}</button>`).join("")}</div>
-    ${tab === "students" ? myStudentsHTML() : tab === "settings" ? teacherSettingsHTML() : guideHTML()}
+    ${tab === "students" ? myStudentsHTML() : tab === "settings" ? teacherSettingsHTML() : tab === "account" ? accountHTML() : tab === "admin" ? adminHTML() : guideHTML()}
   </div>`;
 }
 function teacherAuthHTML() {
+  if (ui.tmode === "forgot") return `<div class="panel teacher auth">
+    <h2>שכחתי סיסמה</h2>
+    <p class="how">מזינים את שם המשתמש ואת <b>קוד השחזור</b> שקיבלת בהרשמה (נראה כך: ABCD-EFGH), ובוחרים סיסמה חדשה. אין לך קוד שחזור? פני לנועה קסטרו, והיא תאפס לך את הסיסמה.</p>
+    <form id="tResetForm" class="tform">
+      <label>שם משתמש<input id="rUser" required maxlength="60" dir="ltr" autocomplete="username"></label>
+      <label>קוד שחזור<input id="rCode" required maxlength="12" dir="ltr" autocomplete="off" placeholder="ABCD-EFGH"></label>
+      <label>סיסמה חדשה (לפחות 6 תווים)<input id="rPass" type="password" required minlength="6" dir="ltr" autocomplete="new-password"></label>
+      <button class="btn go" type="submit">איפוס וכניסה</button>
+    </form>
+    <p id="authMsg" class="feedback try" ${ui.tAuthMsg ? "" : "hidden"}>${esc(ui.tAuthMsg || "")}</p>
+    <p><button class="linkbtn" data-tmode="login">חזרה לכניסה</button></p>
+  </div>`;
   const reg = ui.tmode === "register";
   return `<div class="panel teacher auth">
     <h2>${reg ? "הרשמת מורה" : "כניסת מורים"}</h2>
@@ -2408,25 +2431,35 @@ function teacherAuthHTML() {
       <label>סיסמה${reg ? " (לפחות 6 תווים)" : ""}<input id="tPass" type="password" required minlength="${reg ? 6 : 1}" autocomplete="${reg ? "new-password" : "current-password"}" dir="ltr"></label>
       <button class="btn go" type="submit">${reg ? "הרשמה" : "כניסה"}</button>
     </form>
-    ${ui.tAuthMsg ? `<p class="feedback try">${esc(ui.tAuthMsg)}</p>` : ""}
-    <p>${reg ? `כבר רשומה? <button class="linkbtn" data-tmode="login">כניסה</button>` : `פעם ראשונה כאן? <button class="linkbtn" data-tmode="register">הרשמת מורה חדשה</button>`}</p>
+    <p id="authMsg" class="feedback try" ${ui.tAuthMsg ? "" : "hidden"}>${esc(ui.tAuthMsg || "")}</p>
+    <p>${reg ? `כבר רשומה? <button class="linkbtn" data-tmode="login">כניסה</button>` : `פעם ראשונה כאן? <button class="linkbtn" data-tmode="register">הרשמת מורה חדשה</button> · <button class="linkbtn" data-tmode="forgot">שכחתי סיסמה</button>`}</p>
     <div class="row"><button class="btn ghost" data-go="guide">איך זה עובד?</button><button class="btn ghost" data-act="toWelcome">חזרה למסך הכניסה</button></div>
   </div>`;
 }
 async function teacherAuth() {
   const reg = ui.tmode === "register", v = id => ($("#" + id) || {}).value || "";
   const body = { user: v("tUser").trim().toLowerCase(), pass: v("tPass"), ...(reg ? { name: v("tName"), school: v("tSchool") } : {}) };
-  if (!/^[a-z0-9._@-]{3,60}$/.test(body.user)) { ui.tAuthMsg = "שם המשתמש יכול לכלול אותיות באנגלית, ספרות, נקודה, מקף, קו תחתון ו-@ (לפחות 3 תווים)."; return draw(); }
+  if (!/^[a-z0-9._@-]{3,60}$/.test(body.user)) return authMsg("שם המשתמש יכול לכלול אותיות באנגלית, ספרות, נקודה, מקף, קו תחתון ו-@ (לפחות 3 תווים).");
   try {
     const r = await tapi(reg ? "teachers/register" : "teachers/login", { method: "POST", body });
     try { localStorage.setItem(TTOKEN, r.token); } catch (e) {}
-    TEACHER = r.teacher; MYSTUDENTS = null; ui.tAuthMsg = ""; ui.draft = null; ui.ttab = reg ? "guide" : "students";
+    TEACHER = r.teacher; MYSTUDENTS = null; ui.tAuthMsg = ""; ui.draft = null; ui.ttab = reg ? "guide" : "students"; ui.recovery = r.recovery || null;
     if (reg) toast("נרשמת בהצלחה! הנה המדריך הקצר.");
     draw();
   } catch (e) {
-    ui.tAuthMsg = e.code === "user_taken" ? "שם המשתמש הזה כבר תפוס. בחרי שם אחר." : e.code === "wrong_login" ? "שם המשתמש או הסיסמה לא נכונים." : e.code === "bad_request" ? "חסרים פרטים. בדקי שמילאת שם וסיסמה של 6 תווים לפחות." : "אין חיבור לשרת. נסי שוב.";
-    draw();
+    authMsg(e.code === "user_taken" ? "שם המשתמש הזה כבר תפוס. בחרי שם אחר." : e.code === "wrong_login" ? "שם המשתמש או הסיסמה לא נכונים." : e.code === "bad_request" ? "חסרים פרטים. בדקי שמילאת שם וסיסמה של 6 תווים לפחות." : "אין חיבור לשרת. נסי שוב.");
   }
+}
+// a sign-in error updates only the message, so what the teacher typed stays in the fields
+function authMsg(msg) { ui.tAuthMsg = msg; const el = $("#authMsg"); if (el) { el.textContent = msg; el.hidden = false; } else draw(); }
+async function teacherReset() {
+  const v = id => ($("#" + id) || {}).value || "";
+  try {
+    const r = await tapi("teachers/reset", { method: "POST", body: { user: v("rUser").trim().toLowerCase(), recovery: v("rCode"), pass: v("rPass") } });
+    try { localStorage.setItem(TTOKEN, r.token); } catch (e) {}
+    TEACHER = r.teacher; MYSTUDENTS = null; ui.recovery = r.recovery; ui.tmode = "login"; ui.tAuthMsg = ""; ui.ttab = "students";
+    toast("הסיסמה עודכנה ונכנסת לחשבון"); draw();
+  } catch (e) { authMsg(e.code === "wrong_recovery" ? "שם המשתמש או קוד השחזור לא נכונים." : e.code === "bad_request" ? "הסיסמה החדשה צריכה להיות לפחות 6 תווים." : "אין חיבור לשרת. נסי שוב."); }
 }
 async function teacherLogout() {
   try { await tapi("teachers/logout", { method: "POST" }); } catch (e) {}
@@ -2443,7 +2476,18 @@ function myStudentsHTML() {
   const classes = [...new Set(rows.map(x => x.r.k).filter(Boolean))], klass = ui.klassFilter || "";
   const shown = rows.filter(x => !klass || x.r.k === klass);
   const avg = k => { const v = shown.map(x => x.pct(k)).filter(p => p !== null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+  const link = location.origin + "/?join=" + (TEACHER.classCode || "");
   return `<section class="tsec">
+    ${TEACHER.classCode ? `<div class="classlink">
+      <b>קישור ההרשמה לכיתה שלך</b>
+      <p class="how">שלחי את הקישור להורים. ילד שנרשם דרכו מצטרף לרשימה שלך לבד, בלי לשלוח קוד.</p>
+      <div class="row"><input id="classLink" readonly value="${esc(link)}" dir="ltr"><button class="btn" data-act="copyClassLink">העתקת הקישור</button></div>
+    </div>` : ""}
+    <form class="add-code manual" id="createForm">
+      <label><b>הוספת תלמיד בלי קוד:</b> כותבים שם וכיתה, והתלמיד מקבל קוד שאת מוסרת לו. הוא נכנס עם "יש לי קוד".</label>
+      <div class="row"><input id="newName" maxlength="40" placeholder="שם התלמיד" required><input id="newKlass" maxlength="20" placeholder="כיתה" style="width:7em"><button class="btn" type="submit">יצירת תלמיד</button></div>
+      ${ui.createMsg ? `<p class="feedback good">${ui.createMsg}</p>` : ""}
+    </form>
     <form class="add-code" id="addCodeForm">
       <label for="addCode"><b>הוספת תלמיד:</b> הקלידי את הקוד שהתלמיד שלח לך (6 ספרות)</label>
       <div class="row"><input id="addCode" inputmode="numeric" maxlength="6" placeholder="123456" dir="ltr" autocomplete="off"><button class="btn" type="submit">הוספה למעקב</button></div>
@@ -2462,6 +2506,49 @@ function myStudentsHTML() {
       </table></div>`
       : `<p class="empty-note" style="text-align:start">עוד אין תלמידים במעקב. כשתלמיד נרשם למשחק הוא מקבל קוד של 6 ספרות. בקשי מההורים לשלוח לך אותו, והקלידי אותו כאן.</p>`}
   </section>`;
+}
+async function createStudent() {
+  const n = (($("#newName") || {}).value || "").trim(), k = (($("#newKlass") || {}).value || "").trim();
+  if (!n) return;
+  try { const r = await tapi("teachers/students/create", { method: "POST", body: { n, k } }); ui.createMsg = `נוצר: <b>${esc(n)}</b>, הקוד שלו <span class="kcode big" dir="ltr">${esc(r.code)}</span>`; await loadMyStudents(); const f = $("#newName"); if (f) f.focus(); }
+  catch (e) { ui.createMsg = ""; toast(e.status === 401 ? "צריך להתחבר מחדש" : "היצירה לא הצליחה. נסי שוב."); draw(); }
+}
+function accountHTML() {
+  return `<section class="tsec">
+    <h3>החלפת סיסמה</h3>
+    <form id="pwForm" class="tform">
+      <label>הסיסמה הנוכחית<input id="pwOld" type="password" required dir="ltr" autocomplete="current-password"></label>
+      <label>סיסמה חדשה (לפחות 6 תווים)<input id="pwNew" type="password" required minlength="6" dir="ltr" autocomplete="new-password"></label>
+      <button class="btn" type="submit">החלפה</button>
+    </form>
+    ${ui.pwMsg ? `<p class="how">${esc(ui.pwMsg)}</p>` : ""}
+    <h3>קוד שחזור</h3>
+    <p class="how">קוד השחזור מאפשר לבחור סיסמה חדשה אם שוכחים אותה. יצירת קוד חדש מבטלת את הקוד הקודם.</p>
+    <div class="row"><button class="btn ghost" data-act="newRecovery">יצירת קוד שחזור חדש</button></div>
+  </section>`;
+}
+async function changePassword() {
+  try { await tapi("teachers/password", { method: "POST", body: { old: $("#pwOld").value, pass: $("#pwNew").value } }); ui.pwMsg = "הסיסמה הוחלפה."; }
+  catch (e) { ui.pwMsg = e.code === "wrong_login" ? "הסיסמה הנוכחית לא נכונה." : "ההחלפה לא הצליחה. הסיסמה החדשה צריכה להיות לפחות 6 תווים."; }
+  draw();
+}
+let ADMIN_LIST = null;
+function adminHTML() {
+  if (ADMIN_LIST === null) { ADMIN_LIST = []; tapi("admin/teachers").then(r => { ADMIN_LIST = r.teachers.sort((a, b) => (b.created || 0) - (a.created || 0)); draw(); }).catch(() => {}); }
+  return `<section class="tsec">
+    <p class="how">המורות שרשומות באתר. "איפוס סיסמה" יוצר סיסמה זמנית שאת מוסרת למורה. אחרי שהיא נכנסת, היא מחליפה אותה בלשונית "החשבון שלי".</p>
+    ${ui.tempPass ? `<p class="feedback good">${ui.tempPass}</p>` : ""}
+    <div class="ttable"><table><thead><tr><th>שם</th><th>בית ספר</th><th>שם משתמש</th><th>תלמידים</th><th>נרשמה</th><th></th></tr></thead><tbody>
+      ${ADMIN_LIST.map(x => `<tr><td>${esc(x.name)}</td><td>${esc(x.school)}</td><td dir="ltr">${esc(x.user)}</td><td>${x.students}</td><td>${x.created ? fmtDate(ymd(new Date(x.created))) : ""}</td>
+        <td><button class="btn ghost mini-btn" data-reset="${esc(x.user)}">איפוס סיסמה</button></td></tr>`).join("")}
+    </tbody></table></div>
+  </section>`;
+}
+async function adminReset(user) {
+  if (ui.confirmDel !== "reset:" + user) { ui.confirmDel = "reset:" + user; return toast("לחצי שוב כדי לאפס את הסיסמה של " + user); }
+  ui.confirmDel = null;
+  try { const r = await tapi("admin/reset", { method: "POST", body: { user } }); ui.tempPass = `הסיסמה הזמנית של <b dir="ltr">${esc(user)}</b>: <span class="kcode big" dir="ltr">${esc(r.temp)}</span>`; draw(); }
+  catch (e) { toast("האיפוס לא הצליח"); }
 }
 async function addTracked() {
   const code = (($("#addCode") || {}).value || "").replace(/\D/g, "");
@@ -2494,8 +2581,11 @@ function guideHTML() {
     <h3>מתחילים: 4 צעדים</h3>
     <ol>
       <li><b>נרשמים כמורה:</b> במסך הכניסה לוחצים "כניסת מורים" ← "הרשמת מורה חדשה", ובוחרים שם משתמש וסיסמה.</li>
-      <li><b>שולחים להורים את הקישור למשחק</b> (הכתובת שבשורת הכתובת למעלה), עם בקשה: "הירשמו כתלמיד חדש ושלחו לי את הקוד שהילד מקבל".</li>
-      <li><b>מוסיפים את הקודים:</b> בלשונית "התלמידים שלי" מקלידים כל קוד שקיבלתן ולוחצים "הוספה למעקב".</li>
+      <li><b>שומרים את קוד השחזור</b> שמופיע אחרי ההרשמה. בעזרתו בוחרים סיסמה חדשה אם שוכחים.</li>
+      <li><b>מצרפים תלמידים</b>, בדרך שנוחה לכן (בלשונית "התלמידים שלי"):
+        <ul><li><b>קישור הכיתה (הכי פשוט):</b> מעתיקים את "קישור ההרשמה לכיתה שלך" ושולחים להורים. ילד שנרשם דרכו מצטרף אליכן לבד.</li>
+          <li><b>יצירת תלמיד:</b> כותבים שם וכיתה ומקבלים קוד. מוסרים אותו לילד, והוא נכנס עם "יש לי קוד".</li>
+          <li><b>קוד מתלמיד:</b> ילד שנרשם בלי הקישור מקבל קוד ושולח לכן. מקלידים אותו ב"הוספה למעקב".</li></ul></li>
       <li><b>מגדירים מה לומדים:</b> בלשונית "הגדרות לכיתה" קובעים אילו תחנות פתוחות, מתי נפתחות, מה משימת השבוע, ואת תאריך המבדק. לוחצים "שמירה".</li>
     </ol>
 
@@ -2520,7 +2610,7 @@ function guideHTML() {
     <details><summary>כמה ילדים משחקים באותו מחשב או טאבלט</summary><p>כל ילד לוחץ "יציאה" בגלגל השיניים בסוף המשחק. במסך הכניסה מופיעות הדמויות של כל הילדים שכבר שיחקו במכשיר, ולוחצים על הדמות כדי להמשיך.</p></details>
     <details><summary>אפשר לעקוב אחרי תלמיד עם מורה נוספת?</summary><p>כן. כל מורה מוסיפה את הקוד אצלה ורואה את ההתקדמות. הגדרות הכיתה של התלמיד נקבעות לפי המורה האחרונה שהוסיפה אותו.</p></details>
     <details><summary>מי רואה את הנתונים?</summary><p>רק מורה שיש לה את הקוד של התלמיד והוסיפה אותו. בטבלה מופיעים השם שהתלמיד כתב בהרשמה, הכיתה וההתקדמות במשחק. לא נאסף שום מידע אחר.</p></details>
-    <details><summary>שכחתי את הסיסמה</summary><p>פנו לנועה קסטרו, שבנתה את המשחק.</p></details>
+    <details><summary>שכחתי את הסיסמה</summary><p>בכניסת המורים לוחצים "שכחתי סיסמה", ומזינים את שם המשתמש ואת קוד השחזור. אין קוד שחזור? פנו לנועה קסטרו, והיא תאפס את הסיסמה.</p></details>
 
     <h3>רעיונות לשימוש בכיתה</h3>
     <ul><li><b>פתיחת שיעור:</b> תחנה אחת יחד על הלוח החכם, כשהכיתה מצביעה על התשובה.</li>
@@ -2581,6 +2671,7 @@ document.addEventListener("click", e => {
   if (d.kf !== undefined) { ui.klassFilter = d.kf; return draw(); }
   if (d.delrow) return delRow(d.delrow);
   if (d.untrack) return untrack(d.untrack);
+  if (d.reset) return adminReset(d.reset);
   if (d.wpane) { ui.wpane = ui.wpane === d.wpane ? "" : d.wpane; ui.codeErr = ""; draw(); const f = $("#kidCode"); if (f) f.focus(); return; }
   if (d.tmode) { ui.tmode = d.tmode; ui.tAuthMsg = ""; return draw(); }
   if (d.ttab) { ui.ttab = d.ttab; return draw(); }
@@ -2618,6 +2709,10 @@ document.addEventListener("click", e => {
     case "logout": return logout();
     case "copyMyCode": return copyText(S.code || "", "הַקּוֹד הוֹעְתַּק. אֶפְשָׁר לְהַדְבִּיק וְלִשְׁלֹחַ לַמּוֹרָה.");
     case "teacherLogout": return teacherLogout();
+    case "copyClassLink": return copyText(($("#classLink") || {}).value || "", "הקישור הועתק. אפשר להדביק בהודעה להורים.");
+    case "copyRecovery": return copyText(ui.recovery || "", "קוד השחזור הועתק");
+    case "hideRecovery": ui.recovery = null; return draw();
+    case "newRecovery": return tapi("teachers/recovery", { method: "POST" }).then(r => { ui.recovery = r.recovery; draw(); }).catch(() => toast("לא הצליח, נסי שוב"));
     case "reloadStudents": return loadMyStudents();
     case "toWelcome": ui.wpane = ""; view = { name: "welcome" }; return draw();
     case "copyCode": return copyCode();
@@ -2720,6 +2815,9 @@ document.addEventListener("submit", async e => {
   if (e.target.id === "codeForm") { e.preventDefault(); return codeLogin(($("#kidCode") || {}).value); }
   if (e.target.id === "tAuthForm") { e.preventDefault(); return teacherAuth(); }
   if (e.target.id === "addCodeForm") { e.preventDefault(); return addTracked(); }
+  if (e.target.id === "createForm") { e.preventDefault(); return createStudent(); }
+  if (e.target.id === "tResetForm") { e.preventDefault(); return teacherReset(); }
+  if (e.target.id === "pwForm") { e.preventDefault(); return changePassword(); }
   if (e.target.id === "tloginForm") {
     e.preventDefault();
     const pass = $("#tpass").value;

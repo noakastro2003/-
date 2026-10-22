@@ -610,3 +610,6 @@ img.flag { width: 34px; height: 34px; object-fit: contain; top: -14px; }
 .parents section.week { border: 3px solid var(--star); }
 .panel .credit { color: var(--ink-soft); text-shadow: none; }
 .panel .credit .who { color: var(--pen); }
+.teacher, .teacher table, .teacher td, .teacher th, .teacher label { color: var(--ink); }
+.teacher th { color: var(--ink-soft); }
+.tsave { box-shadow: 0 -8px 12px -8px rgba(0, 0, 0, .15); z-index: 2; }

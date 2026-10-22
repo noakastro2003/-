@@ -420,6 +420,18 @@ const C = [
 const CFG_DEFAULT = { teacher: "", school: "", classes: [], testDate: "2026-11-02", message: "", stations: {}, ordered: true, challenge: true };
 let CFG = { ...CFG_DEFAULT };
 try { const el = document.getElementById("teacher-config"); if (el) CFG = { ...CFG_DEFAULT, ...JSON.parse(el.textContent || "{}") }; } catch (e) {}
+// the same game runs on claude.ai (artifact storage) or on the teacher's own Netlify site (its /api)
+const ON_SITE = window.GM_HOST === "netlify";
+const TPASS = "gm-teacher-pass";
+const tpass = () => { try { return sessionStorage.getItem(TPASS) || ""; } catch (e) { return ""; } };
+async function api(path, opts = {}) {
+  const headers = { "content-type": "application/json", ...(opts.teacher ? { "x-teacher-pass": opts.pass ?? tpass() } : {}) };
+  const res = await fetch("/api/" + path, { method: opts.method || "GET", headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw { code: data.error || "http_" + res.status, status: res.status };
+  return data;
+}
+if (ON_SITE) api("config").then(c => { if (c && Object.keys(c).length) { CFG = { ...CFG_DEFAULT, ...c }; if (typeof draw === "function" && view) draw(); } }).catch(() => {});
 const stCfg = s => (CFG.stations && CFG.stations[s.id]) || {};
 const opensOn = s => stCfg(s).from || "";
 function stationClosed(s) {
@@ -530,6 +542,12 @@ function renderWelcome() {
 function teacherDraft() { if (!ui.draft) ui.draft = JSON.parse(JSON.stringify(CFG)); return ui.draft; }
 async function checkTeacher() {
   if (ui.canEdit !== undefined) return;
+  if (ON_SITE) {
+    ui.canEdit = null;
+    if (!tpass()) { ui.canEdit = false; return draw(); }
+    try { await api("login", { method: "POST", teacher: true }); ui.canEdit = true; } catch (e) { ui.canEdit = false; }
+    if (view.name === "teacher") draw(); return;
+  }
   ui.canEdit = null;
   let ok = false;
   try { const u = await claude.use("user"); ok = u ? await u.canEdit() : false; } catch (e) { ok = false; }
@@ -538,6 +556,16 @@ async function checkTeacher() {
 function renderTeacher() {
   if (ui.canEdit === undefined) checkTeacher();
   if (ui.canEdit === undefined || ui.canEdit === null) return bar() + `<div class="panel teacher"><h2>אזור המורה</h2><p>בודקים הרשאות...</p></div>`;
+  if (!ui.canEdit && ON_SITE) return bar() + `<div class="panel teacher">
+      <h2>אזור המורה</h2>
+      <form class="tlogin" id="tloginForm">
+        <label for="tpass">סיסמת המורה</label>
+        <input id="tpass" type="password" autocomplete="current-password" required>
+        <button class="btn" type="submit">כניסה</button>
+      </form>
+      ${ui.loginMsg ? `<p class="feedback try">${esc(ui.loginMsg)}</p>` : ""}
+      <div class="row"><button class="btn ghost" data-go="home">חזרה למשחק</button></div>
+    </div>`;
   if (!ui.canEdit) return bar() + `<div class="panel teacher">
       <h2>אזור המורה</h2>
       <p>אזור זה פתוח רק למורה שיצרה את המשחק, או למי שקיבלה ממנה הרשאת עריכה. כאן מגדירים מה הכיתה לומדת ומתי, וההגדרות מגיעות לכל התלמידים.</p>
@@ -585,6 +613,11 @@ async function saveConfig() {
   const d = teacherDraft();
   d.classes = (typeof d.classes === "string" ? d.classes.split(",") : d.classes || []).map(x => x.trim()).filter(Boolean);
   ui.saving = true; ui.saveMsg = ""; draw();
+  if (ON_SITE) {
+    try { await api("config", { method: "PUT", teacher: true, body: d }); CFG = { ...CFG_DEFAULT, ...JSON.parse(JSON.stringify(d)) }; ui.saveOk = true; ui.saveMsg = "נשמר! כל התלמידים יקבלו את ההגדרות החדשות."; }
+    catch (e) { ui.saveOk = false; ui.saveMsg = e.status === 401 ? "הסיסמה כבר לא בתוקף. צאו והיכנסו שוב." : "השמירה לא הצליחה. בדקו את החיבור לאינטרנט ונסו שוב."; }
+    ui.saving = false; return draw();
+  }
   let art = null;
   try { art = await claude.use("artifact"); } catch (e) { art = null; }
   if (!art) { ui.saving = false; ui.saveOk = false; ui.saveMsg = "אין אפשרות לשמור מכאן. פתחו את המשחק דרך הקישור של claude.ai, כשאתן מחוברות לחשבון."; return draw(); }
@@ -654,7 +687,16 @@ const dbReady = (async () => {
   } catch (e) { DB = null; }
 })();
 // after a station: save this child's own record, if this account may write it
+function deviceId() {
+  try { let d = localStorage.getItem("gm-device"); if (!d) { d = "d" + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem("gm-device", d); } return d; } catch (e) { return ""; }
+}
 async function syncMyProgress() {
+  if (ON_SITE) {
+    const dev = deviceId(); if (!dev) return;
+    const id = (dev + "-" + b64e(profileId(S)).replace(/[^A-Za-z0-9]/g, "")).slice(0, 120);
+    try { await api("progress", { method: "POST", body: { id, rec: myRecord() } }); ui.synced = Date.now(); } catch (e) {}
+    return;
+  }
   await dbReady;
   if (!DB || !MY_ID || ui.syncOff) return;
   try { await DB.doc("progress/" + MY_ID).set(myRecord()); ui.synced = Date.now(); }
@@ -665,7 +707,7 @@ async function syncMyProgress() {
 function progressCodeHTML() {
   return `<section>
     <h3>שליחת ההתקדמות למורה</h3>
-    <p>ההתקדמות נשמרת במכשיר הזה. כדי שהמורה תראה אותה, העתיקו את הקוד ושלחו לה (למשל בוואטסאפ). הקוד מתעדכן אחרי כל תחנה, אז אפשר לשלוח שוב בכל פעם.</p>
+    <p>${ON_SITE ? "ההתקדמות נשלחת למורה אוטומטית אחרי כל תחנה. אם הילד משחק גם במכשיר אחר, או שאין חיבור לאינטרנט, אפשר להעתיק את הקוד ולשלוח למורה." : "ההתקדמות נשמרת במכשיר הזה. כדי שהמורה תראה אותה, העתיקו את הקוד ושלחו לה (למשל בוואטסאפ). הקוד מתעדכן אחרי כל תחנה, אז אפשר לשלוח שוב בכל פעם."}</p>
     ${S.name ? "" : `<p class="feedback try">כדאי קודם לכתוב את שם הילד (בהגדרת הדמות), כדי שהמורה תדע של מי הקוד.</p>`}
     <textarea id="pcode" class="pcode" readonly rows="3">${esc(progressCode())}</textarea>
     <div class="row"><button class="btn" data-act="copyCode">העתקת הקוד</button>${ui.synced ? `<span class="how">✓ ההתקדמות נשלחה גם אוטומטית לחשבון</span>` : ""}</div>
@@ -683,6 +725,15 @@ let clsUnsubs = null;
 async function watchClass() {
   if (clsUnsubs) return;
   clsUnsubs = [];
+  if (ON_SITE) {
+    const pull = async () => {
+      try { const d = await api("progress", { teacher: true }); CLS.progress = d.progress.map(r => ({ ...r, src: "progress" })); CLS.roster = d.roster.map(r => ({ ...r, src: "roster" })); CLS.err = ""; }
+      catch (e) { CLS.err = e.code; }
+      CLS.loaded = true; if (view.name === "teacher" && !ui.typing) draw();
+    };
+    pull(); const h = setInterval(() => { if (view.name === "teacher") pull(); }, 20000);
+    clsUnsubs.push(() => clearInterval(h)); return;
+  }
   await dbReady;
   if (!DB) { CLS.err = "nodb"; CLS.loaded = true; if (view.name === "teacher") draw(); return; }
   const on = (name) => DB.collection(name).onSnapshot(snap => {
@@ -725,7 +776,7 @@ function classDashboardHTML() {
     </table></div>`
     : `<p class="empty-note" style="text-align:start">${CLS.loaded ? "עוד אין תלמידים. הדביקו למטה קוד התקדמות שהורה שלח, והתלמיד יופיע כאן." : "טוענים..."}</p>`;
   return `<section class="tsec cls-sec"><h3>התקדמות הכיתה</h3>
-    ${CLS.err === "nodb" ? `<p class="feedback try">מסד הנתונים זמין רק כשהמשחק פתוח דרך claude.ai בחשבון המחובר.</p>` : ""}
+    ${CLS.err === "nodb" ? `<p class="feedback try">מסד הנתונים זמין רק כשהמשחק פתוח דרך claude.ai בחשבון המחובר.</p>` : CLS.err ? `<p class="feedback try">לא הצלחנו לטעון את ההתקדמות. בדקו את החיבור לאינטרנט.</p>` : ""}
     <p class="how">אחוז התשובות הנכונות בניסיון הראשון, לפי מיומנות. ירוק 80% ומעלה, צהוב 60% עד 79%, אדום מתחת ל־60%.</p>
     ${classes.length > 1 ? `<div class="row">${["", ...classes].map(c => `<button class="chip klass ${klass === c ? "on" : ""}" data-kf="${esc(c)}">${c ? esc(c) : "כל הכיתות"}</button>`).join("")}</div>` : ""}
     ${table}
@@ -740,6 +791,11 @@ async function addCodes() {
   const t = $("#codeIn"); if (!t) return;
   const recs = (t.value.match(/GM1-[A-Za-z0-9+/=]+/g) || []).map(parseCode).filter(Boolean);
   if (!recs.length) { ui.codeMsg = "לא נמצא קוד תקין. בדקו שהעתקתם את כל הקוד, מ־GM1 ועד הסוף."; return draw(); }
+  if (ON_SITE) {
+    try { const r = await api("roster", { method: "POST", teacher: true, body: { items: recs.map(rec => ({ key: rosterKey(rec), rec })) } }); ui.codeMsg = r.saved === 1 ? `נוסף: ${recs[0].n || "תלמיד"}` : `נוספו ${r.saved} תלמידים`; t.value = ""; clsUnsubs && clsUnsubs.forEach(f => f()); clsUnsubs = null; }
+    catch (e) { ui.codeMsg = "השמירה לא הצליחה. נסו שוב."; }
+    return draw();
+  }
   await dbReady;
   if (!DB) { ui.codeMsg = "אין חיבור למסד הנתונים. פתחו את המשחק דרך claude.ai."; return draw(); }
   let ok = 0;
@@ -750,6 +806,10 @@ async function addCodes() {
 async function delRow(id) {
   if (ui.confirmDel !== id) { ui.confirmDel = id; toast("לחצו שוב על ✕ כדי למחוק את התלמיד מהטבלה"); return; }
   ui.confirmDel = null;
+  if (ON_SITE) {
+    try { await api("roster?id=" + encodeURIComponent(id), { method: "DELETE", teacher: true }); CLS.roster = CLS.roster.filter(r => r.id !== id); draw(); } catch (e) { toast("המחיקה לא הצליחה"); }
+    return;
+  }
   try { await DB.doc("roster/" + id).delete(); } catch (e) { toast("המחיקה לא הצליחה"); }
 }
 
@@ -776,6 +836,8 @@ function logout() {
   const prefs = { nikud: S.nikud, size: S.size, sound: S.sound };
   if (S.av.chosen && (S.name || Object.keys(S.st).length)) { const p = loadProfiles(); p[profileId(S)] = S; saveProfiles(p); }
   S = Object.assign(blank(), prefs); save();
+  try { sessionStorage.removeItem(TPASS); } catch (e) {}
+  if (clsUnsubs) { clsUnsubs.forEach(f => f()); clsUnsubs = null; }
   ui.settings = false; ui.canEdit = undefined; run = null; view = { name: "welcome" }; draw(); scrollTop();
 }
 function login(id) {
@@ -2370,6 +2432,15 @@ document.addEventListener("input", e => {
   const btn = document.querySelector('[data-act="openDone"], [data-act="testnext"]');
   if (btn) btn.disabled = run.q.text.trim().length < 3;
 });
+document.addEventListener("submit", async e => {
+  if (e.target.id === "tloginForm") {
+    e.preventDefault();
+    const pass = $("#tpass").value;
+    try { await api("login", { method: "POST", teacher: true, pass }); try { sessionStorage.setItem(TPASS, pass); } catch (x) {} ui.canEdit = true; ui.loginMsg = ""; }
+    catch (x) { ui.loginMsg = x.status === 401 ? "הסיסמה לא נכונה." : x.code === "no_password_set" ? "עוד לא הוגדרה סיסמת מורה באתר." : "אין חיבור לשרת. נסו שוב."; }
+    return draw();
+  }
+}, true);
 document.addEventListener("submit", e => {
   if (e.target.id !== "nameForm") return;
   e.preventDefault();

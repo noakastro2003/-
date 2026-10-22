@@ -1,0 +1,5 @@
+# The game in app/ is copied to site/ with a full page wrapper; the API lives in netlify/functions.
+[build]
+  command = "node tools/build_site.mjs"
+  publish = "site"
+  functions = "netlify/functions"

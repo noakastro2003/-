@@ -1,0 +1,14 @@
+{
+  "name": "galaxy-milim",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build_site.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.6"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^6.0.3"
+  }
+}

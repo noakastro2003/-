@@ -613,3 +613,18 @@ img.flag { width: 34px; height: 34px; object-fit: contain; top: -14px; }
 .teacher, .teacher table, .teacher td, .teacher th, .teacher label { color: var(--ink); }
 .teacher th { color: var(--ink-soft); }
 .tsave { box-shadow: 0 -8px 12px -8px rgba(0, 0, 0, .15); z-index: 2; }
+.who-plays { width: 100%; display: grid; gap: 8px; }
+.role.small { padding: 10px; } .role.small .role-av { width: 80px; height: 80px; } .role.small .role-av .avatar { width: 80px; }
+.chip.out { margin-inline-start: auto; border: 1.5px solid var(--oops) !important; color: var(--oops); }
+.pcode { font-family: ui-monospace, monospace; font-size: .8rem; direction: ltr; text-align: left; min-height: 70px; word-break: break-all; }
+.paste { display: grid; gap: 8px; margin-top: 8px; }
+.paste textarea { font-family: ui-monospace, monospace; direction: ltr; }
+table.cls td, table.cls th { white-space: nowrap; text-align: center; }
+table.cls td.tn { text-align: start; font-weight: 600; }
+table.cls .pc.hi { background: var(--good-soft); color: var(--good); font-weight: 700; }
+table.cls .pc.mid { background: var(--star-soft); color: #8A5A00; font-weight: 700; }
+table.cls .pc.lo { background: var(--oops-soft); color: var(--oops); font-weight: 700; }
+table.cls .pc.na { color: var(--ink-soft); }
+table.cls tfoot th { border-top: 2px solid var(--line); color: var(--ink); }
+table.cls .src { color: var(--good); font-size: .7rem; }
+.mini { border: 0; background: none; color: var(--ink-soft); font-size: 1rem; padding: 2px 6px; }

@@ -516,8 +516,10 @@ function renderWelcome() {
   return `<div class="panel welcome" style="margin-top:12px">
     <div class="brand big">גלקסיית המילים</div>
     <h2>${tx("בָּרוּךְ הַבָּא! מִי אַתֶּם?")}</h2>
+    ${Object.keys(loadProfiles()).length ? `<div class="who-plays"><b>${tx("מִי מְשַׂחֵק עַכְשָׁו?")}</b><div class="roles">${Object.entries(loadProfiles()).map(([id, st]) =>
+      `<button class="role small" data-login="${esc(id)}"><span class="role-av">${avatarSVG(st.av || {})}</span><b>${esc(st.name || "שַׂחְקָן")}</b><span>${esc(st.klass || "")}</span></button>`).join("")}</div></div>` : ""}
     <div class="roles">
-      <button class="role" data-role="student"><span class="role-av">${avatarSVG({ type: "girl", color: "#FFFFFF" })}</span><b>${tx("אֲנִי תַּלְמִיד / תַּלְמִידָה")}</b><span>${tx("נִכְנָסִים לַמִּשְׂחָק")}</span></button>
+      <button class="role" data-role="student"><span class="role-av">${avatarSVG({ type: "girl", color: "#FFFFFF" })}</span><b>${tx(Object.keys(loadProfiles()).length ? "תַּלְמִיד חָדָשׁ / תַּלְמִידָה חֲדָשָׁה" : "אֲנִי תַּלְמִיד / תַּלְמִידָה")}</b><span>${tx("נִכְנָסִים לַמִּשְׂחָק")}</span></button>
       <button class="role" data-role="teacher"><span class="role-av"><img src="img/ui-chest.webp" alt=""></span><b>מורה</b><span>הגדרת מה לומדים ומתי</span></button>
     </div>
     ${CREDIT()}
@@ -553,6 +555,7 @@ function renderTeacher() {
   return bar() + `<div class="panel teacher">
     <h2>אזור המורה</h2>
     <p class="how">ההגדרות נשמרות בתוך המשחק עצמו: אחרי "שמירה ופרסום" כל תלמיד שפותח את הקישור מקבל אותן. ההתקדמות של כל ילד נשמרת במכשיר שלו.</p>
+    ${classDashboardHTML()}
     <section class="tsec"><h3>פרטי המורה והכיתה</h3>
       <div class="tgrid">
         <label>שם המורה<input id="cfg-teacher" data-cfg="teacher" value="${esc(d.teacher)}" placeholder="נועה קסטרו"></label>
@@ -573,6 +576,7 @@ function renderTeacher() {
       <button class="btn go" data-act="saveCfg" ${ui.saving ? "disabled" : ""}>${ui.saving ? "שומרים..." : "שמירה ופרסום לכל התלמידים"}</button>
       <button class="btn ghost" data-act="resetDraft">ביטול השינויים</button>
       <button class="btn ghost" data-go="home">לצפייה במשחק</button>
+      <button class="btn ghost" data-act="logout">יציאה מאזור המורה</button>
     </div>
     ${ui.saveMsg ? `<p class="feedback ${ui.saveOk ? "good" : "try"}">${esc(ui.saveMsg)}</p>` : ""}
   </div>`;
@@ -599,6 +603,156 @@ async function saveConfig() {
   }
 }
 
+/* ---------- class progress: a shared database the teacher reads ----------
+   progress/<viewer id>  written automatically by a signed-in student who may write (own record only)
+   roster/<key>          written by the teacher from a progress code a parent sends (works without any account) */
+function skillStatsFor(st) {
+  const out = {};
+  Object.keys(SKILLS).forEach(k => out[k] = { right: 0, n: 0 });
+  ALL.forEach(s => {
+    const r = st[s.id]; if (!r || !r.first) return;
+    s.questions.forEach((q, i) => {
+      if (q.type === "open") { if (r.first[i] === "open") { out.opinion.n++; out.opinion.right++; } return; }
+      if (r.first[i] === true || r.first[i] === false) { out[q.skill].n++; if (r.first[i] === true) out[q.skill].right++; }
+    });
+  });
+  return out;
+}
+// a compact record of this child's progress: per station "stars:answers", answers as 1 (right first time), 0, o (open answer), - (none)
+function myRecord() {
+  const st = {};
+  ALL.forEach(s => {
+    const r = S.st[s.id]; if (!r || !r.done) return;
+    st[s.id] = (r.stars || 0) + ":" + s.questions.map((q, i) => { const v = r.first && r.first[i]; return v === true ? "1" : v === false ? "0" : v === "open" ? "o" : "-"; }).join("");
+  });
+  return { v: 1, n: S.name || "", k: S.klass || "", a: S.av.type || "astro", t: Date.now(), d: S.days.length, st };
+}
+function recordToSt(rec) {
+  const st = {};
+  Object.entries(rec.st || {}).forEach(([id, val]) => {
+    const [stars, ans = ""] = String(val).split(":");
+    st[id] = { done: true, stars: +stars || 0, first: Object.fromEntries([...ans].map((c, i) => [i, c === "1" ? true : c === "0" ? false : c === "o" ? "open" : null])) };
+  });
+  return st;
+}
+const b64e = str => btoa(String.fromCharCode(...new TextEncoder().encode(str)));
+const b64d = str => new TextDecoder().decode(Uint8Array.from(atob(str), c => c.charCodeAt(0)));
+const progressCode = () => "GM1-" + b64e(JSON.stringify(myRecord()));
+function parseCode(code) {
+  const m = String(code).trim().match(/GM1-([A-Za-z0-9+/=]+)/);
+  if (!m) return null;
+  try { const r = JSON.parse(b64d(m[1])); return r && r.v === 1 && r.st ? r : null; } catch (e) { return null; }
+}
+const rosterKey = rec => ("s-" + b64e((rec.k || "") + "|" + (rec.n || "")).replace(/[^A-Za-z0-9]/g, "")).slice(0, 120);
+
+let DB = null, MY_ID = null;
+const dbReady = (async () => {
+  try {
+    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+    if (!db || !user) return;
+    MY_ID = await user.id(); DB = db;
+  } catch (e) { DB = null; }
+})();
+// after a station: save this child's own record, if this account may write it
+async function syncMyProgress() {
+  await dbReady;
+  if (!DB || !MY_ID || ui.syncOff) return;
+  try { await DB.doc("progress/" + MY_ID).set(myRecord()); ui.synced = Date.now(); }
+  catch (e) { ui.syncOff = true; }
+}
+
+/* parents' corner: the code to send to the teacher */
+function progressCodeHTML() {
+  return `<section>
+    <h3>שליחת ההתקדמות למורה</h3>
+    <p>ההתקדמות נשמרת במכשיר הזה. כדי שהמורה תראה אותה, העתיקו את הקוד ושלחו לה (למשל בוואטסאפ). הקוד מתעדכן אחרי כל תחנה, אז אפשר לשלוח שוב בכל פעם.</p>
+    ${S.name ? "" : `<p class="feedback try">כדאי קודם לכתוב את שם הילד (בהגדרת הדמות), כדי שהמורה תדע של מי הקוד.</p>`}
+    <textarea id="pcode" class="pcode" readonly rows="3">${esc(progressCode())}</textarea>
+    <div class="row"><button class="btn" data-act="copyCode">העתקת הקוד</button>${ui.synced ? `<span class="how">✓ ההתקדמות נשלחה גם אוטומטית לחשבון</span>` : ""}</div>
+  </section>`;
+}
+async function copyCode() {
+  const t = $("#pcode"); if (!t) return;
+  try { await navigator.clipboard.writeText(t.value); toast("הקוד הועתק. אפשר להדביק ולשלוח למורה."); }
+  catch (e) { t.focus(); t.select(); toast("סמנו את הקוד והעתיקו אותו (Ctrl+C או לחיצה ארוכה)."); }
+}
+
+/* teacher: live class table */
+const CLS = { progress: [], roster: [], loaded: false, err: "" };
+let clsUnsubs = null;
+async function watchClass() {
+  if (clsUnsubs) return;
+  clsUnsubs = [];
+  await dbReady;
+  if (!DB) { CLS.err = "nodb"; CLS.loaded = true; if (view.name === "teacher") draw(); return; }
+  const on = (name) => DB.collection(name).onSnapshot(snap => {
+    CLS[name] = snap.docs.filter(d => d.exists).map(d => ({ id: d.id, src: name, ...d.data() }));
+    CLS.loaded = true; if (view.name === "teacher" && !ui.typing) draw();
+  }, err => { CLS.err = err.code; CLS.loaded = true; if (view.name === "teacher") draw(); });
+  clsUnsubs.push(on("progress"), on("roster"));
+}
+function classRows() {
+  // one row per child; a roster code and an automatic record for the same name and class: keep the newer
+  const byKey = {};
+  [...CLS.roster, ...CLS.progress].forEach(r => {
+    const key = (r.k || "") + "|" + (r.n || r.id);
+    if (!byKey[key] || (r.t || 0) > (byKey[key].t || 0)) byKey[key] = r;
+  });
+  return Object.values(byKey).map(r => {
+    const st = recordToSt(r), stats = skillStatsFor(st);
+    const doneN = Object.keys(st).length, stars = Object.values(st).reduce((n, x) => n + x.stars, 0);
+    const pct = k => stats[k] && stats[k].n ? Math.round(100 * stats[k].right / stats[k].n) : null;
+    const weak = SKILL_ORDER.filter(k => k !== "opinion" && stats[k] && stats[k].n >= 3).sort((a, b) => pct(a) - pct(b))[0];
+    return { r, doneN, stars, pct, weak: weak && pct(weak) < 70 ? weak : null };
+  }).sort((a, b) => (a.r.k || "").localeCompare(b.r.k || "", "he") || (a.r.n || "").localeCompare(b.r.n || "", "he"));
+}
+const TABLE_SKILLS = ["instr", "locate", "infer", "hidden", "vocab", "write"];
+function pctCell(p) { return p === null ? `<td class="pc na">–</td>` : `<td class="pc ${p >= 80 ? "hi" : p >= 60 ? "mid" : "lo"}">${p}%</td>`; }
+function classDashboardHTML() {
+  watchClass();
+  const rows = classRows(), klass = ui.klassFilter || "";
+  const classes = [...new Set(rows.map(x => x.r.k).filter(Boolean))];
+  const shown = rows.filter(x => !klass || x.r.k === klass);
+  const avg = k => { const v = shown.map(x => x.pct(k)).filter(p => p !== null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+  const table = shown.length ? `<div class="ttable"><table class="cls">
+      <thead><tr><th>תלמיד</th><th>כיתה</th><th>תחנות</th><th>⭐</th>${TABLE_SKILLS.map(k => `<th>${SKILLS[k].name}</th>`).join("")}<th>כדאי לחזק</th><th>עודכן</th><th></th></tr></thead>
+      <tbody>${shown.map(x => `<tr><td class="tn">${esc(x.r.n || "ללא שם")}${x.r.src === "progress" ? ` <span class="src" title="נשלח אוטומטית מהחשבון">●</span>` : ""}</td><td>${esc(x.r.k || "")}</td>
+        <td>${x.doneN}/${ALL.length}</td><td>${x.stars}</td>${TABLE_SKILLS.map(k => pctCell(x.pct(k))).join("")}
+        <td>${x.weak ? SKILLS[x.weak].name : "–"}</td><td>${x.r.t ? fmtDate(ymd(new Date(x.r.t))) : ""}</td>
+        <td>${x.r.src === "roster" ? `<button class="mini" data-delrow="${esc(x.r.id)}" aria-label="מחיקה">✕</button>` : ""}</td></tr>`).join("")}
+      </tbody>
+      <tfoot><tr><th colspan="4">ממוצע${klass ? " " + esc(klass) : " הכיתה"}</th>${TABLE_SKILLS.map(k => pctCell(avg(k))).join("")}<th colspan="3"></th></tr></tfoot>
+    </table></div>`
+    : `<p class="empty-note" style="text-align:start">${CLS.loaded ? "עוד אין תלמידים. הדביקו למטה קוד התקדמות שהורה שלח, והתלמיד יופיע כאן." : "טוענים..."}</p>`;
+  return `<section class="tsec cls-sec"><h3>התקדמות הכיתה</h3>
+    ${CLS.err === "nodb" ? `<p class="feedback try">מסד הנתונים זמין רק כשהמשחק פתוח דרך claude.ai בחשבון המחובר.</p>` : ""}
+    <p class="how">אחוז התשובות הנכונות בניסיון הראשון, לפי מיומנות. ירוק 80% ומעלה, צהוב 60% עד 79%, אדום מתחת ל־60%.</p>
+    ${classes.length > 1 ? `<div class="row">${["", ...classes].map(c => `<button class="chip klass ${klass === c ? "on" : ""}" data-kf="${esc(c)}">${c ? esc(c) : "כל הכיתות"}</button>`).join("")}</div>` : ""}
+    ${table}
+    <div class="paste">
+      <label for="codeIn"><b>הוספה או עדכון של תלמיד מקוד:</b> ההורה מעתיק את הקוד מ"פינת ההורים" ושולח לך. אפשר להדביק כמה קודים יחד.</label>
+      <textarea id="codeIn" rows="3" placeholder="GM1-..."></textarea>
+      <div class="row"><button class="btn" data-act="addCodes">הוספה לטבלה</button>${ui.codeMsg ? `<span class="how">${esc(ui.codeMsg)}</span>` : ""}</div>
+    </div>
+  </section>`;
+}
+async function addCodes() {
+  const t = $("#codeIn"); if (!t) return;
+  const recs = (t.value.match(/GM1-[A-Za-z0-9+/=]+/g) || []).map(parseCode).filter(Boolean);
+  if (!recs.length) { ui.codeMsg = "לא נמצא קוד תקין. בדקו שהעתקתם את כל הקוד, מ־GM1 ועד הסוף."; return draw(); }
+  await dbReady;
+  if (!DB) { ui.codeMsg = "אין חיבור למסד הנתונים. פתחו את המשחק דרך claude.ai."; return draw(); }
+  let ok = 0;
+  for (const r of recs) { try { await DB.doc("roster/" + rosterKey(r)).set(r); ok++; } catch (e) { ui.codeMsg = e && e.code === "quota_exceeded" ? "מסד הנתונים מלא." : "השמירה לא הצליחה. נסו שוב."; } }
+  if (ok) { ui.codeMsg = ok === 1 ? `נוסף: ${recs[0].n || "תלמיד"}` : `נוספו ${ok} תלמידים`; t.value = ""; }
+  draw();
+}
+async function delRow(id) {
+  if (ui.confirmDel !== id) { ui.confirmDel = id; toast("לחצו שוב על ✕ כדי למחוק את התלמיד מהטבלה"); return; }
+  ui.confirmDel = null;
+  try { await DB.doc("roster/" + id).delete(); } catch (e) { toast("המחיקה לא הצליחה"); }
+}
+
 const TRACKS = [
   { id: "h", name: "מַסְלוּל הַהוֹרָאוֹת", sub: "קוֹרְאִים הוֹרָאָה וְעוֹשִׂים בְּדִיּוּק מָה שֶׁבִּקְּשׁוּ", badge: "הֲכִי חָשׁוּב לַמִּבְדָּק", stations: H },
   { id: "r", name: "מַסְלוּל הַהֲבָנָה", sub: "קוֹרְאִים טֶקְסְט וְעוֹנִים עַל שְׁאֵלוֹת", stations: STATIONS },
@@ -613,6 +767,22 @@ const blank = () => ({ name: "", nikud: true, size: 1, sound: true, unlockAll: f
 let S = blank();
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(blank(), JSON.parse(raw)); } catch (e) {}
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+// several children can share one device: logging out parks the current child's progress, the welcome screen lists them
+const PKEY = "reading-journey-profiles";
+function loadProfiles() { try { return JSON.parse(localStorage.getItem(PKEY) || "{}") || {}; } catch (e) { return {}; } }
+function saveProfiles(p) { try { localStorage.setItem(PKEY, JSON.stringify(p)); } catch (e) {} }
+const profileId = st => (st.klass || "") + "|" + (st.name || "");
+function logout() {
+  const prefs = { nikud: S.nikud, size: S.size, sound: S.sound };
+  if (S.av.chosen && (S.name || Object.keys(S.st).length)) { const p = loadProfiles(); p[profileId(S)] = S; saveProfiles(p); }
+  S = Object.assign(blank(), prefs); save();
+  ui.settings = false; ui.canEdit = undefined; run = null; view = { name: "welcome" }; draw(); scrollTop();
+}
+function login(id) {
+  const p = loadProfiles(), st = p[id]; if (!st) return;
+  delete p[id]; saveProfiles(p);
+  S = Object.assign(blank(), st); save(); view = { name: "home" }; ui.scrollMe = true; draw(); toast(`שָׁלוֹם ${S.name || ""}!`);
+}
 
 let view = { name: "home" };   // home | intro | play | summary | parents
 let run = null;                // current station run: { t, i, qi, res, ans, open, q, coins }
@@ -980,6 +1150,7 @@ function bar() {
     <button class="chip" data-act="nikud" aria-pressed="${S.nikud}">${S.nikud ? "נִקּוּד: כֵּן" : "ניקוד: לא"}</button>
     <button class="chip" data-act="size">אותיות ${["רגילות", "גדולות", "ענקיות"][S.size - 1] || "רגילות"}</button>
     <button class="chip" data-act="sound" aria-pressed="${S.sound}">${S.sound ? "🔊 צלילים: כן" : "🔇 צלילים: לא"}</button>
+    <button class="chip out" data-act="logout">🚪 ${S.name ? "יציאה (" + esc(S.name) + ")" : "יציאה"}</button>
   </div>` : ""}`;
 }
 
@@ -1805,7 +1976,7 @@ function finish() {
     first: Object.fromEntries(s.questions.map((q, i) => [i, run.res[i]])),
     open: Object.assign({}, prev.open || {}, run.open),
   };
-  save();
+  save(); syncMyProgress();
   run.stars = stars; run.right = right; run.scored = scored.length;
   fxQueue.push({ k: "party" });
   view = { name: "summary" }; draw(); scrollTop();
@@ -1895,6 +2066,8 @@ function renderParents() {
       ${any && weakest && weakest[1].right / weakest[1].n < .8 ? `<p style="margin-top:10px"><b>כדאי לחזק:</b> ${SKILLS[weakest[0]].name}. ${SKILLS[weakest[0]].home}</p>` : ""}
       ${!any ? `<p style="margin-top:10px">עוד אין נתונים. אחרי התחנה הראשונה יופיעו כאן התוצאות.</p>` : ""}
     </section>
+
+    ${progressCodeHTML()}
 
     <section>
       <h3>ביצוע הוראות: החלק החשוב ביותר</h3>
@@ -2088,6 +2261,9 @@ document.addEventListener("click", e => {
   if (d.go) return go(d.go);
   if (d.say) return speak(d.say);
   if (d.track !== undefined) { S.track = +d.track; save(); return draw(); }
+  if (d.login) return login(d.login);
+  if (d.kf !== undefined) { ui.klassFilter = d.kf; return draw(); }
+  if (d.delrow) return delRow(d.delrow);
   if (d.role) { if (d.role === "teacher") return go("teacher"); view = { name: "hello" }; return draw(); }
   if (d.klass !== undefined) { S.klass = d.klass; save(); sfx("tap"); return draw(); }
   if (d.feat) { const [tt, i] = d.feat.split(":").map(Number); S.track = tt; save(); if (!unlocked(tt, i)) { draw(); return toast("קֹדֶם מְסַיְּמִים אֶת הַתַּחֲנוֹת שֶׁלִּפְנֵי"); } return startStation(tt, i); }
@@ -2119,6 +2295,9 @@ document.addEventListener("click", e => {
     case "checksort": return checkSort();
     case "writeDone": return writeDone();
     case "saveCfg": return saveConfig();
+    case "logout": return logout();
+    case "copyCode": return copyCode();
+    case "addCodes": return addCodes();
     case "resetDraft": ui.draft = null; ui.saveMsg = ""; return draw();
     case "cancelTry": ui.tryOn = null; return draw();
     case "buyTry": {
@@ -2175,6 +2354,8 @@ function cfgInput(e) {
   return false;
 }
 document.addEventListener("change", cfgInput);
+document.addEventListener("focusin", e => { ui.typing = view.name === "teacher" && e.target.matches("input, textarea"); });
+document.addEventListener("focusout", () => { ui.typing = false; });
 document.addEventListener("input", e => {
   if (cfgInput(e)) return;
   if (e.target.dataset.input === "write") {

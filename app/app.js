@@ -2560,7 +2560,7 @@ function renderSiteTeacher() {
   if (!TEACHER) return bar() + teacherAuthHTML();
   if (MYSTUDENTS === null) { MYSTUDENTS = []; loadMyStudents(); }
   const tab = ui.ttab || "students";
-  const tabs = [["students", "התלמידים שלי"], ["settings", "הגדרות לכיתה"], ["account", "החשבון שלי"], ["guide", "מדריך"], ...(TEACHER.admin ? [["admin", "ניהול מורות"]] : [])];
+  const tabs = [["students", "התלמידים שלי"], ["settings", "הגדרות לכיתה"], ["account", "החשבון שלי"], ["guide", "מדריך"], ...(TEACHER.admin ? [["admin", "ניהול וחיפוש תלמידים"]] : [])];
   return bar() + `<div class="panel teacher">
     <div class="t-head"><h2>שלום ${esc(TEACHER.name)}</h2><span class="how">${esc(TEACHER.school || "")} · שם משתמש: ${esc(TEACHER.user)}</span>
       <button class="btn ghost" data-act="teacherLogout">יציאה</button></div>
@@ -2712,12 +2712,22 @@ function adminHTML() {
     <h3>חיפוש תלמיד</h3>
     <p class="how">כל התלמידים שנרשמו באתר, מכל המורות. אפשר לחפש לפי שם, כיתה או חלק מהקוד, למשל כשמורה לא מצליחה להוסיף קוד.</p>
     <form class="add-code" id="adminFindForm"><div class="row"><input id="adminFind" placeholder="שם התלמיד" autocomplete="off" value="${esc(ui.adminQ || "")}"><button class="btn" type="submit">חיפוש</button></div></form>
-    ${ADMIN_KIDS ? (ADMIN_KIDS.students.length ? `<div class="ttable"><table><thead><tr><th>שם</th><th>כיתה</th><th>קוד</th><th>מורה</th><th>נרשם</th></tr></thead><tbody>
-      ${ADMIN_KIDS.students.map(x => `<tr><td>${esc(x.n)}</td><td>${esc(x.k)}</td><td dir="ltr"><b>${esc(x.code)}</b></td><td dir="ltr">${esc(x.teacher || "–")}</td><td>${x.created ? fmtDate(ymd(new Date(x.created))) : ""}</td></tr>`).join("")}
+    ${ADMIN_KIDS ? (ADMIN_KIDS.students.length ? `<div class="ttable"><table><thead><tr><th>שם</th><th>כיתה</th><th>קוד</th><th>מורה</th><th>נרשם</th><th></th></tr></thead><tbody>
+      ${ADMIN_KIDS.students.map(x => `<tr><td>${esc(x.n)}</td><td>${esc(x.k)}</td><td dir="ltr"><b>${esc(x.code)}</b></td><td dir="ltr">${esc(x.teacher || "–")}</td><td>${x.created ? fmtDate(ymd(new Date(x.created))) : ""}</td>
+        <td>${(TEACHER.codes || []).includes(x.code) ? `<span class="how">✓ במעקב שלך</span>` : `<button class="btn mini-btn" data-claim="${esc(x.code)}">שיוך אליי</button>`}</td></tr>`).join("")}
       </tbody></table></div>` : `<p class="how">לא נמצאו תלמידים${ui.adminQ ? ` בשם "${esc(ui.adminQ)}"` : ""}. רשומים באתר ${ADMIN_KIDS.total} תלמידים.</p>`) : ""}
   </section>`;
 }
 let ADMIN_KIDS = null;
+// admin: add a student found in the search to my own list
+async function claimKid(code) {
+  try {
+    const r = await tapi("teachers/students", { method: "POST", body: { code } });
+    TEACHER.codes = [...(TEACHER.codes || []), code];
+    (ADMIN_KIDS && ADMIN_KIDS.students || []).forEach(x => { if (x.code === code) x.teacher = TEACHER.user; }); toast(`${r.n} נוסף לתלמידים שלך`);
+    loadMyStudents(); draw();
+  } catch (e) { toast(e.status === 404 ? "התלמיד לא נמצא" : "השיוך לא הצליח. נסי שוב."); }
+}
 async function adminFind() {
   ui.adminQ = (($("#adminFind") || {}).value || "").trim();
   try { ADMIN_KIDS = await tapi("admin/students?q=" + encodeURIComponent(ui.adminQ)); } catch (e) { toast("החיפוש לא הצליח"); }
@@ -2862,6 +2872,7 @@ document.addEventListener("click", e => {
   if (d.untrack) return untrack(d.untrack);
   if (d.kid !== undefined) { ui.kid = ui.kid === d.kid ? "" : d.kid; draw(); const j = $("#journey"); if (j) j.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
   if (d.reset) return adminReset(d.reset);
+  if (d.claim) return claimKid(d.claim);
   if (d.wpane) { ui.wpane = ui.wpane === d.wpane ? "" : d.wpane; ui.codeErr = ""; draw(); const f = $("#kidCode"); if (f) f.focus(); return; }
   if (d.tmode) { ui.tmode = d.tmode; ui.tAuthMsg = ""; return draw(); }
   if (d.ttab) { ui.ttab = d.ttab; return draw(); }

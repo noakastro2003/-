@@ -2499,7 +2499,7 @@ function lastSeenHTML(r) {
   const t = Math.max(r.seen || 0, r.t || 0);
   if (!t) return "–";
   const ago = Date.now() - t;
-  if (r.seen && Date.now() - r.seen < 150000) return `<span class="online">🟢 באתר עכשיו</span>${r.doing ? ` · ${esc(r.doing)}` : ""}`;
+  if (r.seen && Date.now() - r.seen < 400000) return `<span class="online">🟢 באתר עכשיו</span>${r.doing ? ` · ${esc(r.doing)}` : ""}`;
   return fmtWhen(t);
 }
 function fmtWhen(t) {
@@ -2516,7 +2516,7 @@ function journeyHTML(r) {
   const st = recordToSt(r), log = Array.isArray(r.log) ? r.log.filter(e => STATION_BY_ID[e.s]) : [];
   const name = esc(r.n || "התלמיד");
   // stations started and not finished: where the child stopped
-  const online = r.seen && Date.now() - r.seen < 150000, last = log[log.length - 1];
+  const online = r.seen && Date.now() - r.seen < 400000, last = log[log.length - 1];
   const now = online && last && !last.d ? last.s : null;   // the station the child is playing right now isn't "stuck"
   const stuck = [];
   ALL.forEach(s => {
@@ -2554,7 +2554,7 @@ function journeyHTML(r) {
   </section>`;
 }
 // keep the class table fresh while the teacher looks at it
-setInterval(() => { if (ON_SITE && view.name === "teacher" && TEACHER && (ui.ttab || "students") === "students" && !ui.typing && !document.hidden) loadMyStudents(); }, 30000);
+setInterval(() => { if (ON_SITE && view.name === "teacher" && TEACHER && (ui.ttab || "students") === "students" && !ui.typing && !document.hidden) loadMyStudents(); }, 120000);
 function renderSiteTeacher() {
   if (ttoken() && !TEACHER) { loadTeacher(); return bar() + `<div class="panel teacher"><h2>אזור המורה</h2><p>מתחברים...</p></div>`; }
   if (!TEACHER) return bar() + teacherAuthHTML();
@@ -2715,7 +2715,7 @@ function adminHTML() {
     <form class="add-code" id="adminFindForm"><div class="row"><input id="adminFind" placeholder="שם התלמיד" autocomplete="off" value="${esc(ui.adminQ || "")}"><button class="btn" type="submit">חיפוש</button>${ui.adminQ ? `<button class="btn ghost" type="button" data-act="adminAll">הצגת כולם</button>` : ""}</div></form>
     ${ADMIN_KIDS ? `<p class="how">${ui.adminQ ? `נמצאו ${ADMIN_KIDS.students.length} מתוך ${ADMIN_KIDS.total} תלמידים רשומים.` : `רשומים באתר <b>${ADMIN_KIDS.total}</b> תלמידים.`}</p>` : `<p class="how">טוענים...</p>`}
     ${ADMIN_KIDS ? (ADMIN_KIDS.students.length ? `<div class="ttable"><table><thead><tr><th>שם</th><th>כיתה</th><th>קוד</th><th>מורה</th><th>נרשם</th><th>פעיל לאחרונה</th><th></th></tr></thead><tbody>
-      ${ADMIN_KIDS.students.map(x => `<tr><td>${esc(x.n)}</td><td>${esc(x.k)}</td><td dir="ltr"><b>${esc(x.code)}</b></td><td dir="ltr">${esc(x.teacher || "–")}</td><td>${x.created ? fmtDate(ymd(new Date(x.created))) : ""}</td><td>${x.seen ? (Date.now() - x.seen < 150000 ? `<span class="online">🟢 עכשיו</span>` : fmtWhen(x.seen)) : "–"}</td>
+      ${ADMIN_KIDS.students.map(x => `<tr><td>${esc(x.n)}</td><td>${esc(x.k)}</td><td dir="ltr"><b>${esc(x.code)}</b></td><td dir="ltr">${esc(x.teacher || "–")}</td><td>${x.created ? fmtDate(ymd(new Date(x.created))) : ""}</td><td>${x.seen ? (Date.now() - x.seen < 400000 ? `<span class="online">🟢 עכשיו</span>` : fmtWhen(x.seen)) : "–"}</td>
         <td>${(TEACHER.codes || []).includes(x.code) ? `<span class="how">✓ במעקב שלך</span>` : `<button class="btn mini-btn" data-claim="${esc(x.code)}">שיוך אליי</button>`}</td></tr>`).join("")}
       </tbody></table></div>` : `<p class="how">לא נמצאו תלמידים${ui.adminQ ? ` בשם "${esc(ui.adminQ)}"` : ""}. רשומים באתר ${ADMIN_KIDS.total} תלמידים.</p>`) : ""}
   </section>`;
@@ -2983,14 +2983,14 @@ async function codeLogin(code) {
     view = { name: "hello" }; draw(); toast(`שָׁלוֹם ${S.name}! עַכְשָׁו בַּחֲרוּ דְּמוּת.`);
   } catch (e) { ui.codeErr = e.status === 404 ? "הַקּוֹד לֹא נִמְצָא. בִּדְקוּ שֶׁהִקְלַדְתֶּם נָכוֹן." : "אֵין חִבּוּר לָאִינְטֶרְנֶט. נַסּוּ שׁוּב."; draw(); }
 }
-// tell the site the child is playing (for the teacher's "on the site now"), about once a minute while the game is in view
+// tell the site the child is playing (for the teacher's "on the site now"), every 3 minutes while the game is in view (each ping uses the site's monthly quota)
 function heartbeat() {
   if (!ON_SITE || !S.code || document.hidden || view.name === "teacher") return;
   const s = (view.name === "play" || view.name === "intro" || view.name === "summary") && run ? ST() : null;
   const a = s ? s.title + (view.name === "play" ? ` · שאלה ${run.qi + 1} מתוך ${s.questions.length}` : "") : { shop: "חדר ההלבשה", album: "האלבום", parents: "פינת ההורים" }[view.name] || "המפה";
   fetch("/api/seen", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: S.code, a }) }).catch(() => {});
 }
-if (ON_SITE) { setInterval(heartbeat, 60000); setTimeout(heartbeat, 3000); document.addEventListener("visibilitychange", () => { if (!document.hidden) heartbeat(); else if (S.code && run && curLogSafe()) syncMyProgress(); }); }
+if (ON_SITE) { setInterval(heartbeat, 180000); setTimeout(heartbeat, 3000); document.addEventListener("visibilitychange", () => { if (!document.hidden) heartbeat(); else if (S.code && run && curLogSafe()) syncMyProgress(); }); }
 function curLogSafe() { try { return view.name === "play" && curLog(); } catch (e) { return null; } }
 
 // a child with a code who played on another device since: take the newer saved game

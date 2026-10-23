@@ -118,7 +118,7 @@ export default async (req: Request) => {
     if (!validCode(code)) return bad()
     const who: any = await store().get("students/" + code, { type: "json" })
     if (!who) return bad("not_found", 404)
-    await store().setJSON("seen/" + code, { t: Date.now(), a: typeof body.a === "string" ? body.a.slice(0, 60) : "" })
+    await store().setJSON("seen/" + code, { t: Date.now(), a: typeof body.a === "string" ? body.a.slice(0, 120) : "" })
     return json({ ok: true })
   }
 

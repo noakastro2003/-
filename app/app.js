@@ -746,7 +746,7 @@ function myRecord() {
     const r = S.st[s.id]; if (!r || !r.done) return;
     st[s.id] = (r.stars || 0) + ":" + s.questions.map((q, i) => { const v = r.first && r.first[i]; return v === true ? "1" : v === false ? "0" : v === "open" ? "o" : "-"; }).join("");
   });
-  return { v: 1, n: S.name || "", k: S.klass || "", a: S.av.type || "astro", t: Date.now(), d: S.days.length, st };
+  return { v: 1, n: S.name || "", k: S.klass || "", a: S.av.type || "astro", t: Date.now(), d: S.days.length, st, log: (S.log || []).slice(-40) };
 }
 function recordToSt(rec) {
   const st = {};
@@ -2115,9 +2115,22 @@ function nextQ() {
     if (q.type === "punct") run.ans[run.qi] = st.p.slice(), run.res[run.qi] = q.lines.every((l, k) => st.p[k] === l.a);
   }
   if (q.type === "open") { run.res[run.qi] = "open"; run.open[q.q] = st.text.trim(); }
-  if (run.qi + 1 < s.questions.length) { run.qi++; run.q = qStateNew(s.questions[run.qi], s); view = { name: "play" }; draw(); scrollTop(); }
+  if (run.qi + 1 < s.questions.length) { run.qi++; logReach(); run.q = qStateNew(s.questions[run.qi], s); view = { name: "play" }; draw(); scrollTop(); }
   else finish();
 }
+
+/* the child's journey: each time a station is started, how far they got, and whether they finished it (last 40) */
+function logStart() {
+  if (!Array.isArray(S.log)) S.log = [];
+  const prev = S.log[S.log.length - 1], unsent = prev && !prev.d;
+  S.log.push({ s: ST().id, t: Date.now(), q: 0, n: ST().questions.length, d: 0 });
+  if (S.log.length > 40) S.log = S.log.slice(-40);
+  save();
+  if (unsent) syncMyProgress();   // the last try was left in the middle: let the teacher see it
+}
+function curLog() { const e = Array.isArray(S.log) && S.log[S.log.length - 1]; return e && !e.d && e.s === ST().id ? e : null; }
+function logReach() { const e = curLog(); if (e) { e.q = Math.max(e.q, run.qi); e.u = Date.now(); save(); } }
+function logDone(stars) { const e = curLog(); if (e) { e.q = e.n - 1; e.d = 1; e.st = stars; e.u = Date.now(); } }
 
 function finish() {
   const s = ST();
@@ -2135,7 +2148,7 @@ function finish() {
     first: Object.fromEntries(s.questions.map((q, i) => [i, run.res[i]])),
     open: Object.assign({}, prev.open || {}, run.open),
   };
-  save(); syncMyProgress();
+  logDone(stars); save(); syncMyProgress();
   run.stars = stars; run.right = right; run.scored = scored.length;
   fxQueue.push({ k: "party" });
   view = { name: "summary" }; draw(); scrollTop();
@@ -2483,10 +2496,58 @@ function lastSeenHTML(r) {
   if (!t) return "–";
   const ago = Date.now() - t;
   if (r.seen && Date.now() - r.seen < 150000) return `<span class="online">🟢 באתר עכשיו</span>${r.doing ? ` · ${esc(r.doing)}` : ""}`;
-  const d = new Date(t), hm = `בשעה <bdi>${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}</bdi>`;
+  return fmtWhen(t);
+}
+function fmtWhen(t) {
+  const ago = Date.now() - t, d = new Date(t), hm = `בשעה <bdi>${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}</bdi>`;
   const day = new Date(); day.setHours(0, 0, 0, 0);
-  const when = ago < 3600000 ? `לפני ${Math.max(1, Math.round(ago / 60000))} דק׳` : t >= day.getTime() ? `היום ${hm}` : t >= day.getTime() - 864e5 ? `אתמול ${hm}` : `<bdi>${d.getDate()}/${d.getMonth() + 1}</bdi> ${hm}`;
-  return when;
+  return ago < 3600000 ? `לפני ${Math.max(1, Math.round(ago / 60000))} דק׳` : t >= day.getTime() ? `היום ${hm}` : t >= day.getTime() - 864e5 ? `אתמול ${hm}` : `<bdi>${d.getDate()}/${d.getMonth() + 1}</bdi> ${hm}`;
+}
+
+/* one child's journey, opened by tapping the name in the class table */
+const STATION_BY_ID = Object.fromEntries(ALL.map(s => [s.id, s]));
+const qText = q => String(q.q || q.prompt || "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+const starsTxt = n => "★".repeat(n) + "☆".repeat(3 - n);
+function journeyHTML(r) {
+  const st = recordToSt(r), log = Array.isArray(r.log) ? r.log.filter(e => STATION_BY_ID[e.s]) : [];
+  const name = esc(r.n || "התלמיד");
+  // stations started and not finished: where the child stopped
+  const online = r.seen && Date.now() - r.seen < 150000, last = log[log.length - 1];
+  const now = online && last && !last.d ? last.s : null;   // the station the child is playing right now isn't "stuck"
+  const stuck = [];
+  ALL.forEach(s => {
+    if (st[s.id] || s.id === now) return;
+    const tries = log.filter(e => e.s === s.id);
+    if (tries.length) stuck.push({ s, tries: tries.length, far: Math.max(...tries.map(e => e.q || 0)) + 1, last: Math.max(...tries.map(e => e.u || e.t)) });
+  });
+  const weakSt = ALL.filter(s => st[s.id] && st[s.id].stars === 1);
+  const misses = ALL.filter(s => st[s.id]).map(s => ({ s, qs: s.questions.map((q, i) => [q, i]).filter(([q, i]) => st[s.id].first[i] === false) })).filter(x => x.qs.length);
+  const tracks = TRACKS.map(T => {
+    const nextI = T.stations.findIndex(s => !st[s.id]);
+    return `<div class="jtrack"><b>${esc(T.name)}</b><div class="jchips">${T.stations.map((s, i) => {
+      const done = st[s.id], stk = stuck.find(x => x.s === s);
+      const cls = done ? (done.stars === 3 ? "ok" : done.stars === 2 ? "mid" : "lo") : s.id === now ? "next" : stk ? "stuck" : i === nextI ? "next" : "";
+      const tag = done ? starsTxt(done.stars) : s.id === now ? "🟢 משחק עכשיו" : stk ? `⏸ נעצר בשאלה ${stk.far}/${s.questions.length}` : i === nextI ? "▶ הבא בתור" : "";
+      return `<span class="jchip ${cls}" title="${esc(s.title)}"><span class="jn">${i + 1}. ${esc(s.title)}</span>${tag ? `<span class="jt">${tag}</span>` : ""}</span>`;
+    }).join("")}</div></div>`;
+  }).join("");
+  const timeline = log.slice(-10).reverse().map(e => {
+    const s = STATION_BY_ID[e.s];
+    return `<li><span class="how">${fmtWhen(e.u || e.t)}</span> · ${esc(s.title)} · ${e.d ? `סיים ${starsTxt(e.st || 0)}` : e === last && now ? "🟢 משחק עכשיו" : `הפסיק בשאלה ${(e.q || 0) + 1} מתוך ${e.n}`}</li>`;
+  }).join("");
+  return `<section class="journey" id="journey">
+    <div class="jhead"><h3>המסלול של ${name} <span class="kcode">${esc(r.code)}</span></h3><button class="btn ghost mini-btn" data-kid="${esc(r.code)}">סגירה</button></div>
+    <p class="how">${r.seen || r.t ? lastSeenHTML(r) : "עוד לא שיחק"}</p>
+    ${stuck.length || weakSt.length ? `<div class="jalert"><b>איפה כדאי לעזור:</b><ul>
+      ${stuck.map(x => `<li>התחיל את <b>${esc(x.s.title)}</b> ${x.tries === 1 ? "פעם אחת" : x.tries + " פעמים"} ולא סיים. הגיע עד שאלה ${x.far} מתוך ${x.s.questions.length} (${fmtWhen(x.last)}).</li>`).join("")}
+      ${weakSt.map(s => `<li>סיים את <b>${esc(s.title)}</b> עם כוכב אחד. כדאי לחזור על התחנה (${SKILLS[s.skill] ? SKILLS[s.skill].name : ""}).</li>`).join("")}
+    </ul></div>` : (Object.keys(st).length ? `<p class="feedback good">אין תחנה שנתקע בה. כל הכבוד!</p>` : "")}
+    ${tracks}
+    ${misses.length ? `<details class="jmiss"><summary>שאלות שטעה בהן בניסיון הראשון (${misses.reduce((n, x) => n + x.qs.length, 0)})</summary>
+      ${misses.map(x => `<p><b>${esc(x.s.title)}</b></p><ul>${x.qs.map(([q, i]) => `<li>שאלה ${i + 1}: ${esc(qText(q).slice(0, 110))}${SKILLS[q.skill] ? ` <span class="how">(${SKILLS[q.skill].name})</span>` : ""}</li>`).join("")}</ul>`).join("")}
+    </details>` : ""}
+    ${timeline ? `<details class="jlog" open><summary>מה עשה לאחרונה</summary><ul>${timeline}</ul></details>` : `<p class="how">יומן הפעילות מתחיל להתמלא מעכשיו, בפעם הבאה שהילד ישחק.</p>`}
+  </section>`;
 }
 // keep the class table fresh while the teacher looks at it
 setInterval(() => { if (ON_SITE && view.name === "teacher" && TEACHER && (ui.ttab || "students") === "students" && !ui.typing && !document.hidden) loadMyStudents(); }, 30000);
@@ -2594,10 +2655,11 @@ function myStudentsHTML() {
     </form>
     ${ui.tErr ? `<p class="feedback try">${esc(ui.tErr)}</p>` : ""}
     ${classes.length > 1 ? `<div class="row">${["", ...classes].map(c => `<button class="chip klass ${klass === c ? "on" : ""}" data-kf="${esc(c)}">${c ? esc(c) : "כל הכיתות"}</button>`).join("")}</div>` : ""}
-    ${shown.length ? `<p class="how">אחוז התשובות הנכונות בניסיון הראשון. ירוק 80% ומעלה, צהוב 60% עד 79%, אדום מתחת ל־60%. <button class="linkbtn" data-act="reloadStudents">רענון</button></p>
+    ${(() => { const k = ui.kid && (MYSTUDENTS || []).find(x => x.code === ui.kid); return k ? journeyHTML(k) : ""; })()}
+    ${shown.length ? `<p class="how">לחצי על שם של תלמיד כדי לראות את המסלול שלו ואיפה נתקע. אחוז התשובות הנכונות בניסיון הראשון. ירוק 80% ומעלה, צהוב 60% עד 79%, אדום מתחת ל־60%. <button class="linkbtn" data-act="reloadStudents">רענון</button></p>
       <div class="ttable"><table class="cls">
       <thead><tr><th>תלמיד</th><th>כיתה</th><th>תחנות</th><th>⭐</th>${TABLE_SKILLS.map(k => `<th>${SKILLS[k].name}</th>`).join("")}<th>כדאי לחזק</th><th></th></tr></thead>
-      <tbody>${shown.map(x => `<tr><td class="tn">${esc(x.r.n)} <span class="kcode">${esc(x.r.code)}</span>${x.r.empty && !x.r.seen ? ` <span class="how">עוד לא שיחק</span>` : `<div class="seenline">${lastSeenHTML(x.r)}</div>`}</td><td>${esc(x.r.k || "")}</td>
+      <tbody>${shown.map(x => `<tr class="${ui.kid === x.r.code ? "sel" : ""}"><td class="tn"><button class="kidname" data-kid="${esc(x.r.code)}">${esc(x.r.n)}</button> <span class="kcode">${esc(x.r.code)}</span>${x.r.empty && !x.r.seen ? ` <span class="how">עוד לא שיחק</span>` : `<div class="seenline">${lastSeenHTML(x.r)}</div>`}</td><td>${esc(x.r.k || "")}</td>
         <td>${x.doneN}/${ALL.length}</td><td title="מתוך ${x.doneN * 3} אפשריים (עד 3 בכל תחנה)">${x.stars}<span class="of">/${x.doneN * 3}</span></td>${TABLE_SKILLS.map(k => pctCell(x.pct(k))).join("")}
         <td>${x.weak ? SKILLS[x.weak].name : "–"}</td>
         <td><button class="mini" data-untrack="${esc(x.r.code)}" aria-label="הסרה מהמעקב">✕</button></td></tr>`).join("")}</tbody>
@@ -2794,6 +2856,7 @@ document.addEventListener("click", e => {
   if (d.kf !== undefined) { ui.klassFilter = d.kf; return draw(); }
   if (d.delrow) return delRow(d.delrow);
   if (d.untrack) return untrack(d.untrack);
+  if (d.kid !== undefined) { ui.kid = ui.kid === d.kid ? "" : d.kid; draw(); const j = $("#journey"); if (j) j.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
   if (d.reset) return adminReset(d.reset);
   if (d.wpane) { ui.wpane = ui.wpane === d.wpane ? "" : d.wpane; ui.codeErr = ""; draw(); const f = $("#kidCode"); if (f) f.focus(); return; }
   if (d.tmode) { ui.tmode = d.tmode; ui.tAuthMsg = ""; return draw(); }
@@ -2855,7 +2918,7 @@ document.addEventListener("click", e => {
     case "nikud": S.nikud = !S.nikud; save(); return draw();
     case "size": S.size = S.size % 3 + 1; save(); return draw();
     case "sound": S.sound = !S.sound; save(); return draw();
-    case "start": run.qi = 0; run.q = qStateNew(ST().questions[0], ST()); view = { name: "play" }; draw(); return scrollTop();
+    case "start": run.qi = 0; run.q = qStateNew(ST().questions[0], ST()); logStart(); view = { name: "play" }; draw(); return scrollTop();
     case "next": case "testnext": return nextQ();
     case "checkfind": return checkFind();
     case "checkorder": return checkOrder();
@@ -2906,10 +2969,11 @@ async function codeLogin(code) {
 function heartbeat() {
   if (!ON_SITE || !S.code || document.hidden || view.name === "teacher") return;
   const s = (view.name === "play" || view.name === "intro" || view.name === "summary") && run ? ST() : null;
-  const a = s ? plain(s.title) : { shop: "חדר ההלבשה", album: "האלבום", parents: "פינת ההורים" }[view.name] || "המפה";
+  const a = s ? s.title + (view.name === "play" ? ` · שאלה ${run.qi + 1} מתוך ${s.questions.length}` : "") : { shop: "חדר ההלבשה", album: "האלבום", parents: "פינת ההורים" }[view.name] || "המפה";
   fetch("/api/seen", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: S.code, a }) }).catch(() => {});
 }
-if (ON_SITE) { setInterval(heartbeat, 60000); setTimeout(heartbeat, 3000); document.addEventListener("visibilitychange", () => { if (!document.hidden) heartbeat(); }); }
+if (ON_SITE) { setInterval(heartbeat, 60000); setTimeout(heartbeat, 3000); document.addEventListener("visibilitychange", () => { if (!document.hidden) heartbeat(); else if (S.code && run && curLogSafe()) syncMyProgress(); }); }
+function curLogSafe() { try { return view.name === "play" && curLog(); } catch (e) { return null; } }
 
 // a child with a code who played on another device since: take the newer saved game
 if (ON_SITE && S.code) api("me?code=" + S.code).then(me => {

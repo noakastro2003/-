@@ -2699,6 +2699,7 @@ async function changePassword() {
 }
 let ADMIN_LIST = null;
 function adminHTML() {
+  if (ADMIN_KIDS === null && !ui.adminLoading) { ui.adminLoading = true; tapi("admin/students?q=").then(r => { ADMIN_KIDS = r; }).catch(() => {}).finally(() => { ui.adminLoading = false; draw(); }); }
   if (ADMIN_LIST === null) { ADMIN_LIST = []; tapi("admin/teachers").then(r => { ADMIN_LIST = r.teachers.sort((a, b) => (b.created || 0) - (a.created || 0)); draw(); }).catch(() => {}); }
   return `<section class="tsec">
     <p class="how">המורות שרשומות באתר. "איפוס סיסמה" יוצר סיסמה זמנית שאת מוסרת למורה. אחרי שהיא נכנסת, היא מחליפה אותה בלשונית "החשבון שלי".</p>
@@ -2709,11 +2710,12 @@ function adminHTML() {
     </tbody></table></div>
   </section>
   <section class="tsec">
-    <h3>חיפוש תלמיד</h3>
-    <p class="how">כל התלמידים שנרשמו באתר, מכל המורות. אפשר לחפש לפי שם, כיתה או חלק מהקוד, למשל כשמורה לא מצליחה להוסיף קוד.</p>
-    <form class="add-code" id="adminFindForm"><div class="row"><input id="adminFind" placeholder="שם התלמיד" autocomplete="off" value="${esc(ui.adminQ || "")}"><button class="btn" type="submit">חיפוש</button></div></form>
-    ${ADMIN_KIDS ? (ADMIN_KIDS.students.length ? `<div class="ttable"><table><thead><tr><th>שם</th><th>כיתה</th><th>קוד</th><th>מורה</th><th>נרשם</th><th></th></tr></thead><tbody>
-      ${ADMIN_KIDS.students.map(x => `<tr><td>${esc(x.n)}</td><td>${esc(x.k)}</td><td dir="ltr"><b>${esc(x.code)}</b></td><td dir="ltr">${esc(x.teacher || "–")}</td><td>${x.created ? fmtDate(ymd(new Date(x.created))) : ""}</td>
+    <h3>כל התלמידים באתר</h3>
+    <p class="how">כל התלמידים שנרשמו באתר, מכל המורות, מהחדש לישן. אפשר לחפש לפי שם, כיתה או חלק מהקוד, ולשייך תלמיד לרשימה שלך.</p>
+    <form class="add-code" id="adminFindForm"><div class="row"><input id="adminFind" placeholder="שם התלמיד" autocomplete="off" value="${esc(ui.adminQ || "")}"><button class="btn" type="submit">חיפוש</button>${ui.adminQ ? `<button class="btn ghost" type="button" data-act="adminAll">הצגת כולם</button>` : ""}</div></form>
+    ${ADMIN_KIDS ? `<p class="how">${ui.adminQ ? `נמצאו ${ADMIN_KIDS.students.length} מתוך ${ADMIN_KIDS.total} תלמידים רשומים.` : `רשומים באתר <b>${ADMIN_KIDS.total}</b> תלמידים.`}</p>` : `<p class="how">טוענים...</p>`}
+    ${ADMIN_KIDS ? (ADMIN_KIDS.students.length ? `<div class="ttable"><table><thead><tr><th>שם</th><th>כיתה</th><th>קוד</th><th>מורה</th><th>נרשם</th><th>פעיל לאחרונה</th><th></th></tr></thead><tbody>
+      ${ADMIN_KIDS.students.map(x => `<tr><td>${esc(x.n)}</td><td>${esc(x.k)}</td><td dir="ltr"><b>${esc(x.code)}</b></td><td dir="ltr">${esc(x.teacher || "–")}</td><td>${x.created ? fmtDate(ymd(new Date(x.created))) : ""}</td><td>${x.seen ? (Date.now() - x.seen < 150000 ? `<span class="online">🟢 עכשיו</span>` : fmtWhen(x.seen)) : "–"}</td>
         <td>${(TEACHER.codes || []).includes(x.code) ? `<span class="how">✓ במעקב שלך</span>` : `<button class="btn mini-btn" data-claim="${esc(x.code)}">שיוך אליי</button>`}</td></tr>`).join("")}
       </tbody></table></div>` : `<p class="how">לא נמצאו תלמידים${ui.adminQ ? ` בשם "${esc(ui.adminQ)}"` : ""}. רשומים באתר ${ADMIN_KIDS.total} תלמידים.</p>`) : ""}
   </section>`;
@@ -2915,6 +2917,7 @@ document.addEventListener("click", e => {
     case "hideRecovery": ui.recovery = null; return draw();
     case "newRecovery": return tapi("teachers/recovery", { method: "POST" }).then(r => { ui.recovery = r.recovery; draw(); }).catch(() => toast("לא הצליח, נסי שוב"));
     case "reloadStudents": return loadMyStudents();
+    case "adminAll": { const f = $("#adminFind"); if (f) f.value = ""; return adminFind(); }
     case "toWelcome": ui.wpane = ""; view = { name: "welcome" }; return draw();
     case "copyCode": return copyCode();
     case "addCodes": return addCodes();

@@ -190,9 +190,9 @@ export default async (req: Request) => {
     if (route === "admin/students" && m === "GET") {
       const q = String(url.searchParams.get("q") || "").trim().slice(0, 40)
       const { blobs } = await store().list({ prefix: "students/" })
-      const rows = await Promise.all(blobs.map(async b => { const x: any = await store().get(b.key, { type: "json" }); return x && { code: x.code, n: x.n, k: x.k || "", teacher: x.teacher || "", created: x.created } }))
+      const rows = await Promise.all(blobs.map(async b => { const x: any = await store().get(b.key, { type: "json" }); if (!x) return null; const seen: any = await store().get("seen/" + x.code, { type: "json" }); return { code: x.code, n: x.n, k: x.k || "", teacher: x.teacher || "", created: x.created, seen: seen?.t || 0 } }))
       const hits = rows.filter(Boolean).filter((x: any) => !q || (x.n || "").includes(q) || x.code.includes(q) || (x.k || "").includes(q))
-      return json({ students: hits.sort((a: any, b: any) => (b.created || 0) - (a.created || 0)).slice(0, 100), total: blobs.length })
+      return json({ students: hits.sort((a: any, b: any) => (b.created || 0) - (a.created || 0)).slice(0, 1000), total: blobs.length })
     }
     if (route === "admin/reset" && m === "POST") {
       const user = String(body.user || "").toLowerCase()

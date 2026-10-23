@@ -582,7 +582,8 @@ function checkSort() {
   if (st.smarks.every(Boolean)) { st.locked = true; settle(st.tries === 1); chime(true); }
   else {
     chime(false);
-    st.fbMsg = `${st.smarks.filter(x => !x).length} מִשְׁפָּטִים לֹא בַּמָּקוֹם. שִׁאֲלוּ: זֶה כָּתוּב בְּדִיּוּק כָּךְ בַּסִּפּוּר?`;
+    const ask = { hidden: "זֶה כָּתוּב בְּדִיּוּק כָּךְ בַּסִּפּוּר?", vocab: "הַמִּלִּים אוֹמְרוֹת מָה שֶׁכָּתוּב, אוֹ מַשֶּׁהוּ אַחֵר?", purpose: "אֶפְשָׁר לִבְדֹּק אִם זֶה נָכוֹן, אוֹ שֶׁזּוֹ מַחְשָׁבָה שֶׁל מִישֶׁהוּ?" }[q.skill];
+    st.fbMsg = `${st.smarks.filter(x => !x).length} מִשְׁפָּטִים לֹא בַּמָּקוֹם.${ask ? " שִׁאֲלוּ: " + ask : " קִרְאוּ אוֹתָם שׁוּב."}`;
     if (st.tries >= 2) { q.items.forEach((it, k) => st.sort[k] = it.a); st.smarks = q.items.map(() => true); st.locked = true; settle(false); }
   }
   draw();
@@ -1637,15 +1638,18 @@ function renderPlay() {
     return `<i class="${i === run.qi ? "cur" : r === true ? "ok" : r === false ? (s.test ? "ok" : "miss") : r === "open" ? "ok" : ""}"></i>`;
   }).join("") + `<img class="rk" src="img/ui-rocket.webp" alt="" style="inset-inline-start:${((run.qi + .5) / s.questions.length * 100).toFixed(1)}%">`;
   const head = `<div class="crumbs"><h2>${tx(s.title)}</h2><span class="chip">${tx("שְׁאֵלָה")} ${run.qi + 1} ${tx("מִתּוֹךְ")} ${s.questions.length}</span><div class="prog" aria-hidden="true">${dots}</div></div>`;
+  const card = `<section class="qcard" aria-live="polite">
+      <span class="qtag">${tx(SKILLS[q.skill].kid)}</span>
+      <div class="qhead"><p class="qtext">${tx(q.q)}</p><button class="speak" data-say="${esc(q.q + (q.type === "mc" ? " " + st.opts.map(o => q.opts[o]).join(". ") : ""))}" aria-label="הקראת השאלה">${SPEAK}</button></div>
+      ${renderAnswer(s, q, st)}
+    </section>`;
+  // sorting and writing have no task form: without a text they still need the question card
+  if (!(q.text || s.text) && (q.type === "sort" || q.type === "write")) return bar() + head + `<div class="task">${card}</div>`;
   if (isTask(q) || !(q.text || s.text)) return bar() + head + `<div class="task"><section class="qcard" aria-live="polite">${renderTask(s, q, st)}</section></div>`;
   return bar() + head + `
   <div class="play">
     ${renderText(s, q, st)}
-    <section class="qcard" aria-live="polite">
-      <span class="qtag">${tx(SKILLS[q.skill].kid)}</span>
-      <div class="qhead"><p class="qtext">${tx(q.q)}</p><button class="speak" data-say="${esc(q.q + (q.type === "mc" ? " " + st.opts.map(o => q.opts[o]).join(". ") : ""))}" aria-label="הקראת השאלה">${SPEAK}</button></div>
-      ${renderAnswer(s, q, st)}
-    </section>
+    ${card}
   </div>`;
 }
 

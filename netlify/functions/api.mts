@@ -23,7 +23,8 @@ function passOk(pass: string, t: any) {
   const a = Buffer.from(hash(pass, t.salt), "hex"), b = Buffer.from(t.hash, "hex")
   return a.length === b.length && timingSafeEqual(a, b)
 }
-const admins = () => (Netlify.env.get("ADMIN_USERS") || "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean)
+// the site owner is always an admin; ADMIN_USERS can add more
+const admins = () => ("noakastro," + (Netlify.env.get("ADMIN_USERS") || "")).split(",").map(x => x.trim().toLowerCase()).filter(Boolean)
 const publicTeacher = (t: any) => ({ user: t.user, name: t.name, school: t.school || "", cfg: t.cfg || {}, codes: t.codes || [], classCode: t.classCode || "", admin: admins().includes(t.user) })
 // letters and digits that can't be confused (no 0/O, 1/I/L)
 const ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"

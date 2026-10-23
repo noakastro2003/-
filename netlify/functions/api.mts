@@ -213,9 +213,9 @@ export default async (req: Request) => {
   }
   if (route === "teachers/students" && m === "POST") {
     const code = String(body.code || "").replace(/\D/g, "")
-    if (!validCode(code)) return bad()
+    if (!validCode(code)) { console.log("add student: bad code", JSON.stringify(body.code)); return bad() }
     const who: any = await store().get("students/" + code, { type: "json" })
-    if (!who) return bad("not_found", 404)
+    if (!who) { console.log("add student: not found", code, "raw", JSON.stringify(body.code)); return bad("not_found", 404) }
     if ((t.codes || []).length >= 300) return bad("too_many", 400)
     await track(t, code); await saveTeacher()
     return json({ ok: true, n: who.n, k: who.k })

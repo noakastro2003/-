@@ -2576,7 +2576,7 @@ function myStudentsHTML() {
     </form>
     <form class="add-code" id="addCodeForm">
       <label for="addCode"><b>הוספת תלמיד:</b> הקלידי את הקוד שהתלמיד שלח לך (6 ספרות)</label>
-      <div class="row"><input id="addCode" inputmode="numeric" maxlength="6" placeholder="123456" dir="ltr" autocomplete="off"><button class="btn" type="submit">הוספה למעקב</button></div>
+      <div class="row"><input id="addCode" inputmode="numeric" maxlength="80" placeholder="123456" dir="ltr" autocomplete="off"><button class="btn" type="submit">הוספה למעקב</button></div>
       ${ui.addMsg ? `<p class="how">${esc(ui.addMsg)}</p>` : ""}
     </form>
     ${ui.tErr ? `<p class="feedback try">${esc(ui.tErr)}</p>` : ""}
@@ -2628,7 +2628,21 @@ function adminHTML() {
       ${ADMIN_LIST.map(x => `<tr><td>${esc(x.name)}</td><td>${esc(x.school)}</td><td dir="ltr">${esc(x.user)}</td><td>${x.students}</td><td>${x.created ? fmtDate(ymd(new Date(x.created))) : ""}</td>
         <td><button class="btn ghost mini-btn" data-reset="${esc(x.user)}">איפוס סיסמה</button></td></tr>`).join("")}
     </tbody></table></div>
+  </section>
+  <section class="tsec">
+    <h3>חיפוש תלמיד</h3>
+    <p class="how">כל התלמידים שנרשמו באתר, מכל המורות. אפשר לחפש לפי שם, כיתה או חלק מהקוד, למשל כשמורה לא מצליחה להוסיף קוד.</p>
+    <form class="add-code" id="adminFindForm"><div class="row"><input id="adminFind" placeholder="שם התלמיד" autocomplete="off" value="${esc(ui.adminQ || "")}"><button class="btn" type="submit">חיפוש</button></div></form>
+    ${ADMIN_KIDS ? (ADMIN_KIDS.students.length ? `<div class="ttable"><table><thead><tr><th>שם</th><th>כיתה</th><th>קוד</th><th>מורה</th><th>נרשם</th></tr></thead><tbody>
+      ${ADMIN_KIDS.students.map(x => `<tr><td>${esc(x.n)}</td><td>${esc(x.k)}</td><td dir="ltr"><b>${esc(x.code)}</b></td><td dir="ltr">${esc(x.teacher || "–")}</td><td>${x.created ? fmtDate(ymd(new Date(x.created))) : ""}</td></tr>`).join("")}
+      </tbody></table></div>` : `<p class="how">לא נמצאו תלמידים${ui.adminQ ? ` בשם "${esc(ui.adminQ)}"` : ""}. רשומים באתר ${ADMIN_KIDS.total} תלמידים.</p>`) : ""}
   </section>`;
+}
+let ADMIN_KIDS = null;
+async function adminFind() {
+  ui.adminQ = (($("#adminFind") || {}).value || "").trim();
+  try { ADMIN_KIDS = await tapi("admin/students?q=" + encodeURIComponent(ui.adminQ)); } catch (e) { toast("החיפוש לא הצליח"); }
+  draw();
 }
 async function adminReset(user) {
   if (ui.confirmDel !== "reset:" + user) { ui.confirmDel = "reset:" + user; return toast("לחצי שוב כדי לאפס את הסיסמה של " + user); }
@@ -2636,11 +2650,21 @@ async function adminReset(user) {
   try { const r = await tapi("admin/reset", { method: "POST", body: { user } }); ui.tempPass = `הסיסמה הזמנית של <b dir="ltr">${esc(user)}</b>: <span class="kcode big" dir="ltr">${esc(r.temp)}</span>`; draw(); }
   catch (e) { toast("האיפוס לא הצליח"); }
 }
+// a code pasted from a message: "הקוד של דני: 482 913" → "482913"
+function codeFrom(raw) {
+  const t = String(raw).replace(/[\u0660-\u0669\u06F0-\u06F9]/g, d => String(d.charCodeAt(0) & 15));
+  const digits = t.replace(/\D/g, "");
+  if (digits.length === 6) return digits;
+  const m = t.match(/(?:^|\D)(\d{3}[\s.-]?\d{3})(?!\d)/);
+  return m ? m[1].replace(/\D/g, "") : null;
+}
 async function addTracked() {
-  const code = (($("#addCode") || {}).value || "").replace(/\D/g, "");
-  if (code.length !== 6) { ui.addMsg = "הקוד הוא 6 ספרות."; return draw(); }
-  try { const r = await tapi("teachers/students", { method: "POST", body: { code } }); ui.addMsg = `נוסף: ${r.n}${r.k ? " (" + r.k + ")" : ""}`; await loadMyStudents(); const f = $("#addCode"); if (f) f.focus(); }
-  catch (e) { ui.addMsg = e.status === 404 ? "לא נמצא תלמיד עם הקוד הזה. בדקי את הספרות." : e.status === 401 ? "צריך להתחבר מחדש." : "ההוספה לא הצליחה. נסי שוב."; draw(); }
+  const raw = ($("#addCode") || {}).value || "";
+  if (/GM1-/.test(raw)) { ui.addMsg = "זה קוד מהגרסה הישנה של המשחק (שנפתחה דרך claude.ai), לא מהאתר. בקשי מההורים לפתוח את המשחק בכתובת של האתר: שם הילד יקבל קוד של 6 ספרות."; return draw(); }
+  const code = codeFrom(raw);
+  if (!code) { ui.addMsg = "הקוד הוא 6 ספרות. בדקי שהעתקת את כולו."; return draw(); }
+  try { const r = await tapi("teachers/students", { method: "POST", body: { code } }); ui.addMsg = `נוסף: ${r.n}${r.k ? " (" + r.k + ")" : ""}`; const f = $("#addCode"); if (f) f.value = ""; await loadMyStudents(); if (f) f.focus(); }
+  catch (e) { ui.addMsg = e.status === 404 ? `לא נמצא תלמיד עם הקוד ${code}. כדאי לבדוק עם ההורים את הספרות, ושהילד משחק באתר עצמו (ולא בקישור אחר). את הקוד הנכון רואים ב"פינת ההורים" במכשיר שבו הילד משחק.` : e.status === 401 ? "צריך להתחבר מחדש." : "ההוספה לא הצליחה. נסי שוב."; draw(); }
 }
 async function untrack(code) {
   if (ui.confirmDel !== code) { ui.confirmDel = code; return toast("לחצי שוב על ✕ כדי להסיר את התלמיד מהמעקב"); }
@@ -2901,6 +2925,7 @@ document.addEventListener("submit", async e => {
   if (e.target.id === "codeForm") { e.preventDefault(); return codeLogin(($("#kidCode") || {}).value); }
   if (e.target.id === "tAuthForm") { e.preventDefault(); return teacherAuth(); }
   if (e.target.id === "addCodeForm") { e.preventDefault(); return addTracked(); }
+  if (e.target.id === "adminFindForm") { e.preventDefault(); return adminFind(); }
   if (e.target.id === "createForm") { e.preventDefault(); return createStudent(); }
   if (e.target.id === "tResetForm") { e.preventDefault(); return teacherReset(); }
   if (e.target.id === "pwForm") { e.preventDefault(); return changePassword(); }

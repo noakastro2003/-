@@ -175,6 +175,14 @@ export default async (req: Request) => {
       const list = await Promise.all(blobs.map(async b => { const x: any = await store().get(b.key, { type: "json" }); return x && { user: x.user, name: x.name, school: x.school || "", students: (x.codes || []).length, created: x.created } }))
       return json({ teachers: list.filter(Boolean) })
     }
+    // find a student by name or code, for a code that a teacher can't add
+    if (route === "admin/students" && m === "GET") {
+      const q = String(url.searchParams.get("q") || "").trim().slice(0, 40)
+      const { blobs } = await store().list({ prefix: "students/" })
+      const rows = await Promise.all(blobs.map(async b => { const x: any = await store().get(b.key, { type: "json" }); return x && { code: x.code, n: x.n, k: x.k || "", teacher: x.teacher || "", created: x.created } }))
+      const hits = rows.filter(Boolean).filter((x: any) => !q || (x.n || "").includes(q) || x.code.includes(q) || (x.k || "").includes(q))
+      return json({ students: hits.sort((a: any, b: any) => (b.created || 0) - (a.created || 0)).slice(0, 100), total: blobs.length })
+    }
     if (route === "admin/reset" && m === "POST") {
       const user = String(body.user || "").toLowerCase()
       const x: any = validUser(user) ? await store().get("teachers/" + user, { type: "json" }) : null

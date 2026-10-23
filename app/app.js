@@ -2477,6 +2477,19 @@ async function loadMyStudents() {
   try { MYSTUDENTS = (await tapi("teachers/students")).students; } catch (e) { MYSTUDENTS = MYSTUDENTS || []; ui.tErr = "לא הצלחנו לטעון את התלמידים. בדקו את החיבור."; }
   if (view.name === "teacher" && !ui.typing) draw();
 }
+// "on the site now" if the game pinged in the last 2 minutes, otherwise the last time the child played, to the minute
+function lastSeenHTML(r) {
+  const t = Math.max(r.seen || 0, r.t || 0);
+  if (!t) return "–";
+  const ago = Date.now() - t;
+  if (r.seen && Date.now() - r.seen < 150000) return `<span class="online">🟢 באתר עכשיו</span>${r.doing ? ` · ${esc(r.doing)}` : ""}`;
+  const d = new Date(t), hm = `בשעה <bdi>${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}</bdi>`;
+  const day = new Date(); day.setHours(0, 0, 0, 0);
+  const when = ago < 3600000 ? `לפני ${Math.max(1, Math.round(ago / 60000))} דק׳` : t >= day.getTime() ? `היום ${hm}` : t >= day.getTime() - 864e5 ? `אתמול ${hm}` : `<bdi>${d.getDate()}/${d.getMonth() + 1}</bdi> ${hm}`;
+  return when;
+}
+// keep the class table fresh while the teacher looks at it
+setInterval(() => { if (ON_SITE && view.name === "teacher" && TEACHER && (ui.ttab || "students") === "students" && !ui.typing && !document.hidden) loadMyStudents(); }, 30000);
 function renderSiteTeacher() {
   if (ttoken() && !TEACHER) { loadTeacher(); return bar() + `<div class="panel teacher"><h2>אזור המורה</h2><p>מתחברים...</p></div>`; }
   if (!TEACHER) return bar() + teacherAuthHTML();
@@ -2583,12 +2596,12 @@ function myStudentsHTML() {
     ${classes.length > 1 ? `<div class="row">${["", ...classes].map(c => `<button class="chip klass ${klass === c ? "on" : ""}" data-kf="${esc(c)}">${c ? esc(c) : "כל הכיתות"}</button>`).join("")}</div>` : ""}
     ${shown.length ? `<p class="how">אחוז התשובות הנכונות בניסיון הראשון. ירוק 80% ומעלה, צהוב 60% עד 79%, אדום מתחת ל־60%. <button class="linkbtn" data-act="reloadStudents">רענון</button></p>
       <div class="ttable"><table class="cls">
-      <thead><tr><th>תלמיד</th><th>כיתה</th><th>תחנות</th><th>⭐</th>${TABLE_SKILLS.map(k => `<th>${SKILLS[k].name}</th>`).join("")}<th>כדאי לחזק</th><th>שיחק לאחרונה</th><th></th></tr></thead>
-      <tbody>${shown.map(x => `<tr><td class="tn">${esc(x.r.n)} <span class="kcode">${esc(x.r.code)}</span>${x.r.empty ? ` <span class="how">עוד לא שיחק</span>` : ""}</td><td>${esc(x.r.k || "")}</td>
+      <thead><tr><th>תלמיד</th><th>כיתה</th><th>תחנות</th><th>⭐</th>${TABLE_SKILLS.map(k => `<th>${SKILLS[k].name}</th>`).join("")}<th>כדאי לחזק</th><th></th></tr></thead>
+      <tbody>${shown.map(x => `<tr><td class="tn">${esc(x.r.n)} <span class="kcode">${esc(x.r.code)}</span>${x.r.empty && !x.r.seen ? ` <span class="how">עוד לא שיחק</span>` : `<div class="seenline">${lastSeenHTML(x.r)}</div>`}</td><td>${esc(x.r.k || "")}</td>
         <td>${x.doneN}/${ALL.length}</td><td title="מתוך ${x.doneN * 3} אפשריים (עד 3 בכל תחנה)">${x.stars}<span class="of">/${x.doneN * 3}</span></td>${TABLE_SKILLS.map(k => pctCell(x.pct(k))).join("")}
-        <td>${x.weak ? SKILLS[x.weak].name : "–"}</td><td>${x.r.t ? fmtDate(ymd(new Date(x.r.t))) : "–"}</td>
+        <td>${x.weak ? SKILLS[x.weak].name : "–"}</td>
         <td><button class="mini" data-untrack="${esc(x.r.code)}" aria-label="הסרה מהמעקב">✕</button></td></tr>`).join("")}</tbody>
-      <tfoot><tr><th colspan="4">ממוצע${klass ? " " + esc(klass) : ""}</th>${TABLE_SKILLS.map(k => pctCell(avg(k))).join("")}<th colspan="3"></th></tr></tfoot>
+      <tfoot><tr><th colspan="4">ממוצע${klass ? " " + esc(klass) : ""}</th>${TABLE_SKILLS.map(k => pctCell(avg(k))).join("")}<th colspan="2"></th></tr></tfoot>
       </table></div>`
       : `<p class="empty-note" style="text-align:start">עוד אין תלמידים במעקב. כשתלמיד נרשם למשחק הוא מקבל קוד של 6 ספרות. בקשי מההורים לשלוח לך אותו, והקלידי אותו כאן.</p>`}
   </section>`;
@@ -2889,6 +2902,15 @@ async function codeLogin(code) {
     view = { name: "hello" }; draw(); toast(`שָׁלוֹם ${S.name}! עַכְשָׁו בַּחֲרוּ דְּמוּת.`);
   } catch (e) { ui.codeErr = e.status === 404 ? "הַקּוֹד לֹא נִמְצָא. בִּדְקוּ שֶׁהִקְלַדְתֶּם נָכוֹן." : "אֵין חִבּוּר לָאִינְטֶרְנֶט. נַסּוּ שׁוּב."; draw(); }
 }
+// tell the site the child is playing (for the teacher's "on the site now"), about once a minute while the game is in view
+function heartbeat() {
+  if (!ON_SITE || !S.code || document.hidden || view.name === "teacher") return;
+  const s = (view.name === "play" || view.name === "intro" || view.name === "summary") && run ? ST() : null;
+  const a = s ? plain(s.title) : { shop: "חדר ההלבשה", album: "האלבום", parents: "פינת ההורים" }[view.name] || "המפה";
+  fetch("/api/seen", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: S.code, a }) }).catch(() => {});
+}
+if (ON_SITE) { setInterval(heartbeat, 60000); setTimeout(heartbeat, 3000); document.addEventListener("visibilitychange", () => { if (!document.hidden) heartbeat(); }); }
+
 // a child with a code who played on another device since: take the newer saved game
 if (ON_SITE && S.code) api("me?code=" + S.code).then(me => {
   applyStudentInfo(me);

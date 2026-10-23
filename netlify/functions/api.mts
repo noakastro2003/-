@@ -112,6 +112,16 @@ export default async (req: Request) => {
     return json({ ok: true })
   }
 
+  // "I'm playing now": sent about once a minute while the game is open, so the teacher sees who is on the site
+  if (route === "seen" && m === "POST") {
+    const code = body.code
+    if (!validCode(code)) return bad()
+    const who: any = await store().get("students/" + code, { type: "json" })
+    if (!who) return bad("not_found", 404)
+    await store().setJSON("seen/" + code, { t: Date.now(), a: typeof body.a === "string" ? body.a.slice(0, 60) : "" })
+    return json({ ok: true })
+  }
+
   /* ---- teachers: sign up, sign in ---- */
   if (route === "teachers/register" && m === "POST") {
     const user = String(body.user || "").trim().toLowerCase()
@@ -206,8 +216,9 @@ export default async (req: Request) => {
       const who: any = await store().get("students/" + code, { type: "json" })
       if (!who) return null
       const prog: any = await store().get("progress/" + code, { type: "json" })
+      const seen: any = await store().get("seen/" + code, { type: "json" })
       const { state, ...rec } = prog || {}
-      return { ...rec, code, n: who.n, k: who.k, added: who.added || 0, empty: !prog }
+      return { ...rec, code, n: who.n, k: who.k, added: who.added || 0, empty: !prog, seen: seen?.t || 0, doing: seen?.a || "" }
     }))
     return json({ students: rows.filter(Boolean) })
   }

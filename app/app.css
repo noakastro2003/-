@@ -676,3 +676,4 @@ table.cls .src { color: var(--good); font-size: .7rem; }
 .add-code.manual { background: var(--pen-soft); border-color: var(--pen); }
 .add-code.manual input { font-size: 1rem; letter-spacing: 0; text-align: start; width: auto; flex: 1 1 160px; }
 .mini-btn { padding: 4px 12px; font-size: .9rem; box-shadow: none; }
+td .of { color: #8a84a8; font-size: .85em; }

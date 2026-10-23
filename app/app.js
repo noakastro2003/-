@@ -864,7 +864,7 @@ function classDashboardHTML() {
   const table = shown.length ? `<div class="ttable"><table class="cls">
       <thead><tr><th>תלמיד</th><th>כיתה</th><th>תחנות</th><th>⭐</th>${TABLE_SKILLS.map(k => `<th>${SKILLS[k].name}</th>`).join("")}<th>כדאי לחזק</th><th>עודכן</th><th></th></tr></thead>
       <tbody>${shown.map(x => `<tr><td class="tn">${esc(x.r.n || "ללא שם")}${x.r.code ? ` <span class="kcode">${esc(x.r.code)}</span>` : ""}${x.r.empty ? ` <span class="how">עוד לא שיחק</span>` : x.r.src === "progress" ? ` <span class="src" title="נשלח אוטומטית">●</span>` : ""}</td><td>${esc(x.r.k || "")}</td>
-        <td>${x.doneN}/${ALL.length}</td><td>${x.stars}</td>${TABLE_SKILLS.map(k => pctCell(x.pct(k))).join("")}
+        <td>${x.doneN}/${ALL.length}</td><td title="מתוך ${x.doneN * 3} אפשריים (עד 3 בכל תחנה)">${x.stars}<span class="of">/${x.doneN * 3}</span></td>${TABLE_SKILLS.map(k => pctCell(x.pct(k))).join("")}
         <td>${x.weak ? SKILLS[x.weak].name : "–"}</td><td>${x.r.t ? fmtDate(ymd(new Date(x.r.t))) : ""}</td>
         <td>${x.r.src === "roster" ? `<button class="mini" data-delrow="${esc(x.r.id)}" aria-label="מחיקה">✕</button>` : ""}</td></tr>`).join("")}
       </tbody>
@@ -2585,7 +2585,7 @@ function myStudentsHTML() {
       <div class="ttable"><table class="cls">
       <thead><tr><th>תלמיד</th><th>כיתה</th><th>תחנות</th><th>⭐</th>${TABLE_SKILLS.map(k => `<th>${SKILLS[k].name}</th>`).join("")}<th>כדאי לחזק</th><th>שיחק לאחרונה</th><th></th></tr></thead>
       <tbody>${shown.map(x => `<tr><td class="tn">${esc(x.r.n)} <span class="kcode">${esc(x.r.code)}</span>${x.r.empty ? ` <span class="how">עוד לא שיחק</span>` : ""}</td><td>${esc(x.r.k || "")}</td>
-        <td>${x.doneN}/${ALL.length}</td><td>${x.stars}</td>${TABLE_SKILLS.map(k => pctCell(x.pct(k))).join("")}
+        <td>${x.doneN}/${ALL.length}</td><td title="מתוך ${x.doneN * 3} אפשריים (עד 3 בכל תחנה)">${x.stars}<span class="of">/${x.doneN * 3}</span></td>${TABLE_SKILLS.map(k => pctCell(x.pct(k))).join("")}
         <td>${x.weak ? SKILLS[x.weak].name : "–"}</td><td>${x.r.t ? fmtDate(ymd(new Date(x.r.t))) : "–"}</td>
         <td><button class="mini" data-untrack="${esc(x.r.code)}" aria-label="הסרה מהמעקב">✕</button></td></tr>`).join("")}</tbody>
       <tfoot><tr><th colspan="4">ממוצע${klass ? " " + esc(klass) : ""}</th>${TABLE_SKILLS.map(k => pctCell(avg(k))).join("")}<th colspan="3"></th></tr></tfoot>

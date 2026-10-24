@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>מסע לאי המאה</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Varela+Round&display=swap">
+<style>
+/* Layout: one screen at a time (home → sea map → island activity), parrot guide on top, activity in a sand panel, answers at the bottom. */
+:root {
+  color-scheme: light;
+  --sea: #1fb3d2;
+  --sea-deep: #0a6f93;
+  --foam: #e9fbff;
+  --sand: #f7e2ae;
+  --sand-deep: #e7c47c;
+  --wood: #b06a2c;
+  --ink: #1e2b4d;
+  --ink-soft: #4a587a;
+  --gold: #f6b819;
+  --coral: #ff6a45;
+  --leaf: #44a047;
+  --white: #ffffff;
+  --display: "Fredoka", "Varela Round", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --body: "Varela Round", "Fredoka", system-ui, sans-serif;
+  --r: 18px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--sea-deep); color: var(--ink);
+  font-family: var(--body); font-size: 18px;
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+img { max-width: 100%; display: block; -webkit-user-drag: none; }
+img.missing { display: none; }
+bdi.n, .n { direction: ltr; unicode-bidi: isolate; font-family: var(--display); font-variant-numeric: tabular-nums; }
+
+#app {
+  height: 100%; display: flex; flex-direction: column;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(255,255,255,.35), transparent 60%),
+    linear-gradient(180deg, var(--sea) 0%, var(--sea-deep) 100%);
+}
+.bar {
+  flex: none; display: flex; align-items: center; gap: 10px;
+  padding-block: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.bar h1 { flex: 1; margin: 0; font-family: var(--display); font-weight: 700; font-size: 22px; color: var(--white); text-shadow: 0 2px 0 var(--sea-deep); text-align: center; text-wrap: balance; }
+.icon-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--white); display: grid; place-items: center; box-shadow: 0 3px 0 rgba(10,60,90,.35); }
+.icon-btn svg { width: 24px; height: 24px; fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn[aria-pressed="false"] svg .wave { display: none; }
+.coins { display: flex; align-items: center; gap: 6px; background: var(--white); border-radius: 999px; padding: 4px 12px 4px 6px; box-shadow: 0 3px 0 rgba(10,60,90,.35); font-family: var(--display); font-weight: 700; font-size: 20px; }
+.coins img { width: 32px; height: 32px; }
+#screen { flex: 1; min-height: 0; position: relative; }
+.view { position: absolute; inset: 0; display: flex; flex-direction: column; }
+
+/* ---------- Home ---------- */
+.home { align-items: center; justify-content: center; gap: 14px; text-align: center; overflow-y: auto; padding-block: 12px 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.home h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: clamp(40px, 11vw, 68px); line-height: 1; color: var(--white); text-shadow: 0 4px 0 var(--sea-deep), 0 8px 18px rgba(0,40,70,.35); }
+.home h2 .n { color: var(--gold); }
+.home p { margin: 0; color: var(--foam); font-size: 20px; max-width: 30ch; }
+.hero { position: relative; width: min(420px, 90vw); }
+.hero .isle-big { width: 100%; }
+.hero .parrot-hero { position: absolute; width: 38%; left: -2%; bottom: 6%; }
+.hero.no-art { height: 260px; }
+.hero.no-art .parrot-hero { position: static; width: 200px; margin: 0 auto; }
+.big-btn {
+  font-family: var(--display); font-weight: 700; font-size: 26px; color: var(--ink);
+  background: var(--gold); padding: 14px 40px; border-radius: 999px;
+  box-shadow: 0 6px 0 #b77f00, 0 10px 20px rgba(0,40,70,.3);
+  transition: transform .1s;
+}
+.big-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b77f00; }
+.link-btn { color: var(--foam); text-decoration: underline; font-size: 16px; padding: 8px; }
+
+/* ---------- Map ---------- */
+.map-scroll { overflow-y: auto; overflow-x: hidden; flex: 1; scroll-behavior: smooth; }
+.map { position: relative; width: min(560px, 100%); margin: 0 auto; }
+.map svg.route { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.route path { fill: none; stroke: var(--foam); stroke-width: 5; stroke-dasharray: 2 14; stroke-linecap: round; opacity: .85; }
+.isle { position: absolute; width: 46%; transform: translate(50%, -50%); display: flex; flex-direction: column; align-items: center; text-align: center; }
+.isle .art { position: relative; width: 100%; aspect-ratio: 1 / .78; display: grid; place-items: center; }
+.isle .art img.island { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 6px 6px rgba(0,40,70,.25)); }
+.isle .art .fallback { display: none; }
+.isle .art.no-art .fallback { display: grid; place-items: center; position: absolute; inset: 14% 4% 10%; border-radius: 50%; background: radial-gradient(closest-side, var(--sand) 70%, var(--sand-deep) 86%, rgba(255,255,255,.7) 92%, transparent 100%); }
+.isle .art.no-art .fallback img { width: 46%; }
+.isle.locked .art { filter: grayscale(.85) brightness(.9); opacity: .75; }
+.isle .label { margin-top: -6px; background: var(--white); border-radius: 12px; padding: 4px 12px; font-family: var(--display); font-weight: 600; font-size: 17px; box-shadow: 0 3px 0 rgba(10,60,90,.3); }
+.isle.locked .label { color: var(--ink-soft); }
+.stars { display: flex; gap: 2px; justify-content: center; margin-top: 4px; }
+.stars svg { width: 20px; height: 20px; }
+.star-on { fill: var(--gold); stroke: #a87400; stroke-width: 1.5; }
+.star-off { fill: rgba(255,255,255,.45); stroke: rgba(30,43,77,.35); stroke-width: 1.5; }
+.lock { position: absolute; top: 34%; width: 44px; height: 44px; border-radius: 50%; background: var(--white); display: grid; place-items: center; box-shadow: 0 3px 0 rgba(10,60,90,.35); }
+.lock svg { width: 24px; fill: none; stroke: var(--ink-soft); stroke-width: 2.4; }
+.boat { position: absolute; width: 18%; transform: translate(50%, -50%); pointer-events: none; animation: bob 2.6s ease-in-out infinite; transition: right .9s ease, top .9s ease; }
+@keyframes bob { 50% { transform: translate(50%, -58%) rotate(-3deg); } }
+
+/* ---------- Activity ---------- */
+.guide { flex: none; display: flex; align-items: flex-end; gap: 8px; padding-block: 4px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); width: 100%; max-width: 760px; margin: 0 auto; }
+.guide .parrot { width: 86px; flex: none; transition: transform .2s; }
+.guide .parrot.hop { animation: hop .5s ease; }
+@keyframes hop { 40% { transform: translateY(-14px) rotate(-4deg); } }
+.bubble { position: relative; flex: 1; min-width: 0; background: var(--white); border-radius: var(--r); padding: 12px 14px 12px 50px; font-size: 20px; line-height: 1.35; box-shadow: 0 4px 0 rgba(10,60,90,.3); margin-bottom: 18px; min-height: 64px; display: flex; align-items: center; }
+.bubble::after { content: ""; position: absolute; right: -10px; bottom: 16px; border: 12px solid transparent; border-left-color: var(--white); border-right: 0; }
+.bubble .speak { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border-radius: 50%; background: var(--foam); display: grid; place-items: center; }
+.bubble .speak svg { width: 22px; fill: none; stroke: var(--sea-deep); stroke-width: 2.4; stroke-linecap: round; }
+.progress { display: flex; gap: 6px; justify-content: center; padding-bottom: 6px; }
+.progress i { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,.35); }
+.progress i.done { background: var(--gold); }
+.progress i.now { background: var(--white); }
+.stage {
+  flex: 1; min-height: 0; overflow-y: auto; position: relative;
+  margin-inline: max(12px, env(safe-area-inset-left, 0px)); width: auto; max-width: 760px; align-self: stretch;
+  background: var(--sand); border-radius: 24px; box-shadow: inset 0 -8px 0 var(--sand-deep), 0 6px 0 rgba(10,60,90,.25);
+  padding: 16px 12px 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+}
+@media (min-width: 790px) { .stage { margin-inline: auto; width: 100%; } }
+.stage.shake { animation: shake .4s; }
+@keyframes shake { 20%,60% { transform: translateX(-7px); } 40%,80% { transform: translateX(7px); } }
+.controls { flex: none; padding-block: 12px max(14px, env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.choices { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.choice { min-width: 92px; padding: 12px 18px; border-radius: 20px; background: var(--white); font-family: var(--display); font-weight: 700; font-size: 32px; box-shadow: 0 5px 0 rgba(10,60,90,.35); transition: transform .1s; }
+.choice:active { transform: translateY(3px); }
+.choice.ok { background: var(--leaf); color: var(--white); }
+.choice.no { opacity: .45; }
+.choice.txt { font-size: 22px; }
+.go-btn { font-family: var(--display); font-weight: 700; font-size: 22px; background: var(--gold); padding: 10px 30px; border-radius: 999px; box-shadow: 0 5px 0 #b77f00; }
+.go-btn:disabled { opacity: .5; }
+
+/* quantities */
+.qty { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.qty-tens { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 420px; }
+.qty-tens > * { width: 70px; }
+.qty-ones { display: grid; grid-template-columns: repeat(5, 30px); gap: 4px; direction: ltr; }
+.qty-ones img { width: 30px; }
+.jar-full { position: relative; width: 62px; }
+.jar-full .flies { position: absolute; inset: 30% 18% 12%; display: grid; grid-template-columns: repeat(3, 1fr); align-content: center; justify-items: center; gap: 1px; }
+.jar-full .flies img { width: 13px; filter: drop-shadow(0 0 3px #fff06a); }
+.jar-full > img { width: 100%; }
+.tag { font-family: var(--display); font-weight: 600; font-size: 15px; color: var(--ink-soft); }
+
+/* pack */
+.pack-shelf { min-height: 64px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: flex-end; padding: 6px; border-bottom: 6px solid var(--wood); width: min(420px, 100%); }
+.pack-shelf img { width: 70px; animation: drop .35s ease; }
+@keyframes drop { from { transform: translateY(-30px) scale(1.2); opacity: 0; } }
+.pack-crate { position: relative; width: 150px; }
+.pack-crate .in { position: absolute; inset: 0 10% 46%; display: flex; flex-wrap: wrap-reverse; justify-content: center; align-content: flex-start; gap: 0; direction: ltr; }
+.pack-crate .in img { width: 24px; margin: -2px; }
+.pack-count { position: absolute; top: -12px; left: -12px; background: var(--ink); color: var(--white); border-radius: 999px; padding: 2px 10px; font-family: var(--display); font-weight: 700; font-size: 18px; }
+.pile { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; max-width: 440px; }
+.pile button { width: 44px; height: 44px; padding: 2px; transition: transform .15s, opacity .2s; }
+.pile button:active { transform: scale(.85); }
+.pile button:disabled { opacity: .55; cursor: default; }
+.pile img { width: 100%; }
+
+/* train */
+.train { display: flex; align-items: flex-end; gap: 2px; direction: ltr; transition: transform 1.6s ease-in; }
+.train.leave { transform: translateX(-130vw); }
+.loco { position: relative; width: 120px; }
+.loco .sign { position: absolute; top: 10%; right: 12%; background: var(--white); border: 3px solid var(--ink); border-radius: 10px; padding: 0 8px; font-size: 26px; font-weight: 700; }
+.wagon { position: relative; width: 120px; display: flex; flex-direction: column; align-items: center; }
+.wagon .load { display: flex; flex-wrap: wrap-reverse; justify-content: center; align-content: flex-start; gap: 1px; width: 100%; min-height: 40px; margin-bottom: -18px; position: relative; z-index: 1; }
+.wagon .load img.c { width: 34px; }
+.wagon .load img.o { width: 19px; }
+.wagon .plate { position: absolute; left: 22%; right: 16%; bottom: 33%; text-align: center; font-family: var(--display); font-weight: 700; font-size: 15px; z-index: 2; }
+.wagon .w { width: 100%; }
+.steppers { display: flex; gap: 12px; direction: ltr; justify-content: center; flex-wrap: wrap; }
+.stepper { display: flex; align-items: center; gap: 6px; background: var(--white); border-radius: 16px; padding: 6px 8px; box-shadow: 0 4px 0 rgba(10,60,90,.3); }
+.stepper img { width: 34px; }
+.stepper button { width: 44px; height: 44px; border-radius: 12px; background: var(--foam); font-family: var(--display); font-weight: 700; font-size: 28px; line-height: 1; }
+.trade { background: var(--coral); color: var(--white); padding: 8px 18px; border-radius: 999px; font-family: var(--display); font-weight: 600; font-size: 18px; box-shadow: 0 4px 0 #b8402a; }
+
+/* caves (place-value chart) */
+.caves { display: flex; gap: 14px; direction: ltr; }
+.cave { width: 116px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.cave .door { width: 116px; height: 112px; border-radius: 58px 58px 14px 14px; background: radial-gradient(ellipse at 50% 90%, #45506e, #262c44); border: 6px solid #9a9a96; display: grid; place-items: center; color: var(--white); font-size: 64px; font-weight: 700; }
+.cave.active .door { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(246,184,25,.4); }
+.cave .name { font-family: var(--display); font-weight: 700; font-size: 18px; }
+.pad { display: grid; grid-template-columns: repeat(5, 54px); gap: 8px; direction: ltr; }
+.pad button { height: 54px; border-radius: 14px; background: var(--white); font-family: var(--display); font-weight: 700; font-size: 28px; box-shadow: 0 4px 0 rgba(10,60,90,.3); }
+
+/* stones */
+.river { width: 100%; max-width: 600px; background: linear-gradient(180deg, #4cc7e2, #239bc0); border-radius: 22px; padding: 18px 8px 22px; display: flex; flex-direction: column; gap: 64px; align-items: center; }
+.stone-row { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; direction: ltr; }
+.stone { position: relative; width: 92px; display: grid; place-items: center; }
+.stone img.s { width: 100%; }
+.stone b { position: absolute; top: 34%; font-family: var(--display); font-size: 28px; color: var(--white); text-shadow: 0 2px 0 #444; }
+.stone .slot { position: absolute; bottom: 58%; width: 72px; }
+.crabber { width: 72px; }
+.crabber.jump { animation: hop .5s ease; }
+.start-stone { opacity: 1; }
+
+/* bottles */
+.waves { width: 100%; max-width: 600px; display: flex; justify-content: center; }
+.float-bottle { width: 140px; animation: floaty 2.4s ease-in-out infinite; }
+@keyframes floaty { 50% { transform: translateY(-10px) rotate(6deg); } }
+.scroll-card { background: #fbf1d6; border: 3px solid #c8a35e; border-radius: 14px; padding: 18px 20px; font-size: 24px; line-height: 1.4; text-align: center; max-width: 420px; box-shadow: 0 6px 0 rgba(120,80,20,.25); animation: unroll .45s ease; }
+@keyframes unroll { from { transform: scaleY(.1); opacity: 0; } }
+.scroll-card .n { font-size: 30px; font-weight: 700; }
+
+/* snake */
+.snake { display: flex; align-items: center; direction: ltr; flex-wrap: wrap; justify-content: center; row-gap: 14px; }
+.seg { width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #a6dc6a, #4f9a34 70%); border: 3px solid #2f6a22; display: grid; place-items: center; font-size: 26px; font-weight: 700; color: var(--white); text-shadow: 0 2px 0 #2f6a22; margin-inline: -4px; }
+.seg.gap { background: var(--white); color: var(--coral); text-shadow: none; border-style: dashed; }
+.seg.head { background: radial-gradient(circle at 35% 30%, #b9e77e, #4f9a34 70%); position: relative; }
+.seg.head::before, .seg.head::after { content: ""; position: absolute; top: 18px; width: 12px; height: 12px; border-radius: 50%; background: var(--ink); box-shadow: inset -3px -3px 0 #fff; }
+.seg.head::before { left: 16px; } .seg.head::after { left: 38px; }
+
+/* final */
+.hundred { display: grid; grid-template-columns: repeat(5, 70px); gap: 6px; direction: ltr; }
+.hundred button { position: relative; }
+.hundred button b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-size: 24px; color: var(--white); text-shadow: 0 2px 0 var(--ink), 0 0 6px var(--ink); opacity: 0; transition: opacity .2s; }
+.hundred button.counted b { opacity: 1; }
+.dials { display: flex; gap: 10px; direction: ltr; background: linear-gradient(180deg, #e9b93c, #b98316); padding: 14px; border-radius: 50px; border: 4px solid #7c5508; }
+.dial { width: 70px; height: 70px; border-radius: 50%; background: #fdf3d3; border: 4px solid #7c5508; font-size: 40px; font-weight: 700; display: grid; place-items: center; }
+
+/* overlays */
+.overlay { position: absolute; inset: 0; background: rgba(8,50,75,.55); display: grid; place-items: center; z-index: 20; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.panel { background: var(--white); border-radius: 26px; padding: 22px 22px 26px; width: min(380px, 100%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; box-shadow: 0 10px 0 rgba(10,60,90,.35); animation: pop .35s ease; }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } }
+.panel h3 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 30px; }
+.panel .stars svg { width: 46px; height: 46px; }
+.panel img.reward { width: 150px; }
+.panel .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.ghost-btn { font-family: var(--display); font-weight: 600; font-size: 20px; padding: 10px 22px; border-radius: 999px; background: var(--foam); }
+.fly-coin { position: fixed; width: 44px; z-index: 30; pointer-events: none; }
+.confetti { position: fixed; top: -20px; width: 10px; height: 16px; z-index: 25; pointer-events: none; animation: fall linear forwards; }
+@keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+
+@media (max-width: 420px) {
+  .guide .parrot { width: 70px; }
+  .bubble { font-size: 18px; }
+  .qty-tens > * { width: 58px; }
+  .loco, .wagon { width: 104px; }
+  .stone { width: 76px; }
+  .seg { width: 58px; height: 58px; font-size: 22px; }
+  .seg.head::before { left: 12px; top: 14px; } .seg.head::after { left: 32px; top: 14px; }
+  .hundred { grid-template-columns: repeat(5, 58px); }
+  .pad { grid-template-columns: repeat(5, 50px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .map-scroll { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="bar">
+    <button class="icon-btn" id="homeBtn" aria-label="למפה">
+      <svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>
+    </button>
+    <h1 id="barTitle">מסע לאי המאה</h1>
+    <div class="coins" aria-label="מטבעות"><img src="assets/coin.webp" alt=""><span id="coinCount" class="n">0</span></div>
+    <button class="icon-btn" id="soundBtn" aria-label="קול" aria-pressed="true">
+      <svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="wave" d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/></svg>
+    </button>
+  </header>
+  <main id="screen"></main>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------- helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const N = n => `<bdi class="n">${n}</bdi>`;
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+// Images that may not be uploaded yet fall back to an existing one (or hide).
+const FALLBACK = { "parrot-wave": "parrot", "parrot-point": "parrot", "parrot-happy": "parrot", "parrot-think": "parrot", "jar-full": null };
+function img(name, cls, alt = "") {
+  const i = el("img", cls); i.alt = alt; i.draggable = false; i.src = `assets/${name}.webp`;
+  i.onerror = () => {
+    const fb = FALLBACK[name];
+    if (fb && !i.dataset.fb) { i.dataset.fb = "1"; i.src = `assets/${fb}.webp`; }
+    else { i.classList.add("missing"); i.dispatchEvent(new CustomEvent("missing", { bubbles: true })); }
+  };
+  return i;
+}
+const STAR = on => `<svg viewBox="0 0 24 24"><path class="${on ? "star-on" : "star-off"}" d="M12 2.5l2.9 6 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.2 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>`;
+const starsHTML = n => [0, 1, 2].map(i => STAR(i < n)).join("");
+
+/* ---------- saved progress (this device only) ---------- */
+const KEY = "island100-v1";
+const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch { return null; } };
+const state = Object.assign({ coins: 0, stars: {}, sound: true }, load() || {});
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+
+/* ---------- sound & voice ---------- */
+let ac;
+function tone(f, d, type = "sine", when = 0, vol = .14) {
+  if (!state.sound) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const t = ac.currentTime + when, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t + d + .02);
+  } catch {}
+}
+const sfx = {
+  right() { tone(660, .15); tone(880, .3, "sine", .12); },
+  wrong() { tone(240, .25, "triangle"); tone(200, .3, "triangle", .14); },
+  pop() { tone(500 + Math.random() * 200, .08, "triangle"); },
+  pack() { tone(392, .1); tone(523, .1, "sine", .08); tone(659, .25, "sine", .16); },
+  coin() { tone(988, .08, "square", 0, .05); tone(1319, .22, "square", .07, .05); },
+  win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, .3, "sine", i * .13)); },
+};
+const hebVoice = () => { try { return speechSynthesis.getVoices().find(v => /^he|^iw/i.test(v.lang)); } catch { return null; } };
+function speak(text) {
+  if (!state.sound || !("speechSynthesis" in window)) return;
+  const v = hebVoice(); if (!v) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/<[^>]+>/g, ""));
+    u.voice = v; u.lang = v.lang; u.rate = .92; speechSynthesis.speak(u);
+  } catch {}
+}
+
+/* ---------- header ---------- */
+const coinCount = $("#coinCount"), soundBtn = $("#soundBtn"), barTitle = $("#barTitle");
+const renderCoins = () => { coinCount.textContent = state.coins; };
+soundBtn.setAttribute("aria-pressed", state.sound);
+soundBtn.onclick = () => { state.sound = !state.sound; soundBtn.setAttribute("aria-pressed", state.sound); save(); if (!state.sound) try { speechSynthesis.cancel(); } catch {} };
+$("#homeBtn").onclick = () => showMap();
+renderCoins();
+const screen = $("#screen");
+function setView(v, title) { screen.innerHTML = ""; screen.append(v); barTitle.textContent = title; }
+
+/* ---------- stations ---------- */
+const STATIONS = [
+  { id: "pack", name: "אי הקוקוסים", island: "island-coconuts", icon: "crate-full", rounds: 3, play: roundPack,
+    intro: "ביי הקוקוסים אורזים קוקוסים בארגזים. בכל ארגז נכנסים בדיוק 10 קוקוסים." },
+  { id: "jars", name: "אי הגחליליות", island: "island-fireflies", icon: "jar", rounds: 5, play: roundJars,
+    intro: "בכל צנצנת מלאה יש 10 גחליליות. סופרים צנצנות ואחר כך גחליליות בודדות." },
+  { id: "train", name: "אי הרכבת", island: "island-train", icon: "locomotive", rounds: 4, play: roundTrain,
+    intro: "מעמיסים את הרכבת: ארגזים בקרון העשרות, קוקוסים בקרון היחידות." },
+  { id: "caves", name: "מערות הסרטנים", island: "island-crabs", icon: "crab", rounds: 5, play: roundCaves,
+    intro: "יש פה שתי מערות: מערת העשרות ומערת היחידות. כל ספרה נכנסת למערה שלה." },
+  { id: "stones", name: "הר הגעש", island: "island-volcano", icon: "stone", rounds: 5, play: roundStones,
+    intro: "הסרטן עולה בשביל האבנים. קפיצה גדולה היא 10, קפיצה קטנה היא 1." },
+  { id: "bottles", name: "אי הבקבוקים", island: "island-bottles", icon: "bottle", rounds: 5, play: roundBottles,
+    intro: "בכל בקבוק יש חידה. פותחים בקבוק ופותרים!" },
+  { id: "snake", name: "אי הנחש", island: "island-snake", icon: "coconut", rounds: 4, play: roundSnake,
+    intro: "על הנחש כתובים מספרים בסדר. מצאו את המספר שחסר." },
+  { id: "hundred", name: "אי המאה", island: "island-lock", icon: "chest", rounds: 1, play: roundHundred,
+    intro: "הגענו לאי המאה! התיבה נעולה במנעול של שלוש ספרות." },
+];
+const unlocked = i => i === 0 || (state.stars[STATIONS[i - 1].id] || 0) > 0;
+
+/* ---------- home ---------- */
+function showHome() {
+  const v = el("section", "view home");
+  const hero = el("div", "hero");
+  const isl = img("island-treasure", "isle-big");
+  isl.addEventListener("missing", () => { isl.remove(); hero.classList.add("no-art"); });
+  hero.append(isl, img("parrot-wave", "parrot-hero"));
+  v.append(hero);
+  v.append(el("h2", "", `מסע לאי ה${"מאה"}`));
+  v.append(el("p", "", "מפליגים מאי לאי, אורזים קוקוסים בארגזים של 10 ומגיעים עד " + N(100) + "."));
+  const go = el("button", "big-btn", Object.keys(state.stars).length ? "ממשיכים במסע" : "יוצאים למסע");
+  go.onclick = () => { tone(1, .01); showMap(); };
+  v.append(go);
+  const reset = el("button", "link-btn", "מתחילים מההתחלה");
+  let armed = false;
+  reset.onclick = () => {
+    if (!armed) { armed = true; reset.textContent = "בטוח? לחצו שוב כדי למחוק את ההתקדמות"; return; }
+    state.coins = 0; state.stars = {}; save(); renderCoins(); showHome();
+  };
+  if (Object.keys(state.stars).length) v.append(reset);
+  setView(v, "");
+  barTitle.textContent = "";
+}
+
+/* ---------- map ---------- */
+// island centers in % of the map box; route starts at the bottom and climbs to the island of 100.
+const SPOTS = [[70, 94], [30, 82], [70, 70], [30, 58], [70, 46], [30, 34], [70, 22], [42, 8]];
+function showMap() {
+  const v = el("section", "view");
+  const sc = el("div", "map-scroll");
+  const map = el("div", "map");
+  map.style.height = (STATIONS.length * 190 + 60) + "px";
+  const d = SPOTS.map(([x, y], i) => `${i ? "L" : "M"}${100 - x} ${y}`).join(" ");
+  map.innerHTML = `<svg class="route" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${d}" vector-effect="non-scaling-stroke"/></svg>`;
+  let current = 0;
+  STATIONS.forEach((st, i) => {
+    const open = unlocked(i), s = state.stars[st.id] || 0;
+    if (open) current = i;
+    const b = el("button", "isle" + (open ? "" : " locked"));
+    b.style.right = (100 - SPOTS[i][0]) + "%"; b.style.top = SPOTS[i][1] + "%";
+    if (i === STATIONS.length - 1) b.style.width = "56%";
+    const art = el("div", "art");
+    const isl = img(st.island, "island");
+    isl.addEventListener("missing", () => art.classList.add("no-art"));
+    const fb = el("div", "fallback"); fb.append(img(st.icon, ""));
+    art.append(isl, fb);
+    if (!open) art.insertAdjacentHTML("beforeend", `<span class="lock"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span>`);
+    b.append(art, el("span", "label", st.name));
+    if (open) b.append(el("span", "stars", starsHTML(s)));
+    b.setAttribute("aria-label", st.name + (open ? "" : " (נעול)"));
+    b.onclick = () => { if (open) playStation(i); else { sfx.wrong(); b.animate([{ transform: "translate(50%,-50%) rotate(-3deg)" }, { transform: "translate(50%,-50%) rotate(3deg)" }, { transform: "translate(50%,-50%)" }], { duration: 300 }); } };
+    map.append(b);
+  });
+  const boat = img("boat", "boat");
+  boat.addEventListener("missing", () => boat.remove());
+  const [bx, by] = SPOTS[current];
+  boat.style.right = (100 - bx + (bx > 50 ? 30 : -30)) + "%"; boat.style.top = (by + 1) + "%";
+  map.append(boat);
+  sc.append(map); v.append(sc);
+  setView(v, "מפת המסע");
+  requestAnimationFrame(() => { sc.style.scrollBehavior = "auto"; sc.scrollTop = map.offsetHeight * SPOTS[current][1] / 100 - sc.clientHeight / 2; sc.style.scrollBehavior = ""; });
+}
+
+/* ---------- activity framework ---------- */
+function playStation(idx) {
+  const st = STATIONS[idx];
+  const v = el("section", "view");
+  const guide = el("div", "guide");
+  const parrot = img("parrot-point", "parrot");
+  const bubble = el("div", "bubble");
+  const text = el("span");
+  const speakBtn = el("button", "speak", `<svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 010 6"/></svg>`);
+  speakBtn.setAttribute("aria-label", "הקראה");
+  bubble.append(text, speakBtn); guide.append(parrot, bubble);
+  const progress = el("div", "progress");
+  const stage = el("div", "stage");
+  const controls = el("div", "controls");
+  v.append(guide, progress, stage, controls);
+  setView(v, st.name);
+
+  let round = 0, mistakes = 0, busy = false, lastSaid = "";
+  const pose = p => { parrot.dataset.fb = ""; parrot.src = `assets/parrot-${p}.webp`; parrot.classList.remove("hop"); void parrot.offsetWidth; if (p === "happy") parrot.classList.add("hop"); };
+  speakBtn.onclick = () => { const was = state.sound; state.sound = true; speak(lastSaid); state.sound = was; };
+  const api = {
+    stage, controls,
+    say(html, p = "point") { text.innerHTML = html; lastSaid = text.textContent; pose(p); speak(lastSaid); },
+    clear() { stage.innerHTML = ""; controls.innerHTML = ""; stage.classList.remove("shake"); },
+    correct(msg) {
+      if (busy) return; busy = true;
+      sfx.right(); api.say(msg || pick(["כל הכבוד!", "מצוין!", "יפה מאוד!", "בדיוק!", "אלופים!"]), "happy");
+      flyCoin(stage);
+      setTimeout(() => { busy = false; next(); }, 1600);
+    },
+    wrong(hint) {
+      mistakes++; sfx.wrong(); api.say(hint, "think");
+      stage.classList.remove("shake"); void stage.offsetWidth; stage.classList.add("shake");
+    },
+    choose(opts, right, hint, cls = "") {
+      const row = el("div", "choices");
+      opts.forEach(o => {
+        const b = el("button", "choice " + cls, typeof o === "number" ? N(o) : o);
+        b.onclick = () => {
+          if (busy) return;
+          if (o === right) { row.querySelectorAll("button").forEach(x => x.disabled = true); b.classList.add("ok"); api.correct(); }
+          else { b.classList.add("no"); b.disabled = true; api.wrong(typeof hint === "function" ? hint(o) : hint); }
+        };
+        row.append(b);
+      });
+      controls.innerHTML = ""; controls.append(row);
+    },
+  };
+  function drawProgress() {
+    progress.innerHTML = "";
+    if (st.rounds < 2) return;
+    for (let i = 0; i < st.rounds; i++) progress.append(el("i", i < round ? "done" : i === round ? "now" : ""));
+  }
+  function next() {
+    if (round >= st.rounds) return finish();
+    drawProgress(); api.clear();
+    st.play(api, round, st.rounds);
+    round++;
+  }
+  function finish() {
+    const stars = mistakes <= 1 ? 3 : mistakes <= 3 ? 2 : 1;
+    state.stars[st.id] = Math.max(state.stars[st.id] || 0, stars); save();
+    if (st.id === "hundred") return finale();
+    sfx.win(); confetti(40);
+    const ov = el("div", "overlay"), p = el("div", "panel");
+    p.append(el("h3", "", stars === 3 ? "מושלם!" : stars === 2 ? "כל הכבוד!" : "עברתם את האי!"));
+    p.append(el("div", "stars", starsHTML(stars)));
+    p.append(img("parrot-happy", "reward"));
+    const nextIdx = idx + 1;
+    p.append(el("p", "", nextIdx < STATIONS.length ? `האי הבא: <b>${STATIONS[nextIdx].name}</b>` : ""));
+    const row = el("div", "row");
+    const again = el("button", "ghost-btn", "שוב");
+    again.onclick = () => playStation(idx);
+    const onward = el("button", "go-btn", "מפליגים הלאה");
+    onward.onclick = () => showMap();
+    row.append(again, onward); p.append(row); ov.append(p); v.append(ov);
+  }
+  api.say(st.intro, "wave");
+  drawProgress();
+  controls.append((() => { const b = el("button", "go-btn", "מתחילים"); b.onclick = () => { round = 0; next(); }; return b; })());
+  const preview = el("div", "art"); preview.style.width = "min(320px, 80%)";
+  const pi = img(st.island, ""); pi.addEventListener("missing", () => { pi.replaceWith(img(st.icon, "")); });
+  preview.append(pi); stage.append(preview);
+}
+
+function flyCoin(from) {
+  state.coins++; save();
+  const r = from.getBoundingClientRect(), t = $(".coins img").getBoundingClientRect();
+  const c = img("coin", "fly-coin");
+  c.style.left = (r.left + r.width / 2 - 22) + "px"; c.style.top = (r.top + r.height / 2 - 22) + "px";
+  document.body.append(c);
+  const dx = t.left - (r.left + r.width / 2 - 22), dy = t.top - (r.top + r.height / 2 - 22);
+  const a = c.animate([{ transform: "translate(0,0) scale(1.4)" }, { transform: `translate(${dx}px,${dy}px) scale(.7)` }], { duration: 750, easing: "cubic-bezier(.5,-0.3,.7,1)" });
+  a.onfinish = () => { c.remove(); renderCoins(); sfx.coin(); };
+}
+function confetti(n) {
+  const colors = ["#f6b819", "#ff6a45", "#44a047", "#1fb3d2", "#ffffff"];
+  for (let i = 0; i < n; i++) {
+    const c = el("i", "confetti");
+    c.style.left = Math.random() * 100 + "vw"; c.style.background = pick(colors);
+    c.style.animationDuration = (1.8 + Math.random() * 1.6) + "s"; c.style.animationDelay = Math.random() * .5 + "s";
+    document.body.append(c); setTimeout(() => c.remove(), 4200);
+  }
+}
+
+/* ---------- number helpers ---------- */
+const T = n => Math.floor(n / 10), O = n => n % 10;
+function near(n, k = 2) {
+  const rev = O(n) * 10 + T(n);
+  const pool = shuffle([n + 10, n - 10, n + 1, n - 1, n + 11].filter(x => x > 0 && x <= 100 && x !== n && x !== rev));
+  const out = (O(n) && rev !== n) ? [rev] : [];
+  return out.concat(pool).slice(0, k);
+}
+const options = (n, k = 2) => shuffle([n, ...near(n, k)]);
+function jarFull() {
+  const w = el("div", "jar-full"); w.append(img("jar", ""));
+  const f = el("div", "flies"); for (let i = 0; i < 10; i++) f.append(img("firefly", "")); w.append(f); return w;
+}
+function qty(t, o, kind = "coconut") {
+  const w = el("div", "qty");
+  if (t) { const r = el("div", "qty-tens"); for (let i = 0; i < t; i++) r.append(kind === "firefly" ? jarFull() : img("crate-full", "")); w.append(r); }
+  if (o) { const r = el("div", "qty-ones"); for (let i = 0; i < o; i++) r.append(img(kind, "")); w.append(r); }
+  return w;
+}
+const countHint = what => `ספרו קודם את ${what} – כל אחד הוא 10: עשר, עשרים, שלושים... ואז הוסיפו את הבודדים.`;
+
+/* 1. packing coconuts into crates of ten */
+function roundPack(api, r) {
+  const n = [rnd(12, 19), rnd(21, 29), rnd(31, 38)][r];
+  let pile = n, inCrate = 0, packed = 0;
+  const shelf = el("div", "pack-shelf");
+  const crate = el("div", "pack-crate"), inside = el("div", "in"), count = el("span", "pack-count n", "0/10");
+  crate.append(img("crate", ""), inside, count);
+  const pileEl = el("div", "pile");
+  api.stage.append(shelf, crate, pileEl);
+  api.say(`יש על החוף ${N(n)} קוקוסים. לחצו על קוקוס כדי להכניס אותו לארגז.`);
+  for (let i = 0; i < n; i++) {
+    const b = el("button"); b.append(img("coconut", "")); b.setAttribute("aria-label", "קוקוס");
+    b.onclick = () => {
+      if (pile + inCrate < 10 && inCrate === 0) return;
+      sfx.pop(); b.disabled = true; b.style.visibility = "hidden";
+      pile--; inCrate++; inside.append(img("coconut", "")); count.textContent = inCrate + "/10";
+      if (inCrate === 10) {
+        sfx.pack(); packed++; inCrate = 0;
+        setTimeout(() => { inside.innerHTML = ""; count.textContent = "0/10"; shelf.append(img("crate-full", "")); check(); }, 350);
+      }
+    };
+    pileEl.append(b);
+  }
+  function check() {
+    if (pile >= 10) { api.say(`ארגז מלא! ${packed === 1 ? "ארגז אחד" : N(packed) + " ארגזים"}. ממשיכים לארוז.`, "happy"); return; }
+    pileEl.querySelectorAll("button:not([disabled])").forEach(b => b.disabled = true);
+    api.say(`ארזנו ${N(packed)} ${packed === 1 ? "ארגז" : "ארגזים"} של 10, ונשארו ${N(pile)} קוקוסים שלא מספיקים לארגז. כמה קוקוסים יש בסך הכול?`);
+    api.choose(options(n), n, v => T(v) !== packed ? `כמה ארגזים יש על המדף? כל ארגז הוא 10.` : `ספרו שוב את הקוקוסים שנשארו על החוף.`);
+  }
+}
+
+/* 2. reading jars and fireflies */
+function roundJars(api, r, total) {
+  let t = rnd(1, 9), o = rnd(1, 9);
+  if (r === 2) o = 0;
+  let shownT = t, shownO = o;
+  if (r === total - 1) { t = rnd(2, 7); o = rnd(1, 5); shownT = t - 1; shownO = o + 10; } // ten loose fireflies hiding outside a jar
+  const n = t * 10 + o;
+  api.stage.append(qty(shownT, shownO, "firefly"));
+  api.say(shownO >= 10 ? "שימו לב: יש פה הרבה גחליליות בודדות! כמה גחליליות יש בסך הכול?" : "כמה גחליליות יש בסך הכול?");
+  api.choose(options(n), n, v => {
+    if (O(v) * 10 + T(v) === n) return "הספרות התחלפו. הצנצנות הן העשרות – הן נכתבות ראשונות.";
+    if (shownO >= 10) return "מכל 10 גחליליות בודדות אפשר למלא עוד צנצנת אחת.";
+    return countHint("הצנצנות");
+  });
+}
+
+/* 3. train: build the number with crates (tens) and coconuts (ones) */
+function roundTrain(api, r) {
+  const n = r === 2 ? rnd(2, 9) * 10 : rnd(21, 89);
+  let t = 0, o = 0;
+  const train = el("div", "train");
+  const loco = el("div", "loco"); loco.append(img("locomotive", "")); loco.append(el("span", "sign n", n));
+  const mk = label => { const w = el("div", "wagon"); const load = el("div", "load"); w.append(load, img("wagon", "w"), el("span", "plate", label)); return [w, load]; };
+  const [wT, loadT] = mk("עשרות"), [wO, loadO] = mk("יחידות");
+  train.append(loco, wT, wO);
+  api.stage.append(train);
+  const draw = () => {
+    loadT.innerHTML = ""; for (let i = 0; i < t; i++) loadT.append(img("crate-full", "c"));
+    loadO.innerHTML = ""; for (let i = 0; i < o; i++) loadO.append(img("coconut", "o"));
+    trade.hidden = o < 10;
+  };
+  const stepper = (icon, get, set, max) => {
+    const s = el("div", "stepper");
+    const minus = el("button", "", "−"), plus = el("button", "", "+");
+    minus.setAttribute("aria-label", "פחות"); plus.setAttribute("aria-label", "יותר");
+    minus.onclick = () => { if (get() > 0) { set(get() - 1); sfx.pop(); draw(); } };
+    plus.onclick = () => { if (get() < max) { set(get() + 1); sfx.pop(); draw(); } };
+    s.append(minus, img(icon, ""), plus); return s;
+  };
+  const steps = el("div", "steppers");
+  steps.append(stepper("crate-full", () => t, v => t = v, 9), stepper("coconut", () => o, v => o = v, 19));
+  const trade = el("button", "trade", "אורזים 10 קוקוסים בארגז");
+  trade.onclick = () => { if (o >= 10 && t < 9) { o -= 10; t++; sfx.pack(); draw(); } };
+  const go = el("button", "go-btn", "יוצאים לדרך!");
+  go.onclick = () => {
+    const got = t * 10 + o;
+    if (got === n && o < 10) {
+      train.classList.add("leave"); tone(330, .5, "sawtooth", 0, .05);
+      api.controls.querySelectorAll("button").forEach(b => b.disabled = true);
+      setTimeout(() => api.correct(`${N(n)} הם ${N(t)} עשרות ו-${N(o)} יחידות. צ'ו-צ'ו!`), 700);
+    } else if (got === n) api.wrong("נכון בסך הכול! אבל יש 10 קוקוסים בודדים – ארזו אותם בארגז.");
+    else api.wrong(`העמסתם ${N(got)}. הרכבת צריכה ${N(n)}: ${N(T(n))} ארגזים ו-${N(O(n))} קוקוסים.`);
+  };
+  api.controls.append(steps, trade, go);
+  api.say(`הרכבת צריכה להוביל ${N(n)} קוקוסים. העמיסו ארגזים וקוקוסים.`);
+  draw();
+}
+
+/* 4. caves: write the digits in the place-value chart */
+function roundCaves(api, r) {
+  const n = r === 3 ? rnd(1, 9) * 10 : r === 4 ? rnd(1, 9) * 10 + rnd(1, 9) : rnd(11, 99);
+  const digits = [null, null]; let active = 0;
+  api.stage.append(qty(T(n), O(n)));
+  const caves = el("div", "caves");
+  const cells = ["עשרות", "יחידות"].map((name, i) => {
+    const c = el("button", "cave"); c.innerHTML = `<span class="door n"></span><span class="name">${name}</span>`;
+    c.onclick = () => { active = i; draw(); }; caves.append(c); return c;
+  });
+  api.stage.append(caves);
+  const draw = () => cells.forEach((c, i) => { c.classList.toggle("active", i === active); $(".door", c).textContent = digits[i] ?? ""; });
+  const pad = el("div", "pad");
+  for (let d = 0; d <= 9; d++) {
+    const b = el("button", "n", d);
+    b.onclick = () => { sfx.pop(); digits[active] = d; if (active === 0) active = 1; draw(); };
+    pad.append(b);
+  }
+  const go = el("button", "go-btn", "בודקים");
+  go.onclick = () => {
+    if (digits.includes(null)) return api.wrong("צריך ספרה בכל מערה.");
+    const got = digits[0] * 10 + digits[1];
+    if (got === n) { go.disabled = true; api.correct(`${N(T(n))} עשרות ו-${N(O(n))} יחידות – זה ${N(n)}!`); }
+    else if (digits[1] * 10 + digits[0] === n) api.wrong("הספרות במערה הלא נכונה. כמה ארגזים יש? זו ספרת העשרות.");
+    else if (digits[0] !== T(n)) api.wrong("ספרו את הארגזים – זה מספר העשרות.");
+    else api.wrong(O(n) === 0 ? "אין קוקוסים בודדים. איזו ספרה מראה שאין כלום?" : "ספרו את הקוקוסים הבודדים – זה מספר היחידות.");
+  };
+  api.controls.append(pad, go);
+  api.say("כמה קוקוסים יש? כתבו את הספרות במערות: ארגזים במערת העשרות, קוקוסים במערת היחידות.");
+  draw();
+}
+
+/* 5. stones: jump +10 / -10 / +1 / -1 */
+function roundStones(api, r) {
+  const ops = [["10 קדימה", 10], ["10 קדימה", 10], ["10 אחורה", -10], ["1 קדימה", 1], ["20 קדימה", 20]];
+  const [label, step] = ops[r];
+  let a = step > 0 ? rnd(11, 99 - step) : rnd(21, 89);
+  if (step === 1) a = rnd(2, 8) * 10 + 9;                 // crossing a ten: 39 → 40
+  const target = a + step;
+  const cands = shuffle([...new Set([target, a - step, a + (step === 1 ? 10 : 1), target + 1].filter(x => x > 0 && x <= 100 && x !== a))]).slice(0, 4);
+  if (!cands.includes(target)) cands[0] = target;
+  const river = el("div", "river");
+  const startRow = el("div", "stone-row");
+  const start = el("div", "stone start-stone"); start.append(img("stone", "s"), el("b", "n", a));
+  const slot0 = el("div", "slot"); const crab = img("crab", "crabber"); slot0.append(crab); start.append(slot0);
+  startRow.append(start);
+  const row = el("div", "stone-row");
+  let done = false;
+  shuffle(cands).forEach(v => {
+    const s = el("button", "stone"); s.append(img("stone", "s"), el("b", "n", v)); const slot = el("div", "slot"); s.append(slot);
+    s.onclick = () => {
+      if (done) return;
+      slot.append(crab); crab.classList.remove("jump"); void crab.offsetWidth; crab.classList.add("jump"); sfx.pop();
+      if (v === target) { done = true; api.correct(`${N(a)} ועוד ${step > 0 ? N(step) : ""}${step < 0 ? "פחות " + N(-step) : ""} זה ${N(target)}!`.replace("ועוד פחות", "פחות")); }
+      else {
+        s.disabled = true; s.style.opacity = .5;
+        api.wrong(Math.abs(step) >= 10 ? `בקפיצה של 10 רק ספרת העשרות משתנה. ספרת היחידות נשארת ${N(O(a))}.` : `קפיצה של 1 מ-${N(a)}: מה בא אחרי ${N(a)}?`);
+        setTimeout(() => { slot0.append(crab); }, 700);
+      }
+    };
+    row.append(s);
+  });
+  river.append(row, startRow);
+  api.stage.append(river);
+  api.say(`הסרטן על האבן ${N(a)}. הוא קופץ ${label}. על איזו אבן הוא ינחת?`);
+}
+
+/* 6. riddles in bottles */
+function roundBottles(api, r) {
+  const riddles = [
+    () => { const t = rnd(2, 9), o = rnd(1, 9), n = t * 10 + o; return [`יש לי ${N(t)} עשרות ו-${N(o)} יחידות. מי אני?`, options(n), n, "העשרות נכתבות ראשונות, אחריהן היחידות."]; },
+    () => { const t = rnd(2, 8), o = rnd(1, 9); const n = t * 10 + o; return [`אני בין ${N(t * 10)} ל-${N(t * 10 + 10)}, וספרת היחידות שלי היא ${N(o)}. מי אני?`, options(n), n, `מספר בין ${N(t * 10)} ל-${N(t * 10 + 10)} מתחיל בספרה ${N(t)}.`]; },
+    () => { const d = rnd(2, 9), x = rnd(1, 9); const right = d * 10 + (x === d ? (x % 9) + 1 : x); const wrongs = shuffle([x * 10 + d, ((x + 2) % 9 + 1) * 10 + d].filter(w => w !== right && T(w) !== d)).slice(0, 2); return [`באיזה מספר הספרה ${N(d)} שווה ${N(d * 10)}?`, shuffle([right, ...wrongs]), right, `כדי שהספרה ${N(d)} תהיה שווה ${N(d * 10)} היא צריכה לעמוד במקום העשרות.`]; },
+    () => { const t = rnd(2, 9), o = rnd(1, 9); const n = t * 10 + o; return [`מה הערך של הספרה ${N(t)} במספר ${N(n)}?`, shuffle([t, t * 10, n]), t * 10, `הספרה ${N(t)} עומדת במקום העשרות, אז היא שווה ${N(t)} עשרות.`]; },
+    () => { let a = rnd(1, 8), b = rnd(a + 1, 9); const big = b * 10 + a, small = a * 10 + b; return [`מי גדול יותר?`, shuffle([big, small]), big, "משווים קודם את ספרות העשרות. למי יש יותר עשרות?"]; },
+  ];
+  const [q, opts, right, hint] = riddles[r]();
+  const waves = el("div", "waves"); const bottle = el("button"); bottle.append(img("bottle", "float-bottle")); bottle.setAttribute("aria-label", "פותחים את הבקבוק");
+  waves.append(bottle); api.stage.append(waves);
+  api.say("בקבוק עם מסר צף לחוף! לחצו עליו כדי לפתוח.");
+  bottle.onclick = () => {
+    sfx.pop(); waves.remove();
+    api.stage.append(el("div", "scroll-card", q));
+    api.say(q); api.choose(opts, right, hint);
+  };
+}
+
+/* 7. snake: missing number in a sequence */
+function roundSnake(api, r) {
+  let seq;
+  if (r === 0) { const s = rnd(1, 9); seq = [0, 1, 2, 3, 4].map(i => s + i * 10); }
+  else if (r === 1) { const s = rnd(2, 8) * 10 - 3; seq = [0, 1, 2, 3, 4].map(i => s + i); }
+  else if (r === 2) { const s = rnd(6, 9) * 10 + rnd(1, 9); seq = [0, 1, 2, 3, 4].map(i => s - i * 10); }
+  else seq = [60, 70, 80, 90, 100];
+  const gap = r === 3 ? 4 : rnd(1, 3), ans = seq[gap];
+  const snake = el("div", "snake");
+  seq.slice().reverse().forEach((v, i) => snake.append(el("div", "seg n" + (seq.length - 1 - i === gap ? " gap" : ""), seq.length - 1 - i === gap ? "?" : v)));
+  snake.append(el("div", "seg head n", ""));
+  api.stage.append(snake);
+  const step = seq[1] - seq[0];
+  api.say(r === 3 ? "תשעים ועוד עשר... איזה מספר בא אחרי 90?" : "איזה מספר חסר על הנחש?");
+  api.choose(shuffle([ans, ...near(ans, 2)]), ans, Math.abs(step) === 10 ? `כל פעם ${step > 0 ? "מוסיפים" : "מורידים"} 10. ספרת היחידות לא משתנה.` : "כל פעם מוסיפים 1. מה בא אחרי?");
+}
+
+/* 8. island of 100 */
+function roundHundred(api) {
+  const box = el("div", "qty");
+  const tens = el("div", "qty-tens"); for (let i = 0; i < 9; i++) tens.append(img("crate-full", ""));
+  const ones = el("div", "qty-ones"); for (let i = 0; i < 9; i++) ones.append(img("coconut", ""));
+  box.append(tens, ones); api.stage.append(box);
+  api.say(`יש פה ${N(9)} ארגזים ו-${N(9)} קוקוסים – ${N(99)}. חסר עוד קוקוס אחד! לחצו על הקוקוס.`);
+  const add = el("button", "stepper"); add.append(img("coconut", "")); add.append(el("span", "go-btn", "מוסיפים קוקוס"));
+  api.controls.append(add);
+  add.onclick = async () => {
+    add.disabled = true; sfx.pop(); ones.append(img("coconut", ""));
+    api.say(`עכשיו יש ${N(10)} קוקוסים בודדים – אורזים אותם בארגז!`, "happy");
+    await wait(1400); sfx.pack(); ones.remove(); tens.append(img("crate-full", ""));
+    api.controls.innerHTML = "";
+    countTens();
+  };
+  function countTens() {
+    box.remove();
+    const grid = el("div", "hundred"); let c = 0;
+    for (let i = 0; i < 10; i++) {
+      const b = el("button"); b.append(img("crate-full", ""), el("b", "n", "")); b.setAttribute("aria-label", "ארגז");
+      b.onclick = () => {
+        if (b.classList.contains("counted")) return;
+        c++; b.classList.add("counted"); $("b", b).textContent = c * 10; tone(400 + c * 60, .15);
+        api.say(`${N(c * 10)}`, c === 10 ? "happy" : "point");
+        if (c === 10) setTimeout(lock, 1200);
+      };
+      grid.append(b);
+    }
+    api.stage.append(grid);
+    api.say("10 ארגזים! ספרו אותם בעשרות: לחצו על כל ארגז.");
+  }
+  function lock() {
+    api.clear();
+    const chest = img("chest", ""); chest.style.width = "180px";
+    const dials = el("div", "dials"); const vals = [0, 0, 0];
+    vals.forEach((_, i) => { const d = el("button", "dial n", "0"); d.onclick = () => { vals[i] = (vals[i] + 1) % 10; d.textContent = vals[i]; sfx.pop(); }; dials.append(d); });
+    api.stage.append(chest, dials);
+    api.say(`10 עשרות הן ${N(100)} – מאה! זה מספר עם שלוש ספרות. סובבו את המנעול ל-${N(100)}.`);
+    const go = el("button", "go-btn", "פותחים את התיבה");
+    go.onclick = () => {
+      if (vals.join("") === "100") { go.disabled = true; chest.src = "assets/chest-open.webp"; api.correct(`מאה! ${N(100)} = ${N(10)} עשרות. מצאתם את האוצר!`); }
+      else api.wrong(`הקוד הוא ${N(100)}: אחת, ואחריה שני אפסים. כרגע כתוב ${N(vals.join(""))}.`);
+    };
+    api.controls.append(go);
+  }
+}
+
+function finale() {
+  sfx.win(); confetti(90);
+  const ov = el("div", "overlay"), p = el("div", "panel");
+  p.append(el("h3", "", "הגעתם לאי המאה!"));
+  p.append(img("chest-open", "reward"));
+  p.append(el("p", "", `אספתם ${N(state.coins)} מטבעות במסע. עכשיו אתם יודעים ש-${N(10)} עשרות הן ${N(100)}.`));
+  const b = el("button", "go-btn", "למפת המסע"); b.onclick = () => showMap();
+  p.append(b); ov.append(p); screen.append(ov);
+}
+
+try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; } catch {}
+showHome();
+})();
+</script>
+</body>
+</html>

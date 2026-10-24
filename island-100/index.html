@@ -288,7 +288,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 // Images that may not be uploaded yet fall back to an existing one (or hide).
-const FALLBACK = { "parrot-wave": "parrot", "parrot-point": "parrot", "parrot-happy": "parrot", "parrot-think": "parrot", "jar-full": null };
+const FALLBACK = { "parrot-wave": "parrot", "parrot-point": "parrot", "parrot-happy": "parrot", "parrot-think": "parrot", "jar-full": null, "island-treasure": "island-parrots" };
 function img(name, cls, alt = "") {
   const i = el("img", cls); i.alt = alt; i.draggable = false; i.src = `assets/${name}.webp`;
   i.onerror = () => {

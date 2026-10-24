@@ -29,4 +29,4 @@ python3 tools/prepare_assets.py raw/island-train.png island-train
 
 - `parrot-wave`, `parrot-point`, `parrot-happy` – התוכי המדריך (`parrot-think` כבר קיים)
 - `boat` – הסירה שמסמנת על המפה איפה אנחנו
-- `island-treasure` (מסך הפתיחה), `island-coconuts`, `island-fireflies`, `island-train`, `island-crabs`, `island-volcano`, `island-bottles`, `island-snake`, `island-lock`
+- `island-parrots` (מסך הפתיחה, עד ש-`island-treasure` יגיע), `island-treasure`, `island-coconuts`, `island-fireflies`, `island-train`, `island-crabs`, `island-volcano`, `island-bottles`, `island-snake`, `island-lock`

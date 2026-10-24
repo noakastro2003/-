@@ -27,6 +27,6 @@ python3 tools/prepare_assets.py raw/island-train.png island-train
 
 שמות הקבצים שהאפליקציה מחפשת (אם קובץ חסר, מוצג תחליף):
 
-- `parrot-wave`, `parrot-point`, `parrot-happy`, `parrot-think` – התוכי המדריך
+- `parrot-wave`, `parrot-point`, `parrot-happy` – התוכי המדריך (`parrot-think` כבר קיים)
 - `boat` – הסירה שמסמנת על המפה איפה אנחנו
 - `island-treasure` (מסך הפתיחה), `island-coconuts`, `island-fireflies`, `island-train`, `island-crabs`, `island-volcano`, `island-bottles`, `island-snake`, `island-lock`

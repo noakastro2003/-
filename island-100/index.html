@@ -43,13 +43,28 @@ img { max-width: 100%; display: block; -webkit-user-drag: none; }
 img.missing { display: none; }
 bdi.n, .n { direction: ltr; unicode-bidi: isolate; font-family: var(--display); font-variant-numeric: tabular-nums; }
 
-#app {
-  height: 100%; display: flex; flex-direction: column;
-  background:
-    linear-gradient(180deg, rgba(31,179,210,.0) 0%, rgba(10,111,147,.45) 100%),
-    url("assets/sea.webp") 0 0 / 360px repeat,
-    linear-gradient(180deg, var(--sea) 0%, var(--sea-deep) 100%);
-}
+#app { height: 100%; display: flex; flex-direction: column; position: relative; overflow: hidden; background: var(--sea); }
+#app > .bar, #app > #screen { position: relative; z-index: 1; }
+
+/* living sea: two drifting copies of the water texture, passing cloud shadows, sun glints */
+.sea { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.sea .w1, .sea .w2 { position: absolute; will-change: transform; }
+.sea .w1 { inset: -360px; background: url("assets/sea.webp") 0 0 / 360px repeat; animation: drift1 48s linear infinite; }
+.sea .w2 { inset: -500px; background: url("assets/sea.webp") 0 0 / 500px repeat; opacity: .35; mix-blend-mode: screen; animation: drift2 70s linear infinite; }
+@keyframes drift1 { to { transform: translate(360px, 360px); } }
+@keyframes drift2 { to { transform: translate(-500px, 500px); } }
+.sea .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,.12), transparent 30%, rgba(10,111,147,.4)); }
+.sea .cloud { position: absolute; width: 70vmax; height: 34vmax; border-radius: 50%; background: radial-gradient(closest-side, rgba(8,60,90,.22), transparent); filter: blur(10px); animation: cloud 46s linear infinite; }
+.sea .cloud.c2 { top: 55%; width: 55vmax; height: 26vmax; animation-duration: 64s; animation-delay: -30s; }
+@keyframes cloud { from { transform: translateX(110vw); } to { transform: translateX(-120vmax); } }
+.sea .glint { position: absolute; width: 18px; height: 18px; opacity: 0; animation: twinkle 3.6s ease-in-out infinite; background:
+  radial-gradient(closest-side, #fff 30%, transparent) center / 6px 6px no-repeat,
+  linear-gradient(#fff, #fff) center / 2px 100% no-repeat,
+  linear-gradient(#fff, #fff) center / 100% 2px no-repeat; filter: drop-shadow(0 0 4px #fff); }
+@keyframes twinkle { 0%, 100% { opacity: 0; transform: scale(.3) rotate(0); } 45% { opacity: .95; transform: scale(1) rotate(45deg); } 60% { opacity: 0; } }
+.isle .art img.island { animation: isleBob 5s ease-in-out infinite; }
+.isle:nth-child(odd) .art img.island { animation-delay: -2.5s; }
+@keyframes isleBob { 50% { transform: translateY(-5px); } }
 .bar {
   flex: none; display: flex; align-items: center; gap: 10px;
   padding-block: 8px;
@@ -57,8 +72,12 @@ bdi.n, .n { direction: ltr; unicode-bidi: isolate; font-family: var(--display); 
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 .bar h1 { flex: 1; margin: 0; font-family: var(--display); font-weight: 700; font-size: 22px; color: var(--white); text-shadow: 0 2px 0 var(--sea-deep); text-align: center; text-wrap: balance; }
-.icon-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--white); display: grid; place-items: center; box-shadow: 0 3px 0 rgba(10,60,90,.35); }
-.icon-btn svg { width: 24px; height: 24px; fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn { width: 48px; height: 48px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fffdf5, #ffeec4); border: 3px solid var(--gold); display: grid; place-items: center; box-shadow: 0 3px 0 #b77f00, 0 6px 10px rgba(0,40,70,.25); transition: transform .12s; }
+.icon-btn:active { transform: translateY(2px) scale(.96); }
+.icon-btn img { width: 34px; transform: rotate(-8deg); }
+.avatar-btn { border: 3px solid var(--gold); }
+.icon-btn svg { width: 26px; height: 26px; fill: var(--coral); stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn svg .wave { fill: none; stroke: var(--sea-deep); stroke-width: 2.6; }
 .icon-btn[aria-pressed="false"] svg .wave { display: none; }
 .coins { display: flex; align-items: center; gap: 6px; background: var(--white); border-radius: 999px; padding: 4px 12px 4px 6px; box-shadow: 0 3px 0 rgba(10,60,90,.35); font-family: var(--display); font-weight: 700; font-size: 20px; }
 .coins img { width: 32px; height: 32px; }
@@ -324,10 +343,11 @@ bdi.n, .n { direction: ltr; unicode-bidi: isolate; font-family: var(--display); 
 </head>
 <body>
 <div id="app">
+  <div class="sea" aria-hidden="true"><i class="w1"></i><i class="w2"></i><i class="cloud"></i><i class="cloud c2"></i><i class="shade"></i></div>
   <header class="bar">
     <button class="avatar-btn" id="meBtn" aria-label="האי שלי" hidden></button>
     <button class="icon-btn" id="homeBtn" aria-label="למפה">
-      <svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>
+      <img src="assets/scroll.webp" alt="">
     </button>
     <h1 id="barTitle">מסע לאי המאה</h1>
     <button class="coins" id="coinsBtn" aria-label="מטבעות – לחנות"><img src="assets/coin.webp" alt=""><span id="coinCount" class="n">0</span></button>
@@ -378,7 +398,7 @@ function usePlayer(p) { if (p) { p.owned ||= {}; p.wear ||= {}; p.stars ||= {}; 
    head / face: where hats and glasses sit, in % of the character image (x, y, width). */
 const CHARACTERS = [
   { id: "parrot", name: "תוכי", img: "parrot-wave", head: [54, 6, 42], face: [56, 24, 34] },
-  { id: "crab", name: "סרטן", img: "crab", head: [50, 30, 36], face: [50, 38, 38] },
+  { id: "crab", name: "סרטן", img: "crab", head: [50, 24, 34], face: [50, 38, 38] },
   { id: "firefly", name: "גחלילית", img: "firefly", head: [57, 20, 34], face: [57, 42, 30] },
   { id: "tiger", name: "נמר", img: "char-tiger", head: [50, 8, 46], face: [48, 32, 40] },
   { id: "monkey", name: "קוף", img: "char-monkey", head: [50, 8, 44], face: [50, 26, 38] },
@@ -465,6 +485,17 @@ function speak(text) {
     u.voice = v; u.lang = v.lang; u.rate = .92; speechSynthesis.speak(u);
   } catch {}
 }
+
+/* ---------- sea glints ---------- */
+(() => {
+  const sea = $(".sea");
+  for (let i = 0; i < 16; i++) {
+    const g = el("i", "glint");
+    g.style.left = Math.random() * 100 + "%"; g.style.top = Math.random() * 100 + "%";
+    g.style.animationDelay = (-Math.random() * 4) + "s"; g.style.animationDuration = (2.8 + Math.random() * 2.5) + "s";
+    sea.append(g);
+  }
+})();
 
 /* ---------- header ---------- */
 const coinCount = $("#coinCount"), soundBtn = $("#soundBtn"), barTitle = $("#barTitle");
@@ -641,7 +672,7 @@ function showShop() {
   });
   checkEmpty();
   v.append(sc);
-  dock(v, [["למפה", img("boat", ""), showMap], ["האי שלי", avatar(), showMyIsland]]);
+  dock(v, [["למפה", img("scroll", ""), showMap], ["האי שלי", avatar(), showMyIsland]]);
   setView(v, "החנות");
 }
 
@@ -737,7 +768,7 @@ function showMyIsland() {
   };
   sc.append(del);
   v.append(sc);
-  dock(v, [["למפה", img("boat", ""), showMap], ["החנות", img("coin", ""), showShop]]);
+  dock(v, [["למפה", img("scroll", ""), showMap], ["החנות", img("coin", ""), showShop]]);
   setView(v, "האוצר שלי");
 }
 

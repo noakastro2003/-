@@ -37,7 +37,8 @@ python3 tools/prepare_assets.py raw/island-train.png island-train
 
 - `parrot-wave`, `parrot-point`, `parrot-happy` – התוכי המדריך (`parrot-think` כבר קיים)
 - `boat` – הסירה שמסמנת על המפה איפה אנחנו
-- דמויות: `char-tiger`, `char-monkey`, `char-turtle`, `char-octopus`, `char-dolphin`
+- דמויות פיראטים (קודמות בבחירה): `char-pirate-boy-1..3`, `char-pirate-girl-1..3`
+- דמויות חיות: `char-tiger`, `char-monkey`, `char-turtle`, `char-octopus`, `char-dolphin`
 - חיות לחנות: `pet-starfish`, `pet-fish`, `pet-seagull`, `pet-turtle`, `pet-octopus`, `pet-monkey`, `pet-dolphin`, `pet-flamingo`, `pet-whale`
 - אביזרים לדמות: `acc-flower`, `acc-bandana`, `acc-sunglasses`, `acc-eyepatch`, `acc-captain-hat`, `acc-pirate-hat`, `acc-crown`
 - קישוטים: `jar-full`, `pallet`; האי הפרטי: `island-home`

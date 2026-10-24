@@ -397,6 +397,13 @@ function usePlayer(p) { if (p) { p.owned ||= {}; p.wear ||= {}; p.stars ||= {}; 
 /* characters the student can be. Images not uploaded yet are hidden from the picker.
    head / face: where hats and glasses sit, in % of the character image (x, y, width). */
 const CHARACTERS = [
+  // pirates first: the student's own character. Drawn bareheaded, front view, so hats and glasses fit.
+  { id: "pirate-boy-1", name: "פיראט", img: "char-pirate-boy-1", head: [50, 5, 48], face: [50, 22, 40] },
+  { id: "pirate-girl-1", name: "פיראטית", img: "char-pirate-girl-1", head: [50, 5, 48], face: [50, 22, 40] },
+  { id: "pirate-boy-2", name: "פיראט", img: "char-pirate-boy-2", head: [50, 5, 48], face: [50, 22, 40] },
+  { id: "pirate-girl-2", name: "פיראטית", img: "char-pirate-girl-2", head: [50, 5, 48], face: [50, 22, 40] },
+  { id: "pirate-boy-3", name: "פיראט", img: "char-pirate-boy-3", head: [50, 5, 48], face: [50, 22, 40] },
+  { id: "pirate-girl-3", name: "פיראטית", img: "char-pirate-girl-3", head: [50, 5, 48], face: [50, 22, 40] },
   { id: "parrot", name: "תוכי", img: "parrot-wave", head: [54, 6, 42], face: [56, 24, 34] },
   { id: "crab", name: "סרטן", img: "crab", head: [50, 24, 34], face: [50, 38, 38] },
   { id: "firefly", name: "גחלילית", img: "firefly", head: [57, 20, 34], face: [57, 42, 30] },

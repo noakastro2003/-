@@ -29,6 +29,7 @@
   --r: 18px;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { height: 100%; }
 body {
   margin: 0; background: var(--sea-deep); color: var(--ink);
@@ -120,7 +121,7 @@ bdi.n, .n { direction: ltr; unicode-bidi: isolate; font-family: var(--display); 
 .progress i.done { background: var(--gold); }
 .progress i.now { background: var(--white); }
 .stage {
-  flex: 1; min-height: 0; overflow-y: auto; position: relative;
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; position: relative;
   margin-inline: max(12px, env(safe-area-inset-left, 0px)); width: auto; max-width: 760px; align-self: stretch;
   background: var(--sand); border-radius: 24px; box-shadow: inset 0 -8px 0 var(--sand-deep), 0 6px 0 rgba(10,60,90,.25);
   padding: 16px 12px 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
@@ -229,6 +230,68 @@ bdi.n, .n { direction: ltr; unicode-bidi: isolate; font-family: var(--display); 
 .sign { width: min(280px, 80%); aspect-ratio: 700 / 609; background: url("assets/sign.webp") center / contain no-repeat; display: grid; place-items: center; padding: 28% 12% 8%; font-family: var(--display); font-weight: 700; font-size: clamp(24px, 7vw, 32px); color: #fff6dd; text-shadow: 0 2px 0 #5a3410, 0 0 6px #5a3410; text-align: center; animation: swing 2.4s ease-in-out infinite; transform-origin: 50% 0; }
 @keyframes swing { 50% { transform: rotate(2deg); } }
 
+/* players, characters */
+.avatar-btn { width: 48px; height: 48px; border-radius: 50%; background: var(--white); box-shadow: 0 3px 0 rgba(10,60,90,.35); display: grid; place-items: center; overflow: hidden; padding: 3px; }
+.avatar-btn .avatar { width: 40px; }
+.avatar { position: relative; display: block; }
+.avatar > img.base { width: 100%; height: auto; }
+.avatar .acc { position: absolute; pointer-events: none; }
+.avatar .acc.head { transform: translate(-50%, -78%); }
+.avatar .acc.face { transform: translate(-50%, -50%); }
+.home h3 { margin: 0; font-family: var(--display); font-size: 26px; color: var(--white); text-shadow: 0 2px 0 var(--sea-deep); }
+.players { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 600px; }
+.pcard { width: 132px; background: var(--white); border-radius: 22px; padding: 10px 8px 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 5px 0 rgba(10,60,90,.35); font-family: var(--display); font-weight: 600; font-size: 20px; }
+.pcard .pic { height: 96px; display: grid; place-items: end center; }
+.pcard .avatar { width: 84px; }
+.pcard .pic > img { max-height: 96px; width: auto; }
+.pcard small { display: flex; align-items: center; gap: 4px; font-size: 16px; color: var(--ink-soft); }
+.pcard small img { width: 18px; }
+.pcard.new { background: rgba(255,255,255,.55); border: 3px dashed var(--white); box-shadow: none; color: var(--ink); justify-content: center; }
+.pcard.new b { font-size: 48px; line-height: 1; }
+.pcard.sel { outline: 5px solid var(--gold); }
+.name-input { font: inherit; font-family: var(--display); font-size: 26px; padding: 10px 16px; border-radius: 18px; border: 3px solid var(--white); width: min(320px, 100%); text-align: center; color: var(--ink); background: var(--white); }
+.name-input:focus { outline: 4px solid var(--gold); }
+.dock { position: absolute; left: 0; right: 0; bottom: max(12px, env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; gap: 12px; pointer-events: none; z-index: 5; }
+.dock button { pointer-events: auto; display: flex; align-items: center; gap: 8px; background: var(--white); border-radius: 999px; padding: 6px 18px 6px 8px; font-family: var(--display); font-weight: 700; font-size: 20px; box-shadow: 0 5px 0 rgba(10,60,90,.35); }
+.dock button .avatar, .dock button > img { width: 40px; }
+.scroller { flex: 1; min-height: 0; overflow-y: auto; padding-block: 8px 110px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+
+/* shop */
+.tabs { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.tab { font-family: var(--display); font-weight: 600; font-size: 19px; padding: 8px 18px; border-radius: 999px; background: rgba(255,255,255,.7); }
+.tab.on { background: var(--gold); box-shadow: 0 4px 0 #b77f00; }
+.shop-grid { width: 100%; max-width: 760px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.item { background: var(--white); border-radius: 22px; padding: 10px 8px 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: 0 5px 0 rgba(10,60,90,.35); font-family: var(--display); font-weight: 600; font-size: 18px; text-align: center; }
+.item img.pic { width: 100%; height: 92px; object-fit: contain; }
+.price { display: flex; align-items: center; gap: 4px; font-family: var(--display); font-weight: 700; font-size: 24px; }
+.price img { width: 26px; }
+.item .tag-own { background: var(--leaf); color: var(--white); border-radius: 999px; padding: 2px 12px; font-size: 16px; }
+.item.worn { outline: 4px solid var(--gold); }
+.empty-note { background: rgba(255,255,255,.85); border-radius: 18px; padding: 14px 18px; text-align: center; max-width: 420px; }
+.pay-row { display: flex; gap: 14px; direction: ltr; justify-content: center; align-items: center; flex-wrap: wrap; }
+.paid { font-size: 20px; }
+.paid .n { font-size: 30px; font-weight: 700; }
+.cstack { position: relative; width: 38px; height: 62px; }
+.cstack img { position: absolute; left: 0; width: 38px; }
+.cstack b { position: absolute; inset: auto 0 -2px; text-align: center; font-family: var(--display); font-size: 14px; color: var(--white); text-shadow: 0 1px 0 var(--ink), 0 0 4px var(--ink); }
+.pay-coins { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; direction: ltr; min-height: 66px; align-items: flex-end; max-width: 320px; }
+.pay-coins > img { width: 24px; }
+
+/* my island */
+.tstrip { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.chip { display: flex; align-items: center; gap: 6px; background: var(--white); border-radius: 999px; padding: 4px 14px 4px 6px; font-family: var(--display); font-weight: 700; font-size: 20px; box-shadow: 0 3px 0 rgba(10,60,90,.3); }
+.chip img, .chip svg { width: 30px; height: 30px; }
+.home-isle { position: relative; width: min(560px, 100%); aspect-ratio: 1 / .82; touch-action: none; }
+.home-isle > img.ground-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.home-isle .ground { position: absolute; inset: 22% 0 4%; border-radius: 50%; background: radial-gradient(closest-side, var(--sand) 70%, var(--sand-deep) 82%, rgba(255,255,255,.8) 89%, transparent 100%); }
+.home-isle.has-art .ground { display: none; }
+.placed { position: absolute; transform: translate(-50%, -100%); touch-action: none; cursor: grab; filter: drop-shadow(0 4px 3px rgba(0,40,70,.3)); }
+.placed.dragging { cursor: grabbing; filter: drop-shadow(0 12px 8px rgba(0,40,70,.35)); z-index: 50 !important; }
+.placed.me { width: 26%; }
+.placed:not(.me) { width: 15%; }
+.placed img { width: 100%; }
+.isle-hint { color: var(--foam); font-size: 16px; text-align: center; }
+
 /* overlays */
 .overlay { position: absolute; inset: 0; background: rgba(8,50,75,.55); display: grid; place-items: center; z-index: 20; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .panel { background: var(--white); border-radius: 26px; padding: 22px 22px 26px; width: min(380px, 100%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; box-shadow: 0 10px 0 rgba(10,60,90,.35); animation: pop .35s ease; }
@@ -262,11 +325,12 @@ bdi.n, .n { direction: ltr; unicode-bidi: isolate; font-family: var(--display); 
 <body>
 <div id="app">
   <header class="bar">
+    <button class="avatar-btn" id="meBtn" aria-label="האי שלי" hidden></button>
     <button class="icon-btn" id="homeBtn" aria-label="למפה">
       <svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>
     </button>
     <h1 id="barTitle">מסע לאי המאה</h1>
-    <div class="coins" aria-label="מטבעות"><img src="assets/coin.webp" alt=""><span id="coinCount" class="n">0</span></div>
+    <button class="coins" id="coinsBtn" aria-label="מטבעות – לחנות"><img src="assets/coin.webp" alt=""><span id="coinCount" class="n">0</span></button>
     <button class="icon-btn" id="soundBtn" aria-label="קול" aria-pressed="true">
       <svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="wave" d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/></svg>
     </button>
@@ -301,11 +365,75 @@ function img(name, cls, alt = "") {
 const STAR = on => `<svg viewBox="0 0 24 24"><path class="${on ? "star-on" : "star-off"}" d="M12 2.5l2.9 6 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.2 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>`;
 const starsHTML = n => [0, 1, 2].map(i => STAR(i < n)).join("");
 
-/* ---------- saved progress (this device only) ---------- */
-const KEY = "island100-v1";
-const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch { return null; } };
-const state = Object.assign({ coins: 0, stars: {}, sound: true }, load() || {});
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+/* ---------- players (saved on this device only) ---------- */
+const KEY = "island100-players";
+const db = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch { return null; } })() || { current: null, players: [] };
+const newPlayer = (name, char) => ({ id: Date.now().toString(36), name, char, coins: 0, stars: {}, owned: {}, wear: {}, sound: true });
+let state = db.players.find(p => p.id === db.current) || { coins: 0, stars: {}, owned: {}, wear: {}, sound: true, char: "parrot" };
+const save = () => { if (!state.id) return; try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} };
+const guest = () => ({ coins: 0, stars: {}, owned: {}, wear: {}, sound: true, char: "parrot" });
+function usePlayer(p) { if (p) { p.owned ||= {}; p.wear ||= {}; p.stars ||= {}; } state = p || guest(); db.current = p ? p.id : null; try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} renderHeader(); }
+
+/* characters the student can be. Images not uploaded yet are hidden from the picker.
+   head / face: where hats and glasses sit, in % of the character image (x, y, width). */
+const CHARACTERS = [
+  { id: "parrot", name: "תוכי", img: "parrot-wave", head: [54, 6, 42], face: [56, 24, 34] },
+  { id: "crab", name: "סרטן", img: "crab", head: [50, 30, 36], face: [50, 38, 38] },
+  { id: "firefly", name: "גחלילית", img: "firefly", head: [57, 20, 34], face: [57, 42, 30] },
+  { id: "tiger", name: "נמר", img: "char-tiger", head: [50, 8, 46], face: [48, 32, 40] },
+  { id: "monkey", name: "קוף", img: "char-monkey", head: [50, 8, 44], face: [50, 26, 38] },
+  { id: "turtle", name: "צב", img: "char-turtle", head: [50, 10, 40], face: [50, 26, 34] },
+  { id: "octopus", name: "תמנון", img: "char-octopus", head: [50, 6, 50], face: [50, 30, 42] },
+  { id: "dolphin", name: "דולפין", img: "char-dolphin", head: [50, 10, 40], face: [50, 28, 34] },
+];
+const charOf = p => CHARACTERS.find(c => c.id === (p && p.char)) || CHARACTERS[0];
+
+/* shop. Prices are two-digit on purpose: paying is a tens-and-ones exercise.
+   Items whose picture is not uploaded yet stay hidden until it is. */
+const ITEMS = [
+  { id: "pet-firefly", cat: "pets", name: "גחלילית", img: "firefly", price: 13 },
+  { id: "pet-crab", cat: "pets", name: "סרטן רקדן", img: "crab-jump", price: 24 },
+  { id: "pet-starfish", cat: "pets", name: "כוכב ים", img: "pet-starfish", price: 15 },
+  { id: "pet-fish", cat: "pets", name: "דג זהב", img: "pet-fish", price: 19 },
+  { id: "pet-seagull", cat: "pets", name: "שחף", img: "pet-seagull", price: 27 },
+  { id: "pet-turtle", cat: "pets", name: "צב ים", img: "pet-turtle", price: 38 },
+  { id: "pet-octopus", cat: "pets", name: "תמנון", img: "pet-octopus", price: 42 },
+  { id: "pet-monkey", cat: "pets", name: "קוף", img: "pet-monkey", price: 46 },
+  { id: "pet-dolphin", cat: "pets", name: "דולפין", img: "pet-dolphin", price: 57 },
+  { id: "pet-flamingo", cat: "pets", name: "פלמינגו", img: "pet-flamingo", price: 63 },
+  { id: "pet-whale", cat: "pets", name: "לוויתן", img: "pet-whale", price: 85 },
+  { id: "dec-stone", cat: "decor", name: "אבן חלקה", img: "stone", price: 11 },
+  { id: "dec-bottle", cat: "decor", name: "בקבוק עם מסר", img: "bottle", price: 16 },
+  { id: "dec-scroll", cat: "decor", name: "מגילה", img: "scroll", price: 17 },
+  { id: "dec-jar", cat: "decor", name: "צנצנת אור", img: "jar-full", price: 21 },
+  { id: "dec-sign", cat: "decor", name: "שלט עץ", img: "sign", price: 22 },
+  { id: "dec-crate", cat: "decor", name: "ארגז קוקוסים", img: "crate-full", price: 30 },
+  { id: "dec-wagon", cat: "decor", name: "קרון", img: "wagon", price: 35 },
+  { id: "dec-chest", cat: "decor", name: "תיבה סגורה", img: "chest", price: 48 },
+  { id: "dec-train", cat: "decor", name: "קטר", img: "locomotive", price: 64 },
+  { id: "dec-boat", cat: "decor", name: "סירה", img: "boat", price: 72 },
+  { id: "dec-pallet", cat: "decor", name: "מגש של מאה", img: "pallet", price: 89 },
+  { id: "dec-treasure", cat: "decor", name: "תיבת אוצר", img: "chest-open", price: 99 },
+  { id: "wear-flower", cat: "wear", slot: "head", name: "פרח", img: "acc-flower", price: 14 },
+  { id: "wear-bandana", cat: "wear", slot: "head", name: "בנדנה", img: "acc-bandana", price: 23 },
+  { id: "wear-glasses", cat: "wear", slot: "face", name: "משקפי שמש", img: "acc-sunglasses", price: 28 },
+  { id: "wear-eyepatch", cat: "wear", slot: "face", name: "רטיית פיראט", img: "acc-eyepatch", price: 31 },
+  { id: "wear-captain", cat: "wear", slot: "head", name: "כובע קפטן", img: "acc-captain-hat", price: 44 },
+  { id: "wear-pirate", cat: "wear", slot: "head", name: "כובע פיראטים", img: "acc-pirate-hat", price: 52 },
+  { id: "wear-crown", cat: "wear", slot: "head", name: "כתר זהב", img: "acc-crown", price: 96 },
+];
+const CATS = [["pets", "חיות"], ["decor", "לאי שלי"], ["wear", "אביזרים לדמות"]];
+
+function avatar(p = state) {
+  const c = charOf(p), w = el("div", "avatar");
+  w.append(img(c.img, "base", c.name));
+  Object.entries(p.wear || {}).forEach(([slot, id]) => {
+    const it = ITEMS.find(i => i.id === id), a = c[slot]; if (!it || !a) return;
+    const acc = img(it.img, "acc " + slot); acc.style.left = a[0] + "%"; acc.style.top = a[1] + "%"; acc.style.width = a[2] + "%";
+    w.append(acc);
+  });
+  return w;
+}
 
 /* ---------- sound & voice ---------- */
 let ac;
@@ -340,18 +468,26 @@ function speak(text) {
 
 /* ---------- header ---------- */
 const coinCount = $("#coinCount"), soundBtn = $("#soundBtn"), barTitle = $("#barTitle");
+const meBtn = $("#meBtn"), coinsBtn = $("#coinsBtn");
 const renderCoins = () => { coinCount.textContent = state.coins; };
+function renderHeader() {
+  renderCoins(); soundBtn.setAttribute("aria-pressed", state.sound);
+  const on = !!state.id; meBtn.hidden = !on; coinsBtn.hidden = !on; $("#homeBtn").hidden = !on;
+  meBtn.innerHTML = ""; if (on) meBtn.append(avatar());
+}
+meBtn.onclick = () => showMyIsland();
+coinsBtn.onclick = () => showShop();
 soundBtn.setAttribute("aria-pressed", state.sound);
 soundBtn.onclick = () => { state.sound = !state.sound; soundBtn.setAttribute("aria-pressed", state.sound); save(); if (!state.sound) try { speechSynthesis.cancel(); } catch {} };
-$("#homeBtn").onclick = () => showMap();
-renderCoins();
+$("#homeBtn").onclick = () => state.id ? showMap() : showHome();
+renderHeader();
 const screen = $("#screen");
 function setView(v, title) { screen.innerHTML = ""; screen.append(v); barTitle.textContent = title; }
 
 /* ---------- stations ---------- */
 const STATIONS = [
   { id: "pack", name: "אי הקוקוסים", island: "island-coconuts", icon: "crate-full", rounds: 3, play: roundPack,
-    intro: "ביי הקוקוסים אורזים קוקוסים בארגזים. בכל ארגז נכנסים בדיוק 10 קוקוסים." },
+    intro: "באי הקוקוסים אורזים קוקוסים בארגזים. בכל ארגז נכנסים בדיוק 10 קוקוסים." },
   { id: "jars", name: "אי הגחליליות", island: "island-fireflies", icon: "jar", rounds: 5, play: roundJars,
     intro: "בכל צנצנת מלאה יש 10 גחליליות. סופרים צנצנות ואחר כך גחליליות בודדות." },
   { id: "train", name: "אי הרכבת", island: "island-train", icon: "locomotive", rounds: 4, play: roundTrain,
@@ -369,34 +505,79 @@ const STATIONS = [
 ];
 const unlocked = i => i === 0 || (state.stars[STATIONS[i - 1].id] || 0) > 0;
 
-/* ---------- home ---------- */
+/* ---------- home: who is playing ---------- */
 function showHome() {
+  usePlayer(null);
   const v = el("section", "view home");
   const hero = el("div", "hero");
   const isl = img("island-treasure", "isle-big");
   isl.addEventListener("missing", () => { isl.remove(); hero.classList.add("no-art"); });
   hero.append(isl, img("parrot-wave", "parrot-hero"));
-  v.append(hero);
-  v.append(el("h2", "", `מסע לאי ה${"מאה"}`));
-  v.append(el("p", "", "מפליגים מאי לאי, אורזים קוקוסים בארגזים של 10 ומגיעים עד " + N(100) + "."));
-  const go = el("button", "big-btn", Object.keys(state.stars).length ? "ממשיכים במסע" : "יוצאים למסע");
-  go.onclick = () => { tone(1, .01); showMap(); };
-  v.append(go);
-  const reset = el("button", "link-btn", "מתחילים מההתחלה");
-  let armed = false;
-  reset.onclick = () => {
-    if (!armed) { armed = true; reset.textContent = "בטוח? לחצו שוב כדי למחוק את ההתקדמות"; return; }
-    state.coins = 0; state.stars = {}; save(); renderCoins(); showHome();
-  };
-  if (Object.keys(state.stars).length) v.append(reset);
+  v.append(hero, el("h2", "", "מסע לאי המאה"));
+  if (!db.players.length) {
+    v.append(el("p", "", "מפליגים מאי לאי, אורזים קוקוסים בארגזים של 10 ומגיעים עד " + N(100) + "."));
+    const go = el("button", "big-btn", "יוצאים למסע");
+    go.onclick = () => { tone(1, .01); showNewPlayer(); };
+    v.append(go);
+  } else {
+    v.append(el("h3", "", "מי משחק עכשיו?"));
+    const list = el("div", "players");
+    db.players.forEach(p => {
+      const b = el("button", "pcard"); const pic = el("div", "pic"); pic.append(avatar(p));
+      b.append(pic, el("span", "", p.name), el("small", "", `<img src="assets/coin.webp" alt=""><bdi class="n">${p.coins}</bdi>`));
+      b.onclick = () => { tone(1, .01); usePlayer(p); showMap(); };
+      list.append(b);
+    });
+    const add = el("button", "pcard new", "<b>+</b><span>שחקן חדש</span>");
+    add.onclick = () => showNewPlayer();
+    list.append(add); v.append(list);
+  }
   setView(v, "");
-  barTitle.textContent = "";
+}
+
+function showNewPlayer() {
+  const v = el("section", "view home");
+  v.append(el("h3", "", "איך קוראים לך?"));
+  const form = el("form"); form.style.display = "contents";
+  const input = el("input", "name-input"); input.id = "playerName"; input.maxLength = 14; input.placeholder = "השם שלי"; input.autocomplete = "off";
+  form.append(input); v.append(form);
+  v.append(el("h3", "", "בחרו דמות"));
+  const list = el("div", "players"); let chosen = null;
+  CHARACTERS.forEach(c => {
+    const b = el("button", "pcard"); b.type = "button";
+    const pic = el("div", "pic"); const im = img(c.img, "", c.name); pic.append(im);
+    im.addEventListener("missing", () => b.remove());
+    b.append(pic, el("span", "", c.name));
+    b.onclick = () => { chosen = c.id; list.querySelectorAll(".pcard").forEach(x => x.classList.toggle("sel", x === b)); sfx.pop(); };
+    list.append(b);
+  });
+  v.append(list);
+  const note = el("p", ""); note.hidden = true;
+  const go = el("button", "big-btn", "יוצאים למסע");
+  const submit = e => {
+    e && e.preventDefault();
+    const name = input.value.trim();
+    if (!name) { note.hidden = false; note.textContent = "כתבו את השם שלכם."; input.focus(); return; }
+    if (!chosen) { note.hidden = false; note.textContent = "בחרו דמות."; return; }
+    const p = newPlayer(name, chosen); db.players.push(p); usePlayer(p); save(); showMap();
+  };
+  form.onsubmit = submit; go.onclick = submit;
+  v.append(note, go);
+  if (db.players.length) { const back = el("button", "link-btn", "חזרה"); back.onclick = showHome; v.append(back); }
+  setView(v, "");
+}
+
+function dock(v, items) {
+  const d = el("div", "dock");
+  items.forEach(([label, icon, fn]) => { const b = el("button"); b.append(icon, el("span", "", label)); b.onclick = fn; d.append(b); });
+  v.append(d);
 }
 
 /* ---------- map ---------- */
 // island centers in % of the map box; route starts at the bottom and climbs to the island of 100.
 const SPOTS = [[70, 94], [30, 82], [70, 70], [30, 58], [70, 46], [30, 34], [70, 22], [42, 8]];
 function showMap() {
+  if (!state.id) return showHome();
   const v = el("section", "view");
   const sc = el("div", "map-scroll");
   const map = el("div", "map");
@@ -428,8 +609,152 @@ function showMap() {
   boat.style.right = (100 - bx + (bx > 50 ? 30 : -30)) + "%"; boat.style.top = (by + 1) + "%";
   map.append(boat);
   sc.append(map); v.append(sc);
+  dock(v, [["האי שלי", avatar(), showMyIsland], ["החנות", img("coin", ""), showShop]]);
   setView(v, "מפת המסע");
   requestAnimationFrame(() => { sc.style.scrollBehavior = "auto"; sc.scrollTop = map.offsetHeight * SPOTS[current][1] / 100 - sc.clientHeight / 2; sc.style.scrollBehavior = ""; });
+}
+
+/* ---------- shop ---------- */
+let shopTab = "pets";
+function showShop() {
+  if (!state.id) return showHome();
+  const v = el("section", "view"), sc = el("div", "scroller");
+  const tabs = el("div", "tabs"), grid = el("div", "shop-grid"), empty = el("div", "empty-note");
+  sc.append(el("p", "empty-note", `מרוויחים מטבעות במסע: ${N(3)} על כל תשובה נכונה, ועוד בונוס על כוכבים.`), tabs, grid, empty);
+  CATS.forEach(([id, label]) => { const t = el("button", "tab" + (id === shopTab ? " on" : ""), label); t.onclick = () => { shopTab = id; showShop(); }; tabs.append(t); });
+  const list = ITEMS.filter(i => i.cat === shopTab);
+  let shown = list.length;
+  const checkEmpty = () => { empty.hidden = shown > 0; empty.textContent = "פריטים חדשים בדרך!"; };
+  list.forEach(it => {
+    const owned = !!state.owned[it.id], worn = it.slot && state.wear[it.slot] === it.id;
+    const card = el("button", "item" + (worn ? " worn" : ""));
+    const pic = img(it.img, "pic", it.name); pic.addEventListener("missing", () => { card.remove(); shown--; checkEmpty(); });
+    card.append(pic, el("span", "", it.name));
+    if (owned) card.append(el("span", "tag-own", it.slot ? (worn ? "עליי עכשיו" : "ללבוש") : "שלי"));
+    else card.append(el("span", "price", `<img src="assets/coin.webp" alt=""><bdi class="n">${it.price}</bdi>`));
+    card.onclick = () => {
+      if (!owned) return buy(it, () => showShop());
+      if (it.slot) { if (worn) delete state.wear[it.slot]; else state.wear[it.slot] = it.id; save(); renderHeader(); sfx.pop(); showShop(); }
+      else showMyIsland();
+    };
+    grid.append(card);
+  });
+  checkEmpty();
+  v.append(sc);
+  dock(v, [["למפה", img("boat", ""), showMap], ["האי שלי", avatar(), showMyIsland]]);
+  setView(v, "החנות");
+}
+
+// a stack of 10 coins = one ten
+function coinStack() { const s = el("div", "cstack"); for (let i = 0; i < 10; i++) { const c = img("coin", ""); c.style.bottom = (i * 3) + "px"; s.append(c); } s.append(el("b", "n", "10")); return s; }
+
+function buy(it, done) {
+  const ov = el("div", "overlay"), p = el("div", "panel");
+  const close = () => ov.remove();
+  const pic = img(it.img, "reward", it.name); pic.style.width = "120px";
+  p.append(pic, el("h3", "", it.name), el("p", "paid", `המחיר: ${N(it.price)} מטבעות`));
+  if (state.coins < it.price) {
+    p.append(el("p", "", `יש לכם ${N(state.coins)} מטבעות. חסרים עוד ${N(it.price - state.coins)}. ממשיכים במסע וחוזרים!`));
+    const b = el("button", "go-btn", "הבנתי"); b.onclick = close; p.append(b);
+  } else {
+    let t = 0, o = 0;
+    p.append(el("p", "", "משלמים בדיוק: ערימות של 10 מטבעות ומטבעות בודדים."));
+    const tray = el("div", "pay-coins"), paid = el("p", "paid"), msg = el("p", "");
+    const draw = () => {
+      tray.innerHTML = ""; for (let i = 0; i < t; i++) tray.append(coinStack()); for (let i = 0; i < o; i++) tray.append(img("coin", ""));
+      paid.innerHTML = `שמתם: ${N(t * 10 + o)}`;
+    };
+    const stepper = (icon, get, set, val) => {
+      const s = el("div", "stepper"), minus = el("button", "", "−"), plus = el("button", "", "+");
+      minus.setAttribute("aria-label", "פחות"); plus.setAttribute("aria-label", "יותר");
+      minus.onclick = () => { if (get() > 0) { set(get() - 1); sfx.pop(); draw(); } };
+      plus.onclick = () => { if (t * 10 + o + val <= state.coins && get() < (val === 10 ? 9 : 19)) { set(get() + 1); sfx.pop(); draw(); } };
+      s.append(minus, icon, plus); return s;
+    };
+    const one = img("coin", ""); one.style.width = "30px";
+    const row = el("div", "pay-row"); row.append(stepper(coinStack(), () => t, x => t = x, 10), stepper(one, () => o, x => o = x, 1));
+    const actions = el("div", "row"), cancel = el("button", "ghost-btn", "ביטול"), pay = el("button", "go-btn", "משלמים");
+    cancel.onclick = close;
+    pay.onclick = () => {
+      const sum = t * 10 + o;
+      if (sum === it.price && o < 10) {
+        state.coins -= it.price; state.owned[it.id] = it.slot ? {} : { x: 20 + Math.random() * 60, y: 45 + Math.random() * 40 };
+        if (it.slot && !state.wear[it.slot]) state.wear[it.slot] = it.id;
+        save(); renderHeader(); sfx.win(); confetti(30); close(); done();
+      } else if (sum === it.price) { msg.textContent = "נכון בסך הכול! אבל 10 מטבעות בודדים אפשר להחליף בערימה אחת."; sfx.wrong(); }
+      else { msg.innerHTML = sum > it.price ? `שמתם ${N(sum)} – זה יותר מדי.` : `שמתם ${N(sum)} – חסר עוד.` ; msg.innerHTML += ` ב-${N(it.price)} יש ${N(Math.floor(it.price / 10))} עשרות ו-${N(it.price % 10)} יחידות.`; sfx.wrong(); }
+    };
+    actions.append(cancel, pay);
+    p.append(tray, paid, row, msg, actions); draw();
+  }
+  ov.append(p); screen.append(ov);
+}
+
+/* ---------- my island: character + everything bought ---------- */
+function showMyIsland() {
+  if (!state.id) return showHome();
+  const v = el("section", "view"), sc = el("div", "scroller");
+  const totalStars = Object.values(state.stars).reduce((a, b) => a + b, 0);
+  const owned = ITEMS.filter(i => state.owned[i.id]);
+  const strip = el("div", "tstrip");
+  strip.append(
+    el("span", "chip", `<img src="assets/coin.webp" alt=""><bdi class="n">${state.coins}</bdi>`),
+    el("span", "chip", `${STAR(true)}<bdi class="n">${totalStars}</bdi>`),
+    el("span", "chip", `<img src="assets/chest-open.webp" alt=""><bdi class="n">${owned.length}</bdi>`));
+  const isle = el("div", "home-isle");
+  const art = img("island-home", "ground-art"); art.addEventListener("missing", () => isle.classList.remove("has-art"));
+  isle.classList.add("has-art"); isle.append(art, el("div", "ground"));
+  const place = (node, x, y, onMove) => {
+    node.style.left = x + "%"; node.style.top = y + "%"; node.style.zIndex = Math.round(y);
+    node.addEventListener("pointerdown", e => {
+      e.preventDefault(); node.setPointerCapture(e.pointerId); node.classList.add("dragging");
+      const r = isle.getBoundingClientRect();
+      const move = ev => {
+        x = Math.min(95, Math.max(5, (ev.clientX - r.left) / r.width * 100));
+        y = Math.min(97, Math.max(25, (ev.clientY - r.top) / r.height * 100));
+        node.style.left = x + "%"; node.style.top = y + "%"; node.style.zIndex = Math.round(y);
+      };
+      const up = () => { node.classList.remove("dragging"); node.removeEventListener("pointermove", move); onMove(x, y); save(); };
+      node.addEventListener("pointermove", move); node.addEventListener("pointerup", up, { once: true }); node.addEventListener("pointercancel", up, { once: true });
+    });
+    isle.append(node);
+  };
+  owned.filter(i => !i.slot).forEach(it => { const n = el("div", "placed"); n.append(img(it.img, "", it.name)); const pos = state.owned[it.id]; place(n, pos.x, pos.y, (x, y) => { pos.x = x; pos.y = y; }); });
+  const me = el("div", "placed me"); me.append(avatar());
+  const mp = state.mePos || { x: 50, y: 72 };
+  place(me, mp.x, mp.y, (x, y) => { state.mePos = { x, y }; });
+  sc.append(el("h3", "", "")); sc.firstChild.style.cssText = "margin:0;font-family:var(--display);font-size:30px;color:#fff;text-shadow:0 2px 0 var(--sea-deep)";
+  sc.firstChild.textContent = "האי של " + state.name;
+  sc.append(strip, isle, el("p", "isle-hint", owned.length ? "גוררים את החיות והחפצים כדי לסדר את האי." : "האי עוד ריק. קונים חיות וקישוטים בחנות במטבעות שמרוויחים במסע."));
+  const row = el("div", "row");
+  const change = el("button", "ghost-btn", "החלפת דמות"); change.onclick = showCharPicker;
+  const switchP = el("button", "ghost-btn", "החלפת שחקן"); switchP.onclick = showHome;
+  row.append(change, switchP); sc.append(row);
+  const del = el("button", "link-btn", "מחיקת השחקן"); let armed = false;
+  del.onclick = () => {
+    if (!armed) { armed = true; del.textContent = `למחוק את ${state.name} וכל מה שאסף? לחצו שוב`; return; }
+    db.players = db.players.filter(p => p.id !== state.id); usePlayer(null); try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} showHome();
+  };
+  sc.append(del);
+  v.append(sc);
+  dock(v, [["למפה", img("boat", ""), showMap], ["החנות", img("coin", ""), showShop]]);
+  setView(v, "האוצר שלי");
+}
+
+function showCharPicker() {
+  const ov = el("div", "overlay"), p = el("div", "panel");
+  p.style.width = "min(520px, 100%)";
+  p.append(el("h3", "", "בחרו דמות"));
+  const list = el("div", "players");
+  CHARACTERS.forEach(c => {
+    const b = el("button", "pcard" + (c.id === state.char ? " sel" : ""));
+    const im = img(c.img, "", c.name); im.addEventListener("missing", () => b.remove());
+    const pic = el("div", "pic"); pic.append(im); b.append(pic, el("span", "", c.name));
+    b.onclick = () => { state.char = c.id; save(); renderHeader(); ov.remove(); showMyIsland(); };
+    list.append(b);
+  });
+  const close = el("button", "ghost-btn", "סגירה"); close.onclick = () => ov.remove();
+  p.append(list, close); ov.append(p); screen.append(ov);
 }
 
 /* ---------- activity framework ---------- */
@@ -493,13 +818,15 @@ function playStation(idx) {
   }
   function finish() {
     const stars = mistakes <= 1 ? 3 : mistakes <= 3 ? 2 : 1;
-    state.stars[st.id] = Math.max(state.stars[st.id] || 0, stars); save();
+    state.stars[st.id] = Math.max(state.stars[st.id] || 0, stars);
+    const bonus = stars * COINS_PER_STAR; state.coins += bonus; save(); renderCoins();
     if (st.id === "hundred") return finale();
     sfx.win(); confetti(40);
     const ov = el("div", "overlay"), p = el("div", "panel");
     p.append(el("h3", "", stars === 3 ? "מושלם!" : stars === 2 ? "כל הכבוד!" : "עברתם את האי!"));
     p.append(el("div", "stars", starsHTML(stars)));
     p.append(img("parrot-happy", "reward"));
+    p.append(el("span", "chip", `<img src="assets/coin.webp" alt="">+<bdi class="n">${bonus}</bdi> בונוס כוכבים`));
     const nextIdx = idx + 1;
     p.append(el("p", "", nextIdx < STATIONS.length ? `האי הבא: <b>${STATIONS[nextIdx].name}</b>` : ""));
     const row = el("div", "row");
@@ -507,7 +834,8 @@ function playStation(idx) {
     again.onclick = () => playStation(idx);
     const onward = el("button", "go-btn", "מפליגים הלאה");
     onward.onclick = () => showMap();
-    row.append(again, onward); p.append(row); ov.append(p); v.append(ov);
+    const shop = el("button", "ghost-btn", "לחנות"); shop.onclick = () => showShop();
+    row.append(again, shop, onward); p.append(row); ov.append(p); v.append(ov);
   }
   api.say(st.intro, "wave");
   drawProgress();
@@ -518,8 +846,9 @@ function playStation(idx) {
   preview.append(pi); stage.append(preview);
 }
 
+const COINS_PER_ANSWER = 3, COINS_PER_STAR = 5;
 function flyCoin(from) {
-  state.coins++; save();
+  state.coins += COINS_PER_ANSWER; save();
   const r = from.getBoundingClientRect(), t = $(".coins img").getBoundingClientRect();
   const c = img("coin", "fly-coin");
   c.style.left = (r.left + r.width / 2 - 22) + "px"; c.style.top = (r.top + r.height / 2 - 22) + "px";
@@ -807,7 +1136,7 @@ function finale() {
   p.append(el("h3", "", "הגעתם לאי המאה!"));
   p.append(img("chest-open", "reward"));
   p.append(el("p", "", `אספתם ${N(state.coins)} מטבעות במסע. עכשיו אתם יודעים ש-${N(10)} עשרות הן ${N(100)}.`));
-  const b = el("button", "go-btn", "למפת המסע"); b.onclick = () => showMap();
+  const b = el("button", "go-btn", "לאוצר שלי"); b.onclick = () => showMyIsland();
   p.append(b); ov.append(p); screen.append(ov);
 }
 

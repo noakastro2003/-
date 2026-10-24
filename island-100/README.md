@@ -15,7 +15,15 @@
 | 7 | אי הנחש | סדרות בקפיצות של 10 ושל 1, ו-90 → 100 |
 | 8 | אי המאה | 99 + 1 = 10 ארגזים, סופרים בעשרות עד 100, ופותחים מנעול 100 |
 
-ההתקדמות (כוכבים ומטבעות) נשמרת בדפדפן של המכשיר.
+## שחקנים, חנות ואוצר
+
+- כל תלמיד יוצר שחקן: שם + דמות. במסך הפתיחה בוחרים "מי משחק עכשיו?".
+- מטבעות: 3 על כל תשובה נכונה, ועוד 5 על כל כוכב בסיום אי.
+- **החנות**: חיות, קישוטים לאי ואביזרים לדמות. המחירים דו-ספרתיים, ומשלמים בערימות של 10 ובמטבעות בודדים – כלומר עוד תרגול עשרות ויחידות.
+- **האוצר שלי**: האי הפרטי של השחקן. הדמות וכל מה שנקנה עומדים עליו, ואפשר לגרור ולסדר.
+- הכול נשמר בדפדפן של המכשיר (כמה תלמידים יכולים לשחק על אותו מכשיר).
+
+פריט בחנות או דמות שהתמונה שלהם עוד לא הועלתה פשוט לא מוצגים. ברגע שקובץ בשם הנכון נכנס ל-`assets/`, הם מופיעים.
 
 ## תמונות
 
@@ -29,4 +37,8 @@ python3 tools/prepare_assets.py raw/island-train.png island-train
 
 - `parrot-wave`, `parrot-point`, `parrot-happy` – התוכי המדריך (`parrot-think` כבר קיים)
 - `boat` – הסירה שמסמנת על המפה איפה אנחנו
+- דמויות: `char-tiger`, `char-monkey`, `char-turtle`, `char-octopus`, `char-dolphin`
+- חיות לחנות: `pet-starfish`, `pet-fish`, `pet-seagull`, `pet-turtle`, `pet-octopus`, `pet-monkey`, `pet-dolphin`, `pet-flamingo`, `pet-whale`
+- אביזרים לדמות: `acc-flower`, `acc-bandana`, `acc-sunglasses`, `acc-eyepatch`, `acc-captain-hat`, `acc-pirate-hat`, `acc-crown`
+- קישוטים: `jar-full`, `pallet`; האי הפרטי: `island-home`
 - `island-parrots` (מסך הפתיחה, עד ש-`island-treasure` יגיע), `island-treasure`, `island-coconuts`, `island-fireflies`, `island-train`, `island-crabs`, `island-volcano`, `island-bottles`, `island-snake`, `island-lock`

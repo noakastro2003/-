@@ -2539,6 +2539,7 @@ function renderSiteTeacher() {
   return bar() + `<div class="panel teacher">
     <div class="t-head"><h2>שלום ${esc(TEACHER.name)}</h2><span class="how">${esc(TEACHER.school || "")} · שם משתמש: ${esc(TEACHER.user)}</span>
       <button class="btn ghost" data-act="teacherLogout">יציאה</button></div>
+    ${!TEACHER.email && !ui.recovery ? `<div class="recovery"><b>עוד אין לך מייל לשחזור סיסמה.</b> <button class="linkbtn" data-ttab="account">להוספת מייל</button></div>` : ""}
     ${ui.recovery ? `<div class="recovery"><b>קוד השחזור שלך: <span dir="ltr" class="kcode big">${esc(ui.recovery)}</span></b>
       <p>אם תשכחי את הסיסמה, בעזרת הקוד הזה תוכלי לבחור סיסמה חדשה. רשמי אותו במקום בטוח. הוא מוצג רק עכשיו.</p>
       <div class="row"><button class="btn ghost" data-act="copyRecovery">העתקה</button><button class="btn" data-act="hideRecovery">שמרתי את הקוד</button></div></div>` : ""}
@@ -2547,16 +2548,34 @@ function renderSiteTeacher() {
   </div>`;
 }
 function teacherAuthHTML() {
-  if (ui.tmode === "forgot") return `<div class="panel teacher auth">
-    <h2>שכחתי סיסמה</h2>
-    <p class="how">מזינים את שם המשתמש ואת <b>קוד השחזור</b> שקיבלת בהרשמה (נראה כך: ABCD-EFGH), ובוחרים סיסמה חדשה. אין לך קוד שחזור? פני לנועה קסטרו, והיא תאפס לך את הסיסמה.</p>
-    <form id="tResetForm" class="tform">
-      <label>שם משתמש<input id="rUser" required maxlength="60" dir="ltr" autocomplete="username"></label>
-      <label>קוד שחזור<input id="rCode" required maxlength="12" dir="ltr" autocomplete="off" placeholder="ABCD-EFGH"></label>
-      <label>סיסמה חדשה (לפחות 6 תווים)<input id="rPass" type="password" required minlength="6" dir="ltr" autocomplete="new-password"></label>
-      <button class="btn go" type="submit">איפוס וכניסה</button>
+  if (RESET_TOKEN) return `<div class="panel teacher auth">
+    <h2>בחירת סיסמה חדשה</h2>
+    <p class="how">בחרי סיסמה חדשה לחשבון שלך. אחרי השמירה תיכנסי ישר לאזור המורות.</p>
+    <form id="tLinkForm" class="tform">
+      <label>סיסמה חדשה (לפחות 6 תווים)<input id="lPass" type="password" required minlength="6" dir="ltr" autocomplete="new-password"></label>
+      <label>שוב את הסיסמה החדשה<input id="lPass2" type="password" required minlength="6" dir="ltr" autocomplete="new-password"></label>
+      <button class="btn go" type="submit">שמירה וכניסה</button>
     </form>
     <p id="authMsg" class="feedback try" ${ui.tAuthMsg ? "" : "hidden"}>${esc(ui.tAuthMsg || "")}</p>
+  </div>`;
+  if (ui.tmode === "forgot") return `<div class="panel teacher auth">
+    <h2>שכחתי סיסמה</h2>
+    <form id="tForgotForm" class="tform">
+      <p class="how" style="margin:0"><b>במייל:</b> מקלידים את שם המשתמש או את כתובת המייל, ומקבלים קישור לבחירת סיסמה חדשה.</p>
+      <label>שם משתמש או אימייל<input id="fWho" required maxlength="190" dir="ltr" autocomplete="username"></label>
+      <button class="btn go" type="submit">שלחו לי קישור</button>
+    </form>
+    ${ui.forgotMsg ? `<p class="feedback ${ui.forgotOk ? "good" : "try"}">${esc(ui.forgotMsg)}</p>` : ""}
+    <details ${ui.recoveryOpen ? "open" : ""}><summary><b>יש לי קוד שחזור</b></summary>
+    <p class="how">קוד השחזור הוצג בהרשמה (נראה כך: ABCD-EFGH).</p>
+    <form id="tResetForm" class="tform">
+      <label>שם משתמש<input id="rUser" required maxlength="60" dir="ltr" autocomplete="username"></label>
+      <label>קוד שחזור<input id="rCode" required maxlength="40" dir="ltr" autocomplete="off" placeholder="ABCD-EFGH"></label>
+      <label>סיסמה חדשה (לפחות 6 תווים)<input id="rPass" type="password" required minlength="6" dir="ltr" autocomplete="new-password"></label>
+      <button class="btn" type="submit">איפוס וכניסה</button>
+    </form></details>
+    <p id="authMsg" class="feedback try" ${ui.tAuthMsg ? "" : "hidden"}>${esc(ui.tAuthMsg || "")}</p>
+    <p class="how">אין לך גישה למייל ואין קוד שחזור? פני לנועה קסטרו, והיא תאפס לך את הסיסמה.</p>
     <p><button class="linkbtn" data-tmode="login">חזרה לכניסה</button></p>
   </div>`;
   const reg = ui.tmode === "register";
@@ -2565,7 +2584,8 @@ function teacherAuthHTML() {
     <p class="how">${reg ? "ההרשמה חינמית. אחרי ההרשמה מוסיפים את הקודים של התלמידים, ורואים רק אותם." : "נכנסים עם שם המשתמש והסיסמה שבחרתן בהרשמה."}</p>
     <form id="tAuthForm" class="tform">
       ${reg ? `<label>שם מלא<input id="tName" required maxlength="60" autocomplete="name"></label>
-      <label>בית הספר<input id="tSchool" maxlength="80"></label>` : ""}
+      <label>בית הספר<input id="tSchool" maxlength="80"></label>
+      <label>אימייל (לשחזור סיסמה)<input id="tEmail" type="email" required maxlength="190" dir="ltr" autocomplete="email"></label>` : ""}
       <label>שם משתמש או אימייל<input id="tUser" required maxlength="60" autocomplete="username" dir="ltr"></label>
       <label>סיסמה${reg ? " (לפחות 6 תווים)" : ""}<input id="tPass" type="password" required minlength="${reg ? 6 : 1}" autocomplete="${reg ? "new-password" : "current-password"}" dir="ltr"></label>
       <button class="btn go" type="submit">${reg ? "הרשמה" : "כניסה"}</button>
@@ -2577,7 +2597,7 @@ function teacherAuthHTML() {
 }
 async function teacherAuth() {
   const reg = ui.tmode === "register", v = id => ($("#" + id) || {}).value || "";
-  const body = { user: v("tUser").trim().toLowerCase(), pass: v("tPass"), ...(reg ? { name: v("tName"), school: v("tSchool") } : {}) };
+  const body = { user: v("tUser").trim().toLowerCase(), pass: v("tPass"), ...(reg ? { name: v("tName"), school: v("tSchool"), email: v("tEmail").trim().toLowerCase() } : {}) };
   if (!/^[a-z0-9._@-]{3,60}$/.test(body.user)) return authMsg("שם המשתמש יכול לכלול אותיות באנגלית, ספרות, נקודה, מקף, קו תחתון ו-@ (לפחות 3 תווים).");
   try {
     const r = await tapi(reg ? "teachers/register" : "teachers/login", { method: "POST", body });
@@ -2586,11 +2606,40 @@ async function teacherAuth() {
     if (reg) toast("נרשמת בהצלחה! הנה המדריך הקצר.");
     draw();
   } catch (e) {
-    authMsg(e.code === "user_taken" ? "שם המשתמש הזה כבר תפוס. בחרי שם אחר." : e.code === "wrong_login" ? "שם המשתמש או הסיסמה לא נכונים." : e.code === "bad_request" ? "חסרים פרטים. בדקי שמילאת שם וסיסמה של 6 תווים לפחות." : "אין חיבור לשרת. נסי שוב.");
+    authMsg(e.code === "user_taken" ? "שם המשתמש הזה כבר תפוס. בחרי שם אחר." : e.code === "wrong_login" ? "שם המשתמש או הסיסמה לא נכונים." : e.code === "bad_request" ? "חסרים פרטים. בדקי שמילאת שם, אימייל תקין וסיסמה של 6 תווים לפחות." : "אין חיבור לשרת. נסי שוב.");
   }
 }
 // a sign-in error updates only the message, so what the teacher typed stays in the fields
 function authMsg(msg) { ui.tAuthMsg = msg; const el = $("#authMsg"); if (el) { el.textContent = msg; el.hidden = false; } else draw(); }
+// a reset link from the email: ?reset=<token>
+const RESET_TOKEN = (() => { try { const q = new URLSearchParams(location.search).get("reset"); return /^[a-f0-9]{48}$/.test(q || "") ? q : ""; } catch (e) { return ""; } })();
+async function teacherForgot() {
+  const who = (($("#fWho") || {}).value || "").trim();
+  if (!who) return;
+  try {
+    const r = await tapi("teachers/forgot", { method: "POST", body: { who } });
+    ui.forgotOk = !!r.mail;
+    ui.forgotMsg = r.mail ? "אם יש חשבון עם הפרטים האלה ויש בו כתובת מייל, שלחנו אליה קישור. כדאי לבדוק גם בתיקיית הספאם. הקישור פעיל לשעה." : "שליחת מיילים עוד לא הוגדרה באתר. אפשר להשתמש בקוד שחזור, או לפנות לנועה קסטרו.";
+    if (!r.mail) ui.recoveryOpen = true;
+  } catch (e) { ui.forgotOk = false; ui.forgotMsg = "השליחה לא הצליחה. נסי שוב בעוד רגע."; }
+  draw();
+}
+async function teacherLinkReset() {
+  const a = ($("#lPass") || {}).value || "", b = ($("#lPass2") || {}).value || "";
+  if (a !== b) return authMsg("שתי הסיסמאות לא זהות.");
+  try {
+    const r = await tapi("teachers/reset-link", { method: "POST", body: { token: RESET_TOKEN, pass: a } });
+    try { localStorage.setItem(TTOKEN, r.token); } catch (e) {}
+    try { history.replaceState(null, "", location.pathname + "#teacher"); } catch (e) {}
+    location.reload();
+    TEACHER = r.teacher;
+  } catch (e) { authMsg(e.code === "bad_link" ? "הקישור לא בתוקף (עברה שעה, או שכבר השתמשו בו). בקשי קישור חדש ב\"שכחתי סיסמה\"." : e.code === "bad_request" ? "הסיסמה צריכה להיות לפחות 6 תווים." : "אין חיבור לשרת. נסי שוב."); }
+}
+async function saveEmail() {
+  try { TEACHER = (await tapi("teachers/email", { method: "POST", body: { email: ($("#accEmail") || {}).value.trim() } })).teacher; ui.emailMsg = "המייל נשמר."; }
+  catch (e) { ui.emailMsg = "כתובת המייל לא תקינה."; }
+  draw();
+}
 async function teacherReset() {
   const v = id => ($("#" + id) || {}).value || "";
   try {
@@ -2655,6 +2704,13 @@ async function createStudent() {
 }
 function accountHTML() {
   return `<section class="tsec">
+    <h3>אימייל לשחזור סיסמה</h3>
+    <p class="how">אם תשכחי את הסיסמה, נשלח לכתובת הזו קישור לבחירת סיסמה חדשה.</p>
+    <form id="emailForm" class="tform">
+      <label>אימייל<input id="accEmail" type="email" maxlength="190" dir="ltr" autocomplete="email" value="${esc(TEACHER.email || "")}"></label>
+      <button class="btn" type="submit">שמירה</button>
+    </form>
+    ${ui.emailMsg ? `<p class="how">${esc(ui.emailMsg)}</p>` : ""}
     <h3>החלפת סיסמה</h3>
     <form id="pwForm" class="tform">
       <label>הסיסמה הנוכחית<input id="pwOld" type="password" required dir="ltr" autocomplete="current-password"></label>
@@ -3014,6 +3070,9 @@ document.addEventListener("submit", async e => {
   if (e.target.id === "adminFindForm") { e.preventDefault(); return adminFind(); }
   if (e.target.id === "createForm") { e.preventDefault(); return createStudent(); }
   if (e.target.id === "tResetForm") { e.preventDefault(); return teacherReset(); }
+  if (e.target.id === "tForgotForm") { e.preventDefault(); return teacherForgot(); }
+  if (e.target.id === "tLinkForm") { e.preventDefault(); return teacherLinkReset(); }
+  if (e.target.id === "emailForm") { e.preventDefault(); return saveEmail(); }
   if (e.target.id === "pwForm") { e.preventDefault(); return changePassword(); }
   if (e.target.id === "tloginForm") {
     e.preventDefault();
@@ -3037,5 +3096,5 @@ document.addEventListener("change", e => {
 makeSky();
 if (!S.av.chosen) view = { name: "welcome" };
 if (location.hash === "#parents") view = { name: "parents" };
-if (location.hash === "#teacher") view = { name: "teacher" };
+if (location.hash === "#teacher" || RESET_TOKEN) view = { name: "teacher" };
 draw();

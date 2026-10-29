@@ -4,8 +4,10 @@
 //   teachers/<user>   { user, name, school, salt, hash, rsalt, rhash, classCode, codes, cfg, created }
 //   tokens/<token>    { user, created }
 //   classes/<code5>   { user }
+//   resets/<token>    { user, exp }          a password-reset link sent by email, valid for an hour
 import { getStore } from "@netlify/blobs";
 import { randomBytes, scryptSync, timingSafeEqual, randomInt } from "node:crypto";
+import nodemailer from "nodemailer";
 
 const ADMINS = (process.env.I100_ADMINS || "noakastro").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
 let store = null;
@@ -24,6 +26,36 @@ function passOk(pass, salt, hash) {
   const a = scryptSync(String(pass), salt, 32), b = Buffer.from(hash, "hex");
   return a.length === b.length && timingSafeEqual(a, b);
 }
+const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[a-z]{2,}$/i;
+// a one-time key the site owner can set in the site's settings, to open any account when every other way is lost
+const rescueOk = code => { const k = normRecovery(process.env.I100_RESCUE || ""); return k.length >= 8 && normRecovery(code) === k; };
+
+/* email: through Gmail (GMAIL_USER + GMAIL_APP_PASSWORD) or Resend (RESEND_API_KEY + MAIL_FROM) */
+const mailReady = () => !!((process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) || process.env.RESEND_API_KEY);
+async function sendMail(to, subject, html) {
+  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    const t = nodemailer.createTransport({ service: "gmail", auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD } });
+    await t.sendMail({ from: `"מסע לאי המאה" <${process.env.GMAIL_USER}>`, to, subject, html });
+    return;
+  }
+  const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: "Bearer " + process.env.RESEND_API_KEY, "content-type": "application/json" },
+    body: JSON.stringify({ from: process.env.MAIL_FROM || "מסע לאי המאה <onboarding@resend.dev>", to, subject, html }) });
+  if (!r.ok) throw new Error("mail " + r.status + " " + (await r.text()).slice(0, 200));
+}
+const escH = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const resetMail = (name, link) => `<div dir="rtl" style="font-family:Arial,sans-serif;font-size:16px;line-height:1.7;color:#12324A">
+  <p>שלום ${escH(name)},</p><p>ביקשת לבחור סיסמה חדשה לאזור המורות של "מסע לאי המאה".</p>
+  <p><a href="${link}" style="display:inline-block;background:#0E7DB8;color:#fff;padding:10px 22px;border-radius:12px;text-decoration:none;font-weight:bold">לבחירת סיסמה חדשה</a></p>
+  <p style="color:#4C6A80;font-size:14px">הקישור פעיל לשעה אחת. אם לא ביקשת, אפשר להתעלם מהמייל הזה, והסיסמה לא תשתנה.</p></div>`;
+async function findTeacher(who) {
+  who = clip(who, 190).toLowerCase(); if (!who) return null;
+  const direct = await get("teachers/" + who); if (direct) return direct;
+  if (!who.includes("@")) return null;
+  const { blobs } = await db().list({ prefix: "teachers/" });
+  for (const b of blobs) { const t = await get(b.key); if (t && (t.email || "").toLowerCase() === who) return t; }
+  return null;
+}
+
 const recoveryCode = () => { const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", pick = () => A[randomInt(A.length)]; return Array.from({ length: 4 }, pick).join("") + "-" + Array.from({ length: 4 }, pick).join(""); };
 const normRecovery = s => String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 
@@ -37,7 +69,7 @@ async function newClassCode() {
   throw new Error("no code");
 }
 // what a teacher's own screen may see of her account
-const pub = t => ({ user: t.user, name: t.name, school: t.school || "", classCode: t.classCode || "", codes: t.codes || [], cfg: t.cfg || {}, admin: ADMINS.includes(t.user) });
+const pub = t => ({ user: t.user, name: t.name, email: t.email || (EMAIL_RE.test(t.user) ? t.user : ""), school: t.school || "", classCode: t.classCode || "", codes: t.codes || [], cfg: t.cfg || {}, admin: ADMINS.includes(t.user) });
 // one row of the teacher's class table: the progress record plus who/when
 const row = s => ({ ...(s.rec || {}), code: s.code, n: s.n, k: s.k, seen: s.seen || 0, doing: s.doing || "", t: (s.rec && s.rec.t) || 0, empty: !s.rec });
 
@@ -96,11 +128,11 @@ export default async (req) => {
 
     /* ---------- teachers: account ---------- */
     if (path === "teachers/register" && m === "POST") {
-      const user = clip(body.user, 60).toLowerCase(), name = clip(body.name, 60);
-      if (!/^[a-z0-9._@-]{3,60}$/.test(user) || String(body.pass || "").length < 6 || !name) return fail("bad_request");
+      const user = clip(body.user, 60).toLowerCase(), name = clip(body.name, 60), email = clip(body.email || (EMAIL_RE.test(user) ? user : ""), 190).toLowerCase();
+      if (!/^[a-z0-9._@-]{3,60}$/.test(user) || String(body.pass || "").length < 6 || !name || (email && !EMAIL_RE.test(email))) return fail("bad_request");
       if (await get("teachers/" + user)) return fail("user_taken", 409);
       const rec = recoveryCode(), p = hashPass(body.pass), r = hashPass(normRecovery(rec)), classCode = await newClassCode();
-      const t = { user, name, school: clip(body.school, 80), salt: p.salt, hash: p.hash, rsalt: r.salt, rhash: r.hash, classCode, codes: [], cfg: {}, created: Date.now() };
+      const t = { user, name, email, school: clip(body.school, 80), salt: p.salt, hash: p.hash, rsalt: r.salt, rhash: r.hash, classCode, codes: [], cfg: {}, created: Date.now() };
       await put("teachers/" + user, t); await put("classes/" + classCode, { user });
       return signIn(t, { recovery: rec });
     }
@@ -112,10 +144,31 @@ export default async (req) => {
     if (path === "teachers/reset" && m === "POST") {
       const t = await get("teachers/" + clip(body.user, 60).toLowerCase());
       if (String(body.pass || "").length < 6) return fail("bad_request");
-      if (!t || !passOk(normRecovery(body.recovery), t.rsalt, t.rhash)) return fail("wrong_recovery", 401);
+      if (!t || !(passOk(normRecovery(body.recovery), t.rsalt, t.rhash) || rescueOk(body.recovery))) return fail("wrong_recovery", 401);
       const rec = recoveryCode(), p = hashPass(body.pass), r = hashPass(normRecovery(rec));
       Object.assign(t, { salt: p.salt, hash: p.hash, rsalt: r.salt, rhash: r.hash }); await put("teachers/" + t.user, t);
       return signIn(t, { recovery: rec });
+    }
+
+    // forgot password: an email with a link (the answer is the same whether or not the account exists)
+    if (path === "teachers/forgot" && m === "POST") {
+      if (!mailReady()) return json({ ok: false, mail: false });
+      const t = await findTeacher(body.who), to = t && (t.email || (EMAIL_RE.test(t.user) ? t.user : ""));
+      if (t && to) {
+        const tok = randomBytes(24).toString("hex");
+        await put("resets/" + tok, { user: t.user, exp: Date.now() + 3600e3 });
+        const origin = (req.headers.get("origin") || url.origin).replace(/\/$/, "");
+        await sendMail(to, "בחירת סיסמה חדשה – מסע לאי המאה", resetMail(t.name, `${origin}/?reset=${tok}#teacher`));
+      }
+      return json({ ok: true, mail: true });
+    }
+    if (path === "teachers/reset-link" && m === "POST") {
+      const tok = clip(body.token, 48); if (!/^[a-f0-9]{48}$/.test(tok)) return fail("bad_link", 400);
+      const r = await get("resets/" + tok); if (!r || r.exp < Date.now()) { if (r) await del("resets/" + tok); return fail("bad_link", 400); }
+      if (String(body.pass || "").length < 6) return fail("bad_request");
+      const t = await get("teachers/" + r.user); if (!t) return fail("bad_link", 400);
+      Object.assign(t, hashPass(body.pass)); await put("teachers/" + t.user, t); await del("resets/" + tok);
+      return signIn(t);
     }
 
     const sess = await session(req);
@@ -128,6 +181,10 @@ export default async (req) => {
       if (!passOk(body.old, T.salt, T.hash)) return fail("wrong_login", 401);
       if (String(body.pass || "").length < 6) return fail("bad_request");
       Object.assign(T, hashPass(body.pass)); await put("teachers/" + T.user, T); return json({ ok: true });
+    }
+    if (path === "teachers/email" && m === "POST") {
+      const email = clip(body.email, 190).toLowerCase(); if (email && !EMAIL_RE.test(email)) return fail("bad_request");
+      T.email = email; await put("teachers/" + T.user, T); return json({ teacher: pub(T) });
     }
     if (path === "teachers/recovery" && m === "POST") {
       const rec = recoveryCode(), r = hashPass(normRecovery(rec)); T.rsalt = r.salt; T.rhash = r.hash; await put("teachers/" + T.user, T);

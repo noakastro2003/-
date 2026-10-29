@@ -1,8 +1,14 @@
 <!doctype html>
 <html lang="he" dir="rtl"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;padding:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<style>a[href*="netlify.com"],a[href*="netlify.app"],[class*="netlify-badge"],[id*="netlify-badge"],netlify-badge{display:none!important}:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;padding:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>מסע לאי המאה</title>
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0A5C7C">
+<meta name="apple-mobile-web-app-title" content="אי המאה">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,4 +22,18 @@
 <script id="teacher-config" type="application/json">{"teacher":"","school":"","classes":[],"testDate":"","message":"","stations":{},"ordered":true,"challenge":true}</script>
 <script>window.GM_HOST = "netlify";</script>
 <script src="app.js"></script>
+<script>
+/* the host adds a floating "Powered by Netlify" badge: remove it whenever it appears */
+(function () {
+  var ours = { space: 1, sky: 1, toast: 1, fx: 1 };
+  function hosted(el) {
+    if (!el || el.nodeType !== 1 || ours[el.id] || el.classList.contains("app") || el.tagName === "SCRIPT") return false;
+    var txt = (el.textContent || "") + (el.shadowRoot ? el.shadowRoot.textContent || "" : "") + (el.getAttribute("href") || "") + (el.getAttribute("src") || "") + (el.id || "") + (el.className && el.className.baseVal === undefined ? el.className : "");
+    return /netlify/i.test(txt);
+  }
+  function sweep() { Array.prototype.forEach.call(document.body.children, function (el) { if (hosted(el)) el.remove(); }); Array.prototype.forEach.call(document.querySelectorAll('a[href*="netlify"],iframe[src*="netlify"]'), function (el) { el.remove(); }); }
+  new MutationObserver(sweep).observe(document.documentElement, { childList: true, subtree: true });
+  sweep(); addEventListener("load", sweep); setTimeout(sweep, 1500); setTimeout(sweep, 5000);
+})();
+</script>
 </body></html>

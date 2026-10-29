@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="he" dir="rtl"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>a[href*="netlify.com"],a[href*="netlify.app"],[class*="netlify-badge"],[id*="netlify-badge"],netlify-badge{display:none!important}:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;padding:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<style>body>:not(#space):not(#sky):not(#fx):not(#toast):not(.app):not(script):not(style):not(link),html>:not(head):not(body),a[href*="netlify.com"]{display:none!important;visibility:hidden!important}:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;padding:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>מסע לאי המאה</title>
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon.png">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
@@ -23,17 +23,18 @@
 <script>window.GM_HOST = "netlify";</script>
 <script src="app.js"></script>
 <script>
-/* the host adds a floating "Powered by Netlify" badge: remove it whenever it appears */
+/* the host adds a floating "Powered by Netlify" badge: everything on the page that is not the game is removed */
 (function () {
-  var ours = { space: 1, sky: 1, toast: 1, fx: 1 };
-  function hosted(el) {
-    if (!el || el.nodeType !== 1 || ours[el.id] || el.classList.contains("app") || el.tagName === "SCRIPT") return false;
-    var txt = (el.textContent || "") + (el.shadowRoot ? el.shadowRoot.textContent || "" : "") + (el.getAttribute("href") || "") + (el.getAttribute("src") || "") + (el.id || "") + (el.className && el.className.baseVal === undefined ? el.className : "");
-    return /netlify/i.test(txt);
+  var keep = { space: 1, sky: 1, fx: 1, toast: 1 };
+  function ours(el) { return el.tagName === "SCRIPT" || el.tagName === "STYLE" || el.tagName === "LINK" || keep[el.id] || (el.classList && el.classList.contains("app")); }
+  function sweep() {
+    Array.prototype.slice.call(document.body ? document.body.children : []).forEach(function (el) { if (!ours(el)) el.remove(); });
+    Array.prototype.slice.call(document.documentElement.children).forEach(function (el) { if (el.tagName !== "HEAD" && el.tagName !== "BODY") el.remove(); });
   }
-  function sweep() { Array.prototype.forEach.call(document.body.children, function (el) { if (hosted(el)) el.remove(); }); Array.prototype.forEach.call(document.querySelectorAll('a[href*="netlify"],iframe[src*="netlify"]'), function (el) { el.remove(); }); }
-  new MutationObserver(sweep).observe(document.documentElement, { childList: true, subtree: true });
-  sweep(); addEventListener("load", sweep); setTimeout(sweep, 1500); setTimeout(sweep, 5000);
+  new MutationObserver(sweep).observe(document.documentElement, { childList: true, subtree: false });
+  if (document.body) new MutationObserver(sweep).observe(document.body, { childList: true });
+  sweep(); addEventListener("DOMContentLoaded", function () { sweep(); new MutationObserver(sweep).observe(document.body, { childList: true }); }); addEventListener("load", sweep);
+  setInterval(sweep, 2000);
 })();
 </script>
 </body></html>

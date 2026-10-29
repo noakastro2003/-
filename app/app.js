@@ -2407,6 +2407,7 @@ async function tapi(path, opts = {}) {
 }
 let TEACHER = null, MYSTUDENTS = null;
 // a class sign-up link (?join=ABCDE): remembered for this visit, the teacher's name shown on the sign-in screen
+const RESET_TOKEN = (() => { try { return new URLSearchParams(location.search).get("reset") || ""; } catch (e) { return ""; } })();
 const JOIN = (() => { try { const q = new URLSearchParams(location.search).get("join"); if (q) sessionStorage.setItem("gm-join", q.toUpperCase()); return sessionStorage.getItem("gm-join") || ""; } catch (e) { return ""; } })();
 let JOIN_TEACHER = null;
 if (ON_SITE && /^[A-Z0-9]{5}$/.test(JOIN)) api("class?code=" + JOIN).then(t => { JOIN_TEACHER = t; if (view.name === "welcome") draw(); }).catch(() => {});
@@ -2556,6 +2557,7 @@ function journeyHTML(r) {
 // keep the class table fresh while the teacher looks at it
 setInterval(() => { if (ON_SITE && view.name === "teacher" && TEACHER && (ui.ttab || "students") === "students" && !ui.typing && !document.hidden) loadMyStudents(); }, 120000);
 function renderSiteTeacher() {
+  if (ui.tmode === "newpass") return bar() + teacherAuthHTML();
   if (ttoken() && !TEACHER) { loadTeacher(); return bar() + `<div class="panel teacher"><h2>אזור המורה</h2><p>מתחברים...</p></div>`; }
   if (!TEACHER) return bar() + teacherAuthHTML();
   if (MYSTUDENTS === null) { MYSTUDENTS = []; loadMyStudents(); }
@@ -2572,9 +2574,24 @@ function renderSiteTeacher() {
   </div>`;
 }
 function teacherAuthHTML() {
+  if (ui.tmode === "newpass") return `<div class="panel teacher auth">
+    <h2>בחירת סיסמה חדשה</h2>
+    <form id="tLinkForm" class="tform">
+      <label>סיסמה חדשה (לפחות 6 תווים)<input id="lPass" type="password" required minlength="6" dir="ltr" autocomplete="new-password"></label>
+      <button class="btn go" type="submit">שמירה וכניסה</button>
+    </form>
+    <p id="authMsg" class="feedback try" ${ui.tAuthMsg ? "" : "hidden"}>${esc(ui.tAuthMsg || "")}</p>
+    <p><button class="linkbtn" data-tmode="forgot">שליחת קישור חדש</button></p>
+  </div>`;
   if (ui.tmode === "forgot") return `<div class="panel teacher auth">
     <h2>שכחתי סיסמה</h2>
-    <p class="how">מזינים את שם המשתמש ואת <b>קוד השחזור</b> שקיבלת בהרשמה (נראה כך: ABCD-EFGH), ובוחרים סיסמה חדשה. אין לך קוד שחזור? פני לנועה קסטרו, והיא תאפס לך את הסיסמה.</p>
+    ${ui.mailSent ? `<p class="feedback good">אם יש חשבון עם הפרטים האלה ושמור בו אימייל, שלחנו אליו קישור לבחירת סיסמה חדשה. הקישור תקף לשעה. לא הגיע? בדקי בתיקיית הספאם.</p>` : ""}
+    <p class="how"><b>איפוס במייל:</b> מזינים את שם המשתמש או את האימייל, ומקבלים במייל קישור לבחירת סיסמה חדשה.</p>
+    <form id="tForgotForm" class="tform">
+      <label>שם משתמש או אימייל<input id="fWho" required maxlength="120" dir="ltr" autocomplete="username"></label>
+      <button class="btn go" type="submit">שליחת קישור למייל</button>
+    </form>
+    <p class="how" style="margin-top:18px"><b>או עם קוד השחזור</b> שקיבלת בהרשמה (נראה כך: ABCD-EFGH). אין לך מייל שמור או קוד שחזור? פני לנועה קסטרו, והיא תאפס לך את הסיסמה.</p>
     <form id="tResetForm" class="tform">
       <label>שם משתמש<input id="rUser" required maxlength="60" dir="ltr" autocomplete="username"></label>
       <label>קוד שחזור<input id="rCode" required maxlength="12" dir="ltr" autocomplete="off" placeholder="ABCD-EFGH"></label>
@@ -2590,7 +2607,8 @@ function teacherAuthHTML() {
     <p class="how">${reg ? "ההרשמה חינמית. אחרי ההרשמה מוסיפים את הקודים של התלמידים, ורואים רק אותם." : "נכנסים עם שם המשתמש והסיסמה שבחרתן בהרשמה."}</p>
     <form id="tAuthForm" class="tform">
       ${reg ? `<label>שם מלא<input id="tName" required maxlength="60" autocomplete="name"></label>
-      <label>בית הספר<input id="tSchool" maxlength="80"></label>` : ""}
+      <label>בית הספר<input id="tSchool" maxlength="80"></label>
+      <label>אימייל (לאיפוס סיסמה אם תשכחי)<input id="tEmail" type="email" maxlength="120" dir="ltr" autocomplete="email"></label>` : ""}
       <label>שם משתמש או אימייל<input id="tUser" required maxlength="60" autocomplete="username" dir="ltr"></label>
       <label>סיסמה${reg ? " (לפחות 6 תווים)" : ""}<input id="tPass" type="password" required minlength="${reg ? 6 : 1}" autocomplete="${reg ? "new-password" : "current-password"}" dir="ltr"></label>
       <button class="btn go" type="submit">${reg ? "הרשמה" : "כניסה"}</button>
@@ -2602,7 +2620,7 @@ function teacherAuthHTML() {
 }
 async function teacherAuth() {
   const reg = ui.tmode === "register", v = id => ($("#" + id) || {}).value || "";
-  const body = { user: v("tUser").trim().toLowerCase(), pass: v("tPass"), ...(reg ? { name: v("tName"), school: v("tSchool") } : {}) };
+  const body = { user: v("tUser").trim().toLowerCase(), pass: v("tPass"), ...(reg ? { name: v("tName"), school: v("tSchool"), email: v("tEmail").trim().toLowerCase() } : {}) };
   if (!/^[a-z0-9._@-]{3,60}$/.test(body.user)) return authMsg("שם המשתמש יכול לכלול אותיות באנגלית, ספרות, נקודה, מקף, קו תחתון ו-@ (לפחות 3 תווים).");
   try {
     const r = await tapi(reg ? "teachers/register" : "teachers/login", { method: "POST", body });
@@ -2611,11 +2629,27 @@ async function teacherAuth() {
     if (reg) toast("נרשמת בהצלחה! הנה המדריך הקצר.");
     draw();
   } catch (e) {
-    authMsg(e.code === "user_taken" ? "שם המשתמש הזה כבר תפוס. בחרי שם אחר." : e.code === "wrong_login" ? "שם המשתמש או הסיסמה לא נכונים." : e.code === "bad_request" ? "חסרים פרטים. בדקי שמילאת שם וסיסמה של 6 תווים לפחות." : "אין חיבור לשרת. נסי שוב.");
+    authMsg(e.code === "user_taken" ? "שם המשתמש הזה כבר תפוס. בחרי שם אחר." : e.code === "bad_email" ? "כתובת האימייל לא תקינה." : e.code === "wrong_login" ? "שם המשתמש או הסיסמה לא נכונים." : e.code === "bad_request" ? "חסרים פרטים. בדקי שמילאת שם וסיסמה של 6 תווים לפחות." : "אין חיבור לשרת. נסי שוב.");
   }
 }
 // a sign-in error updates only the message, so what the teacher typed stays in the fields
 function authMsg(msg) { ui.tAuthMsg = msg; const el = $("#authMsg"); if (el) { el.textContent = msg; el.hidden = false; } else draw(); }
+async function teacherForgot() {
+  const who = (($("#fWho") || {}).value || "").trim().toLowerCase();
+  if (who.length < 3) return authMsg("מלאי שם משתמש או אימייל.");
+  try { await tapi("teachers/forgot", { method: "POST", body: { who } }); ui.mailSent = true; ui.tAuthMsg = ""; draw(); }
+  catch (e) { authMsg(e.code === "no_mail" ? "שליחת מיילים עוד לא הופעלה באתר. אפשר לאפס עם קוד השחזור, או לפנות לנועה קסטרו." : e.code === "mail_failed" ? "המייל לא נשלח. נסי שוב בעוד כמה דקות." : "אין חיבור לשרת. נסי שוב."); }
+}
+async function teacherResetLink() {
+  const pass = ($("#lPass") || {}).value || "";
+  try {
+    const r = await tapi("teachers/reset-link", { method: "POST", body: { token: RESET_TOKEN, pass } });
+    try { localStorage.setItem(TTOKEN, r.token); } catch (e) {}
+    try { history.replaceState(null, "", location.pathname); } catch (e) {}
+    TEACHER = r.teacher; MYSTUDENTS = null; ui.tmode = "login"; ui.tAuthMsg = ""; ui.ttab = "students";
+    toast("הסיסמה עודכנה ונכנסת לחשבון"); draw();
+  } catch (e) { authMsg(e.code === "bad_link" ? "הקישור כבר לא תקף (עברה שעה, או שכבר השתמשו בו). בקשי קישור חדש." : e.code === "bad_request" ? "הסיסמה צריכה להיות לפחות 6 תווים." : "אין חיבור לשרת. נסי שוב."); }
+}
 async function teacherReset() {
   const v = id => ($("#" + id) || {}).value || "";
   try {
@@ -2680,6 +2714,13 @@ async function createStudent() {
 }
 function accountHTML() {
   return `<section class="tsec">
+    <h3>אימייל לאיפוס סיסמה</h3>
+    <p class="how">${TEACHER.email ? `אם תשכחי את הסיסמה, נשלח קישור לאיפוס לכתובת הזו.` : `<b>עוד לא שמור אימייל.</b> שמרי כתובת, וכך תוכלי לאפס את הסיסמה במייל אם תשכחי אותה.`}</p>
+    <form id="emailForm" class="tform">
+      <label>אימייל<input id="accEmail" type="email" maxlength="120" dir="ltr" autocomplete="email" value="${esc(TEACHER.email || "")}"></label>
+      <button class="btn" type="submit">שמירה</button>
+    </form>
+    ${ui.emailMsg ? `<p class="how">${esc(ui.emailMsg)}</p>` : ""}
     <h3>החלפת סיסמה</h3>
     <form id="pwForm" class="tform">
       <label>הסיסמה הנוכחית<input id="pwOld" type="password" required dir="ltr" autocomplete="current-password"></label>
@@ -2691,6 +2732,12 @@ function accountHTML() {
     <p class="how">קוד השחזור מאפשר לבחור סיסמה חדשה אם שוכחים אותה. יצירת קוד חדש מבטלת את הקוד הקודם.</p>
     <div class="row"><button class="btn ghost" data-act="newRecovery">יצירת קוד שחזור חדש</button></div>
   </section>`;
+}
+async function saveEmail() {
+  const email = (($("#accEmail") || {}).value || "").trim().toLowerCase();
+  try { TEACHER = (await tapi("teachers/email", { method: "POST", body: { email } })).teacher; ui.emailMsg = email ? "האימייל נשמר." : "האימייל נמחק."; }
+  catch (e) { ui.emailMsg = e.code === "email_taken" ? "הכתובת הזו כבר שמורה בחשבון של מורה אחרת." : e.code === "bad_email" ? "כתובת האימייל לא תקינה." : "השמירה לא הצליחה. נסי שוב."; }
+  draw();
 }
 async function changePassword() {
   try { await tapi("teachers/password", { method: "POST", body: { old: $("#pwOld").value, pass: $("#pwNew").value } }); ui.pwMsg = "הסיסמה הוחלפה."; }
@@ -2876,7 +2923,7 @@ document.addEventListener("click", e => {
   if (d.reset) return adminReset(d.reset);
   if (d.claim) return claimKid(d.claim);
   if (d.wpane) { ui.wpane = ui.wpane === d.wpane ? "" : d.wpane; ui.codeErr = ""; draw(); const f = $("#kidCode"); if (f) f.focus(); return; }
-  if (d.tmode) { ui.tmode = d.tmode; ui.tAuthMsg = ""; return draw(); }
+  if (d.tmode) { ui.tmode = d.tmode; ui.tAuthMsg = ""; ui.mailSent = false; return draw(); }
   if (d.ttab) { ui.ttab = d.ttab; return draw(); }
   if (d.role) { if (d.role === "teacher") return go("teacher"); view = { name: "hello" }; return draw(); }
   if (d.klass !== undefined) { S.klass = d.klass; save(); sfx("tap"); return draw(); }
@@ -3032,6 +3079,9 @@ document.addEventListener("submit", async e => {
   if (e.target.id === "adminFindForm") { e.preventDefault(); return adminFind(); }
   if (e.target.id === "createForm") { e.preventDefault(); return createStudent(); }
   if (e.target.id === "tResetForm") { e.preventDefault(); return teacherReset(); }
+  if (e.target.id === "tForgotForm") { e.preventDefault(); return teacherForgot(); }
+  if (e.target.id === "tLinkForm") { e.preventDefault(); return teacherResetLink(); }
+  if (e.target.id === "emailForm") { e.preventDefault(); return saveEmail(); }
   if (e.target.id === "pwForm") { e.preventDefault(); return changePassword(); }
   if (e.target.id === "tloginForm") {
     e.preventDefault();
@@ -3054,6 +3104,8 @@ document.addEventListener("change", e => {
 });
 makeSky();
 if (!S.av.chosen) view = { name: "welcome" };
+// a password reset link from the email opens the new-password page
+if (ON_SITE && RESET_TOKEN) { ui.tmode = "newpass"; view = { name: "teacher" }; }
 if (location.hash === "#parents") view = { name: "parents" };
 if (location.hash === "#teacher") view = { name: "teacher" };
 draw();

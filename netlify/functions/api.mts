@@ -25,7 +25,33 @@ function passOk(pass: string, t: any) {
 }
 // the site owner is always an admin; ADMIN_USERS can add more
 const admins = () => ("noakastro," + (Netlify.env.get("ADMIN_USERS") || "")).split(",").map(x => x.trim().toLowerCase()).filter(Boolean)
-const publicTeacher = (t: any) => ({ user: t.user, name: t.name, school: t.school || "", cfg: t.cfg || {}, codes: t.codes || [], classCode: t.classCode || "", admin: admins().includes(t.user) })
+const publicTeacher = (t: any) => ({ user: t.user, name: t.name, email: t.email || "", school: t.school || "", cfg: t.cfg || {}, codes: t.codes || [], classCode: t.classCode || "", admin: admins().includes(t.user) })
+/* email: a teacher's address for password reset links, sent through Brevo (BREVO_API_KEY, MAIL_FROM) */
+const validEmail = (s: unknown): s is string => typeof s === "string" && s.length <= 120 && /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(s)
+const mailReady = () => !!(Netlify.env.get("BREVO_API_KEY") && Netlify.env.get("MAIL_FROM"))
+async function sendMail(to: string, subject: string, html: string) {
+  const r = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: { "api-key": Netlify.env.get("BREVO_API_KEY") || "", "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ sender: { name: "גלקסיית המילים", email: Netlify.env.get("MAIL_FROM") }, to: [{ email: to }], subject, htmlContent: html }),
+  })
+  if (!r.ok) { console.log("mail failed", r.status, (await r.text()).slice(0, 300)); throw new Error("mail") }
+}
+// one address belongs to one teacher: emails/<address> points to the username
+async function setEmail(t: any, email: string) {
+  email = email.trim().toLowerCase()
+  if (email === (t.email || "")) return true
+  if (email) {
+    const owner: any = await store().get("emails/" + email, { type: "json" })
+    if (owner && owner.user !== t.user) return false
+    await store().setJSON("emails/" + email, { user: t.user })
+  }
+  if (t.email) await store().delete("emails/" + t.email)
+  t.email = email
+  return true
+}
+const escHtml = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string))
+
 // letters and digits that can't be confused (no 0/O, 1/I/L)
 const ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 const randCode = (n: number) => Array.from(randomBytes(n), b => ALPHA[b % ALPHA.length]).join("")
@@ -127,19 +153,58 @@ export default async (req: Request) => {
   if (route === "teachers/register" && m === "POST") {
     const user = String(body.user || "").trim().toLowerCase()
     if (!validUser(user) || !text(body.name, 60) || typeof body.pass !== "string" || body.pass.length < 6 || body.pass.length > 200 || (body.school && !text(body.school, 80))) return bad()
+    const email = String(body.email || (validEmail(user) ? user : "")).trim().toLowerCase()
+    if (email && !validEmail(email)) return bad("bad_email")
     const salt = randomBytes(16).toString("hex")
     const t: any = { user, name: body.name.trim(), school: (body.school || "").trim(), salt, hash: hash(body.pass, salt), codes: [], cfg: {}, created: Date.now() }
     const recovery = newRecovery(t)
     const { modified } = await store().setJSON("teachers/" + user, t, { onlyIfNew: true })
     if (!modified) return bad("user_taken", 409)
-    if (await ensureClassCode(t)) await store().setJSON("teachers/" + user, t)
+    if (email) await setEmail(t, email)   // an address already used by another teacher is just not kept
+    await ensureClassCode(t); await store().setJSON("teachers/" + user, t)
     return json({ token: await newSession(user), teacher: publicTeacher(t), recovery })
   }
   if (route === "teachers/login" && m === "POST") {
-    const user = String(body.user || "").trim().toLowerCase()
+    let user = String(body.user || "").trim().toLowerCase()
+    if (user.includes("@")) { const owner: any = await store().get("emails/" + user, { type: "json" }); if (owner) user = owner.user }
     const t: any = validUser(user) ? await store().get("teachers/" + user, { type: "json" }) : null
     if (!t || typeof body.pass !== "string" || !passOk(body.pass, t)) return bad("wrong_login", 401)
     return json({ token: await newSession(user), teacher: publicTeacher(t) })
+  }
+
+  // forgotten password, by email: a link with a one-time token, valid for an hour
+  if (route === "teachers/forgot" && m === "POST") {
+    if (!mailReady()) return bad("no_mail", 503)
+    let who = String(body.who || "").trim().toLowerCase()
+    if (who.includes("@")) { const owner: any = await store().get("emails/" + who, { type: "json" }); who = owner ? owner.user : "" }
+    const t: any = validUser(who) ? await store().get("teachers/" + who, { type: "json" }) : null
+    // the same answer whether or not the teacher exists, so the form can't be used to look up accounts
+    if (!t || !t.email) return json({ ok: true })
+    if (t.mailed && Date.now() - t.mailed < 120000) return json({ ok: true })
+    const token = randomBytes(24).toString("hex")
+    await store().setJSON("resets/" + token, { user: t.user, exp: Date.now() + 3600e3 })
+    t.mailed = Date.now(); await store().setJSON("teachers/" + t.user, t)
+    const link = new URL("/?reset=" + token, url.origin).toString()
+    try {
+      await sendMail(t.email, "איפוס סיסמה – גלקסיית המילים", `<div dir="rtl" style="font-family:Arial,sans-serif;font-size:16px;line-height:1.6">
+        <p>שלום ${escHtml(t.name)},</p><p>ביקשת לאפס את הסיסמה לאזור המורה ב"גלקסיית המילים" (שם המשתמש: <b dir="ltr">${escHtml(t.user)}</b>).</p>
+        <p><a href="${link}" style="display:inline-block;background:#5b4bff;color:#fff;padding:12px 22px;border-radius:12px;text-decoration:none;font-weight:bold">בחירת סיסמה חדשה</a></p>
+        <p style="color:#666">הקישור תקף לשעה אחת ולשימוש אחד. אם לא ביקשת לאפס סיסמה, אפשר להתעלם מההודעה.</p></div>`)
+    } catch (e) { return bad("mail_failed", 502) }
+    return json({ ok: true })
+  }
+  if (route === "teachers/reset-link" && m === "POST") {
+    const token = String(body.token || "")
+    if (!/^[0-9a-f]{48}$/.test(token)) return bad("bad_link", 400)
+    const r: any = await store().get("resets/" + token, { type: "json" })
+    if (!r || r.exp < Date.now()) return bad("bad_link", 400)
+    if (typeof body.pass !== "string" || body.pass.length < 6 || body.pass.length > 200) return bad()
+    const t: any = await store().get("teachers/" + r.user, { type: "json" })
+    if (!t) return bad("bad_link", 400)
+    await store().delete("resets/" + token)
+    t.salt = randomBytes(16).toString("hex"); t.hash = hash(body.pass, t.salt)
+    await store().setJSON("teachers/" + t.user, t)
+    return json({ token: await newSession(t.user), teacher: publicTeacher(t) })
   }
 
   // forgotten password: username + recovery code + new password
@@ -162,6 +227,13 @@ export default async (req: Request) => {
 
   if (route === "teachers/logout" && m === "POST") { await store().delete("sessions/" + me.token); return json({ ok: true }) }
   if (route === "teachers/me" && m === "GET") { if (await ensureClassCode(t)) await saveTeacher(); return json({ teacher: publicTeacher(t) }) }
+  if (route === "teachers/email" && m === "POST") {
+    const email = String(body.email || "").trim().toLowerCase()
+    if (email && !validEmail(email)) return bad("bad_email")
+    if (!(await setEmail(t, email))) return bad("email_taken", 409)
+    await saveTeacher()
+    return json({ teacher: publicTeacher(t) })
+  }
   if (route === "teachers/recovery" && m === "POST") { const recovery = newRecovery(t); await saveTeacher(); return json({ recovery }) }
   if (route === "teachers/password" && m === "POST") {
     if (typeof body.old !== "string" || !passOk(body.old, t)) return bad("wrong_login", 401)

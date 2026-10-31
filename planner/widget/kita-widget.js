@@ -7,7 +7,7 @@
 //
 // עדכון כל שבוע: באפליקציה "הכיתה שלי" ← עוד ← "עדכון הווידג'ט". זהו.
 
-const APP_URL = 'https://noakastro2003.github.io/-/planner/';
+const APP_URL = 'https://noa-hakita.netlify.app/';
 const FILE = 'kita-week.json';
 
 // ---------------------------------------------------------------- data

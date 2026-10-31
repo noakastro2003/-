@@ -1,5 +1,5 @@
 // Offline cache: the app works in class even without reception.
-const CACHE = 'noa-planner-v2';
+const CACHE = 'noa-planner-v3';
 const FILES = [
   './', 'index.html', 'css/style.css', 'js/app.js', 'js/planparse.js', 'js/pdftext.js',
   'vendor/pdf.min.mjs', 'vendor/pdf.worker.min.mjs', 'manifest.webmanifest',

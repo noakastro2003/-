@@ -5,11 +5,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ---------------------------------------------------------------- state
 const KEY = 'noa-planner-v1';
-const state = Object.assign({ weeks: {}, activeId: null, checks: {}, name: 'נועה', tab: 'now', dayDow: null, open: {} }, load());
+const state = Object.assign({ weeks: {}, activeId: null, checks: {}, pins: {}, q: '', name: 'נועה', tab: 'now', dayDow: null, open: {} }, load());
 function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } }
 function save() {
-  const { weeks, activeId, checks, name } = state;
-  localStorage.setItem(KEY, JSON.stringify({ weeks, activeId, checks, name }));
+  const { weeks, activeId, checks, pins, name } = state;
+  localStorage.setItem(KEY, JSON.stringify({ weeks, activeId, checks, pins, name }));
 }
 
 // ?now=2026-11-01T10:30 lets me preview any moment
@@ -347,6 +347,56 @@ function viewMore(w) {
   <p class="foot hand">נבנה באהבה בשביל ${esc(state.name)} 💛</p>`;
 }
 
+// ---------------------------------------------------------------- files
+function fileIcon(l) {
+  if (/\/folders\//.test(l.url)) return '📁';
+  if (/pptx?|מצגת|presentation/i.test(l.text + l.url)) return '🖥';
+  if (/docs\.google\.com\/spreadsheets|גאנט/.test(l.url + l.text)) return '📊';
+  return '📄';
+}
+
+function collectFiles(w) {
+  const map = new Map();
+  for (const d of w.days) for (const p of d.periods) for (const l of p.links) {
+    if (!l.url) continue;
+    const f = map.get(l.url) || { url: l.url, text: l.text, uses: [] };
+    if (l.text.length > f.text.length) f.text = l.text;
+    f.uses.push({ d, p });
+    map.set(l.url, f);
+  }
+  return [...map.values()];
+}
+
+function fileRow(f, sub) {
+  const pin = !!state.pins[f.url];
+  return `<div class="file">
+    <a href="${esc(f.url)}" target="_blank" rel="noopener"><span class="fi">${fileIcon(f)}</span><span class="fx"><b>${esc(f.text)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span></a>
+    <button class="pin ${pin ? 'on' : ''}" data-pin="${esc(f.url)}" data-pintext="${esc(f.text)}" aria-label="נעיצה">${pin ? '★' : '☆'}</button>
+  </div>`;
+}
+
+function viewFiles(w) {
+  const files = collectFiles(w);
+  const q = state.q.trim();
+  const match = f => !q || (f.text + ' ' + f.uses.map(u => u.p.title).join(' ') + ' ' + ({ '🖥': 'מצגת', '📁': 'תיקייה', '📊': 'טבלה' }[fileIcon(f)] || 'דף מסמך')).includes(q);
+  const where = f => f.uses.length > 2 ? `בשימוש ${f.uses.length} פעמים השבוע` : f.uses.map(u => `${DAY_SHORT[u.d.dow]} · ${u.p.title}`).join(' | ');
+  let html = `<div class="search"><input id="fq" type="search" placeholder="🔍 חיפוש קובץ…" value="${esc(state.q)}"></div>`;
+  const pinned = Object.entries(state.pins).map(([url, text]) => files.find(f => f.url === url) || { url, text, uses: [] }).filter(match);
+  if (pinned.length) html += `<div class="card"><div class="ph"><span>⭐ תמיד בשלוף</span></div>${pinned.map(f => fileRow(f)).join('')}</div>`;
+  else if (!q) html += `<p class="dim tip">טיפ: לוחצים על ☆ ליד קובץ – והוא יישאר כאן למעלה, בכל שבוע.</p>`;
+  const rest = files.filter(f => !state.pins[f.url] && match(f));
+  const recurring = rest.filter(f => new Set(f.uses.map(u => u.d.dow)).size > 1);
+  if (recurring.length) html += `<div class="card"><div class="ph"><span>🔁 חוזרים השבוע</span></div>${recurring.map(f => fileRow(f, where(f))).join('')}</div>`;
+  const once = rest.filter(f => !recurring.includes(f));
+  for (const d of w.days) {
+    const fs = once.filter(f => f.uses[0].d === d);
+    if (fs.length) html += `<div class="card"><div class="ph"><span>יום ${esc(d.name)}</span><span class="dim">${esc(d.date)}</span></div>${fs.map(f => fileRow(f, f.uses.map(u => u.p.title).join(' | '))).join('')}</div>`;
+  }
+  if (!files.length) html += `<p class="dim tip">אין קישורים לדרייב בתכנון של השבוע.</p>`;
+  else if (q && !pinned.length && !rest.length) html += `<p class="dim tip">לא מצאתי "${esc(q)}" 🤔</p>`;
+  return html;
+}
+
 // ---------------------------------------------------------------- render
 function render() {
   const w = pickWeek();
@@ -354,7 +404,7 @@ function render() {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('sel', b.dataset.tab === state.tab));
   const v = $('#view');
   if (!w && state.tab !== 'more') v.innerHTML = viewEmpty();
-  else v.innerHTML = ({ now: viewNow, day: viewDay, prep: viewPrep, more: viewMore })[state.tab](w);
+  else v.innerHTML = ({ now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore })[state.tab](w);
   v.dataset.tab = state.tab;
 }
 
@@ -389,6 +439,10 @@ document.addEventListener('click', e => {
     if (confirm('למחוק את השבוע הזה מהטלפון?')) { delete state.weeks[t.dataset.delweek]; delete state.checks[t.dataset.delweek]; save(); render(); }
     return;
   }
+  if (t.dataset.pin) {
+    if (state.pins[t.dataset.pin]) delete state.pins[t.dataset.pin]; else state.pins[t.dataset.pin] = t.dataset.pintext;
+    save(); render(); return;
+  }
   if (t.dataset.act === 'upload') { $('#file').click(); return; }
   if (t.dataset.act === 'wake') { toggleWake(t); return; }
 });
@@ -404,6 +458,7 @@ document.addEventListener('change', e => {
     if (i.checked && card && [...card.querySelectorAll('input[type=checkbox]')].every(x => x.checked)) confetti();
     if (state.tab === 'prep' || card?.matches('.prep')) setTimeout(render, 350);
   }
+  if (i.id === 'fq') return;
   if (i.id === 'nameIn') { state.name = i.value.trim() || 'נועה'; save(); renderHeader(pickWeek()); }
 });
 
@@ -427,6 +482,14 @@ $('#file').addEventListener('change', async e => {
     console.error(err);
     toast('לא הצלחתי לקרוא את הקובץ 😕 זה ה־PDF של התכנון?');
   }
+});
+
+document.addEventListener('input', e => {
+  if (e.target.id !== 'fq') return;
+  state.q = e.target.value;
+  const pos = e.target.selectionStart;
+  render();
+  const n = $('#fq'); n.focus(); n.setSelectionRange(pos, pos);
 });
 
 // swipe between days

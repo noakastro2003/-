@@ -339,6 +339,19 @@ function viewMore(w) {
     <div class="ph"><span>קצת עלייך</span></div>
     <label class="field">איך לקרוא לך?<input id="nameIn" value="${esc(state.name)}"></label>
   </div>
+  ${w ? `<div class="card">
+    <div class="ph"><span>📲 ווידג׳ט לאייפון</span></div>
+    <button class="cta soft" data-act="widget">עדכון הווידג׳ט</button>
+    <details class="howto"><summary>איך מתקינים? (פעם אחת)</summary>
+      <ol>
+        <li>מתקינים מה־App Store את <b>Scriptable</b> (חינם).</li>
+        <li><button class="linkbtn" data-act="widgetcode">העתקת קוד הווידג׳ט 📋</button></li>
+        <li>ב־Scriptable: ＋ ← מדביקים ← קוראים לסקריפט <b>הכיתה שלי</b>.</li>
+        <li>במסך הבית: לחיצה ארוכה ← ＋ ← Scriptable ← בוחרים גודל ← עורכים את הווידג׳ט ← Script: <b>הכיתה שלי</b>.</li>
+        <li>חוזרים לכאן ולוחצים "עדכון הווידג׳ט". מעכשיו – פעם בשבוע, אחרי שמעלים תכנון חדש.</li>
+      </ol>
+    </details>
+  </div>` : ''}
   <div class="card install">
     <div class="ph"><span>📱 להוסיף למסך הבית</span></div>
     <p><b>אייפון:</b> בספארי ← כפתור השיתוף ← "הוספה למסך הבית".<br><b>אנדרואיד:</b> בכרום ← ⋮ ← "הוספה למסך הבית".</p>
@@ -444,6 +457,8 @@ document.addEventListener('click', e => {
     save(); render(); return;
   }
   if (t.dataset.act === 'upload') { $('#file').click(); return; }
+  if (t.dataset.act === 'widget') { sendToWidget(pickWeek()); return; }
+  if (t.dataset.act === 'widgetcode') { copyWidgetCode(); return; }
   if (t.dataset.act === 'wake') { toggleWake(t); return; }
 });
 
@@ -505,6 +520,42 @@ document.addEventListener('touchend', e => {
   const j = dx > 0 ? i + 1 : i - 1; // RTL: swipe right → next day
   if (w.days[j]) { state.dayDow = w.days[j].dow; render(); }
 }, { passive: true });
+
+// ---------------------------------------------------------------- iPhone widget (Scriptable)
+function widgetData(w) {
+  return {
+    kita: 1, title: w.number ? 'שבוע ' + w.number : w.title, year: w.year,
+    days: w.days.map(d => ({
+      name: d.name, date: d.date, dow: d.dow,
+      print: ((w.prep[d.dow] || []).find(s => /ערב|הדפסה/.test(s.title)) || { items: [] }).items.map(i => i.text),
+      periods: d.periods.filter(p => p.start).map(p => {
+        const L = look(p);
+        return { label: p.label, start: p.start, end: p.end, title: p.title, sub: p.subtitle, c: L.c, bg: L.bg, e: L.e };
+      }),
+    })),
+  };
+}
+
+async function sendToWidget(w) {
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(widgetData(w)));
+  } catch {
+    toast('לא הצלחתי להעתיק 😕');
+    return;
+  }
+  toast('מעבירה לווידג׳ט… 📲');
+  setTimeout(() => { location.href = 'scriptable:///run/' + encodeURIComponent('הכיתה שלי') + '?update=1'; }, 400);
+}
+
+async function copyWidgetCode() {
+  try {
+    const code = await (await fetch('widget/kita-widget.js')).text();
+    await navigator.clipboard.writeText(code);
+    toast('הקוד הועתק – עכשיו מדביקים ב־Scriptable 📋');
+  } catch {
+    toast('לא הצלחתי להעתיק 😕');
+  }
+}
 
 // ---------------------------------------------------------------- toys
 let toastT;

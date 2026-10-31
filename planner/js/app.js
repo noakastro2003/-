@@ -194,7 +194,7 @@ function prepSection(w, day, s, title) {
   }).join('');
   const done = s.items.filter((_, i) => ck(w, `p:${day.dow}:${s.title}:${i}`)).length;
   return `<div class="card prep" data-sec>
-    <div class="ph"><span>${esc(s.icon || '•')} ${esc(title || s.title)}</span><span class="cnt ${done === s.items.length ? 'all' : ''}">${done}/${s.items.length}</span></div>
+    <div class="ph"><span>${esc(s.icon || '•')} ${esc(title || (/ערב|הדפסה/.test(s.title) ? 'להדפיס בבוקר' : s.title))}</span><span class="cnt ${done === s.items.length ? 'all' : ''}">${done}/${s.items.length}</span></div>
     ${items}
   </div>`;
 }
@@ -237,6 +237,7 @@ function viewNow(w) {
     html += lessonCard(w, day, ph.next, { open: true });
   } else if (ph.kind === 'before') {
     html += `<section class="hero">${ring}<div><div class="k">יום ${esc(day.name)} · ${esc(day.date)}</div><div class="big">היום מחכה לך</div><div class="k">מתחילים ב־${esc(ph.next.start)} · ${inText(ph.inMin)}</div></div></section>`;
+    html += prepBlock(w, day, /ערב|הדפסה/, 'להדפיס הבוקר');
     html += prepBlock(w, day, /להכין|להביא/, 'לקחת היום');
     html += lessonCard(w, day, ph.next, { open: true });
   } else {
@@ -254,7 +255,8 @@ function viewNow(w) {
 
 function nextDayBlock(w, nd) {
   let h = `<div class="next-h">למחר · יום ${esc(nd.name)} ${esc(nd.date)}</div>`;
-  h += prepBlock(w, nd, /ערב|הדפסה/, 'להדפיס הערב');
+  const pr = (w.prep[nd.dow] || []).find(s => /ערב|הדפסה/.test(s.title));
+  if (pr && pr.items.length) h += `<p class="dim tip">🖨 ${pr.items.length} דברים להדפיס מחר בבוקר – הרשימה תחכה לך כאן.</p>`;
   h += prepBlock(w, nd, /להכין|להביא/, 'להכין למחר');
   if (nd.periods[0]) h += `<div class="card"><div class="ph"><span>המערכת של מחר</span></div>${nd.periods.map(p => miniRow(p)).join('')}</div>`;
   return h;

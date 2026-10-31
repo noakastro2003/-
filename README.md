@@ -33,3 +33,11 @@ python3 tools/render_sample.py font/NoaBubble-Regular.otf samples/bubble_sample.
 python3 tools/compare_glyphs.py WORKDIR font/NoaBubble-Regular.otf samples/bubble_compare_original_vs_font.png
 ```
 דרוש: `opencv-python-headless numpy scikit-image fonttools potracer pillow` (ו-libraqm לרינדור הדוגמה).
+
+## הכיתה שלי – אפליקציית התכנון השבועי (`planner/`)
+
+אפליקציית ווב לטלפון (PWA): מעלים את ה־PDF של התכנון השבועי והיא מציגה מה קורה **עכשיו** בשיעור, מה הבא בתור, מה להכין ולהדפיס, ושיעורי בית – עם הקישורים לדרייב.
+הכל נשמר רק בטלפון (localStorage), עובדת גם בלי אינטרנט.
+
+- `planner/index.html` – האפליקציה. `js/planparse.js` – קריאת ה־PDF (pdf.js, בתיקיית `vendor/`).
+- בדיקה במחשב: `cd planner && python3 -m http.server` ואז `http://localhost:8000/?now=2026-11-01T10:30` (הפרמטר `now` מדמה שעה).

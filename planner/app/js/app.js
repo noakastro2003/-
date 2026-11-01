@@ -2,14 +2,15 @@ import * as pdfjsLib from '../vendor/pdf.min.mjs';
 import { parsePlanPdf, DAY_NAMES } from './planparse.js';
 import { ic, art, spark, squiggle, miniArt, fileBadge, logo } from './icons.js';
 import * as ID from '../vendor/identity.mjs';
+import { putBlob, getBlob, delBlob, extractText, matchLessons, fmtSize, kindOf } from './files.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs', import.meta.url).href;
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups'];
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files'];
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: 'נועה', logs: {}, kids: [], todos: [],
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: 'נועה', logs: {}, kids: [], todos: [], files: [],
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -238,6 +239,29 @@ function fileRow(f, compact) {
   </div>`;
 }
 
+// ---------------------------------------------------------------- uploaded files
+const filesFor = (w, dow, label) => state.files.filter(f => f.ref && f.ref.w === w.id && f.ref.dow === dow && f.ref.label === label);
+function upRow(f, compact) {
+  const ref = f.ref && state.weeks[f.ref.w] ? findPeriodIn(state.weeks[f.ref.w], f.ref.dow, f.ref.label) : null;
+  const meta = compact ? `${fmtSize(f.size)}${f.cloud ? ' · ☁️' : ''}` : `${ref ? esc(ref.title) + ' · יום ' + DAY_SHORT[f.ref.dow] : 'כללי'} · ${fmtSize(f.size)}${f.cloud ? ' · ☁️' : ''}`;
+  return `<div class="file ${compact ? 'compact' : ''} up">
+    <button class="a" data-openfile="${f.id}">${fileBadge(kindOf(f.name, f.type))}<span class="fx"><b>${esc(f.name.replace(/\.[^.]+$/, ''))}</b><small>${meta}</small></span>${compact ? ic('chevL', 'chev') : ''}</button>
+    ${compact ? '' : `<button class="iconbtn" data-filemenu="${f.id}" aria-label="אפשרויות">${ic('dots')}</button>`}
+  </div>`;
+}
+function lessonFiles(w, day, p, onlyOpenable) {
+  const ups = filesFor(w, day.dow, p.label);
+  const linked = new Map(ups.filter(f => f.linkIdx >= 0).map(f => [f.linkIdx, f]));
+  const rows = p.links.map((l, i) => {
+    if (l.url) return fileRow({ url: l.url, text: l.text }, true);
+    if (linked.has(i)) return upRow(linked.get(i), true);
+    return onlyOpenable ? '' : `<div class="file compact off"><span class="a">${fileBadge('doc')}<span class="fx"><b>${esc(l.text)}</b><small>בלי קישור – אפשר להעלות</small></span></span></div>`;
+  });
+  for (const f of ups) if (!(f.linkIdx >= 0 && p.links[f.linkIdx] && !p.links[f.linkIdx].url)) rows.push(upRow(f, true));
+  return rows.join('');
+}
+function findPeriodIn(w, dow, label) { const d = w.days.find(x => x.dow === dow); return d && d.periods.find(x => x.label === label); }
+
 // ================================================================ NOW
 function viewNow(w) {
   const day = todayInWeek(w);
@@ -291,7 +315,7 @@ function quickTools() {
   return `<div class="quick">
     <button data-act="timer">${ic('timer')}טיימר</button>
     <button data-act="picker">${ic('dice')}מי עונה?</button>
-    <button data-act="wake" class="${wakeLock ? 'on' : ''}">${ic('sun')}מסך דלוק</button>
+    <button data-act="wake" class="${wantAwake ? 'on' : ''}">${ic('sun')}${wantAwake ? 'מסך דלוק ✓' : 'מסך דלוק'}</button>
   </div>`;
 }
 
@@ -300,7 +324,7 @@ function nowCard(w, day, p, ph) {
   const secs = p.sections;
   const si = Math.min(secs.length - 1, state.sec[id] ?? Math.max(0, Math.min(secs.length - 1, Math.floor((ph.pct || 0) * secs.length))));
   const needs = p.materials.map((m, i) => chk(`m:${id}:${i}`, ck(w, `m:${id}:${i}`), esc(m.text))).join('');
-  const files = p.links.filter(l => l.url).map(l => fileRow({ url: l.url, text: l.text }, true)).join('');
+  const files = lessonFiles(w, day, p, true);
   const sub = p.subtitle.split('·').slice(1).join('·').trim();
   return `<article class="card nowc" style="--c:${look(p).c}">
     <div class="nc-top">
@@ -395,7 +419,7 @@ function viewDay(w) {
   const left = isToday && ph.kind !== 'after' ? day.periods.filter(p => mins(p.end) > nowMin()).length : null;
   const load = day.periods.length <= 6 ? 'היום נראה רגוע' : day.periods.length <= 8 ? 'היום נראה טוב' : 'יום עמוס – יש לך את זה';
   h += `<div class="card daypick">
-    <div class="dp-pills"><span class="spill">${ic('sun')}${isToday ? load : `יום ${day.name} · ${day.date}`}</span><span class="spill">${ic('calendar')}${left != null ? `עוד ${left} שיעורים` : `${day.periods.length} שיעורים`}</span></div>
+    <div class="dp-pills">${isToday ? `<button class="spill wk ${wantAwake ? 'on' : ''}" data-act="wake">${ic('sun')}${wantAwake ? 'מסך דלוק ✓' : 'מסך דלוק'}</button>` : ''}<span class="spill">${ic('sun')}${isToday ? load : `יום ${day.name} · ${day.date}`}</span><span class="spill">${ic('calendar')}${left != null ? `עוד ${left} שיעורים` : `${day.periods.length} שיעורים`}</span></div>
     ${dayChips(w, sel)}
   </div>`;
   const bd = state.kids.length ? bdOn(dayDate(w, day)) : [];
@@ -429,7 +453,8 @@ function lessonRow(w, day, p, ph) {
       ${p.badges.map(b => `<div class="badge">${esc(b)}</div>`).join('')}
       ${p.materials.length ? `<div class="sub">${cardHead('check', 'מה צריך?')}${p.materials.map((m, i) => chk(`m:${id}:${i}`, ck(w, `m:${id}:${i}`), esc(m.text))).join('')}</div>` : ''}
       ${p.homework.length ? `<div class="hw">${ic('homework')}<div><b>שיעורי בית</b>${p.homework.map(x => `<div>${esc(x)}</div>`).join('')}</div></div>` : ''}
-      ${p.links.length ? `<div class="sub">${cardHead('folder', 'קבצים')}${p.links.map(l => l.url ? fileRow({ url: l.url, text: l.text }, true) : `<div class="file compact off"><span class="a">${fileBadge('doc')}<span class="fx"><b>${esc(l.text)}</b><small>בלי קישור</small></span></span></div>`).join('')}</div>` : ''}
+      <div class="sub">${cardHead('folder', 'קבצים')}${lessonFiles(w, day, p)}
+        <button class="addrow" data-attach="${esc(day.dow + '|' + p.label)}">${ic('plus')} הוספת קובץ לשיעור</button></div>
       ${timerHint(p)}
       ${logRow(w, id, false)}
       <button class="editbtn" data-edit="${esc(day.dow + '|' + p.label)}">${ic('pencil')} עריכת השיעור</button>
@@ -513,15 +538,20 @@ function viewFiles(w) {
   const match = f => (!q || (f.text + ' ' + f.uses.map(u => u.p.title).join(' ') + ' ' + kindWord(f)).includes(q)) && (!fs || subjOf(f) === fs);
   const subs = [...new Set(files.map(subjOf))];
   let h = top('קבצים', 'כל הקבצים של הכיתה במקום אחד, נגישים ומהירים', 'folder');
+  h += `<button class="cta upl" data-act="uploadfiles">${ic('upload')} העלאת קבצים</button><p class="hint">אני אזהה לבד לאיזה שיעור כל קובץ שייך ✨</p>`;
   h += `<label class="search">${ic('search')}<input id="fq" type="search" placeholder="חיפוש קובץ" value="${esc(state.q)}"></label>`;
   h += `<div class="fchips"><button class="fc ${!fs ? 'on' : ''}" data-fsub="">${ic('layers')}הכל</button>${subs.map(s => `<button class="fc ${fs === s ? 'on' : ''}" data-fsub="${esc(s)}">${esc(s)}</button>`).join('')}</div>`;
   const pinned = Object.entries(state.pins).map(([url, text]) => files.find(f => f.url === url) || { url, text, uses: [] }).filter(f => !f.uses.length ? !q && !fs : match(f));
   if (pinned.length) h += `<div class="card pinned">${cardHead('starFill', 'תמיד בשלוף', spark())}${pinned.map(f => fileRow(f)).join('')}</div>`;
   else if (!q && !fs) h += `<p class="hint">טיפ: לוחצים על ☆ ליד קובץ – והוא יישאר כאן למעלה, בכל שבוע.</p>`;
+  const mine = state.files.filter(f => !q || (f.name + ' ' + ((f.ref && state.weeks[f.ref.w] && (findPeriodIn(state.weeks[f.ref.w], f.ref.dow, f.ref.label) || {}).title) || '')).includes(q))
+    .filter(f => !fs || (f.ref && state.weeks[f.ref.w] && look(findPeriodIn(state.weeks[f.ref.w], f.ref.dow, f.ref.label) || {}).n === fs))
+    .sort((a, b) => (a.added < b.added ? 1 : -1));
+  if (mine.length) h += `<div class="card">${cardHead('upload', 'הקבצים שהעליתי', `<span class="cnt">${mine.length}</span>`)}${mine.map(f => upRow(f)).join('')}</div>`;
   const rest = files.filter(f => !state.pins[f.url] && match(f));
   if (rest.length) h += `<h4 class="sect">כל הקבצים</h4>${rest.map(f => `<div class="card fcard">${fileRow(f)}</div>`).join('')}`;
-  if (!files.length) h += `<p class="hint">אין קישורים לדרייב בתכנון של השבוע.</p>`;
-  else if (!pinned.length && !rest.length) h += `<p class="hint">לא מצאתי "${esc(q)}" 🤔</p>`;
+  if (!files.length && !mine.length) h += `<p class="hint">אין עדיין קבצים לשבוע הזה.</p>`;
+  else if (!pinned.length && !rest.length && !mine.length) h += `<p class="hint">לא מצאתי "${esc(q)}" 🤔</p>`;
   return h;
 }
 
@@ -795,7 +825,7 @@ function tick() {
     const msg = t => { const m = $('#tMsg'); if (m) { m.textContent = t; m.classList.remove('pop'); void m.offsetWidth; m.classList.add('pop'); } };
     if (T.between) { T.between = false; T.round++; T.total = T.setMin * 60; T.endAt = Date.now() + T.total * 1000; bell(1); msg(''); }
     else if (T.round < T.rounds) { bell(3); T.between = true; T.total = 15; T.endAt = Date.now() + 15000; msg('עוברים תחנה! 🔔'); }
-    else { bell(3); T.running = false; clearInterval(tInt); wakeOff(); msg('הזמן נגמר! 🎉'); confetti(); }
+    else { bell(3); T.running = false; clearInterval(tInt); if (!wantAwake) wakeOff(); msg('הזמן נגמר! 🎉'); confetti(); }
   }
 }
 function renderTimerPill() {
@@ -865,11 +895,39 @@ function applyPrefs() {
   const dark = p.theme === 'dark' || (p.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = dark ? '#1C1924' : '#FAF7F4';
+  const sb = $('#sbar'); if (sb) sb.content = dark ? 'black-translucent' : 'default';
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyPrefs);
-let wakeLock = null;
-async function wakeOn() { try { if (!wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch { /* unsupported */ } }
+// keep the screen on: Screen Wake Lock, with a silent looping video as fallback for older iPhones
+let wakeLock = null, wakeVideo = null, wantAwake = false;
+async function wakeOn() {
+  try {
+    if (!wakeLock && navigator.wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+      return true;
+    }
+    if (wakeLock) return true;
+  } catch { /* fall through */ }
+  try {
+    if (!wakeVideo) {
+      wakeVideo = document.createElement('video');
+      wakeVideo.src = 'vendor/keepawake.mp4'; wakeVideo.loop = true; wakeVideo.muted = true;
+      wakeVideo.setAttribute('playsinline', ''); wakeVideo.setAttribute('muted', '');
+      wakeVideo.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;bottom:0;left:0';
+      document.body.appendChild(wakeVideo);
+    }
+    await wakeVideo.play();
+    wakeLock = { video: true, release() { wakeVideo.pause(); } };
+    return true;
+  } catch { return false; }
+}
 function wakeOff() { try { wakeLock && wakeLock.release(); } catch { /* fine */ } wakeLock = null; }
+async function toggleAwake() {
+  if (wantAwake) { wantAwake = false; wakeOff(); toast('המסך יכבה כרגיל 🌙'); }
+  else { wantAwake = true; toast(await wakeOn() ? 'המסך יישאר דלוק עד שתכבי 🔆' : 'הטלפון הזה לא מאפשר להשאיר מסך דלוק 😕'); }
+  document.querySelectorAll('[data-act=wake]').forEach(b => { b.classList.toggle('on', wantAwake); b.lastChild.textContent = wantAwake ? 'מסך דלוק ✓' : 'מסך דלוק'; });
+}
 
 function exportBackup() {
   const o = {}; for (const k of SAVED) o[k] = state[k];
@@ -890,6 +948,127 @@ function importBackup() {
     } catch { toast('זה לא קובץ גיבוי של האפליקציה 😕'); }
   };
   inp.click();
+}
+
+// ================================================================ file upload & matching
+let attachTo = null;
+function lessonOptions(selected, extraWeekIds = []) {
+  const w = pickWeek();
+  const weeks = [w, ...extraWeekIds.filter(id => id !== w.id && state.weeks[id]).map(id => state.weeks[id])];
+  return `<option value="">בלי שיוך (קובץ כללי)</option>` + weeks.map(wk => wk.days.map(d => `<optgroup label="${esc(wk !== w ? (wk.number ? 'שבוע ' + wk.number + ' · ' : '') : '')}יום ${esc(d.name)} ${esc(d.date)}">${d.periods.map(p => {
+    const v = `${wk.id}|${d.dow}|${p.label}`;
+    return `<option value="${esc(v)}" ${v === selected ? 'selected' : ''}>${esc(p.start)} · ${esc(p.title)}</option>`;
+  }).join('')}</optgroup>`).join('')).join('');
+}
+async function handleUploads(list) {
+  const w = pickWeek();
+  if (!w) { toast('קודם מעלים תכנון שבועי 🙂'); return; }
+  toast(`קוראת ${list.length > 1 ? list.length + ' קבצים' : 'את הקובץ'}… ✨`, 0);
+  const pending = [];
+  for (const file of list) {
+    const id = (uid() + uid()).slice(0, 14);
+    await putBlob(id, file);
+    let m = [];
+    if (attachTo) m = [{ weekId: w.id, dow: attachTo.dow, label: attachTo.label, conf: 'high', score: 1, linkIdx: -1, hits: [] }];
+    else { const text = await extractText(file, pdfjsLib); m = matchLessons(file.name, text, Object.values(state.weeks), w.id); }
+    pending.push({ id, name: file.name, type: file.type, size: file.size, m });
+  }
+  attachTo = null;
+  $('#toast').classList.remove('show');
+  assignSheet(pending, false);
+}
+function assignSheet(pending, existing) {
+  state._pending = pending;
+  openOverlay(`<form class="ov sheet assign" data-assign="${existing ? 1 : ''}">
+    <button type="button" class="ovx" data-act="cancelupload" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('sparkle')}<h2>${existing ? 'שיוך לשיעור' : pending.length > 1 ? `שיוך ${pending.length} קבצים` : 'לאיזה שיעור?'}</h2></div>
+    ${pending.map((f, i) => {
+      const top = f.m && f.m[0];
+      const sel = f.cur || (top && top.conf !== 'low' ? `${top.weekId}|${top.dow}|${top.label}` : '');
+      const why = top && !existing ? (top.conf === 'high' ? `✨ זיהיתי: ${esc(top.title)}${top.hits.length ? ` <i>(${esc(top.hits.slice(0, 3).join(', '))})</i>` : ''}` : top.conf === 'mid' ? `🤔 אולי: ${esc(top.title)} – כדאי לוודא` : 'לא זיהיתי – בחרי שיעור') : (!existing ? 'לא זיהיתי – בחרי שיעור' : '');
+      return `<div class="arow" style="--i:${i}">
+        <div class="arow-h">${fileBadge(kindOf(f.name, f.type))}<span class="fx"><b>${esc(f.name)}</b><small>${fmtSize(f.size)}</small></span></div>
+        ${why ? `<div class="why ${top ? top.conf : ''}">${why}</div>` : ''}
+        <select name="ref${i}">${lessonOptions(sel, f.m ? f.m.map(x => x.weekId) : [])}</select>
+      </div>`;
+    }).join('')}
+    <div class="btnrow"><button class="cta">${ic('check')} שמירה</button></div>
+  </form>`);
+}
+async function saveAssign(form) {
+  const pending = state._pending || [];
+  const existing = !!form.dataset.assign;
+  pending.forEach((f, i) => {
+    const v = form[`ref${i}`].value;
+    const ref = v ? (([w, dow, label]) => ({ w, dow: +dow, label }))(v.split('|')) : null;
+    const top = f.m && f.m.find(x => ref && x.weekId === ref.w && x.dow === ref.dow && x.label === ref.label);
+    const linkIdx = top ? top.linkIdx : -1;
+    if (existing) { const cur = state.files.find(x => x.id === f.id); if (cur) { cur.ref = ref; cur.linkIdx = linkIdx; } }
+    else state.files.push({ id: f.id, name: f.name, type: f.type, size: f.size, added: new Date().toISOString(), ref, linkIdx, cloud: false });
+  });
+  state._pending = null;
+  save(); closeOverlay(); rerender();
+  if (!existing) { toast(pending.length > 1 ? `${pending.length} קבצים נשמרו 📎` : 'הקובץ נשמר 📎'); confetti(); state.files.filter(f => !f.cloud).forEach(f => uploadCloud(f)); }
+  else toast('עודכן ✓');
+}
+async function cancelUpload() {
+  if (state._pending && !$('[data-assign="1"]')) for (const f of state._pending) await delBlob(f.id).catch(() => {});
+  state._pending = null; closeOverlay();
+}
+async function openFile(id) {
+  const f = state.files.find(x => x.id === id); if (!f) return;
+  let blob = await getBlob(id).catch(() => null);
+  if (!blob && f.cloud && sync.user) { toast('מורידה מהענן… ☁️', 0); blob = await downloadCloud(f).catch(() => null); if (blob) await putBlob(id, blob); }
+  if (!blob) { toast(sync.user ? 'לא הצלחתי להוריד את הקובץ 😕' : 'הקובץ נמצא במכשיר אחר – התחברי כדי להוריד אותו ☁️', 3500); return; }
+  $('#toast').classList.remove('show');
+  const url = URL.createObjectURL(new File([blob], f.name, { type: f.type || blob.type }));
+  const a = document.createElement('a'); a.href = url; a.rel = 'noopener';
+  if (/pdf|img/.test(kindOf(f.name, f.type))) a.target = '_blank'; else a.download = f.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+function fileMenu(id) {
+  const f = state.files.find(x => x.id === id); if (!f) return;
+  openOverlay(`<div class="ov">
+    <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${fileBadge(kindOf(f.name, f.type))}<h2>${esc(f.name)}</h2></div>
+    <div class="menu">
+      <button data-openfile="${f.id}">${ic('file')} פתיחה</button>
+      <button data-reassign="${f.id}">${ic('link')} שיוך לשיעור אחר</button>
+      <button data-delfile="${f.id}" class="red">${ic('trash')} מחיקה</button>
+    </div>
+  </div>`);
+}
+const PART = 4 * 1024 * 1024;
+async function uploadCloud(f) {
+  if (!sync.user || f.cloud || f._up) return;
+  f._up = true;
+  try {
+    const blob = await getBlob(f.id); if (!blob) return;
+    try { await ID.refreshSession(); } catch { /* fine */ }
+    const parts = Math.max(1, Math.ceil(blob.size / PART));
+    for (let n = 0; n < parts; n++) {
+      const r = await fetch(`/api/file?id=${f.id}&part=${n}`, { method: 'PUT', credentials: 'same-origin', body: blob.slice(n * PART, (n + 1) * PART) });
+      if (!r.ok) throw new Error('upload ' + r.status);
+    }
+    f.parts = parts; f.cloud = true; save();
+  } catch (e) { console.warn(e); } finally { delete f._up; }
+}
+async function downloadCloud(f) {
+  try { await ID.refreshSession(); } catch { /* fine */ }
+  const bufs = [];
+  for (let n = 0; n < (f.parts || 1); n++) {
+    const r = await fetch(`/api/file?id=${f.id}&part=${n}`, { credentials: 'same-origin' });
+    if (!r.ok) throw new Error('download ' + r.status);
+    bufs.push(await r.arrayBuffer());
+  }
+  return new Blob(bufs, { type: f.type || '' });
+}
+async function deleteFile(id) {
+  const f = state.files.find(x => x.id === id); if (!f) return;
+  state.files = state.files.filter(x => x.id !== id); save();
+  await delBlob(id).catch(() => {});
+  if (f.cloud && sync.user) fetch(`/api/file?id=${id}`, { method: 'DELETE', credentials: 'same-origin' }).catch(() => {});
 }
 
 // ================================================================ account & sync (Netlify Identity + Blobs)
@@ -923,6 +1102,7 @@ async function pull(first) {
       // first login on this device: keep what's here and add what's in the cloud
       for (const k of ['weeks', 'checks', 'logs', 'pins']) state[k] = Object.assign({}, state[k], rec.data[k] || {});
       for (const k of ['kids', 'todos']) if (rec.data[k] && rec.data[k].length) state[k] = rec.data[k];
+      const ids = new Set(state.files.map(f => f.id)); state.files = state.files.concat((rec.data.files || []).filter(f => !ids.has(f.id)));
       for (const k of ['name', 'prefs', 'groups', 'picked']) if (rec.data[k] != null) state[k] = rec.data[k];
       state.syncV = rec.v; saveLocal(); sync.pulled = true; await push(); return;
     }
@@ -932,6 +1112,7 @@ async function pull(first) {
     }
     sync.pulled = true; sync.last = new Date(); sync.err = '';
     if (sync.pending) push();
+    state.files.filter(f => !f.cloud).forEach(f => uploadCloud(f));
   } catch (e) { sync.err = e.message; }
   syncBadge();
 }
@@ -1073,6 +1254,11 @@ document.addEventListener('click', e => {
     if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
     return;
   }
+  if (D.openfile) { closeOverlay(); openFile(D.openfile); return; }
+  if (D.filemenu) { fileMenu(D.filemenu); return; }
+  if (D.reassign) { const f = state.files.find(x => x.id === D.reassign); assignSheet([{ ...f, cur: f.ref ? `${f.ref.w}|${f.ref.dow}|${f.ref.label}` : '', m: null }], true); return; }
+  if (D.delfile) { if (confirm('למחוק את הקובץ?')) { deleteFile(D.delfile).then(() => { closeOverlay(); rerender(); toast('הקובץ נמחק'); }); } return; }
+  if (D.attach) { const [dow, label] = D.attach.split('|'); attachTo = { dow: +dow, label }; $('#upfile').click(); return; }
   if (D.edit != null) { const [dow, lb] = D.edit.split('|'); editor(w, +dow, lb || null); return; }
   if (D.addrow) { t.insertAdjacentHTML('beforebegin', editor.row(D.addrow)); const n = t.previousElementSibling.querySelector('input,textarea'); if (n) n.focus(); return; }
   if (D.delrow != null) { const r = t.closest('.erow'); r.classList.add('bye'); setTimeout(() => r.remove(), 200); return; }
@@ -1103,7 +1289,7 @@ document.addEventListener('click', e => {
     case 'upload': $('#file').click(); break;
     case 'widget': sendToWidget(w); break;
     case 'widgetcode': copyWidgetCode(); break;
-    case 'wake': if (wakeLock) { wakeOff(); toast('המסך יכבה כרגיל'); } else wakeOn().then(() => toast(wakeLock ? 'המסך יישאר דלוק 🔆' : 'הטלפון הזה לא מאפשר להשאיר מסך דלוק')); setTimeout(rerender, 300); break;
+    case 'wake': toggleAwake(); break;
     case 'timer': if (T.running || (T.left > 0 && T.total)) timerScreen(); else timerSetup(state.lastMin || 5, 1); break;
     case 'tstart': state.lastMin = T.setMin; timerStart(); break;
     case 'tpause':
@@ -1111,7 +1297,7 @@ document.addEventListener('click', e => {
       else if (T.left > 0) { T.running = true; T.endAt = Date.now() + T.left * 1000; clearInterval(tInt); tInt = setInterval(tick, 250); }
       tick(); break;
     case 'tplus': T.total += 60; if (T.running) T.endAt += 60000; else T.left += 60; tick(); break;
-    case 'tstop': T.running = false; T.left = 0; T.total = 0; clearInterval(tInt); wakeOff(); closeOverlay(); break;
+    case 'tstop': T.running = false; T.left = 0; T.total = 0; clearInterval(tInt); if (!wantAwake) wakeOff(); closeOverlay(); break;
     case 'close': closeOverlay(); break;
     case 'topen': timerScreen(); break;
     case 'picker': pickerScreen(); break;
@@ -1128,6 +1314,8 @@ document.addEventListener('click', e => {
       save(); closeOverlay(); rerender(); toast('השיעור נמחק'); break;
     }
     case 'export': exportBackup(); break;
+    case 'uploadfiles': attachTo = null; $('#upfile').click(); break;
+    case 'cancelupload': cancelUpload(); break;
     case 'syncnow': push().then(() => pull()).then(() => { rerender(); toast(sync.err ? 'לא הצלחתי לסנכרן 😕' : 'מסונכרן ✓'); }); break;
     case 'logout': if (confirm('להתנתק? המידע יישאר בטלפון הזה.')) ID.logout().catch(() => {}).finally(() => { sync.user = null; sync.pulled = false; state.syncV = 0; saveLocal(); rerender(); toast('התנתקת'); }); break;
     case 'forgot': {
@@ -1176,6 +1364,7 @@ document.addEventListener('input', e => {
 document.addEventListener('submit', e => {
   const f = e.target;
   if (f.matches('[data-editor]')) { e.preventDefault(); saveEditor(f); return; }
+  if (f.matches('[data-assign]')) { e.preventDefault(); saveAssign(f); return; }
   if (f.matches('[data-auth]')) {
     e.preventDefault();
     const mode = e.submitter && e.submitter.value === 'signup' ? 'signup' : 'login';
@@ -1209,6 +1398,11 @@ document.addEventListener('submit', e => {
   if (!text) return;
   state.todos.push({ id: uid(), text, date: f.d && f.d.value ? f.d.value : null, done: false });
   save(); rerender(); toast('נוסף 📌', 1200);
+});
+
+$('#upfile').addEventListener('change', e => {
+  const list = [...e.target.files]; e.target.value = '';
+  if (list.length) handleUploads(list).catch(err => { console.error(err); toast('לא הצלחתי לשמור את הקובץ 😕'); });
 });
 
 $('#file').addEventListener('change', async e => {
@@ -1311,6 +1505,7 @@ function miniBurst(el) {
 setInterval(() => { if (state.tab === 'now' && !document.hidden && !document.activeElement.matches('input, textarea') && !$('#overlay.show')) rerender(); }, 30000);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { if (sync.pending) push(); return; }
+  if (wantAwake || T.running) wakeOn();
   if (sync.user) pull().then(() => { if (!$('#overlay.show') && !document.activeElement.matches('input, textarea')) rerender(); });
   else if (!$('#overlay.show')) rerender();
 });

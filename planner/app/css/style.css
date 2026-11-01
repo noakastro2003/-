@@ -556,3 +556,30 @@ form.busy .cta:first-child::after { content: ''; width: 16px; height: 16px; bord
 .forgot { display: block; margin: 12px auto 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes logoIn { from { opacity: 0; transform: scale(.5) rotate(-20deg); } }
+
+/* ============================================================ uploads */
+.cta.upl { margin: 6px 0 0; }
+.file .a { all: unset; flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 8px 0; cursor: pointer; }
+.file.up + .file.up { border-top: 1px solid var(--line); }
+.file.compact.up + .file.compact.up { border-top: 1px solid var(--line); }
+.sub .addrow { margin-top: 2px; }
+.assign .arow { background: var(--card); border-radius: 22px; padding: 12px; margin: 10px 0; box-shadow: var(--sh2); animation: cardIn .5s var(--ease) both; animation-delay: calc(var(--i) * 70ms); }
+.arow-h { display: flex; align-items: center; gap: 10px; }
+.arow-h .fx b { font-size: 15px; word-break: break-word; }
+.why { font-size: 14px; margin: 8px 2px; color: var(--soft); }
+.why.high { color: #3E8A48; }
+.why.mid { color: #A2740F; }
+.why i { font-style: normal; color: var(--soft); font-size: 12.5px; }
+.assign select, .editor select { width: 100%; font-size: 15.5px; padding: 11px 12px; border-radius: var(--r-btn); border: 1.5px solid var(--line); background: var(--tint2); color: var(--ink); }
+.assign .btnrow { position: sticky; bottom: calc(-24px - var(--safe-b)); background: var(--bg); padding: 10px 0 8px; margin: 0; }
+.menu { display: flex; flex-direction: column; gap: 8px; }
+.menu button { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: var(--r-btn); background: var(--card); box-shadow: var(--sh2); font-size: 16px; font-weight: 500; text-align: right; }
+.menu button .ic { color: var(--accent-ink); }
+.menu button.red, .menu button.red .ic { color: #D3546A; }
+.ovh h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ovh .fbadge { width: 30px; height: 32px; }
+.spill.wk { cursor: pointer; transition: all .3s var(--spring); }
+.spill.wk.on, .quick button.on { background: #FFE9A8; color: #6B4E00; box-shadow: 0 0 0 3px #FFF4CF; }
+[data-theme=dark] .spill.wk.on, [data-theme=dark] .quick button.on { background: #5A4A1E; color: #FFE9A8; box-shadow: 0 0 0 3px #3E3418; }
+.quick button.on .ic { color: inherit; animation: spinSlow 6s linear infinite; }
+@keyframes spinSlow { to { transform: rotate(360deg); } }

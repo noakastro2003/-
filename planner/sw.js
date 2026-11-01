@@ -1,9 +1,10 @@
 // Offline cache: the app works in class even without reception.
-const CACHE = 'noa-planner-v4';
+const CACHE = 'noa-planner-v5';
 const FILES = [
-  './', 'index.html', 'css/style.css', 'js/app.js', 'js/planparse.js', 'js/pdftext.js',
+  './', 'index.html', 'css/style.css', 'js/app.js', 'js/planparse.js', 'js/pdftext.js', 'js/icons.js',
   'vendor/pdf.min.mjs', 'vendor/pdf.worker.min.mjs', 'manifest.webmanifest',
-  'fonts/varela-round-hebrew-400-normal.woff2', 'fonts/varela-round-latin-400-normal.woff2',
+  'fonts/heebo-hebrew-400-normal.woff2', 'fonts/heebo-hebrew-500-normal.woff2', 'fonts/heebo-hebrew-700-normal.woff2',
+  'fonts/heebo-latin-400-normal.woff2', 'fonts/heebo-latin-500-normal.woff2', 'fonts/heebo-latin-700-normal.woff2',
   'fonts/rubik-hebrew-400-normal.woff2', 'fonts/rubik-hebrew-500-normal.woff2', 'fonts/rubik-hebrew-700-normal.woff2',
   'fonts/rubik-latin-400-normal.woff2', 'fonts/rubik-latin-500-normal.woff2', 'fonts/rubik-latin-700-normal.woff2',
   'icons/icon-192.png', 'icons/apple-touch-icon.png',

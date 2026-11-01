@@ -8,7 +8,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files'];
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent'];
 const state = Object.assign({
   weeks: {}, activeId: null, checks: {}, pins: {}, name: 'נועה', logs: {}, kids: [], todos: [], files: [],
   prefs: {}, picked: [], groups: 5,
@@ -852,36 +852,74 @@ function bell(n) {
 }
 
 // ---------------------------------------------------------------- picker
+function todayKey() { const d = now(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
+function absentToday() { return state.absent && state.absent.d === todayKey() ? state.absent.names : []; }
+const presentKids = () => { const ab = absentToday(); return state.kids.map(k => k.name).filter(n => !ab.includes(n)); };
+const GCOL = ['#F6B7CF', '#B79AF7', '#F6D38A', '#9DD6F9', '#B8D88E', '#F6C28B', '#D4B7F5', '#EDC3A0'];
+
 function pickerScreen() {
   const kids = state.kids.map(k => k.name);
-  const mode = state.pickMode || (kids.length ? 'kids' : 'groups');
-  state.pickMode = mode;
-  const left = kids.filter(k => !state.picked.includes(k)).length;
+  const mode = state.pickMode === 'groups' ? 'groups' : 'one';
+  const here = presentKids(), ab = absentToday();
+  const left = here.filter(k => !state.picked.includes(k)).length;
+  let body;
+  if (!kids.length) {
+    body = `<div class="kidsquick">
+      <p><b>כדי להגריל צריך את שמות הילדים 🙂</b><br><span class="dim">שורה לכל ילד/ה. אפשר להוסיף גם תאריך לידה (יום.חודש) – בשביל ימי ההולדת.</span></p>
+      <textarea id="kidsQuick" rows="7" placeholder="דנה&#10;יואב 4.11&#10;מיה"></textarea>
+      <button class="cta" data-act="savekidsquick">${ic('check')} שמירה</button>
+    </div>`;
+  } else if (mode === 'one') {
+    body = `<div class="pname" id="pName">${state._lastPick ? esc(state._lastPick) : art('star', 'bob')}</div>
+      <button class="cta big" data-act="pick">${ic('dice')} מי עונה?</button>
+      <p class="hint" id="pLeft">בלי חזרות: נשארו ${left} מתוך ${here.length} · <button class="linkbtn" data-act="preset">להתחיל מחדש</button></p>`;
+  } else {
+    const per = here.length ? Math.ceil(here.length / state.groups) : 0;
+    body = `<div class="stepper"><button data-pg="-1">−</button><div><b>${state.groups}</b><span>קבוצות · כ־${per} בכל אחת</span></div><button data-pg="1">＋</button></div>
+      <div class="gteams" id="gTeams">${state._teams ? teamsHtml(state._teams) : ''}</div>
+      <button class="cta big" data-act="split">${ic('users')} ${state._teams ? 'ערבוב מחדש' : 'חלוקה לקבוצות!'}</button>`;
+  }
   openOverlay(`<div class="ov picker">
     <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
-    <div class="ovh">${ic('dice')}<h2>מי עונה?</h2></div>
-    <div class="seg wide"><button class="${mode === 'kids' ? 'on' : ''}" data-pmode="kids">${ic('user')}ילדים</button><button class="${mode === 'groups' ? 'on' : ''}" data-pmode="groups">${ic('users')}קבוצות</button></div>
-    ${mode === 'groups' ? `<div class="stepper"><button data-pg="-1">−</button><div><b>${state.groups}</b><span>קבוצות</span></div><button data-pg="1">＋</button></div>` : ''}
-    ${mode === 'kids' && !kids.length ? `<p class="dim">עוד אין רשימת ילדים.</p><button class="cta soft" data-go="kids">להוסיף את הילדים</button>` : `
-    <div class="pname" id="pName">${art('star', 'bob')}</div>
-    <button class="cta" data-act="pick">${ic('dice')} הגרלה!</button>
-    ${mode === 'kids' ? `<p class="hint" id="pLeft">בלי חזרות: נשארו ${left} מתוך ${kids.length} · <button class="linkbtn" data-act="preset">להתחיל מחדש</button></p>` : ''}`}
+    <div class="ovh">${ic('dice')}<h2>הגרלות</h2></div>
+    ${kids.length ? `<div class="seg wide"><button class="${mode === 'one' ? 'on' : ''}" data-pmode="one">${ic('user')}ילד/ה אחד/ת</button><button class="${mode === 'groups' ? 'on' : ''}" data-pmode="groups">${ic('users')}חלוקה לקבוצות</button></div>` : ''}
+    ${body}
+    ${kids.length ? `<details class="absent" ${state._absOpen ? 'open' : ''}><summary>מי חסר/ה היום? ${ab.length ? `<span class="cnt">${ab.length}</span>` : ''}</summary>
+      <div class="kchips">${kids.map(n => `<button class="kc ${ab.includes(n) ? 'off' : ''}" data-absent="${esc(n)}">${esc(n)}</button>`).join('')}</div>
+      <p class="hint">מי שמסומן/ת כחסר/ה לא ייכנס/תיכנס להגרלות היום.</p></details>` : ''}
   </div>`);
 }
+function teamsHtml(teams) {
+  return teams.map((t, i) => `<div class="team" style="--c:${GCOL[i % GCOL.length]};--i:${i}"><b>קבוצה ${i + 1}</b>${t.map(n => `<span>${esc(n)}</span>`).join('')}</div>`).join('');
+}
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function doSplit() {
+  const here = shuffle(presentKids());
+  if (!here.length) { toast('אין ילדים נוכחים 🙂'); return; }
+  const n = Math.min(state.groups, here.length);
+  const teams = Array.from({ length: n }, () => []);
+  here.forEach((k, i) => teams[i % n].push(k));
+  state._teams = teams;
+  pickerScreen(); bell(1);
+  const el = $('#gTeams'); if (el) miniBurst(el);
+}
 function doPick() {
-  const kids = state.kids.map(k => k.name);
-  let pool;
-  if (state.pickMode === 'books') { pool = kids.filter(k => !state.picked.includes(k)); if (!pool.length) { state.picked = []; pool = kids.slice(); } }
-  else pool = Array.from({ length: state.groups }, (_, i) => `קבוצה ${i + 1}`);
+  const here = presentKids();
+  let pool = here.filter(k => !state.picked.includes(k));
+  if (!pool.length) { state.picked = []; pool = here.slice(); }
+  if (!pool.length) { toast('אין ילדים נוכחים 🙂'); return; }
   const win = pool[Math.floor(Math.random() * pool.length)];
   const el = $('#pName'); let n = 0;
+  const btn = $('[data-act=pick]'); if (btn) btn.disabled = true;
   el.classList.remove('win'); el.classList.add('spin');
   const step = () => {
-    el.textContent = pool[Math.floor(Math.random() * pool.length)];
+    el.textContent = here[Math.floor(Math.random() * here.length)];
     if (++n < 18) setTimeout(step, 40 + n * n * 1.2);
     else {
       el.classList.remove('spin'); el.textContent = win; el.classList.add('win'); bell(1); miniBurst(el);
-      if (state.pickMode === 'books') { state.picked.push(win); save(); const pl = $('#pLeft'); if (pl) pl.firstChild.textContent = `בלי חזרות: נשארו ${kids.length - state.picked.length} מתוך ${kids.length} · `; }
+      state.picked.push(win); state._lastPick = win; save();
+      const pl = $('#pLeft'); if (pl) pl.firstChild.textContent = `בלי חזרות: נשארו ${here.filter(k => !state.picked.includes(k)).length} מתוך ${here.length} · `;
+      if (btn) btn.disabled = false;
     }
   };
   step();
@@ -1281,7 +1319,12 @@ document.addEventListener('click', e => {
   if (D.tmin) { timerSetup(Math.max(1, Math.min(90, T.setMin + +D.tmin)), T.setRounds); return; }
   if (D.trnd) { timerSetup(T.setMin, Math.max(1, Math.min(12, T.setRounds + +D.trnd))); return; }
   if (D.pmode) { state.pickMode = D.pmode; pickerScreen(); return; }
-  if (D.pg) { state.groups = Math.max(2, Math.min(12, state.groups + +D.pg)); save(); pickerScreen(); return; }
+  if (D.pg) { state.groups = Math.max(2, Math.min(12, state.groups + +D.pg)); state._teams = null; save(); pickerScreen(); return; }
+  if (D.absent) {
+    const ab = absentToday().slice(); const i = ab.indexOf(D.absent);
+    if (i >= 0) ab.splice(i, 1); else ab.push(D.absent);
+    state.absent = { d: todayKey(), names: ab }; state._absOpen = true; state._teams = null; save(); pickerScreen(); return;
+  }
   if (D.size) { state.prefs.size = +D.size; save(); applyPrefs(); rerender(); return; }
   if (D.theme) { state.prefs.theme = D.theme; save(); applyPrefs(); rerender(); return; }
   if (D.deltodo) { state.todos = state.todos.filter(x => x.id !== D.deltodo); save(); rerender(); return; }
@@ -1302,7 +1345,9 @@ document.addEventListener('click', e => {
     case 'topen': timerScreen(); break;
     case 'picker': pickerScreen(); break;
     case 'pick': doPick(); break;
-    case 'preset': state.picked = []; save(); pickerScreen(); break;
+    case 'split': doSplit(); break;
+    case 'savekidsquick': { const k = parseKids($('#kidsQuick').value); if (!k.length) { toast('לא מצאתי שמות 🤔'); break; } state.kids = k; save(); state.pickMode = 'one'; pickerScreen(); toast(`נשמרו ${k.length} ילדים 💜`); break; }
+    case 'preset': state.picked = []; state._lastPick = null; save(); pickerScreen(); break;
     case 'savekids': state.kids = parseKids($('#kidsIn').value); save(); toast(`נשמר! ${state.kids.length} ילדים 💜`); rerender(); break;
     case 'cleartodos': state.todos = state.todos.filter(x => !x.done); save(); rerender(); break;
     case 'copycarry': navigator.clipboard.writeText(carryText(w, summary(w))).then(() => toast('הועתק 📋 אפשר להדביק בתכנון של השבוע הבא')).catch(() => toast('לא הצלחתי להעתיק 😕')); break;

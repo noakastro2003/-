@@ -583,3 +583,24 @@ form.busy .cta:first-child::after { content: ''; width: 16px; height: 16px; bord
 [data-theme=dark] .spill.wk.on, [data-theme=dark] .quick button.on { background: #5A4A1E; color: #FFE9A8; box-shadow: 0 0 0 3px #3E3418; }
 .quick button.on .ic { color: inherit; animation: spinSlow 6s linear infinite; }
 @keyframes spinSlow { to { transform: rotate(360deg); } }
+
+/* ============================================================ picker & teams */
+.cta.big { padding: 18px; font-size: 19px; }
+.pname { min-height: 140px; word-break: break-word; line-height: 1.15; padding: 10px 0; }
+.kidsquick p { margin: 4px 0 10px; }
+.kidsquick textarea { margin-bottom: 4px; }
+.gteams { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
+.team { background: color-mix(in srgb, var(--c) 28%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 70%, transparent); border-radius: 20px; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; animation: bounceIn .55s var(--spring) both; animation-delay: calc(var(--i) * 90ms); }
+.team b { font-size: 16px; margin-bottom: 4px; color: color-mix(in srgb, var(--c) 40%, var(--ink)); }
+.team span { font-size: 15.5px; }
+.absent { margin-top: 16px; background: var(--card); border-radius: 20px; padding: 12px 14px; box-shadow: var(--sh2); }
+.absent summary { font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.kchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.kc { padding: 7px 12px; border-radius: 14px; background: var(--tint); color: var(--accent-ink); font-size: 14.5px; font-weight: 500; transition: all .25s var(--spring); }
+.kc.off { background: transparent; color: var(--soft); text-decoration: line-through; box-shadow: inset 0 0 0 1.5px var(--line); }
+
+/* ============================================================ fill the whole screen on iPhone */
+html { min-height: 100%; background-color: var(--bg); }
+body { min-height: 100dvh; }
+.tabs::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 200px; background: var(--card); }
+.ov::after { content: ''; position: fixed; left: 0; right: 0; top: 100%; height: 200px; background: var(--bg); }

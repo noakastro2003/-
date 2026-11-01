@@ -1,7 +1,7 @@
 // Offline cache: the app works in class even without reception.
-const CACHE = 'noa-planner-v5';
+const CACHE = 'noa-planner-v6';
 const FILES = [
-  './', 'index.html', 'css/style.css', 'js/app.js', 'js/planparse.js', 'js/pdftext.js', 'js/icons.js',
+  './', 'index.html', 'css/style.css', 'js/app.js', 'js/planparse.js', 'js/pdftext.js', 'js/icons.js', 'vendor/identity.mjs',
   'vendor/pdf.min.mjs', 'vendor/pdf.worker.min.mjs', 'manifest.webmanifest',
   'fonts/heebo-hebrew-400-normal.woff2', 'fonts/heebo-hebrew-500-normal.woff2', 'fonts/heebo-hebrew-700-normal.woff2',
   'fonts/heebo-latin-400-normal.woff2', 'fonts/heebo-latin-500-normal.woff2', 'fonts/heebo-latin-700-normal.woff2',
@@ -17,7 +17,8 @@ self.addEventListener('activate', e => {
 });
 // network first (so updates arrive), cache as fallback
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
+  const u = new URL(e.request.url);
+  if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/api/') || u.pathname.startsWith('/.netlify/')) return;
   e.respondWith(
     fetch(e.request).then(r => {
       const copy = r.clone();

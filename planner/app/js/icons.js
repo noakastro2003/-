@@ -41,6 +41,7 @@ const P = {
   link: '<path d="M10 14a4.4 4.4 0 0 0 6.3 0l3-3A4.4 4.4 0 0 0 13 4.7l-1 1"/><path d="M14 10a4.4 4.4 0 0 0-6.3 0l-3 3A4.4 4.4 0 0 0 11 19.3l1-1"/>',
   file: '<path d="M6.5 3h7.5l5 5v11.3a1.7 1.7 0 0 1-1.7 1.7H6.5a1.7 1.7 0 0 1-1.7-1.7V4.7A1.7 1.7 0 0 1 6.5 3z"/><path d="M14 3v5h5M8.5 13h7M8.5 16.5h5"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>',
+  cloud: '<path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.3 4.6 4.6 0 0 0 7 18.5z"/>',
   x: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   play: '<path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/>',
@@ -133,3 +134,31 @@ export function fileBadge(kind) {
        ${t ? `<text x="20" y="${t.length > 1 ? 30 : 31}" font-size="${t.length > 1 ? 9 : 14}" font-weight="700" text-anchor="middle" fill="#fff" font-family="Heebo, Arial">${t}</text>` : kind === 'slides' ? '<rect x="13" y="20" width="14" height="10" rx="1.5" fill="none" stroke="#fff" stroke-width="2.4"/>' : '<path d="M13 21h14M13 26h14M13 31h9" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>'}`;
   return `<svg class="fbadge" viewBox="0 0 40 42" aria-hidden="true">${inner}</svg>`;
 }
+
+// ---------------------------------------------------------------- logo
+export const LOGO_SVG = `<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lg-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C9B0FA"/><stop offset=".55" stop-color="#A67AF3"/><stop offset="1" stop-color="#8457E8"/></linearGradient>
+    <linearGradient id="lg-pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F6F0FF"/></linearGradient>
+    <filter id="lg-sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#3B1F7A" flood-opacity=".28"/></filter>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#lg-bg)"/>
+  <circle cx="420" cy="86" r="150" fill="#fff" opacity=".10"/>
+  <circle cx="70" cy="470" r="120" fill="#fff" opacity=".07"/>
+  <g transform="rotate(-7 256 280)" filter="url(#lg-sh)">
+    <rect x="122" y="118" width="268" height="314" rx="44" fill="url(#lg-pg)"/>
+    <rect x="122" y="118" width="268" height="66" rx="44" fill="#EDE3FD"/>
+    <rect x="122" y="150" width="268" height="34" fill="#EDE3FD"/>
+    ${[176, 230, 284, 338].map(x => `<rect x="${x - 9}" y="96" width="18" height="52" rx="9" fill="#5B3FA8"/>`).join('')}
+    <rect x="156" y="214" width="200" height="44" rx="16" fill="#FCE3EC"/><rect x="330" y="214" width="26" height="44" rx="10" fill="#F6B7CF"/>
+    <rect x="156" y="272" width="200" height="44" rx="16" fill="#FFF2CC"/><rect x="330" y="272" width="26" height="44" rx="10" fill="#F6D38A"/>
+    <rect x="156" y="330" width="200" height="44" rx="16" fill="#EDE3FD"/><rect x="330" y="330" width="26" height="44" rx="10" fill="#B79AF7"/>
+    <circle cx="196" cy="236" r="15" fill="#6CC17A"/><path d="M188 236l6 6 11-12" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="196" cy="294" r="15" fill="#6CC17A"/><path d="M188 294l6 6 11-12" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="196" cy="352" r="14" fill="none" stroke="#C9B6EE" stroke-width="5"/>
+    <rect x="224" y="230" width="84" height="12" rx="6" fill="#E9A8C0"/><rect x="224" y="288" width="64" height="12" rx="6" fill="#E8C677"/><rect x="224" y="346" width="76" height="12" rx="6" fill="#C9B6EE"/>
+  </g>
+  <path d="M392 330l15 31 34 5-25 24 6 34-30-16-30 16 6-34-25-24 34-5z" fill="#FFD66B" stroke="#fff" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M452 300l10-14M466 334l17-4M440 282l-2-16" stroke="#FFE7A3" stroke-width="9" stroke-linecap="round"/>
+</svg>`;
+export const logo = (cls = '') => `<span class="logo ${cls}">${LOGO_SVG.replace(/lg-/g, 'lg' + cls + '-')}</span>`;

@@ -1,6 +1,7 @@
 import * as pdfjsLib from '../vendor/pdf.min.mjs';
 import { parsePlanPdf, DAY_NAMES } from './planparse.js';
-import { ic, art, spark, squiggle, miniArt, fileBadge } from './icons.js';
+import { ic, art, spark, squiggle, miniArt, fileBadge, logo } from './icons.js';
+import * as ID from '../vendor/identity.mjs';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs', import.meta.url).href;
 
@@ -14,11 +15,12 @@ const state = Object.assign({
 }, load());
 state.prefs = Object.assign({ size: 1, theme: 'auto', notify: true, notifyTime: '07:00' }, state.prefs);
 function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } }
-function save() {
-  const o = {};
+function saveLocal() {
+  const o = { syncV: state.syncV || 0 };
   for (const k of SAVED) o[k] = state[k];
   localStorage.setItem(KEY, JSON.stringify(o));
 }
+function save() { saveLocal(); schedulePush(); }
 
 // ?now=2026-11-01T10:30 previews any moment
 const fakeNow = new URLSearchParams(location.search).get('now');
@@ -186,7 +188,7 @@ function top(title, sub, illus, opts = {}) {
   const dot = state.todos.some(todoDue) || bdOn(now()).length;
   return `<header class="top">
     <div class="brandrow">
-      <div class="brand">${opts.back ? `<button class="back" data-go="${opts.back}" aria-label="חזרה">${ic('chevR')}</button>` : ''}<span>הכיתה שלי${spark('b')}${squiggle('s')}</span></div>
+      <div class="brand">${opts.back ? `<button class="back" data-go="${opts.back}" aria-label="חזרה">${ic('chevR')}</button>` : ''}${logo('blogo')}<span>הכיתה שלי${spark('b')}${squiggle('s')}</span></div>
       <div class="hbtns">
         <button class="hb" data-day="all" aria-label="מערכת">${ic('calendar')}</button>
         <button class="hb" data-go="todos" aria-label="תזכורות">${ic('bell')}${dot ? '<i class="dot"></i>' : ''}</button>
@@ -532,7 +534,7 @@ function viewMore(w) {
       ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`], ['cake', 'הכיתה שלי', 'data-go="kids"'], ['pin', 'תזכורות', 'data-go="todos"']]
       .map(([i, t, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${t}</button>`).join('')}
   </div>
-  <button class="card setlink" data-go="settings"><span class="chi">${ic('settings')}</span><span class="grow"><b>הגדרות</b><small>תצוגה, התראות בוקר, ווידג׳ט, גיבוי</small></span>${ic('chevL', 'chev')}</button>
+  <button class="card setlink" data-go="settings"><span class="chi">${ic('settings')}</span><span class="grow"><b>הגדרות</b><small>${sync.user ? '☁️ מחוברת · ' : ''}חשבון, תצוגה, התראות, ווידג׳ט</small></span>${ic('chevL', 'chev')}</button>
   ${bdCard(14, 'ימי הולדת בשבועיים הקרובים')}
   <div class="card">
     ${cardHead('upload', 'תכנון שבועי')}
@@ -549,7 +551,7 @@ function viewMore(w) {
 function viewSettings(w) {
   const P = state.prefs;
   const toggle = (key, on) => `<button class="switch ${on ? 'on' : ''}" data-toggle-pref="${key}" role="switch" aria-checked="${on}"><i></i></button>`;
-  return top('הגדרות', 'שהכל יעבוד בדיוק כמו שנוח לך', 'star', { back: 'more' }) + `
+  return top('הגדרות', 'שהכל יעבוד בדיוק כמו שנוח לך', 'star', { back: 'more' }) + accountCard() + `
   <div class="card">
     ${cardHead('user', 'פרטים')}
     <label class="field">איך לקרוא לך?<input id="nameIn" value="${esc(state.name)}"></label>
@@ -651,7 +653,7 @@ function viewEmpty() {
     ${art('books', 'bob')}
     <p>מעלים את קובץ התכנון השבועי (PDF) – ואני מסדרת: מה עכשיו, מה הבא, מה להכין.</p>
     <button class="cta" data-act="upload">${ic('upload')} להעלות את התכנון של השבוע</button>
-    <p class="hint">הכל נשמר רק בטלפון שלך.</p>
+    <p class="hint">יש לך כבר חשבון? <button class="linkbtn" data-go="settings">התחברות</button></p>
   </div>`;
 }
 
@@ -890,6 +892,110 @@ function importBackup() {
   inp.click();
 }
 
+// ================================================================ account & sync (Netlify Identity + Blobs)
+const sync = { user: null, ready: false, pulled: false, pending: false, busy: false, last: null, err: '', t: null };
+const snapshot = () => { const o = {}; for (const k of SAVED) o[k] = state[k]; return o; };
+async function api(method, body) {
+  try { await ID.refreshSession(); } catch { /* token still fine or offline */ }
+  const r = await fetch('/api/sync', { method, credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401) throw new Error('auth');
+  if (!r.ok) throw new Error('http ' + r.status);
+  return r.json();
+}
+function schedulePush() {
+  if (!sync.user) return;
+  sync.pending = true; clearTimeout(sync.t);
+  if (sync.pulled) sync.t = setTimeout(push, 1500);
+}
+async function push() {
+  if (!sync.user || sync.busy) return;
+  sync.busy = true; sync.pending = false;
+  try { const r = await api('PUT', { patch: snapshot() }); state.syncV = r.v; saveLocal(); sync.last = new Date(); sync.err = ''; }
+  catch (e) { sync.pending = true; sync.err = e.message; }
+  sync.busy = false; syncBadge();
+}
+async function pull(first) {
+  if (!sync.user) return;
+  try {
+    const rec = await api('GET');
+    if (!rec.v) { sync.pulled = true; await push(); return; }
+    if (first && !state.syncV) {
+      // first login on this device: keep what's here and add what's in the cloud
+      for (const k of ['weeks', 'checks', 'logs', 'pins']) state[k] = Object.assign({}, state[k], rec.data[k] || {});
+      for (const k of ['kids', 'todos']) if (rec.data[k] && rec.data[k].length) state[k] = rec.data[k];
+      for (const k of ['name', 'prefs', 'groups', 'picked']) if (rec.data[k] != null) state[k] = rec.data[k];
+      state.syncV = rec.v; saveLocal(); sync.pulled = true; await push(); return;
+    }
+    if (rec.v > (state.syncV || 0) && !sync.pending) {
+      for (const k of SAVED) if (rec.data[k] !== undefined) state[k] = rec.data[k];
+      state.syncV = rec.v; saveLocal(); applyPrefs();
+    }
+    sync.pulled = true; sync.last = new Date(); sync.err = '';
+    if (sync.pending) push();
+  } catch (e) { sync.err = e.message; }
+  syncBadge();
+}
+function syncBadge() {
+  const el = $('#syncState'); if (!el) return;
+  el.innerHTML = syncText();
+}
+function syncText() {
+  if (!sync.user) return '';
+  if (sync.busy) return `${ic('upload')} מסנכרנת…`;
+  if (sync.err === 'auth') return `${ic('x')} צריך להתחבר מחדש`;
+  if (sync.err) return `${ic('clock')} אין חיבור – אסנכרן כשיחזור`;
+  if (sync.pending) return `${ic('clock')} ממתין לסנכרון`;
+  return `${ic('check')} מסונכרן${sync.last ? ' · ' + sync.last.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : ''}`;
+}
+function authError(e) {
+  const m = String(e && (e.message || e));
+  if (/MissingIdentity|404|not enabled|identity/i.test(m) && !/password|credentials/i.test(m)) return 'החשבונות עוד לא מופעלים באתר (צריך להפעיל Identity בנטליפיי)';
+  if (/invalid_grant|credentials|password/i.test(m)) return 'המייל או הסיסמה לא נכונים';
+  if (/confirm/i.test(m)) return 'צריך קודם לאשר את המייל – חפשי מייל מ־Netlify';
+  if (/401|denied|signup/i.test(m)) return 'כבר יש חשבון באפליקציה הזו – רק הבעלים יכולה להיכנס';
+  if (/already/i.test(m)) return 'כבר יש חשבון עם המייל הזה – אפשר להתחבר';
+  if (/fetch|network/i.test(m)) return 'אין אינטרנט כרגע';
+  return 'משהו השתבש: ' + m;
+}
+async function initAuth() {
+  try {
+    const cb = await ID.handleAuthCallback();
+    if (cb && cb.type === 'recovery') setTimeout(recoveryScreen, 300);
+    if (cb && cb.type === 'confirmation') toast('המייל אושר – את מחוברת 💜');
+  } catch (e) { toast('הקישור לא תקין או שפג תוקפו 😕'); }
+  try { sync.user = await ID.getUser(); } catch { sync.user = null; }
+  sync.ready = true;
+  if (sync.user) { await pull(true); rerender(); } else if (state.tab === 'settings') rerender();
+}
+function accountCard() {
+  if (!sync.ready) return `<div class="card">${cardHead('cloud', 'חשבון וסנכרון')}<p class="dim">בודקת…</p></div>`;
+  if (sync.user) return `<div class="card acct">
+    ${cardHead('cloud', 'חשבון וסנכרון')}
+    <div class="acct-u"><span class="av">${esc((sync.user.email || '?')[0].toUpperCase())}</span><span class="grow"><b dir="ltr">${esc(sync.user.email || '')}</b><small id="syncState">${syncText()}</small></span></div>
+    <p class="dim">כל מה שאת עושה נשמר בחשבון ומופיע בכל מכשיר שתתחברי ממנו.</p>
+    <div class="btnrow"><button class="cta soft" data-act="syncnow">${ic('upload')} סנכרון עכשיו</button><button class="cta soft" data-act="logout">התנתקות</button></div>
+  </div>`;
+  return `<div class="card acct">
+    ${cardHead('cloud', 'חשבון וסנכרון')}
+    <p class="dim">מתחברים עם מייל וסיסמה – והתכנון, הסימונים והתזכורות יופיעו בכל המכשירים.</p>
+    <form data-auth>
+      <label class="field">מייל<input name="email" type="email" autocomplete="email" dir="ltr" required></label>
+      <label class="field">סיסמה<input name="password" type="password" autocomplete="current-password" dir="ltr" minlength="6" required></label>
+      <p class="autherr" id="authErr"></p>
+      <div class="btnrow"><button class="cta" name="go" value="login">התחברות</button><button class="cta soft" name="go" value="signup">יצירת חשבון</button></div>
+      <button type="button" class="linkbtn forgot" data-act="forgot">שכחתי סיסמה</button>
+    </form>
+  </div>`;
+}
+function recoveryScreen() {
+  openOverlay(`<form class="ov" data-newpass>
+    <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('cloud')}<h2>סיסמה חדשה</h2></div>
+    <label class="field">סיסמה חדשה<input name="password" type="password" minlength="6" autocomplete="new-password" dir="ltr" required></label>
+    <button class="cta">${ic('check')} שמירה</button>
+  </form>`);
+}
+
 // ================================================================ render
 const TABS = ['now', 'day', 'prep', 'files', 'more'];
 const SUB = { kids: 'more', todos: 'more', summary: 'more', settings: 'more' };
@@ -1022,6 +1128,14 @@ document.addEventListener('click', e => {
       save(); closeOverlay(); rerender(); toast('השיעור נמחק'); break;
     }
     case 'export': exportBackup(); break;
+    case 'syncnow': push().then(() => pull()).then(() => { rerender(); toast(sync.err ? 'לא הצלחתי לסנכרן 😕' : 'מסונכרן ✓'); }); break;
+    case 'logout': if (confirm('להתנתק? המידע יישאר בטלפון הזה.')) ID.logout().catch(() => {}).finally(() => { sync.user = null; sync.pulled = false; state.syncV = 0; saveLocal(); rerender(); toast('התנתקת'); }); break;
+    case 'forgot': {
+      const em = $('[data-auth] [name=email]').value.trim();
+      if (!em) { $('#authErr').textContent = 'כתבי קודם את המייל 🙂'; break; }
+      ID.requestPasswordRecovery(em).then(() => toast('שלחתי מייל לאיפוס סיסמה 📧')).catch(e => { $('#authErr').textContent = authError(e); });
+      break;
+    }
     case 'import': importBackup(); break;
     case 'wipe': if (confirm('למחוק את כל המידע מהטלפון? אי אפשר לבטל.')) { localStorage.removeItem(KEY); location.reload(); } break;
   }
@@ -1062,6 +1176,25 @@ document.addEventListener('input', e => {
 document.addEventListener('submit', e => {
   const f = e.target;
   if (f.matches('[data-editor]')) { e.preventDefault(); saveEditor(f); return; }
+  if (f.matches('[data-auth]')) {
+    e.preventDefault();
+    const mode = e.submitter && e.submitter.value === 'signup' ? 'signup' : 'login';
+    const em = f.email.value.trim(), pw = f.password.value, err = $('#authErr');
+    err.textContent = ''; f.classList.add('busy');
+    (mode === 'signup' ? ID.signup(em, pw, { full_name: state.name }) : ID.login(em, pw))
+      .then(async u => {
+        if (mode === 'signup' && !u.confirmedAt) { err.textContent = ''; toast('שלחתי לך מייל אישור 📧 לוחצים על הקישור – ואת בפנים', 5000); f.classList.remove('busy'); return; }
+        sync.user = u; toast('התחברת 💜 מסנכרנת…'); await pull(true); rerender(); confetti();
+      })
+      .catch(x => { err.textContent = authError(x); f.classList.remove('busy'); });
+    return;
+  }
+  if (f.matches('[data-newpass]')) {
+    e.preventDefault();
+    ID.updateUser({ password: f.password.value }).then(async () => { closeOverlay(); toast('הסיסמה עודכנה 💜'); sync.user = await ID.getUser(); await pull(true); rerender(); })
+      .catch(x => toast(authError(x)));
+    return;
+  }
   if (f.matches('[data-addprep]')) {
     e.preventDefault();
     const text = f.t.value.trim(); if (!text) return;
@@ -1176,9 +1309,14 @@ function miniBurst(el) {
 
 // keep "now" fresh
 setInterval(() => { if (state.tab === 'now' && !document.hidden && !document.activeElement.matches('input, textarea') && !$('#overlay.show')) rerender(); }, 30000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#overlay.show')) rerender(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (sync.pending) push(); return; }
+  if (sync.user) pull().then(() => { if (!$('#overlay.show') && !document.activeElement.matches('input, textarea')) rerender(); });
+  else if (!$('#overlay.show')) rerender();
+});
 addEventListener('resize', moveTabInd);
 
 applyPrefs();
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 render(true);
+initAuth();

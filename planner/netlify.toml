@@ -1,5 +1,9 @@
 [build]
-  publish = "."
+  publish = "app"
+  command = "echo ok"
+
+[functions]
+  directory = "netlify/functions"
 
 [[headers]]
   for = "/sw.js"

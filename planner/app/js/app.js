@@ -1538,6 +1538,26 @@ function viewAutos() {
 
 // ================================================================ joy: morning welcome, ready moment, streak
 const HE_MONTHS = ['בינואר', 'בפברואר', 'במרץ', 'באפריל', 'במאי', 'ביוני', 'ביולי', 'באוגוסט', 'בספטמבר', 'באוקטובר', 'בנובמבר', 'בדצמבר'];
+const EDU_QUOTES = [
+  ['חֲנֹךְ לַנַּעַר עַל פִּי דַרְכּוֹ', 'משלי כב, ו'],
+  ['אין אדם לומד אלא ממקום שליבו חפץ', 'מסכת עבודה זרה'],
+  ['הרבה למדתי מרבותיי, ומחבריי יותר מרבותיי, ומתלמידיי יותר מכולם', 'מסכת תענית'],
+  ['מִכָּל מְלַמְּדַי הִשְׂכַּלְתִּי', 'תהלים קיט'],
+  ['לא הביישן למד, ולא הקפדן מלמד', 'פרקי אבות'],
+  ['יהי כבוד תלמידך חביב עליך כשלך', 'פרקי אבות'],
+  ['הוי מקבל את כל האדם בסבר פנים יפות', 'פרקי אבות'],
+  ['דִּבְרֵי חֲכָמִים בְּנַחַת נִשְׁמָעִים', 'קהלת ט, יז'],
+  ['כל המלמד את בן חברו תורה – מעלה עליו הכתוב כאילו ילדו', 'מסכת סנהדרין'],
+  ['אין ילדים – יש בני אדם', 'יאנוש קורצ\'אק'],
+  ['תיקון העולם יתאפשר בתיקון הילדים', 'יאנוש קורצ\'אק'],
+  ['להיוולד וללמוד לחיות – מלאכות קשות הן', 'יאנוש קורצ\'אק'],
+  ['השכל אינו כלי שיש למלא אותו, אלא אש שיש להצית', 'פלוטרכוס'],
+  ['הסימן הגדול להצלחתה של מורה: היכולת לומר "הילדים עובדים עכשיו כאילו אני לא קיימת"', 'מריה מונטסורי'],
+  ['הגעתי למסקנה המפחידה שאני הגורם המכריע בכיתה. מצב הרוח שלי הוא שקובע את מזג האוויר', 'חיים גינות'],
+  ['חינוך הוא הנשק החזק ביותר שבעזרתו אפשר לשנות את העולם', 'נלסון מנדלה'],
+  ['כל ילד ראוי לאלוף – מבוגר שלא מוותר עליו, שמבין את כוחו של קשר, ומתעקש שיהיה הטוב ביותר שהוא יכול להיות', 'ריטה פירסון'],
+  ['הוראה היא מעשה האופטימיות הגדול ביותר', 'קולין וילקוקס'],
+];
 const QUOTES = [
   'ילד אחד שהרגיש שרואים אותו היום – זה כבר יום מוצלח.',
   'הסבלנות שלך היא מתנה שהם יזכרו שנים.',
@@ -1587,12 +1607,14 @@ const QUOTES = [
 ];
 const dateKey = d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 let lastHidden = 0;
+const ALL_QUOTES = () => QUOTES.map(t => [t, '']).concat(EDU_QUOTES);
 function pickQuote() {
+  const all = ALL_QUOTES();
   let last = -1; try { last = +localStorage.getItem('hk-q'); } catch { /* fine */ }
-  let i = Math.floor(Math.random() * QUOTES.length);
-  if (i === last) i = (i + 1 + Math.floor(Math.random() * (QUOTES.length - 1))) % QUOTES.length;
+  let i = Math.floor(Math.random() * all.length);
+  if (i === last) i = (i + 1 + Math.floor(Math.random() * (all.length - 1))) % all.length;
   try { localStorage.setItem('hk-q', i); } catch { /* fine */ }
-  return QUOTES[i];
+  return all[i];
 }
 function welcome() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches && $('#welcome')) return;
@@ -1606,14 +1628,14 @@ function welcome() {
     <div class="wl-logo">${logo('wlogo')}</div>
     <small>יום ${DAY_FULL[t.getDay()]}, ${t.getDate()} ${HE_MONTHS[t.getMonth()]}</small>
     <h1>${greet()}, ${esc(state.name)}</h1>
-    <p class="wl-q">${esc(pickQuote())}</p>
+    ${(([q, by]) => `<p class="wl-q">${esc(q)}</p>${by ? `<p class="wl-by">— ${esc(by)}</p>` : ''}`)(pickQuote())}
     <p class="wl-i">${esc(info)}${bd.length ? `${info ? '<br>' : ''}🎂 יום הולדת ל${esc(names(bd))}` : ''}</p>
   </div>`;
   document.body.appendChild(el);
   requestAnimationFrame(() => el.classList.add('show'));
   let gone = false;
   const bye = () => { if (gone) return; gone = true; el.classList.remove('show'); el.classList.add('bye'); setTimeout(() => el.remove(), 600); };
-  el.addEventListener('click', bye); setTimeout(bye, 2300);
+  el.addEventListener('click', bye); setTimeout(bye, 3000);
 }
 // coming back to the app after a while also counts as "opening" it
 document.addEventListener('visibilitychange', () => {

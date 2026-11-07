@@ -328,3 +328,21 @@
 .rm-card span { display: block; margin-top: 6px; color: var(--soft); font-size: 14.5px; }
 .rm-glow { position: absolute; inset: -60%; background: conic-gradient(from 0deg, transparent, rgba(217, 190, 140, .45), transparent 30%); animation: ornSpin 3s linear infinite; z-index: -1; }
 .streak { margin-top: 10px; font-size: 14px; color: var(--gold, #B8935A); font-weight: 600; animation: fadeUp .6s var(--ease); }
+
+/* ================================================================ fonts: Varela Round headings · Playpen for warm touches */
+@font-face { font-family: 'Varela Round'; src: url(../fonts/varela-round-hebrew-400-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; font-display: swap; }
+@font-face { font-family: 'Varela Round'; src: url(../fonts/varela-round-latin-400-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; font-display: swap; }
+@font-face { font-family: 'Playpen'; font-weight: 300; src: url(../fonts/playpen-sans-hebrew-hebrew-300-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; font-display: swap; }
+@font-face { font-family: 'Playpen'; font-weight: 400; src: url(../fonts/playpen-sans-hebrew-hebrew-400-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; font-display: swap; }
+@font-face { font-family: 'Playpen'; font-weight: 300; src: url(../fonts/playpen-sans-hebrew-latin-300-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; font-display: swap; }
+@font-face { font-family: 'Playpen'; font-weight: 400; src: url(../fonts/playpen-sans-hebrew-latin-400-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; font-display: swap; }
+[data-skin=luxe] { --round: 'Varela Round', 'Assistant', sans-serif; --hand: 'Playpen', 'Varela Round', sans-serif; }
+[data-skin=luxe] .tt h1, [data-skin=luxe] .nc-t h2, [data-skin=luxe] .ch h3, [data-skin=luxe] .lr-t b, [data-skin=luxe] .brand, [data-skin=luxe] .minibar b,
+[data-skin=luxe] .wk-t b, [data-skin=luxe] .ovh h2, [data-skin=luxe] .sect, [data-skin=luxe] .tile b, [data-skin=luxe] .rin b, [data-skin=luxe] .qty, [data-skin=luxe] .pname,
+[data-skin=luxe] .tdigits, [data-skin=luxe] .dc, [data-skin=luxe] .nx-t h3, [data-skin=luxe] .ld-card b { font-family: var(--round); font-weight: 400; letter-spacing: 0; }
+[data-skin=luxe] .tt h1 { font-size: 44px; }
+[data-skin=luxe] .nc-t h2 { font-size: 27px; }
+[data-skin=luxe] .tt p span, [data-skin=luxe] .wl-q, [data-skin=luxe] .rm-card b, [data-skin=luxe] .bday b, [data-skin=luxe] .bravo b, [data-skin=luxe] .rest b, [data-skin=luxe] .almost b, [data-skin=luxe] .streak { font-family: var(--hand); font-weight: 300; }
+[data-skin=luxe] #welcome h1 { font-family: var(--round); font-weight: 400; font-size: 36px; }
+[data-skin=luxe] .wl-q { font-size: 20px; line-height: 1.7; }
+.wl-by { margin: 2px 0 0; font-size: 13.5px; color: var(--gold, #B8935A); letter-spacing: .5px; }

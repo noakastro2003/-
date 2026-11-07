@@ -23,7 +23,7 @@ export async function parsePlanPdf(pdfjsLib, data, onProgress) {
     const dayHead = first.match(/^יום\s+(ראשון|שני|שלישי|רביעי|חמישי|שישי)/);
 
     if (/^מה להכין/.test(first)) {
-      parsePrepPage(items, week);
+      parsePrepPage(items, week, links);
     } else if (width > height) {
       if (/תכנון/.test(head)) parseOverview(lines, items, week);
     } else if (dayHead) {
@@ -122,7 +122,9 @@ function columnGroups(items, headers) {
 const DAY_WORD = { 'א': 0, 'ב': 1, 'ג': 2, 'ד': 3, 'ה': 4, 'ו': 5, 'ראשון': 0, 'שני': 1, 'שלישי': 2, 'רביעי': 3, 'חמישי': 4, 'שישי': 5 };
 
 // ---------- "what to prepare" page ----------
-function parsePrepPage(items, week) {
+function parsePrepPage(items, week, links = []) {
+  const cs = items.map(i => i.t).join(' ').match(/(\d{1,2})\s*תלמידים/) || linesFrom(items).map(l => l.text).join(' ').match(/(\d{1,2})\s*תלמידים/);
+  if (cs) week.classSize = +cs[1];
   const headers = linesFrom(items).flatMap(l => l.parts.filter(p => /^יום\s+(ראשון|שני|שלישי|רביעי|חמישי|שישי|[א-ו]['׳]?)(\s|$|·)/.test(p.text)).map(p => ({ ...p, y: l.y })));
   if (!headers.length) return;
   for (const { h, lines } of columnGroups(items, headers)) {
@@ -144,6 +146,8 @@ function parsePrepPage(items, week) {
         else {
           if (!sec) { sec = { title: 'להכין / להביא', icon: '', items: [] }; sections.push(sec); }
           lastItem = { text: txt.replace(/^☐\s*/, '') };
+          const ann = links.find(a => a.y0 <= l.y + 2 && a.y1 >= l.y - 9 && a.x1 > l.x0 + 1 && a.x0 < l.x1 - 1);
+          if (ann) lastItem.url = ann.url;
           sec.items.push(lastItem);
         }
       }

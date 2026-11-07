@@ -528,7 +528,9 @@ function prepSectionCard(w, day, s, si) {
     const k = `p:${day.dow}:${s.title}:${i}`;
     return edit
       ? `<div class="erow1"><input class="litem" data-prepitem="${day.dow}|${si}|${i}" value="${esc(it.text)}"><button class="iconbtn" data-delprep="${day.dow}|${si}|${i}" aria-label="מחיקה">${ic('trash')}</button></div>`
-      : chk(k, ck(w, k), `${esc(it.text)}${it.period ? ` <small class="tpill">שעה ${esc(it.period)}</small>` : ''}`, hwSec ? '' : miniArt(it.text));
+      : it.url
+        ? chk(k, ck(w, k), `<button class="pfile" data-printitem="${day.dow}|${si}|${i}">${ic(/שכפול/.test(it.text) ? 'layers' : 'printer')}<span>${esc(it.text)}</span>${ic('chevL', 'chev')}</button>`, '')
+        : chk(k, ck(w, k), `${esc(it.text)}${it.period ? ` <small class="tpill">שעה ${esc(it.period)}</small>` : ''}`, hwSec ? '' : miniArt(it.text));
   }).join('');
   return `<div class="card prep">${cardHead(icon, title, `<span class="cnt">${s.items.length} ${hwSec ? 'פריטים' : 'משימות'}</span>`)}${items}
     ${edit ? `<form class="addtodo" data-addprep="${day.dow}|${si}"><input name="t" placeholder="פריט חדש…" autocomplete="off"><button aria-label="הוספה">${ic('plus')}</button></form>` : ''}
@@ -1139,6 +1141,63 @@ async function deleteFile(id) {
   if (f.cloud && sync.user) fetch(`/api/file?id=${id}`, { method: 'DELETE', credentials: 'same-origin' }).catch(() => {});
 }
 
+// ================================================================ print & copy files
+const driveId = url => (url.match(/\/d\/([\w-]{10,})/) || url.match(/[?&]id=([\w-]{10,})/) || [])[1];
+function classSize(w) { return w.classSize || state.kids.length || 26; }
+function copyQty(text, n) {
+  const multi = [...text.matchAll(/(\d+)\s*×\s*([○△☆□◇●])/g)].map(m => `${m[2]} ${m[1]}`);
+  if (multi.length) return { label: multi.join(' · '), n: null };
+  const m = text.match(/×\s*(\d+)|(\d+)\s*×|שכפול\s+(?:דו-?צדדי\s+)?(\d+)|\((\d+)\)/);
+  if (m) return { n: +(m[1] || m[2] || m[3] || m[4]) };
+  if (/לכל זוג/.test(text)) return { n: Math.ceil(n / 2) };
+  if (/לכל קבוצה/.test(text)) return { n: state.groups || 5 };
+  if (/לכל ילד|משוכפל|לכל תלמיד/.test(text)) return { n };
+  return { n, guess: true };
+}
+function copyList(w, dow) {
+  const day = w.days.find(d => d.dow === dow); if (!day) return [];
+  const n = classSize(w), seen = new Set(), out = [];
+  const add = (text, where) => {
+    if (!/שכפול|משוכפל|לשכפל|×\s*\d|\d+\s*×|\(\d{2}\)/.test(text) || /^[א-ו]\s*[–-]\s*שכפול/.test(text)) return;
+    const name = text.replace(/\s*[–-]\s*(שכפול|משוכפל).*$/, '').replace(/\s*\(\d+\)\s*$/, '').replace(/\s*×\s*\d+.*$/, '').trim();
+    const key = name.replace(/["'״׳\s]/g, ''); if (!key || seen.has(key)) return; seen.add(key);
+    out.push({ name, where, ...copyQty(text, n), two: /דו-?צדדי/.test(text) });
+  };
+  for (const p of day.periods) for (const m of p.materials) add(m.text, p.title);
+  for (const sc of w.prep[dow] || []) for (const it of sc.items) add(it.text, it.period ? 'שעה ' + it.period : '');
+  return out;
+}
+function printSheet(w, dow, si, i) {
+  const it = w.prep[dow][si].items[i];
+  const day = w.days.find(d => d.dow === dow);
+  const copy = /שכפול/.test(it.text);
+  const id = driveId(it.url);
+  const direct = id ? `https://drive.google.com/uc?export=download&id=${id}` : it.url;
+  const list = copy ? copyList(w, dow) : [];
+  const k = `p:${dow}:${w.prep[dow][si].title}:${i}`;
+  state._print = { title: it.text, url: it.url, k };
+  openOverlay(`<div class="ov printsheet">
+    <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic(copy ? 'layers' : 'printer')}<h2>${esc(it.text)}</h2></div>
+    <p class="dim">${copy ? 'קובץ למכונת השכפול' : 'קובץ למדפסת'} · יום ${esc(day ? day.name : '')}</p>
+    ${copy ? `<div class="card copies">
+      ${cardHead('layers', 'כמה לשכפל', `<span class="cnt">${classSize(w)} תלמידים</span>`)}
+      ${list.length ? list.map(c => `<div class="crow"><span class="grow"><b>${esc(c.name)}</b><small>${esc(c.where || '')}${c.two ? ' · דו־צדדי' : ''}</small></span><span class="qty ${c.guess ? 'guess' : ''}">${c.label ? esc(c.label) : '×' + c.n}</span></div>`).join('')
+        : `<div class="crow"><span class="grow"><b>כל הדפים בקובץ</b><small>לפי הכיתה</small></span><span class="qty">×${classSize(w)}</span></div>`}
+      ${list.some(c => c.guess) ? '<p class="hint">כמות מסומנת באפור = לא כתוב בתכנון, לקחתי את גודל הכיתה</p>' : '<p class="hint">הכמויות לקוחות מהתכנון של היום</p>'}
+    </div>` : ''}
+    <div class="menu">
+      <a class="mbtn" href="${esc(direct)}" target="_blank" rel="noopener">${ic('printer')} פתיחה להדפסה</a>
+      <button data-act="pshare">${ic('upload')} שיתוף</button>
+      <a class="mbtn" href="${esc(it.url)}" target="_blank" rel="noopener">${ic('folder')} פתיחה בדרייב</a>
+      <button data-act="pcopylink">${ic('link')} העתקת קישור</button>
+      <button data-act="pdone">${ic('check')} ${ck(w, k) ? 'בוטל הסימון' : 'סימון שהודפס'}</button>
+    </div>
+    <p class="hint">בחלון שנפתח: כפתור השיתוף ← "הדפסה"</p>
+  </div>`);
+  if (copy && navigator.vibrate) navigator.vibrate(10);
+}
+
 // ================================================================ account & sync (Netlify Identity + Blobs)
 const sync = { user: null, ready: false, pulled: false, pending: false, busy: false, last: null, err: '', t: null };
 const snapshot = () => { const o = {}; for (const k of SAVED) o[k] = state[k]; return o; };
@@ -1630,6 +1689,7 @@ document.addEventListener('click', e => {
   if (D.ltpl != null) { const [e, title, items] = LIST_TEMPLATES[+D.ltpl]; state.lists.push({ id: uid(), emoji: e, title, items: items.map(x => ({ id: uid(), text: x, done: false })) }); save(); rerender(); toast('הרשימה נוצרה ✓'); return; }
   if (D.autoon) { const a = autos().find(x => x.id === D.autoon); a.on = !a.on; save(); rerender(); return; }
   if (D.autodel) { state.autos = autos().filter(x => x.id !== D.autodel); save(); rerender(); return; }
+  if (D.printitem) { e.preventDefault(); const [dow, si, i] = D.printitem.split('|').map(Number); printSheet(w, dow, si, i); return; }
   if (D.openfile) { closeOverlay(); openFile(D.openfile); return; }
   if (D.filemenu) { fileMenu(D.filemenu); return; }
   if (D.reassign) { const f = state.files.find(x => x.id === D.reassign); assignSheet([{ ...f, cur: f.ref ? `${f.ref.w}|${f.ref.dow}|${f.ref.label}` : '', m: null }], true); return; }
@@ -1699,6 +1759,9 @@ document.addEventListener('click', e => {
     }
     case 'export': exportBackup(); break;
     case 'uploadfiles': attachTo = null; $('#upfile').click(); break;
+    case 'pshare': { const P2 = state._print; if (navigator.share) navigator.share({ title: P2.title, text: P2.title, url: P2.url }).catch(() => {}); else navigator.clipboard.writeText(P2.url).then(() => toast('הקישור הועתק 📋')); break; }
+    case 'pcopylink': navigator.clipboard.writeText(state._print.url).then(() => toast('הקישור הועתק 📋')).catch(() => toast('לא הצלחתי להעתיק 😕')); break;
+    case 'pdone': { const k = state._print.k; setCk(w, k, !ck(w, k)); closeOverlay(); rerender(); if (ck(w, k)) { toast('סומן ✓'); confetti(); } break; }
     case 'pushon': enablePush(); break;
     case 'pushoff': disablePush(); break;
     case 'pushtest': pushApi({ action: 'test' }).then(r => toast(r.ok ? 'נשלחה התראת בדיקה 🔔' : 'לא הצלחתי לשלוח 😕')).catch(() => toast('לא הצלחתי לשלוח 😕')); break;

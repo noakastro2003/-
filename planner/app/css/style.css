@@ -746,3 +746,23 @@ body.scrolled .minibar { transform: translate(-50%, 0); }
 @keyframes flip { 0%, 15% { transform: rotateY(0); } 55%, 100% { transform: rotateY(-180deg); } }
 
 @media (prefers-reduced-motion: reduce) { .orbs i, .top .illus, .top .tt { animation: none !important; transform: none !important; } }
+
+/* ============================================================ print / copy sheet */
+.pfile { display: flex; align-items: center; gap: 8px; width: 100%; text-align: right; padding: 2px 0; color: inherit; }
+.pfile > .ic:first-child { width: 20px; height: 20px; color: var(--accent-ink); flex: none; }
+.pfile span { flex: 1; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 35%, transparent); text-underline-offset: 4px; }
+.pfile .chev { width: 16px; height: 16px; }
+.printsheet .ovh h2 { white-space: normal; }
+.copies { margin: 12px 0; }
+.crow { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+.crow + .crow { border-top: 1px solid var(--line); }
+.crow b { display: block; font-size: 15.5px; }
+.crow small { color: var(--soft); font-size: 12.5px; }
+.qty { font-family: 'Rubik'; font-weight: 700; font-size: 22px; color: var(--accent-ink); direction: ltr; white-space: nowrap; animation: bounceIn .6s var(--spring) both; }
+.qty.guess { color: var(--soft); }
+.menu .mbtn { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: var(--r-btn); background: var(--card); box-shadow: var(--sh2); font-size: 16px; font-weight: 500; color: var(--ink); text-decoration: none; }
+.menu .mbtn .ic { color: var(--accent-ink); }
+[data-skin=luxe] .pfile > .ic:first-child, [data-skin=luxe] .menu .mbtn .ic, [data-skin=luxe] .menu button .ic { color: var(--gold); }
+[data-skin=luxe] .qty { font-family: var(--serif); font-weight: 400; font-size: 28px; color: var(--ink); }
+[data-skin=luxe] .qty.guess { color: var(--soft); }
+[data-skin=luxe] .menu .mbtn, [data-skin=luxe] .menu button { background: var(--card); border: 1px solid var(--line); box-shadow: none; font-weight: 400; }

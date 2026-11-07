@@ -11,6 +11,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
+const APP_V = 30; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict'];
 const state = Object.assign({
   weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {},
@@ -790,7 +791,8 @@ function viewSettings(w) {
     <p><b>אייפון:</b> בספארי ← כפתור השיתוף ← "הוספה למסך הבית".</p>
     <p class="hint">האפליקציה תיפתח במסך מלא ותעבוד גם בלי אינטרנט.</p>
   </div>
-  <button class="danger" data-act="wipe">${ic('trash')} מחיקת כל המידע מהטלפון</button>`;
+  <button class="danger" data-act="wipe">${ic('trash')} מחיקת כל המידע מהטלפון</button>
+  <p class="hint">גרסה ${APP_V}</p>`;
 }
 
 function viewTodos(w) {
@@ -2383,7 +2385,19 @@ addEventListener('resize', moveTabInd);
 
 applyPrefs();
 { const mb = $('.minibar .mb-logo'); if (mb) mb.outerHTML = logo('mlogo'); }
-if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+// updates: check whenever the app comes back to the screen, and switch to the new version by itself
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  const hadSW = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+  }).catch(() => {});
+  let swap = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadSW || swap) return; swap = true;
+    const go = () => location.reload();
+    if (!$('#overlay.show')) go(); else document.addEventListener('visibilitychange', () => { if (document.hidden) go(); }, { once: true });
+  });
+}
 render(true);
 initAuth();
 welcome();

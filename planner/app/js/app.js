@@ -571,7 +571,7 @@ function viewFiles(w) {
   const match = f => (!q || (f.text + ' ' + f.uses.map(u => u.p.title).join(' ') + ' ' + kindWord(f)).includes(q)) && (!fs || subjOf(f) === fs);
   const subs = [...new Set(files.map(subjOf))];
   let h = top('קבצים', 'כל הקבצים של הכיתה במקום אחד, נגישים ומהירים', 'folder');
-  h += `<button class="cta upl" data-act="uploadfiles">${ic('upload')} העלאת קבצים</button><p class="hint">אני אזהה לבד לאיזה שיעור כל קובץ שייך ✨</p>`;
+  h += `<button class="cta upl" data-act="uploadfiles">${ic('upload')} העלאת קבצים</button><p class="hint">אני אזהה לבד לאיזה שיעור כל קובץ שייך ✨<br>מהדרייב: "עיון" ← Google Drive</p>`;
   h += `<label class="search">${ic('search')}<input id="fq" type="search" placeholder="חיפוש קובץ" value="${esc(state.q)}"></label>`;
   h += `<div class="fchips"><button class="fc ${!fs ? 'on' : ''}" data-fsub="">${ic('layers')}הכל</button>${subs.map(s => `<button class="fc ${fs === s ? 'on' : ''}" data-fsub="${esc(s)}">${esc(s)}</button>`).join('')}</div>`;
   const pinned = Object.entries(state.pins).map(([url, text]) => files.find(f => f.url === url) || { url, text, uses: [] }).filter(f => !f.uses.length ? !q && !fs : match(f));

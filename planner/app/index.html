@@ -13,6 +13,7 @@
       var p = (JSON.parse(localStorage.getItem('noa-planner-v1')) || {}).prefs || {};
       var dark = p.theme === 'dark' || ((!p.theme || p.theme === 'auto') && matchMedia('(prefers-color-scheme: dark)').matches);
       if (dark) { document.getElementById('sbar').content = 'black-translucent'; document.documentElement.dataset.theme = 'dark'; }
+      document.documentElement.dataset.skin = p.skin || 'luxe';
     } catch (e) {}
   </script>
   <meta name="apple-mobile-web-app-title" content="הכיתה שלי">
@@ -22,7 +23,9 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="preload" href="fonts/rubik-hebrew-700-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/heebo-hebrew-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/frank-ruhl-libre-hebrew-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/luxe.css">
 </head>
 <body>
   <div class="orbs" aria-hidden="true"><i></i><i></i><i></i></div>

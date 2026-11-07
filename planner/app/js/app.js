@@ -14,7 +14,7 @@ const state = Object.assign({
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
-state.prefs = Object.assign({ size: 1, theme: 'auto', notify: true, notifyTime: '07:00' }, state.prefs);
+state.prefs = Object.assign({ size: 1, theme: 'auto', skin: 'luxe', notify: true, notifyTime: '07:00' }, state.prefs);
 function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } }
 function saveLocal() {
   const o = { syncV: state.syncV || 0 };
@@ -622,6 +622,7 @@ function viewSettings(w) {
   <div class="card">
     ${cardHead('sparkle', 'תצוגה')}
     <div class="setrow"><span>גודל טקסט</span><div class="seg">${[0.9, 1, 1.15, 1.3].map((v, i) => `<button class="${P.size === v ? 'on' : ''}" data-size="${v}" style="font-size:${13 + i * 3}px">א</button>`).join('')}</div></div>
+    <div class="setrow"><span>סגנון</span><div class="seg">${[['luxe', 'sparkle', 'יוקרתי'], ['colorful', 'heart', 'צבעוני']].map(([v, i, l]) => `<button class="${(P.skin || 'luxe') === v ? 'on' : ''}" data-skin="${v}">${ic(i)}${l}</button>`).join('')}</div></div>
     <div class="setrow"><span>מצב</span><div class="seg">${[['light', 'sun', 'יום'], ['dark', 'moon', 'לילה'], ['auto', 'sparkle', 'אוטו׳']].map(([v, i, l]) => `<button class="${P.theme === v ? 'on' : ''}" data-theme="${v}">${ic(i)}${l}</button>`).join('')}</div></div>
   </div>
   <button class="card setlink" data-go="autos"><span class="chi">${ic('bell')}</span><span class="grow"><b>התראות ואוטומציות</b><small>מתי ועל מה לקבל התראה</small></span>${ic('chevL', 'chev')}</button>
@@ -960,6 +961,7 @@ function applyPrefs() {
   if ((p.size || 1) !== 1) document.documentElement.dataset.zoom = '1'; else delete document.documentElement.dataset.zoom;
   const dark = p.theme === 'dark' || (p.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.documentElement.dataset.skin = p.skin || 'luxe';
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = dark ? '#1C1924' : '#FAF7F4';
   const sb = $('#sbar'); if (sb) sb.content = dark ? 'black-translucent' : 'default';
 }
@@ -1250,6 +1252,8 @@ const TAGS = {
   disrupt: ['⚠️', 'הפרעה', '#F6B7CF'], note: ['📝', 'הערה', '#D4B7F5'],
 };
 const ACTION = ['care', 'parent'];
+const TAG_IC = { care: 'user', parent: 'phone2', star: 'star', disrupt: 'warn', note: 'pencil' };
+const tagMark = k => `<span class="qe">${(TAGS[k] || TAGS.note)[0]}</span>${ic(TAG_IC[k] || 'pencil', 'qi')}`;
 const notesFor = (w, dow, label) => state.cnotes.filter(n => n.w === w.id && n.dow === dow && n.label === label);
 const openActions = () => state.cnotes.filter(n => ACTION.includes(n.tag) && !n.done);
 function noteRow(n, withLesson) {
@@ -1257,7 +1261,7 @@ function noteRow(n, withLesson) {
   const L = withLesson && n.w && state.weeks[n.w] ? findPeriodIn(state.weeks[n.w], n.dow, n.label) : null;
   const when = new Date(n.at);
   return `<div class="nrow ${n.done ? 'done' : ''}" style="--c:${c}">
-    ${ACTION.includes(n.tag) ? `<button class="nchk ${n.done ? 'on' : ''}" data-cdone="${n.id}" aria-label="טופל">${ic('check')}</button>` : `<span class="nemo">${e}</span>`}
+    ${ACTION.includes(n.tag) ? `<button class="nchk ${n.done ? 'on' : ''}" data-cdone="${n.id}" aria-label="טופל">${ic('check')}</button>` : `<span class="nemo">${tagMark(n.tag)}</span>`}
     <span class="grow"><b>${ACTION.includes(n.tag) ? e + ' ' : ''}${esc(n.kids.join(', ') || t)}</b>${n.text ? `<span>${esc(n.text)}</span>` : ''}
       <small>${t}${L ? ' · ' + esc(L.title) : ''} · ${when.getDate()}.${when.getMonth() + 1} ${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}</small></span>
     ${withLesson ? `<button class="iconbtn" data-cdel="${n.id}" aria-label="מחיקה">${ic('trash')}</button>` : ''}
@@ -1267,7 +1271,7 @@ function lessonNotes(w, day, p) {
   const ns = notesFor(w, day.dow, p.label);
   return `<div class="sub lnotes">${cardHead('pencil', 'הערות בשיעור', ns.length ? `<span class="cnt">${ns.length}</span>` : '')}
     ${ns.map(n => noteRow(n)).join('')}
-    <div class="qtags">${Object.entries(TAGS).map(([k, [e, t]]) => `<button data-cnote="${esc(day.dow + '|' + p.label)}" data-tag="${k}" title="${t}">${e}<small>${t}</small></button>`).join('')}</div>
+    <div class="qtags">${Object.entries(TAGS).map(([k, [e, t]]) => `<button data-cnote="${esc(day.dow + '|' + p.label)}" data-tag="${k}" title="${t}">${tagMark(k)}<small>${t}</small></button>`).join('')}</div>
   </div>`;
 }
 function noteSheet(ref, tag) {
@@ -1276,7 +1280,7 @@ function noteSheet(ref, tag) {
   openOverlay(`<form class="ov sheet notesheet" data-noteform>
     <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
     <div class="ovh">${ic('pencil')}<h2>הערה מהירה</h2></div>
-    <div class="tagpick">${Object.entries(TAGS).map(([k, [e, t, c]]) => `<button type="button" class="tp ${k === tag ? 'on' : ''}" style="--c:${c}" data-picktag="${k}">${e}<small>${t}</small></button>`).join('')}</div>
+    <div class="tagpick">${Object.entries(TAGS).map(([k, [e, t, c]]) => `<button type="button" class="tp ${k === tag ? 'on' : ''}" style="--c:${c}" data-picktag="${k}">${tagMark(k)}<small>${t}</small></button>`).join('')}</div>
     ${kids.length ? `<div class="mh">על מי? (אפשר כמה)</div><div class="kchips">${kids.map(n => `<button type="button" class="kc pick" data-pickkid="${esc(n)}">${esc(n)}</button>`).join('')}</div>`
       : `<label class="field">על מי?<input name="who" placeholder="שם הילד/ה (לא חובה)"></label>`}
     <label class="field">מה קרה? (לא חובה)<textarea name="text" rows="2" placeholder="למשל: עזר לחבר בלי שביקשו ממנו"></textarea></label>
@@ -1660,6 +1664,7 @@ document.addEventListener('click', e => {
     state.absent = { d: todayKey(), names: ab }; state._absOpen = true; state._teams = null; save(); pickerScreen(); return;
   }
   if (D.size) { state.prefs.size = +D.size; save(); applyPrefs(); rerender(); return; }
+  if (D.skin) { state.prefs.skin = D.skin; save(); applyPrefs(); rerender(); return; }
   if (D.theme) { state.prefs.theme = D.theme; save(); applyPrefs(); rerender(); return; }
   if (D.deltodo) { state.todos = state.todos.filter(x => x.id !== D.deltodo); save(); rerender(); return; }
   switch (D.act) {
@@ -1883,13 +1888,15 @@ function toast(msg, ms = 2800) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(toastT); if (ms) toastT = setTimeout(() => t.classList.remove('show'), ms);
 }
-const COLORS = ['#A67AF3', '#F6D38A', '#F6B7CF', '#9DD6F9', '#B8D88E', '#F6C28B'];
+const COLORS_FUN = ['#A67AF3', '#F6D38A', '#F6B7CF', '#9DD6F9', '#B8D88E', '#F6C28B'];
+const COLORS_LUXE = ['#C9A86A', '#E8D5A8', '#B8935A', '#F4EBDD', '#A894D0', '#DCC59A'];
+const palette = () => document.documentElement.dataset.skin === 'colorful' ? COLORS_FUN : COLORS_LUXE;
 function confetti() {
   const box = $('#confetti');
   for (let i = 0; i < 60; i++) {
     const s = document.createElement('i');
     s.style.left = Math.random() * 100 + 'vw';
-    s.style.background = COLORS[i % COLORS.length];
+    s.style.background = palette()[i % 6];
     s.style.setProperty('--dx', (Math.random() * 180 - 90) + 'px');
     s.style.setProperty('--r', (Math.random() * 720 - 360) + 'deg');
     s.style.animationDelay = Math.random() * 0.25 + 's';
@@ -1905,7 +1912,7 @@ function miniBurst(el) {
   for (let i = 0; i < 10; i++) {
     const s = document.createElement('b'), a = (i / 10) * Math.PI * 2;
     s.style.left = r.left + r.width / 2 + 'px'; s.style.top = r.top + r.height / 2 + 'px';
-    s.style.background = COLORS[i % COLORS.length];
+    s.style.background = palette()[i % 6];
     s.style.setProperty('--x', Math.cos(a) * 34 + 'px'); s.style.setProperty('--y', Math.sin(a) * 34 + 'px');
     box.appendChild(s); setTimeout(() => s.remove(), 700);
   }

@@ -42,6 +42,8 @@ const P = {
   file: '<path d="M6.5 3h7.5l5 5v11.3a1.7 1.7 0 0 1-1.7 1.7H6.5a1.7 1.7 0 0 1-1.7-1.7V4.7A1.7 1.7 0 0 1 6.5 3z"/><path d="M14 3v5h5M8.5 13h7M8.5 16.5h5"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>',
   cloud: '<path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.3 4.6 4.6 0 0 0 7 18.5z"/>',
+  phone2: '<path d="M5 4.5h3.2l1.6 4-2 1.3a10 10 0 0 0 6.4 6.4l1.3-2 4 1.6V19a1.5 1.5 0 0 1-1.6 1.5C10.6 20 4 13.4 3.5 6.1A1.5 1.5 0 0 1 5 4.5z"/>',
+  warn: '<path d="M12 4 21 19.5H3z"/><path d="M12 10v4.5M12 17.2h.01"/>',
   x: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   play: '<path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/>',
@@ -92,7 +94,16 @@ const ART = {
   cake: `<svg viewBox="0 0 100 100"><rect x="18" y="50" width="64" height="36" rx="8" fill="#F6B7CF" ${S}/><path d="M18 62c8 6 16 6 21 0 6 6 15 6 22 0 6 6 14 6 21 0" fill="none" ${S}/>
     <rect x="47" y="28" width="6" height="22" rx="2" fill="#9DD6F9" ${S}/><path d="M50 14c5 5 5 10 0 13-5-3-5-8 0-13z" fill="#FFD66B" ${S}/></svg>`,
 };
-export const art = (name, cls = '') => `<span class="art ${cls}">${ART[name] || ''}</span>`;
+// the luxe skin replaces the cartoons with thin gold line ornaments
+const ORN = { books: 'book', heart: 'heart', notepad: 'check', folder: 'folder', star: 'sparkle', medal: 'star', moon: 'moon', cake: 'cake', mountain: 'flag', sunrise: null };
+export const art = (name, cls = '') => {
+  const luxe = typeof document !== 'undefined' && document.documentElement.dataset.skin !== 'colorful';
+  if (luxe && name in ORN) {
+    if (ORN[name] === null) return `<span class="art orn-line ${cls}"></span>`;
+    return `<span class="art orn ${cls}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="56" class="o1"/><circle cx="60" cy="60" r="47" class="o2"/><g class="oi" transform="translate(36 36) scale(2)" fill="none" stroke="currentColor" stroke-width=".9" stroke-linecap="round" stroke-linejoin="round">${P[ORN[name]]}</g></svg></span>`;
+  }
+  return `<span class="art ${cls}">${ART[name] || ''}</span>`;
+};
 
 // little "///" sparkle mark and the squiggle under titles
 export const spark = (cls = '') => `<svg class="spark ${cls}" viewBox="0 0 30 30" aria-hidden="true"><path d="M6 14l-5-3M10 8 8 2M17 6l3-5" stroke="#F6C14B" stroke-width="2.6" stroke-linecap="round"/></svg>`;

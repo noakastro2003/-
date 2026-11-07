@@ -5,14 +5,15 @@ import * as ID from '../vendor/identity.mjs';
 import { putBlob, getBlob, delBlob, extractText, matchLessons, fmtSize, kindOf } from './files.js';
 import { readAnyPlan } from './genparse.js';
 import { QUOTES, BANK, CATS, EV } from './toolkit.js';
+import { weekPrintHtml } from './printweek.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs', import.meta.url).href;
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved'];
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict'];
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '',
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {},
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -369,6 +370,7 @@ function nowCard(w, day, p, ph) {
       ${files ? `<div class="sub">${cardHead('folder', 'קבצים')}${files}</div>` : ''}
     </div>` : ''}
     ${p.homework.length ? `<div class="hw">${ic('homework')}<div><b>שיעורי בית</b>${p.homework.map(x => `<div>${esc(x)}</div>`).join('')}</div></div>` : ''}
+    ${isDict(p) ? dictBtn(day, p) : ''}
     ${timerHint(p)}
     ${ph.kind === 'lesson' ? lessonNotes(w, day, p) : ''}
     ${ph.kind === 'lesson' ? `<div class="tline">${ic('clock')}<span>${ph.left} דק׳ מתוך ${ph.len} דק׳</span><div class="bar"><span style="--w:${Math.round(ph.pct * 100)}%"></span></div></div>${logRow(w, id, false)}` : ''}
@@ -440,15 +442,15 @@ function viewDay(w) {
   if (sel === 'all') {
     h += `<div class="card daypick">${dayChips(w, sel)}</div>`;
     h += `<div class="card gridcard">${gridView(w)}</div><p class="hint">לוחצים על שיעור כדי לפתוח אותו</p>` + bdCard(7, 'ימי הולדת בשבוע הקרוב');
+    h += `<button class="addbtn" data-printweek="${esc(w.id)}">${ic('printer')} הדפסת התכנון השבועי</button>`;
     return h;
   }
   const day = w.days.find(d => d.dow === sel);
   const isToday = todayInWeek(w) === day;
   const ph = isToday ? phase(day) : null;
   const left = isToday && ph.kind !== 'after' ? day.periods.filter(p => mins(p.end) > nowMin()).length : null;
-  const load = day.periods.length <= 6 ? 'היום נראה רגוע' : day.periods.length <= 8 ? 'היום נראה טוב' : 'יום עמוס – יש לך את זה';
   h += `<div class="card daypick">
-    <div class="dp-pills">${isToday ? `<button class="spill wk ${wantAwake ? 'on' : ''}" data-act="wake">${ic('sun')}${wantAwake ? 'מסך דלוק ✓' : 'מסך דלוק'}</button>` : ''}<span class="spill">${ic('sun')}${isToday ? load : `יום ${day.name} · ${day.date}`}</span><span class="spill">${ic('calendar')}${left != null ? `עוד ${left} שיעורים` : `${day.periods.length} שיעורים`}</span></div>
+    <div class="dp-pills">${isToday ? `<button class="spill wk ${wantAwake ? 'on' : ''}" data-act="wake">${ic('sun')}${wantAwake ? 'מסך דלוק ✓' : 'מסך דלוק'}</button>` : ''}<span class="spill">${ic('sun')}יום ${day.name} · ${day.date}</span><span class="spill">${ic('calendar')}${left != null ? `עוד ${left} שיעורים` : `${day.periods.length} שיעורים`}</span></div>
     ${dayChips(w, sel)}
   </div>`;
   const bd = state.kids.length ? bdOn(dayDate(w, day)) : [];
@@ -457,6 +459,7 @@ function viewDay(w) {
   h += `<button class="addbtn" data-edit="${day.dow}|">${ic('plus')} הוספת שיעור ליום ${esc(day.name)}</button>`;
   const hw = day.periods.filter(p => p.homework.length);
   if (hw.length) h += `<div class="card">${cardHead('homework', 'שיעורי בית היום')}${hw.map(p => `<div class="note"><b>${esc(p.title)}</b><span>${esc(p.homework.join(' · '))}</span></div>`).join('')}</div>`;
+  h += `<button class="addbtn" data-printweek="${esc(w.id)}">${ic('printer')} הדפסת התכנון השבועי</button>`;
   return h;
 }
 
@@ -483,6 +486,7 @@ function lessonRow(w, day, p, ph) {
       ${p.homework.length ? `<div class="hw">${ic('homework')}<div><b>שיעורי בית</b>${p.homework.map(x => `<div>${esc(x)}</div>`).join('')}</div></div>` : ''}
       <div class="sub">${cardHead('folder', 'קבצים')}${lessonFiles(w, day, p)}
         <button class="addrow" data-attach="${esc(day.dow + '|' + p.label)}">${ic('plus')} הוספת קובץ לשיעור</button></div>
+      ${isDict(p) ? dictBtn(day, p) : ''}
       ${lessonNotes(w, day, p)}
       ${timerHint(p)}
       ${logRow(w, id, false)}
@@ -628,6 +632,51 @@ function viewFiles(w) {
   return h;
 }
 
+
+// ================================================================ dictation: shuffle the word order
+const isDict = p => /הכתבה/.test(`${p.title} ${p.subtitle} ${p.sections.map(s => s.label + ' ' + s.text).join(' ')}`);
+const splitWords = t => String(t || '').split(/[,،·\n]+|\s[–-]\s/).map(x => x.trim().replace(/^["״']|["״']$/g, '')).filter(x => x && x.length < 40);
+const dictBtn = (day, p) => `<button class="cta soft dictbtn" data-dict="${esc(day.dow + '|' + p.label)}">🎲 הגרלת סדר המילים להכתבה</button>`;
+function dictSource(w, dow, label) {
+  const k = `${w.id}:${dow}:${label}`;
+  if (state.dict[k]) return state.dict[k];
+  const p = findPeriodIn(w, dow, label);
+  const sec = p && p.sections.find(s => /הכתבה|מילים/.test(s.label) && s.text);
+  if (sec) return splitWords(sec.text);
+  const prev = sortedWeeks().filter(x => x.id < w.id).pop();
+  const n = [...(prev ? prev.notes || [] : []), ...(w.notes || [])].find(x => /הכתבה/.test(x.label));
+  return n ? splitWords(n.text) : [];
+}
+function shuffled(a, not) {
+  for (let t = 0; t < 6; t++) {
+    const b = a.slice();
+    for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; }
+    if (b.length < 2 || b.join() !== (not || a).join()) return b;
+  }
+  return a.slice().reverse();
+}
+function dictSheet(k, words, order) {
+  state._dict = { k, order: order || [] };
+  openOverlay(`<div class="ov sheet dict">
+    <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('text')}<h2>סדר המילים להכתבה</h2></div>
+    ${order && order.length ? `<ol class="dlist" style="grid-template-rows:repeat(${Math.ceil(order.length / 2)},auto);grid-auto-flow:column">${order.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : `<p class="dim">${words.length ? `${words.length} מילים מוכנות להגרלה` : 'כותבים את המילים כאן (פסיק או שורה חדשה בין מילה למילה)'}</p>`}
+    <button class="cta" data-act="dictshuffle">🎲 ${order && order.length ? 'הגרלה חדשה' : 'להגריל סדר'}</button>
+    <label class="field">המילים<textarea id="dictIn" rows="4" placeholder="חבר, חברה, חברים…">${esc(words.join(', '))}</textarea></label>
+  </div>`);
+}
+
+// ================================================================ print the week (same layout as the PDF plan)
+function printWeek(w) {
+  if (!w) return;
+  let r = $('#printroot');
+  if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
+  r.innerHTML = weekPrintHtml(w, { look, dayFull: DAY_FULL, classSize: classSize(w), name: state.name });
+  document.body.classList.add('printing');
+  setTimeout(() => window.print(), 60);
+}
+window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
+
 // ================================================================ TOOLKIT: research-based methods & tips
 const tipOfDay = () => { const t = now(); return BANK[(t.getFullYear() * 400 + t.getMonth() * 31 + t.getDate()) % BANK.length]; };
 function tipCard() {
@@ -679,7 +728,8 @@ function viewMore(w) {
   <div class="toolgrid">
     ${[['timer', 'טיימר', 'data-act="timer"'], ['dice', 'מי עונה?', 'data-act="picker"'], ['grid', 'מערכת', 'data-day="all"'],
       ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`], ['cake', 'הכיתה שלי', 'data-go="kids"'], ['pin', 'תזכורות', 'data-go="todos"'],
-      ['pencil', 'יומן כיתה', 'data-go="journal"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"']]
+      ['pencil', 'יומן כיתה', 'data-go="journal"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"'],
+      ['text', 'הגרלת הכתבה', 'data-act="dictfree"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"']]
       .map(([i, t, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${t}</button>`).join('')}
   </div>
   <button class="card setlink tkl" data-go="tools"><span class="chi">${ic('sparkle')}</span><span class="grow"><b>שיטות וטיפים לכיתה</b><small>למידה פעילה, בדיקת הבנה והשתתפות – מבוסס מחקר</small></span>${ic('chevL', 'chev')}</button>
@@ -692,9 +742,11 @@ function viewMore(w) {
     <div class="btnrow"><button class="cta soft" data-act="manualweek">${ic('pencil')} שבוע ידני</button><button class="cta soft" data-act="templateweek" ${weeks.length ? '' : 'disabled'}>${ic('layers')} משבוע קודם</button></div>
     ${weeks.map(x => `<div class="wrow ${w && x.id === w.id ? 'on' : ''}">
       <button class="wsel" data-week="${esc(x.id)}"><b>${esc(x.number ? 'שבוע ' + x.number : x.title)}</b><small dir="ltr">${esc(x.range || '')}</small></button>
+      <button class="iconbtn" data-printweek="${esc(x.id)}" aria-label="הדפסה">${ic('printer')}</button>
       <button class="iconbtn" data-delweek="${esc(x.id)}" aria-label="מחיקה">${ic('trash')}</button>
     </div>`).join('')}
   </div>
+  ${sync.user ? `<button class="logoutbtn" data-act="logout">${ic('user')} התנתקות · <bdi dir="ltr">${esc(sync.user.email || '')}</bdi></button>` : ''}
   `;
 }
 
@@ -1490,7 +1542,8 @@ function accountCard() {
     ${cardHead('cloud', 'חשבון וסנכרון')}
     <div class="acct-u"><span class="av">${esc((sync.user.email || '?')[0].toUpperCase())}</span><span class="grow"><b dir="ltr">${esc(sync.user.email || '')}</b><small id="syncState">${syncText()}</small></span></div>
     <p class="dim">כל מה שאת עושה נשמר בחשבון ומופיע בכל מכשיר שתתחברי ממנו.</p>
-    <div class="btnrow"><button class="cta soft" data-act="syncnow">${ic('upload')} סנכרון עכשיו</button><button class="cta soft" data-act="logout">התנתקות</button></div>
+    <button class="cta soft" data-act="syncnow">${ic('upload')} סנכרון עכשיו</button>
+    <button class="logoutbtn" data-act="logout">${ic('user')} התנתקות מהחשבון</button>
   </div>`;
   return `<div class="card acct">
     ${cardHead('cloud', 'חשבון וסנכרון')}
@@ -1988,6 +2041,8 @@ document.addEventListener('click', e => {
   if (D.fsub != null) { state.fsub = D.fsub; rerender(); return; }
   if (D.fgroup) { state.fgroup = D.fgroup; rerender(); return; }
   if (D.fopen) { state.fopen = state.fopen || {}; const el = t.closest('.fgrp'); state.fopen[D.fopen] = !el.classList.contains('open'); rerender(); return; }
+  if (D.printweek) { printWeek(state.weeks[D.printweek]); return; }
+  if (D.dict) { const [dow, label] = D.dict.split('|'); const key = `${w.id}:${dow}:${label}`; dictSheet(key, dictSource(w, +dow, label)); return; }
   if (D.tcat != null) { state.tcat = D.tcat; rerender(); return; }
   if (D.tip) { tipSheet(D.tip); return; }
   if (D.tsave) { const i = state.tsaved.indexOf(D.tsave); if (i >= 0) state.tsaved.splice(i, 1); else { state.tsaved.push(D.tsave); miniBurst(t); toast('נשמר ♥'); } save(); tipSheet(D.tsave); if (state.tab === 'tools') rerender(); return; }
@@ -2022,6 +2077,14 @@ document.addEventListener('click', e => {
     case 'close': closeOverlay(); break;
     case 'topen': timerScreen(); break;
     case 'picker': pickerScreen(); break;
+    case 'dictfree': { const k = 'free'; dictSheet(k, state.dict[k] || (w ? dictSource(w, -1, '') : [])); break; }
+    case 'dictshuffle': {
+      const words = splitWords($('#dictIn').value);
+      if (!words.length) { toast('צריך לכתוב קודם את המילים'); break; }
+      const D2 = state._dict; state.dict[D2.k] = words; save();
+      if (navigator.vibrate) navigator.vibrate(12);
+      dictSheet(D2.k, words, shuffled(words, D2.order.length ? D2.order : null)); break;
+    }
     case 'tiprand': { const cur = state._tip; let b; do b = BANK[Math.floor(Math.random() * BANK.length)]; while (b.id === cur && BANK.length > 1); state._tip = b.id; tipSheet(b.id); break; }
     case 'pick': doPick(); break;
     case 'split': doSplit(); break;

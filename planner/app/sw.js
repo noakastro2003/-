@@ -1,5 +1,5 @@
 // Offline cache: the app works in class even without reception.
-const CACHE = 'noa-planner-v9';
+const CACHE = 'noa-planner-v10';
 const FILES = [
   './', 'index.html', 'css/style.css', 'js/app.js', 'js/planparse.js', 'js/pdftext.js', 'js/icons.js', 'js/files.js', 'vendor/identity.mjs',
   'vendor/pdf.min.mjs', 'vendor/keepawake.mp4', 'vendor/pdf.worker.min.mjs', 'manifest.webmanifest',
@@ -26,4 +26,21 @@ self.addEventListener('fetch', e => {
       return r;
     }).catch(() => caches.match(e.request, { ignoreSearch: true }))
   );
+});
+
+// reminders sent by the server (see netlify/functions/notify.mts)
+self.addEventListener('push', e => {
+  let n = {};
+  try { n = e.data ? e.data.json() : {}; } catch { n = { body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(n.title || 'הכיתה שלי', {
+    body: n.body || '', tag: n.tag || undefined, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png',
+    data: { url: n.url || './' }, lang: 'he', dir: 'rtl',
+  }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for (const c of list) if ('focus' in c) return c.focus();
+    return self.clients.openWindow(e.notification.data && e.notification.data.url || './');
+  }));
 });

@@ -8,9 +8,9 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent'];
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue'];
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: 'נועה', logs: {}, kids: [], todos: [], files: [],
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: 'נועה', logs: {}, kids: [], todos: [], files: [], cnotes: [], lists: [], autos: [], notifQueue: [],
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -21,7 +21,7 @@ function saveLocal() {
   for (const k of SAVED) o[k] = state[k];
   localStorage.setItem(KEY, JSON.stringify(o));
 }
-function save() { saveLocal(); schedulePush(); }
+function save() { if (sync.user) state.notifQueue = buildQueue(); saveLocal(); schedulePush(); }
 
 // ?now=2026-11-01T10:30 previews any moment
 const fakeNow = new URLSearchParams(location.search).get('now');
@@ -64,22 +64,52 @@ function dayDate(w, d) {
 const weekDates = w => w.days.map(d => dayDate(w, d));
 const sameDay = (a, b) => a && b && a.toDateString() === b.toDateString();
 
+const sortedWeeks = () => Object.values(state.weeks).sort((a, b) => (a.id < b.id ? -1 : 1));
+// the week being looked at: the one picked with the arrows, otherwise the real current week
 function pickWeek() {
+  if (state.viewWeekId && state.tab !== 'now' && state.weeks[state.viewWeekId]) return state.weeks[state.viewWeekId];
+  return realWeek();
+}
+function realWeek() {
   const ws = Object.values(state.weeks);
   if (!ws.length) return null;
   const t = now(); t.setHours(0, 0, 0, 0);
+  // on Saturday the coming week is the interesting one
+  if (t.getDay() === 6) {
+    const next = ws.find(w => { const d = weekDates(w).filter(Boolean)[0]; return d && d > t && d - t < 3 * 864e5; });
+    if (next) return next;
+  }
   for (const w of ws) {
     const ds = weekDates(w).filter(Boolean);
     if (!ds.length) continue;
     const sun = addDays(ds[0], -ds[0].getDay()), sat = addDays(sun, 6);
     if (t >= sun && t <= sat) return w;
   }
+  const t2 = now();
+  const upcoming = sortedWeeks().find(w => { const d = weekDates(w).filter(Boolean)[0]; return d && d > t2; });
+  if (upcoming) return upcoming;
   if (state.activeId && state.weeks[state.activeId]) return state.weeks[state.activeId];
   return ws.sort((a, b) => (a.id < b.id ? 1 : -1))[0];
 }
 const todayInWeek = w => w.days[weekDates(w).findIndex(d => sameDay(d, now()))] || null;
 const nextSchoolDay = (w, afterDow) => w.days.find(d => d.dow > afterDow) || null;
 const upcomingDay = w => w.days.find(d => dayDate(w, d) > now()) || null;
+// next school day after today, looking into later weeks too
+function nextDayGlobal() {
+  const t = now(); t.setHours(23, 59, 59, 0);
+  for (const w of sortedWeeks()) for (const d of w.days) { const dd = dayDate(w, d); if (dd && dd > t && d.periods.length) return { w, d }; }
+  return null;
+}
+function weekNav(w) {
+  const ws = sortedWeeks(), i = ws.indexOf(w), real = realWeek();
+  if (ws.length < 2 && w === real) return '';
+  return `<div class="wknav">
+    <button data-wk="prev" ${i <= 0 ? 'disabled' : ''} aria-label="שבוע קודם">${ic('chevR')}</button>
+    <div class="wk-t"><b>${esc(w.number ? 'שבוע ' + w.number : w.title)}</b><small dir="ltr">${esc(w.range || '')}</small></div>
+    <button data-wk="next" ${i >= ws.length - 1 ? 'disabled' : ''} aria-label="שבוע הבא">${ic('chevL')}</button>
+    ${w !== real ? `<button class="wk-now" data-wk="now">חזרה להשבוע</button>` : ''}
+  </div>`;
+}
 
 function phase(day) {
   const m = nowMin();
@@ -290,15 +320,15 @@ function viewNow(w) {
     h += birthdayBanner() + teaser;
     const S = dayStats(w, day);
     h += `<div class="card bravo"><div class="grow"><b>כל הכבוד,</b><span>סיימת ${day.periods.length} שיעורים${S.total ? ` ו־${S.done} מתוך ${S.total} משימות` : ''}</span></div>${art('medal', 'wiggle')}</div>`;
-    const nd = nextSchoolDay(w, day.dow);
-    if (nd) h += tomorrowCard(w, nd);
+    const ng = nextDayGlobal();
+    if (ng) h += tomorrowCard(ng.w, ng.d);
     h += howWasCard(w, day);
     h += `<div class="card rest"><div class="grow"><b>מנוחה נעימה!</b><span>${ic('heart', 'h')} תתחדשי מחר ליום חדש ומוצלח</span></div>${art('moon', 'bob')}</div>`;
   } else {
     h += top(t.getDay() === 6 ? 'שבת שלום' : 'יום חופשי', 'אין שיעורים היום. תנוחי, מגיע לך 💜', 'books');
     h += birthdayBanner() + teaser;
-    const nd = upcomingDay(w);
-    if (nd) h += tomorrowCard(w, nd);
+    const ng = nextDayGlobal();
+    if (ng) h += tomorrowCard(ng.w, ng.d);
     h += `<div class="card rest"><div class="grow"><b>יום של מנוחה</b><span>${ic('heart', 'h')} קפה, ספר, ושקט</span></div>${art('moon', 'bob')}</div>`;
   }
 
@@ -307,7 +337,7 @@ function viewNow(w) {
     const rest = ref ? day.periods.filter(p => mins(p.start) > mins(ref.start)) : [];
     if (rest.length) h += `<div class="card">${cardHead('calendar', 'ובהמשך היום')}${rest.map(p => miniRow(w, day, p)).join('')}</div>`;
   }
-  h += remindersCard(w);
+  h += actionsCard() + remindersCard(w);
   return h;
 }
 
@@ -342,6 +372,7 @@ function nowCard(w, day, p, ph) {
     </div>` : ''}
     ${p.homework.length ? `<div class="hw">${ic('homework')}<div><b>שיעורי בית</b>${p.homework.map(x => `<div>${esc(x)}</div>`).join('')}</div></div>` : ''}
     ${timerHint(p)}
+    ${ph.kind === 'lesson' ? lessonNotes(w, day, p) : ''}
     ${ph.kind === 'lesson' ? `<div class="tline">${ic('clock')}<span>${ph.left} דק׳ מתוך ${ph.len} דק׳</span><div class="bar"><span style="--w:${Math.round(ph.pct * 100)}%"></span></div></div>${logRow(w, id, false)}` : ''}
   </article>`;
 }
@@ -372,9 +403,9 @@ function tomorrowCard(w, nd) {
   const row = (icon, label, val, attrs) => `<button class="trow" ${attrs}><span class="tri">${icon}</span><span class="grow">${label} ${val}</span>${ic('chevL', 'chev')}</button>`;
   return `<div class="card tmrw">
     ${cardHead('calendar', isTomorrow ? 'מחר מחכה לך' : `יום ${nd.name} מחכה לך`, spark())}
-    ${first ? row(ic('alarm'), `<span class="tpill">${esc(first.start)}</span>`, esc(first.title), `data-goto="${nd.dow}|${esc(first.label)}"`) : ''}
-    ${pr && pr.items.length ? row(ic('printer'), '<b>להדפיס בבוקר:</b>', `${pr.items.length} פריטים`, `data-pday="${nd.dow}"`) : ''}
-    ${br && br.items.length ? row(ic('backpack'), '<b>להביא:</b>', esc(br.items.slice(0, 2).map(i => i.text.split('–')[0].trim()).join(', ')) + (br.items.length > 2 ? ` ועוד ${br.items.length - 2}` : ''), `data-pday="${nd.dow}"`) : ''}
+    ${first ? row(ic('alarm'), `<span class="tpill">${esc(first.start)}</span>`, esc(first.title), `data-goto="${nd.dow}|${esc(first.label)}" data-gowk="${w.id}"`) : ''}
+    ${pr && pr.items.length ? row(ic('printer'), '<b>להדפיס בבוקר:</b>', `${pr.items.length} פריטים`, `data-pday="${nd.dow}" data-gowk="${w.id}"`) : ''}
+    ${br && br.items.length ? row(ic('backpack'), '<b>להביא:</b>', esc(br.items.slice(0, 2).map(i => i.text.split('–')[0].trim()).join(', ')) + (br.items.length > 2 ? ` ועוד ${br.items.length - 2}` : ''), `data-pday="${nd.dow}" data-gowk="${w.id}"`) : ''}
     ${file ? `<a class="trow" href="${esc(file.url)}" target="_blank" rel="noopener"><span class="tri">${fileBadge(fileKind(file))}</span><span class="grow"><b>קובץ חשוב:</b> ${esc(file.text)}</span>${ic('chevL', 'chev')}</a>` : ''}
     ${art('sunrise', 'sunrise')}
   </div>`;
@@ -407,7 +438,7 @@ function dayChips(w, sel, attr = 'data-day', withGrid = true) {
 
 function viewDay(w) {
   const sel = currentSelDay(w);
-  let h = top('השבוע', `${esc(w.number ? 'שבוע ' + w.number : 'השבוע')}${w.cls ? ' · ' + esc(w.cls) : ''} · <bdi dir="ltr">${esc(w.range || '')}</bdi>`, 'heart');
+  let h = top('השבוע', `${esc(w.number ? 'שבוע ' + w.number : 'השבוע')}${w.cls ? ' · ' + esc(w.cls) : ''} · <bdi dir="ltr">${esc(w.range || '')}</bdi>`, 'heart') + weekNav(w);
   if (sel === 'all') {
     h += `<div class="card daypick">${dayChips(w, sel)}</div>`;
     h += `<div class="card gridcard">${gridView(w)}</div><p class="hint">לוחצים על שיעור כדי לפתוח אותו</p>` + bdCard(7, 'ימי הולדת בשבוע הקרוב');
@@ -455,6 +486,7 @@ function lessonRow(w, day, p, ph) {
       ${p.homework.length ? `<div class="hw">${ic('homework')}<div><b>שיעורי בית</b>${p.homework.map(x => `<div>${esc(x)}</div>`).join('')}</div></div>` : ''}
       <div class="sub">${cardHead('folder', 'קבצים')}${lessonFiles(w, day, p)}
         <button class="addrow" data-attach="${esc(day.dow + '|' + p.label)}">${ic('plus')} הוספת קובץ לשיעור</button></div>
+      ${lessonNotes(w, day, p)}
       ${timerHint(p)}
       ${logRow(w, id, false)}
       <button class="editbtn" data-edit="${esc(day.dow + '|' + p.label)}">${ic('pencil')} עריכת השיעור</button>
@@ -496,7 +528,7 @@ function prepSectionCard(w, day, s, si) {
   const items = s.items.map((it, i) => {
     const k = `p:${day.dow}:${s.title}:${i}`;
     return edit
-      ? `<div class="erow1"><span class="grow">${esc(it.text)}</span><button class="iconbtn" data-delprep="${day.dow}|${si}|${i}" aria-label="מחיקה">${ic('trash')}</button></div>`
+      ? `<div class="erow1"><input class="litem" data-prepitem="${day.dow}|${si}|${i}" value="${esc(it.text)}"><button class="iconbtn" data-delprep="${day.dow}|${si}|${i}" aria-label="מחיקה">${ic('trash')}</button></div>`
       : chk(k, ck(w, k), `${esc(it.text)}${it.period ? ` <small class="tpill">שעה ${esc(it.period)}</small>` : ''}`, hwSec ? '' : miniArt(it.text));
   }).join('');
   return `<div class="card prep">${cardHead(icon, title, `<span class="cnt">${s.items.length} ${hwSec ? 'פריטים' : 'משימות'}</span>`)}${items}
@@ -510,7 +542,7 @@ function prepCards(w, day, mode) {
 
 function viewPrep(w) {
   const day = prepDay(w);
-  let h = top('להכין', 'הכנה מסודרת ליום הלימודים – כדי שהכל יהיה מוכן ובזמן', 'notepad');
+  let h = top('להכין', 'הכנה מסודרת ליום הלימודים – כדי שהכל יהיה מוכן ובזמן', 'notepad') + weekNav(w);
   h += `<div class="card daypick">${dayChips(w, day.dow, 'data-pday', false)}</div>`;
   if (!w.prep[day.dow] || !w.prep[day.dow].length) {
     w.prep[day.dow] = [{ title: 'להכין / להביא', icon: '', items: day.periods.flatMap(p => p.materials.map(m => ({ text: m.text, period: p.label }))) }];
@@ -521,6 +553,7 @@ function viewPrep(w) {
     <div class="bar big"><span style="--w:${S.total ? S.done / S.total * 100 : 0}%"></span></div>
   </div>`;
   h += prepCards(w, day, 'all');
+  if (state.prepEdit) h += `<div class="card">${cardHead('plus', 'רשימה חדשה ליום ' + esc(day.name))}<form class="addtodo" data-prepnew="${day.dow}"><input name="t" placeholder="למשל: לבדוק לפני היציאה" autocomplete="off"><button aria-label="הוספה">${ic('plus')}</button></form></div>`;
   h += `<button class="addbtn" data-act="prepedit">${ic(state.prepEdit ? 'check' : 'pencil')} ${state.prepEdit ? 'סיימתי לערוך' : 'עריכת הרשימות'}</button>`;
   const left = S.total - S.done;
   h += left
@@ -561,7 +594,8 @@ function viewMore(w) {
   return top('עוד', 'כלים קטנים שעושים את היום קל יותר', 'star') + `
   <div class="toolgrid">
     ${[['timer', 'טיימר', 'data-act="timer"'], ['dice', 'מי עונה?', 'data-act="picker"'], ['grid', 'מערכת', 'data-day="all"'],
-      ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`], ['cake', 'הכיתה שלי', 'data-go="kids"'], ['pin', 'תזכורות', 'data-go="todos"']]
+      ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`], ['cake', 'הכיתה שלי', 'data-go="kids"'], ['pin', 'תזכורות', 'data-go="todos"'],
+      ['pencil', 'יומן כיתה', 'data-go="journal"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"']]
       .map(([i, t, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${t}</button>`).join('')}
   </div>
   <button class="card setlink" data-go="settings"><span class="chi">${ic('settings')}</span><span class="grow"><b>הגדרות</b><small>${sync.user ? '☁️ מחוברת · ' : ''}חשבון, תצוגה, התראות, ווידג׳ט</small></span>${ic('chevL', 'chev')}</button>
@@ -591,12 +625,7 @@ function viewSettings(w) {
     <div class="setrow"><span>גודל טקסט</span><div class="seg">${[0.9, 1, 1.15, 1.3].map((v, i) => `<button class="${P.size === v ? 'on' : ''}" data-size="${v}" style="font-size:${13 + i * 3}px">א</button>`).join('')}</div></div>
     <div class="setrow"><span>מצב</span><div class="seg">${[['light', 'sun', 'יום'], ['dark', 'moon', 'לילה'], ['auto', 'sparkle', 'אוטו׳']].map(([v, i, l]) => `<button class="${P.theme === v ? 'on' : ''}" data-theme="${v}">${ic(i)}${l}</button>`).join('')}</div></div>
   </div>
-  <div class="card">
-    ${cardHead('bell', 'התראת בוקר')}
-    <div class="setrow"><span>התראה כל בוקר עם מה להכין להיום</span>${toggle('notify', P.notify)}</div>
-    <div class="setrow ${P.notify ? '' : 'off'}"><span>באיזו שעה?</span><input type="time" id="notifyTime" value="${esc(P.notifyTime)}"></div>
-    <p class="hint">באייפון ההתראות מגיעות דרך Scriptable (אותה אפליקציה של הווידג׳ט). אחרי כל שינוי או תכנון חדש – לוחצים "עדכון הווידג׳ט וההתראות".</p>
-  </div>
+  <button class="card setlink" data-go="autos"><span class="chi">${ic('bell')}</span><span class="grow"><b>התראות ואוטומציות</b><small>מתי ועל מה לקבל התראה</small></span>${ic('chevL', 'chev')}</button>
   ${w ? `<div class="card">
     ${cardHead('phone', 'ווידג׳ט והתראות לאייפון')}
     <button class="cta" data-act="widget">${ic('phone')} עדכון הווידג׳ט וההתראות</button>
@@ -1184,6 +1213,7 @@ async function initAuth() {
   } catch (e) { toast('הקישור לא תקין או שפג תוקפו 😕'); }
   try { sync.user = await ID.getUser(); } catch { sync.user = null; }
   sync.ready = true;
+  pushState().then(() => { if (state.tab === 'autos') rerender(); });
   if (sync.user) { await pull(true); rerender(); } else if (state.tab === 'settings') rerender();
 }
 function accountCard() {
@@ -1215,18 +1245,250 @@ function recoveryScreen() {
   </form>`);
 }
 
+// ================================================================ class journal (notes during lessons)
+const TAGS = {
+  care: ['👤', 'לטיפול', '#F6C28B'], parent: ['📞', 'להתקשר להורה', '#9DD6F9'], star: ['⭐', 'הצטיינות', '#F6D38A'],
+  disrupt: ['⚠️', 'הפרעה', '#F6B7CF'], note: ['📝', 'הערה', '#D4B7F5'],
+};
+const ACTION = ['care', 'parent'];
+const notesFor = (w, dow, label) => state.cnotes.filter(n => n.w === w.id && n.dow === dow && n.label === label);
+const openActions = () => state.cnotes.filter(n => ACTION.includes(n.tag) && !n.done);
+function noteRow(n, withLesson) {
+  const [e, t, c] = TAGS[n.tag] || TAGS.note;
+  const L = withLesson && n.w && state.weeks[n.w] ? findPeriodIn(state.weeks[n.w], n.dow, n.label) : null;
+  const when = new Date(n.at);
+  return `<div class="nrow ${n.done ? 'done' : ''}" style="--c:${c}">
+    ${ACTION.includes(n.tag) ? `<button class="nchk ${n.done ? 'on' : ''}" data-cdone="${n.id}" aria-label="טופל">${ic('check')}</button>` : `<span class="nemo">${e}</span>`}
+    <span class="grow"><b>${ACTION.includes(n.tag) ? e + ' ' : ''}${esc(n.kids.join(', ') || t)}</b>${n.text ? `<span>${esc(n.text)}</span>` : ''}
+      <small>${t}${L ? ' · ' + esc(L.title) : ''} · ${when.getDate()}.${when.getMonth() + 1} ${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}</small></span>
+    ${withLesson ? `<button class="iconbtn" data-cdel="${n.id}" aria-label="מחיקה">${ic('trash')}</button>` : ''}
+  </div>`;
+}
+function lessonNotes(w, day, p) {
+  const ns = notesFor(w, day.dow, p.label);
+  return `<div class="sub lnotes">${cardHead('pencil', 'הערות בשיעור', ns.length ? `<span class="cnt">${ns.length}</span>` : '')}
+    ${ns.map(n => noteRow(n)).join('')}
+    <div class="qtags">${Object.entries(TAGS).map(([k, [e, t]]) => `<button data-cnote="${esc(day.dow + '|' + p.label)}" data-tag="${k}" title="${t}">${e}<small>${t}</small></button>`).join('')}</div>
+  </div>`;
+}
+function noteSheet(ref, tag) {
+  const kids = state.kids.map(k => k.name);
+  state._note = { ref, tag, kids: [] };
+  openOverlay(`<form class="ov sheet notesheet" data-noteform>
+    <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('pencil')}<h2>הערה מהירה</h2></div>
+    <div class="tagpick">${Object.entries(TAGS).map(([k, [e, t, c]]) => `<button type="button" class="tp ${k === tag ? 'on' : ''}" style="--c:${c}" data-picktag="${k}">${e}<small>${t}</small></button>`).join('')}</div>
+    ${kids.length ? `<div class="mh">על מי? (אפשר כמה)</div><div class="kchips">${kids.map(n => `<button type="button" class="kc pick" data-pickkid="${esc(n)}">${esc(n)}</button>`).join('')}</div>`
+      : `<label class="field">על מי?<input name="who" placeholder="שם הילד/ה (לא חובה)"></label>`}
+    <label class="field">מה קרה? (לא חובה)<textarea name="text" rows="2" placeholder="למשל: עזר לחבר בלי שביקשו ממנו"></textarea></label>
+    <div class="btnrow"><button class="cta">${ic('check')} שמירה</button></div>
+  </form>`);
+}
+function saveNote(f) {
+  const N = state._note; if (!N) return;
+  const kids = N.kids.length ? N.kids : (f.who && f.who.value.trim() ? [f.who.value.trim()] : []);
+  const text = f.text.value.trim();
+  if (!kids.length && !text) { toast('כתבי על מי או מה קרה 🙂'); return; }
+  const w = pickWeek();
+  const [dow, label] = N.ref ? N.ref.split('|') : [null, null];
+  state.cnotes.push({ id: uid(), w: N.ref ? w.id : null, dow: N.ref ? +dow : null, label: label || null, tag: N.tag, kids, text, at: new Date().toISOString(), done: false });
+  save(); closeOverlay(); rerender();
+  toast(N.tag === 'star' ? 'נשמר ⭐ איזה כיף!' : 'נשמר ✓');
+  if (N.tag === 'star') confetti();
+}
+function viewJournal() {
+  const f = state.jfilter || '';
+  const list = state.cnotes.filter(n => !f || (f === 'open' ? ACTION.includes(n.tag) && !n.done : n.tag === f)).sort((a, b) => (a.at < b.at ? 1 : -1));
+  const byKid = {};
+  for (const n of state.cnotes) for (const k of n.kids) { byKid[k] = byKid[k] || { star: 0, disrupt: 0 }; if (n.tag === 'star') byKid[k].star++; if (n.tag === 'disrupt') byKid[k].disrupt++; }
+  const kidsRows = Object.entries(byKid).filter(([, v]) => v.star || v.disrupt).sort((a, b) => b[1].star - a[1].star);
+  return top('יומן כיתה', 'כל מה שרשמת בשיעורים – במקום אחד', 'notepad', { back: 'more' }) + `
+  <button class="cta" data-cnote="" data-tag="note">${ic('plus')} הערה חדשה</button>
+  <div class="fchips">${[['', 'הכל'], ['open', `לטיפול (${openActions().length})`], ...Object.entries(TAGS).map(([k, [e, t]]) => [k, e + ' ' + t])].map(([k, t]) => `<button class="fc ${f === k ? 'on' : ''}" data-jf="${k}">${t}</button>`).join('')}</div>
+  <div class="card">${list.length ? list.map(n => noteRow(n, true)).join('') : '<p class="dim">עוד אין הערות. בכל שיעור יש כפתורים מהירים: 👤 📞 ⭐ ⚠️ 📝</p>'}</div>
+  ${kidsRows.length ? `<div class="card">${cardHead('users', 'לפי ילד/ה')}${kidsRows.map(([k, v]) => `<div class="row"><span class="grow">${esc(k)}</span>${v.star ? `<span class="tpill">⭐ ${v.star}</span>` : ''}${v.disrupt ? `<span class="tpill warn">⚠️ ${v.disrupt}</span>` : ''}</div>`).join('')}</div>` : ''}`;
+}
+function actionsCard() {
+  const a = openActions();
+  if (!a.length) return '';
+  return `<div class="card acts">${cardHead('bell', 'לטיפול', `<button class="linkbtn" data-go="journal">יומן כיתה</button>`)}${a.slice(0, 6).map(n => noteRow(n)).join('')}</div>`;
+}
+
+// ================================================================ my checklists
+const LIST_TEMPLATES = [
+  ['🚌', 'טיול שנתי', ['אישורי הורים', 'רשימת טלפונים', 'ערכת עזרה ראשונה', 'מים לכל ילד', 'כובעים', 'שקיות זבל', 'תיק מורה']],
+  ['👨‍👩‍👧', 'אסיפת הורים', ['לוח זמנים לכל הורה', 'תיקי עבודות', 'דפי משוב', 'כיבוד', 'רשימת נושאים לכל ילד']],
+  ['🎂', 'יום הולדת בכיתה', ['כתר', 'כיסא מקושט', 'ברכה מהכיתה', 'שיר', 'תמונה']],
+  ['📅', 'סוף שבוע', ['לעדכן את התכנון לשבוע הבא', 'לבדוק מחברות', 'להעלות ציונים', 'לשלוח הודעה להורים']],
+];
+function viewLists() {
+  const edit = state.listEdit;
+  return top('הרשימות שלי', 'צ׳ק ליסטים לכל מה שצריך', 'notepad', { back: 'more' }) + `
+  ${state.lists.map(L => {
+    const done = L.items.filter(i => i.done).length;
+    return `<div class="card clist">
+      <div class="ch"><span class="chi">${esc(L.emoji || '✅')}</span><h3>${edit === L.id ? `<input class="ltitle" data-ltitle="${L.id}" value="${esc(L.title)}">` : esc(L.title)}</h3>
+        <span class="chr"><span class="cnt ${done === L.items.length && done ? 'all' : ''}">${done}/${L.items.length}</span><button class="iconbtn" data-ledit="${L.id}" aria-label="עריכה">${ic(edit === L.id ? 'check' : 'pencil')}</button></span></div>
+      ${L.items.map(it => edit === L.id
+        ? `<div class="erow1"><input class="litem" data-litem="${L.id}|${it.id}" value="${esc(it.text)}"><button class="iconbtn" data-ldelitem="${L.id}|${it.id}" aria-label="מחיקה">${ic('trash')}</button></div>`
+        : `<label class="chk ${it.done ? 'on' : ''}"><input type="checkbox" data-lcheck="${L.id}|${it.id}" ${it.done ? 'checked' : ''}><span class="box">${ic('check')}</span><span class="ct">${esc(it.text)}</span></label>`).join('')}
+      <form class="addtodo" data-ladd="${L.id}"><input name="t" placeholder="פריט חדש…" autocomplete="off"><button aria-label="הוספה">${ic('plus')}</button></form>
+      ${edit === L.id ? `<div class="btnrow"><button class="cta soft" data-lreset="${L.id}">איפוס הסימונים</button><button class="danger" data-ldel="${L.id}">${ic('trash')} מחיקת הרשימה</button></div>` : ''}
+    </div>`;
+  }).join('')}
+  <div class="card">${cardHead('plus', 'רשימה חדשה')}
+    <form class="addtodo" data-lnew><input name="t" placeholder="שם הרשימה…" autocomplete="off"><button aria-label="יצירה">${ic('plus')}</button></form>
+    <div class="mh">או להתחיל מתבנית:</div>
+    <div class="kchips">${LIST_TEMPLATES.map(([e, t], i) => `<button class="kc" data-ltpl="${i}">${e} ${t}</button>`).join('')}</div>
+  </div>`;
+}
+
+// ================================================================ automations & push notifications
+const VAPID_PUBLIC = 'BBJadMQeMGYyIh3XJ08YUWx3zMzFaOtJ5jtLhYfxqLY0NoQQzlnhNooUzoEwK4sLnMa-FaFfYbdFTZrKuOQwgqo';
+const AUTO_DEFAULTS = [
+  { id: 'morning', kind: 'morning', on: true, time: '07:00' },
+  { id: 'evening', kind: 'evening', on: false, time: '20:00' },
+  { id: 'before', kind: 'before', on: false, mins: 10 },
+  { id: 'actions', kind: 'actions', on: true, time: '15:00' },
+  { id: 'upload', kind: 'weekly', on: true, day: 4, time: '19:00', text: 'להעלות את התכנון של השבוע הבא 📄' },
+];
+const AUTO_INFO = {
+  morning: ['sun', 'בוקר טוב', 'כל בוקר לימודים: מה להדפיס, מה להביא, השיעור הראשון וימי הולדת'],
+  evening: ['moon', 'סיכום ערב', 'בערב שלפני יום לימודים: מה מחכה מחר'],
+  before: ['timer', 'לפני שיעור', 'לפני כל שיעור שצריך בו משהו – מה להכין'],
+  actions: ['bell', 'לטיפול', 'בסוף היום: הורים להתקשר אליהם ותלמידים לטיפול'],
+  weekly: ['calendar', 'תזכורת שבועית', ''],
+  once: ['pin', 'תזכורת חד־פעמית', ''],
+};
+function autos() {
+  if (!state.autos || !state.autos.length) state.autos = AUTO_DEFAULTS.map(a => ({ ...a }));
+  return state.autos;
+}
+function atTime(date, hhmm) { const [h, m] = hhmm.split(':').map(Number); const d = new Date(date); d.setHours(h, m, 0, 0); return d; }
+function buildQueue() {
+  const out = [], t0 = Date.now(), end = t0 + 8 * 864e5;
+  const days = [];
+  for (const w of sortedWeeks()) for (const d of w.days) { const dd = dayDate(w, d); if (dd && d.periods.length) days.push({ w, d, dd }); }
+  const add = (at, title, body, tag) => { if (at.getTime() > t0 && at.getTime() < end) out.push({ at: at.getTime(), title, body, tag }); };
+  const sec = (w, d, re) => ((w.prep[d.dow] || []).find(s => re.test(s.title)) || { items: [] }).items.map(i => i.text.split('–')[0].trim());
+  for (const a of autos()) {
+    if (!a.on) continue;
+    if (a.kind === 'morning') for (const { w, d, dd } of days) {
+      const lines = [];
+      const bd = bdOn(dd); if (bd.length) lines.push(`🎂 יום הולדת ל${names(bd)}!`);
+      lines.push(`📅 ${d.periods[0].start} · ${d.periods[0].title}`);
+      const pr = sec(w, d, /ערב|הדפסה/), br = sec(w, d, /להכין|להביא/);
+      if (pr.length) lines.push(`🖨 להדפיס: ${pr.join(' · ')}`);
+      if (br.length) lines.push(`🎒 להביא: ${br.slice(0, 4).join(' · ')}${br.length > 4 ? ` ועוד ${br.length - 4}` : ''}`);
+      const td = state.todos.filter(x => !x.done && x.date && sameDay(new Date(x.date + 'T00:00'), dd)); if (td.length) lines.push(`📌 ${td.map(x => x.text).join(' · ')}`);
+      add(atTime(dd, a.time), `בוקר טוב ${state.name} ☀️ יום ${d.name}`, lines.join('\n'), 'morning');
+    }
+    if (a.kind === 'evening') for (const { w, d, dd } of days) {
+      const br = sec(w, d, /להכין|להביא/);
+      add(atTime(addDays(dd, -1), a.time), `מחר יום ${d.name} 🌙`, `${d.periods.length} שיעורים, מתחילים ב־${d.periods[0].start} (${d.periods[0].title})${br.length ? `\n🎒 להביא: ${br.slice(0, 3).join(' · ')}` : ''}`, 'evening');
+    }
+    if (a.kind === 'before') for (const { d, dd } of days) for (const p of d.periods) {
+      if (!p.materials.length || !p.start) continue;
+      add(new Date(atTime(dd, p.start).getTime() - (a.mins || 10) * 60000), `בעוד ${a.mins} דק׳: ${p.title}`, `להכין: ${p.materials.map(m => m.text.split('–')[0].trim()).slice(0, 4).join(' · ')}`, 'before');
+    }
+    if (a.kind === 'actions') for (const { dd } of days) {
+      if (dd < new Date(new Date().toDateString())) continue;
+      const o = openActions(); if (!o.length) continue;
+      const par = o.filter(n => n.tag === 'parent'), care = o.filter(n => n.tag === 'care');
+      add(atTime(dd, a.time), 'לטיפול היום 📞', [par.length ? `📞 להתקשר: ${par.map(n => n.kids.join(', ') || n.text).join(' · ')}` : '', care.length ? `👤 לטיפול: ${care.map(n => n.kids.join(', ') || n.text).join(' · ')}` : ''].filter(Boolean).join('\n'), 'actions');
+    }
+    if (a.kind === 'weekly') for (let i = 0; i < 8; i++) { const d = addDays(new Date(), i); if (d.getDay() === +a.day) add(atTime(d, a.time), 'תזכורת 💜', a.text || '', 'weekly-' + a.id); }
+    if (a.kind === 'once' && a.date) add(atTime(new Date(a.date + 'T00:00'), a.time || '08:00'), 'תזכורת 💜', a.text || '', 'once-' + a.id);
+  }
+  return out.sort((x, y) => x.at - y.at).slice(0, 300);
+}
+const wpush = { supported: 'serviceWorker' in navigator && 'PushManager' in window, sub: null, checked: false };
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+async function pushState() {
+  if (!wpush.supported) return;
+  try { const reg = await navigator.serviceWorker.ready; wpush.sub = await reg.pushManager.getSubscription(); } catch { wpush.sub = null; }
+  wpush.checked = true;
+}
+function b64u(s) { const p = '='.repeat((4 - s.length % 4) % 4); const r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, c => c.charCodeAt(0)); }
+async function pushApi(body) {
+  try { await ID.refreshSession(); } catch { /* fine */ }
+  const r = await fetch('/api/push', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error('push ' + r.status);
+  return r.json();
+}
+async function enablePush() {
+  if (!sync.user) { toast('קודם מתחברים לחשבון (בהגדרות) ☁️', 3500); go('settings'); return; }
+  if (!wpush.supported) { toast(standalone() ? 'הטלפון הזה לא תומך בהתראות 😕' : 'כדי לקבל התראות צריך לפתוח את האפליקציה ממסך הבית 📱', 4000); return; }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { toast('ההתראות לא אושרו. אפשר לאשר בהגדרות הטלפון ← הכיתה שלי ← עדכונים', 4500); return; }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID_PUBLIC) });
+    await pushApi({ action: 'subscribe', sub: sub.toJSON() });
+    wpush.sub = sub; state.notifQueue = buildQueue(); save();
+    toast('ההתראות הופעלו 🔔'); rerender();
+  } catch (e) { console.error(e); toast('לא הצלחתי להפעיל התראות 😕'); }
+}
+async function disablePush() {
+  try { if (wpush.sub) { await pushApi({ action: 'unsubscribe', endpoint: wpush.sub.endpoint }).catch(() => {}); await wpush.sub.unsubscribe(); } } catch { /* fine */ }
+  wpush.sub = null; toast('ההתראות כובו בטלפון הזה'); rerender();
+}
+function viewAutos() {
+  const A = autos();
+  const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+  const status = !wpush.checked ? '' : wpush.sub
+    ? `<div class="pstat on">${ic('bell')}<span class="grow"><b>ההתראות פעילות בטלפון הזה</b><small>${buildQueue().length} תזכורות מתוזמנות ל־8 הימים הקרובים</small></span></div>
+       <div class="btnrow"><button class="cta soft" data-act="pushtest">שליחת התראת בדיקה</button><button class="cta soft" data-act="pushoff">כיבוי</button></div>`
+    : `<div class="pstat">${ic('bell')}<span class="grow"><b>ההתראות עוד לא מופעלות בטלפון הזה</b><small>${!sync.user ? 'צריך קודם להתחבר לחשבון' : !standalone() ? 'צריך לפתוח את האפליקציה ממסך הבית' : 'לחיצה אחת – והאייפון ישאל אם לאשר'}</small></span></div>
+       <button class="cta" data-act="pushon">${ic('bell')} הפעלת התראות</button>`;
+  const row = a => {
+    const [icon, title, desc] = AUTO_INFO[a.kind];
+    const ctl = a.kind === 'before'
+      ? `<select data-auto="${a.id}" data-f="mins">${[5, 10, 15, 20, 30].map(m => `<option ${a.mins === m ? 'selected' : ''} value="${m}">${m} דק׳ לפני</option>`).join('')}</select>`
+      : a.kind === 'weekly' ? `<select data-auto="${a.id}" data-f="day">${DAYS.map((d, i) => `<option value="${i}" ${+a.day === i ? 'selected' : ''}>יום ${d}</option>`).join('')}</select><input type="time" data-auto="${a.id}" data-f="time" value="${esc(a.time)}">`
+      : a.kind === 'once' ? `<input type="date" data-auto="${a.id}" data-f="date" value="${esc(a.date || '')}"><input type="time" data-auto="${a.id}" data-f="time" value="${esc(a.time || '08:00')}">`
+      : `<input type="time" data-auto="${a.id}" data-f="time" value="${esc(a.time)}">`;
+    return `<div class="card auto ${a.on ? '' : 'off'}">
+      <div class="ch"><span class="chi">${ic(icon)}</span><h3>${a.text && (a.kind === 'weekly' || a.kind === 'once') ? esc(a.text) : title}</h3>
+        <button class="switch ${a.on ? 'on' : ''}" data-autoon="${a.id}" role="switch" aria-checked="${a.on}"><i></i></button></div>
+      ${desc ? `<p class="dim">${desc}</p>` : `<p class="dim">${title}</p>`}
+      <div class="actl">${ctl}${a.kind === 'weekly' || a.kind === 'once' ? `<button class="iconbtn" data-autodel="${a.id}" aria-label="מחיקה">${ic('trash')}</button>` : ''}</div>
+    </div>`;
+  };
+  return top('אוטומציות', 'מתי ועל מה לקבל התראה', 'star', { back: 'more' }) + `
+  <div class="card">${status}</div>
+  ${A.map(row).join('')}
+  <div class="card">${cardHead('plus', 'תזכורת חדשה')}
+    <form data-autonew>
+      <label class="field">מה להזכיר?<input name="text" required placeholder="למשל: לבדוק מחברות חשבון"></label>
+      <div class="frow"><label class="field">מתי?<select name="kind"><option value="weekly">כל שבוע</option><option value="once">פעם אחת</option></select></label>
+        <label class="field">יום<select name="day">${DAYS.map((d, i) => `<option value="${i}">יום ${d}</option>`).join('')}</select></label></div>
+      <div class="frow"><label class="field">תאריך (לפעם אחת)<input type="date" name="date"></label><label class="field">שעה<input type="time" name="time" value="16:00"></label></div>
+      <button class="cta">${ic('plus')} הוספה</button>
+    </form>
+  </div>
+  <p class="hint">ההתראות נשלחות גם כשהאפליקציה סגורה. כל טלפון צריך להפעיל אותן פעם אחת.</p>`;
+}
+
 // ================================================================ render
 const TABS = ['now', 'day', 'prep', 'files', 'more'];
-const SUB = { kids: 'more', todos: 'more', summary: 'more', settings: 'more' };
-const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings };
+const SUB = { kids: 'more', todos: 'more', summary: 'more', settings: 'more', journal: 'more', lists: 'more', autos: 'more' };
+const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos };
 let lastTab = null;
 function render(animate) {
-  const w = pickWeek();
+  let w = pickWeek();
+  // after the last school day of the week, "to prepare" jumps to the next uploaded week
+  if (w && state.tab === 'prep' && !state.viewWeekId && state.prepDow == null) {
+    const t = todayInWeek(w);
+    const doneHere = t ? phase(t).kind === 'after' && !nextSchoolDay(w, t.dow) : !upcomingDay(w);
+    const ng = doneHere && nextDayGlobal();
+    if (ng && ng.w !== w) { state.viewWeekId = ng.w.id; w = ng.w; }
+  }
   const tab = SUB[state.tab] || state.tab;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   moveTabInd();
   const v = $('#view');
-  const needWeek = !['more', 'kids', 'todos', 'settings'].includes(state.tab);
+  const needWeek = !['more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos'].includes(state.tab);
   v.innerHTML = !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
   if (animate) {
     const a = TABS.indexOf(SUB[state.tab] || state.tab), b = TABS.indexOf(SUB[lastTab] || lastTab);
@@ -1283,6 +1545,14 @@ document.addEventListener('click', e => {
     panel.classList.remove('swap'); void panel.offsetWidth; panel.textContent = findPeriod(w, id).sections[+i].text; panel.classList.add('swap');
     return;
   }
+  if (D.wk) {
+    const ws = sortedWeeks(), cur = pickWeek(), i = ws.indexOf(cur);
+    const nw = D.wk === 'now' ? null : ws[i + (D.wk === 'next' ? 1 : -1)];
+    state.viewWeekId = nw ? nw.id : null; state.dayDow = null; state.prepDow = null; state.open = {};
+    render(false); const v = $('#view'); v.classList.remove('enter', 'from-l', 'from-r'); void v.offsetWidth; v.classList.add('enter', D.wk === 'next' ? 'from-l' : 'from-r');
+    return;
+  }
+  if (D.gowk) state.viewWeekId = D.gowk === (realWeek() || {}).id ? null : D.gowk;
   if (D.day != null && !t.disabled) { state.dayDow = D.day === 'all' ? 'all' : +D.day; if (state.tab !== 'day') go('day'); else rerender(); return; }
   if (D.pday != null) { state.prepDow = +D.pday; if (state.tab !== 'prep') go('prep'); else rerender(); return; }
   if (D.goto) {
@@ -1292,6 +1562,19 @@ document.addEventListener('click', e => {
     if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
     return;
   }
+  if (D.cnote != null && D.tag) { noteSheet(D.cnote || null, D.tag); return; }
+  if (D.picktag) { state._note.tag = D.picktag; document.querySelectorAll('.tp').forEach(b => b.classList.toggle('on', b.dataset.picktag === D.picktag)); return; }
+  if (D.pickkid) { const k = state._note.kids, i = k.indexOf(D.pickkid); if (i >= 0) k.splice(i, 1); else k.push(D.pickkid); t.classList.toggle('on', i < 0); return; }
+  if (D.cdone) { const n = state.cnotes.find(x => x.id === D.cdone); if (n) { n.done = !n.done; save(); if (n.done) miniBurst(t); setTimeout(rerender, 250); } return; }
+  if (D.cdel) { if (confirm('למחוק את ההערה?')) { state.cnotes = state.cnotes.filter(x => x.id !== D.cdel); save(); rerender(); } return; }
+  if (D.jf != null) { state.jfilter = D.jf; rerender(); return; }
+  if (D.ledit) { state.listEdit = state.listEdit === D.ledit ? null : D.ledit; rerender(); return; }
+  if (D.ldelitem) { const [l, i] = D.ldelitem.split('|'); const L = state.lists.find(x => x.id === l); L.items = L.items.filter(x => x.id !== i); save(); rerender(); return; }
+  if (D.lreset) { const L = state.lists.find(x => x.id === D.lreset); L.items.forEach(i => { i.done = false; }); save(); rerender(); return; }
+  if (D.ldel) { if (confirm('למחוק את הרשימה?')) { state.lists = state.lists.filter(x => x.id !== D.ldel); state.listEdit = null; save(); rerender(); } return; }
+  if (D.ltpl != null) { const [e, title, items] = LIST_TEMPLATES[+D.ltpl]; state.lists.push({ id: uid(), emoji: e, title, items: items.map(x => ({ id: uid(), text: x, done: false })) }); save(); rerender(); toast('הרשימה נוצרה ✓'); return; }
+  if (D.autoon) { const a = autos().find(x => x.id === D.autoon); a.on = !a.on; save(); rerender(); return; }
+  if (D.autodel) { state.autos = autos().filter(x => x.id !== D.autodel); save(); rerender(); return; }
   if (D.openfile) { closeOverlay(); openFile(D.openfile); return; }
   if (D.filemenu) { fileMenu(D.filemenu); return; }
   if (D.reassign) { const f = state.files.find(x => x.id === D.reassign); assignSheet([{ ...f, cur: f.ref ? `${f.ref.w}|${f.ref.dow}|${f.ref.label}` : '', m: null }], true); return; }
@@ -1360,6 +1643,9 @@ document.addEventListener('click', e => {
     }
     case 'export': exportBackup(); break;
     case 'uploadfiles': attachTo = null; $('#upfile').click(); break;
+    case 'pushon': enablePush(); break;
+    case 'pushoff': disablePush(); break;
+    case 'pushtest': pushApi({ action: 'test' }).then(r => toast(r.ok ? 'נשלחה התראת בדיקה 🔔' : 'לא הצלחתי לשלוח 😕')).catch(() => toast('לא הצלחתי לשלוח 😕')); break;
     case 'cancelupload': cancelUpload(); break;
     case 'syncnow': push().then(() => pull()).then(() => { rerender(); toast(sync.err ? 'לא הצלחתי לסנכרן 😕' : 'מסונכרן ✓'); }); break;
     case 'logout': if (confirm('להתנתק? המידע יישאר בטלפון הזה.')) ID.logout().catch(() => {}).finally(() => { sync.user = null; sync.pulled = false; state.syncV = 0; saveLocal(); rerender(); toast('התנתקת'); }); break;
@@ -1388,6 +1674,16 @@ document.addEventListener('change', e => {
     if (state.tab === 'prep') setTimeout(rerender, 450);
     return;
   }
+  if (i.dataset.lcheck) {
+    const [l, id] = i.dataset.lcheck.split('|'); const L = state.lists.find(x => x.id === l); const it = L.items.find(x => x.id === id);
+    it.done = i.checked; save(); i.closest('.chk').classList.toggle('on', i.checked);
+    if (i.checked) { if (L.items.every(x => x.done)) confetti(); else miniBurst(i.closest('.chk').querySelector('.box')); }
+    return;
+  }
+  if (i.dataset.litem) { const [l, id] = i.dataset.litem.split('|'); const it = state.lists.find(x => x.id === l).items.find(x => x.id === id); it.text = i.value.trim() || it.text; save(); return; }
+  if (i.dataset.ltitle) { const L = state.lists.find(x => x.id === i.dataset.ltitle); L.title = i.value.trim() || L.title; save(); return; }
+  if (i.dataset.auto) { const a = autos().find(x => x.id === i.dataset.auto); const f = i.dataset.f; a[f] = f === 'mins' || f === 'day' ? +i.value : i.value; save(); toast('נשמר ✓', 1000); return; }
+  if (i.dataset.prepitem) { const [dow, si, ii] = i.dataset.prepitem.split('|').map(Number); pickWeek().prep[dow][si].items[ii].text = i.value.trim(); save(); return; }
   if (i.dataset.todo) {
     const td = state.todos.find(x => x.id === i.dataset.todo);
     if (td) { td.done = i.checked; save(); i.closest('.chk').classList.toggle('on', i.checked); if (i.checked) miniBurst(i.closest('.chk').querySelector('.box')); }
@@ -1410,6 +1706,11 @@ document.addEventListener('submit', e => {
   const f = e.target;
   if (f.matches('[data-editor]')) { e.preventDefault(); saveEditor(f); return; }
   if (f.matches('[data-assign]')) { e.preventDefault(); saveAssign(f); return; }
+  if (f.matches('[data-noteform]')) { e.preventDefault(); saveNote(f); return; }
+  if (f.matches('[data-ladd]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; state.lists.find(x => x.id === f.dataset.ladd).items.push({ id: uid(), text: t, done: false }); save(); rerender(); setTimeout(() => { const n = document.querySelector(`[data-ladd="${f.dataset.ladd}"] input`); if (n) n.focus(); }, 30); return; }
+  if (f.matches('[data-lnew]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; const id = uid(); state.lists.push({ id, emoji: '✅', title: t, items: [] }); save(); rerender(); setTimeout(() => { const n = document.querySelector(`[data-ladd="${id}"] input`); if (n) n.focus(); }, 30); return; }
+  if (f.matches('[data-autonew]')) { e.preventDefault(); autos().push({ id: uid(), kind: f.kind.value, on: true, text: f.text.value.trim(), day: +f.day.value, date: f.date.value, time: f.time.value || '16:00' }); save(); rerender(); toast('התזכורת נוספה 🔔'); return; }
+  if (f.matches('[data-prepnew]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; const dow = +f.dataset.prepnew; const w = pickWeek(); (w.prep[dow] = w.prep[dow] || []).push({ title: t, icon: '', items: [] }); save(); rerender(); return; }
   if (f.matches('[data-auth]')) {
     e.preventDefault();
     const mode = e.submitter && e.submitter.value === 'signup' ? 'signup' : 'login';

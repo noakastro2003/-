@@ -5,6 +5,7 @@
   "dependencies": {
     "@netlify/blobs": "^11.1.7",
     "@netlify/functions": "^6.0.3",
-    "@netlify/identity": "^2.0.0"
+    "@netlify/identity": "^2.0.0",
+    "web-push": "^3.6.7"
   }
 }

@@ -3,12 +3,14 @@
    Everything here is scoped to [data-skin=luxe] (the default skin);
    the colourful skin keeps style.css as is.
    =================================================================== */
-@font-face { font-family: 'Frank Ruhl Libre'; font-weight: 300; src: url(../fonts/frank-ruhl-libre-hebrew-300-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; font-display: swap; }
-@font-face { font-family: 'Frank Ruhl Libre'; font-weight: 400; src: url(../fonts/frank-ruhl-libre-hebrew-400-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; font-display: swap; }
-@font-face { font-family: 'Frank Ruhl Libre'; font-weight: 500; src: url(../fonts/frank-ruhl-libre-hebrew-500-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; font-display: swap; }
-@font-face { font-family: 'Frank Ruhl Libre'; font-weight: 300; src: url(../fonts/frank-ruhl-libre-latin-300-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; font-display: swap; }
-@font-face { font-family: 'Frank Ruhl Libre'; font-weight: 400; src: url(../fonts/frank-ruhl-libre-latin-400-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; font-display: swap; }
-@font-face { font-family: 'Frank Ruhl Libre'; font-weight: 500; src: url(../fonts/frank-ruhl-libre-latin-500-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; font-display: swap; }
+@font-face { font-family: 'Assistant'; font-weight: 200; src: url(../fonts/assistant-hebrew-200-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; font-display: swap; }
+@font-face { font-family: 'Assistant'; font-weight: 200; src: url(../fonts/assistant-latin-200-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; font-display: swap; }
+@font-face { font-family: 'Assistant'; font-weight: 300; src: url(../fonts/assistant-hebrew-300-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; font-display: swap; }
+@font-face { font-family: 'Assistant'; font-weight: 300; src: url(../fonts/assistant-latin-300-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; font-display: swap; }
+@font-face { font-family: 'Assistant'; font-weight: 400; src: url(../fonts/assistant-hebrew-400-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; font-display: swap; }
+@font-face { font-family: 'Assistant'; font-weight: 400; src: url(../fonts/assistant-latin-400-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; font-display: swap; }
+@font-face { font-family: 'Assistant'; font-weight: 600; src: url(../fonts/assistant-hebrew-600-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; font-display: swap; }
+@font-face { font-family: 'Assistant'; font-weight: 600; src: url(../fonts/assistant-latin-600-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; font-display: swap; }
 @font-face { font-family: 'Heebo'; font-weight: 300; src: url(../fonts/heebo-hebrew-300-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; font-display: swap; }
 @font-face { font-family: 'Heebo'; font-weight: 300; src: url(../fonts/heebo-latin-300-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; font-display: swap; }
 
@@ -29,7 +31,7 @@
   --ease: cubic-bezier(.16, 1, .3, 1);
   --spring: cubic-bezier(.16, 1, .3, 1);
   --r-card: 26px;
-  --serif: 'Frank Ruhl Libre', 'Heebo', serif;
+  --serif: 'Assistant', 'Heebo', sans-serif;
 }
 [data-skin=luxe][data-theme=dark] {
   --bg: #131016;
@@ -47,9 +49,10 @@
 }
 
 /* ---------------------------------------------------------------- canvas */
-[data-skin=luxe] body { font-weight: 300; letter-spacing: .1px; }
-[data-skin=luxe] b, [data-skin=luxe] strong { font-weight: 500; }
-[data-skin=luxe] h1, [data-skin=luxe] h2, [data-skin=luxe] h3, [data-skin=luxe] .brand, [data-skin=luxe] .wk-t b, [data-skin=luxe] .sect { font-family: var(--serif); font-weight: 400; letter-spacing: 0; }
+[data-skin=luxe] body { font-family: 'Assistant', 'Heebo', sans-serif; font-weight: 400; letter-spacing: .15px; }
+[data-skin=luxe] button, [data-skin=luxe] input, [data-skin=luxe] textarea, [data-skin=luxe] select, [data-skin=luxe] .cta { font-family: 'Assistant', 'Heebo', sans-serif; }
+[data-skin=luxe] b, [data-skin=luxe] strong { font-weight: 600; }
+[data-skin=luxe] h1, [data-skin=luxe] h2, [data-skin=luxe] h3, [data-skin=luxe] .brand, [data-skin=luxe] .wk-t b, [data-skin=luxe] .sect { font-family: var(--serif); font-weight: 300; letter-spacing: .2px; }
 [data-skin=luxe] .orbs i { filter: blur(80px); }
 [data-skin=luxe] .orbs i:nth-child(1) { background: #EADFF5; opacity: .7; }
 [data-skin=luxe] .orbs i:nth-child(2) { background: #F3E3D2; opacity: .75; }
@@ -72,7 +75,7 @@
 [data-skin=luxe] .hb { background: var(--card); border: 1px solid var(--line); color: var(--ink); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
 [data-skin=luxe] .hb .dot { background: var(--gold); box-shadow: 0 0 0 3px rgba(184, 147, 90, .18); }
 [data-skin=luxe] .titlerow { min-height: 118px; }
-[data-skin=luxe] .tt h1 { font-size: 46px; font-weight: 300; line-height: 1.02; letter-spacing: -.5px; animation: luxIn 1.1s var(--ease) both; }
+[data-skin=luxe] .tt h1 { font-size: 50px; font-weight: 200; line-height: 1.02; letter-spacing: -.5px; animation: luxIn 1.1s var(--ease) both; }
 [data-skin=luxe] .tt h1::after { content: ''; display: block; width: 46px; height: 1px; margin: 14px 0 10px; background: var(--gold); animation: lineIn 1.2s .3s var(--ease) both; transform-origin: right; }
 [data-skin=luxe] .tt p { font-size: 14px; color: var(--soft); letter-spacing: .2px; }
 [data-skin=luxe] .tt p .ic.h { color: var(--gold); animation: none; width: 15px; }
@@ -270,3 +273,21 @@
 [data-skin=luxe] .tp.on .qi, [data-skin=luxe] .tp.on small { color: var(--bg); }
 [data-skin=luxe] .nemo { background: transparent; border: 1px solid var(--line); }
 [data-skin=luxe] .nemo .qi { width: 17px; height: 17px; }
+
+/* ================================================================ chosen look: Assistant · marble by day · plum night · no ornaments */
+[data-skin=luxe] .orbs { background: #F7F4EF url(../img/marble.jpg) center / cover no-repeat; }
+[data-skin=luxe] .orbs::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(250, 247, 243, .1), rgba(250, 247, 243, .35)); }
+[data-skin=luxe] .orbs i { display: none; }
+[data-skin=luxe] .orbs::after { opacity: .035; }
+[data-skin=luxe][data-theme=dark] .orbs { background: #140F19 url(../img/night.jpg) center top / cover no-repeat; }
+[data-skin=luxe][data-theme=dark] .orbs::before { background: none; }
+[data-skin=luxe] .illus { display: none; }
+[data-skin=luxe] .titlerow { min-height: 0; margin-top: 18px; }
+[data-skin=luxe] .tt p { font-weight: 300; font-size: 15px; }
+[data-skin=luxe] .nc-t h2 { font-weight: 300; font-size: 31px; }
+[data-skin=luxe] .lr-t b { font-weight: 400; }
+[data-skin=luxe] .ch h3 { font-weight: 400; }
+[data-skin=luxe] .rin b, [data-skin=luxe] .tdigits, [data-skin=luxe] .tile b, [data-skin=luxe] .qty, [data-skin=luxe] .pname { font-weight: 200; }
+[data-skin=luxe] .brand { font-weight: 400; }
+[data-skin=luxe] .card, [data-skin=luxe] .lrow { background: rgba(255, 255, 255, .78); }
+[data-skin=luxe][data-theme=dark] .card, [data-skin=luxe][data-theme=dark] .lrow { background: rgba(28, 22, 34, .62); }

@@ -613,7 +613,7 @@ function viewFiles(w) {
       (w.prep[d.dow] || []).forEach((sc, si) => sc.items.forEach((it, i) => {
         if (!it.url) return;
         const k = `p:${d.dow}:${sc.title}:${i}`, done = ck(w, k);
-        g.rows.push(`<button class="pfile frow ${done ? 'done' : ''}" data-printitem="${d.dow}|${si}|${i}">${ic(/שכפול/.test(it.text) ? 'layers' : 'printer')}<span class="grow"><b>${esc(it.text)}</b><small>${esc(sc.title)}${done ? ' · הודפס ✓' : ''}</small></span>${ic('chevL', 'chev')}</button>`);
+        g.rows.push(`<button class="pfile prow ${done ? 'done' : ''}" data-printitem="${d.dow}|${si}|${i}">${ic(/שכפול/.test(it.text) ? 'layers' : 'printer')}<span class="grow"><b>${esc(it.text)}</b><small>${esc(sc.title)}${done ? ' · הודפס ✓' : ''}</small></span>${ic('chevL', 'chev')}</button>`);
       }));
     }
   }
@@ -1782,12 +1782,15 @@ function viewAutos() {
   <div class="card">${status}</div>
   ${A.map(row).join('')}
   <div class="card">${cardHead('plus', 'תזכורת חדשה')}
-    <form data-autonew>
+    <form data-autonew class="autonew" data-kind="weekly">
       <label class="field">מה להזכיר?<input name="text" required placeholder="למשל: לבדוק מחברות חשבון"></label>
-      <div class="frow"><label class="field">מתי?<select name="kind"><option value="weekly">כל שבוע</option><option value="once">פעם אחת</option></select></label>
-        <label class="field">יום<select name="day">${DAYS.map((d, i) => `<option value="${i}">יום ${d}</option>`).join('')}</select></label></div>
-      <div class="frow"><label class="field">תאריך (לפעם אחת)<input type="date" name="date"></label><label class="field">שעה<input type="time" name="time" value="16:00"></label></div>
-      <button class="cta">${ic('plus')} הוספה</button>
+      <div class="seg kindseg"><label><input type="radio" name="kind" value="weekly" checked><span>${ic('calendar')}כל שבוע</span></label><label><input type="radio" name="kind" value="once"><span>${ic('pin')}פעם אחת</span></label></div>
+      <div class="an-grid">
+        <label class="field an-week">באיזה יום<select name="day">${DAYS.map((d, i) => `<option value="${i}">יום ${d}</option>`).join('')}</select></label>
+        <label class="field an-once">תאריך<input type="date" name="date" value="${isoDay(now())}"></label>
+        <label class="field">שעה<input type="time" name="time" value="16:00"></label>
+      </div>
+      <button class="cta">${ic('plus')} הוספת תזכורת</button>
     </form>
   </div>
   <p class="hint">ההתראות נשלחות גם כשהאפליקציה סגורה. כל טלפון צריך להפעיל אותן פעם אחת.</p>`;
@@ -2134,6 +2137,7 @@ document.addEventListener('click', e => {
 function findPeriod(w, id) { const [dow, lb] = id.split(':'); return w.days.find(d => d.dow === +dow).periods.find(p => p.label === lb); }
 
 document.addEventListener('change', e => {
+  if (e.target.name === 'kind' && e.target.closest('form.autonew')) e.target.closest('form').dataset.kind = e.target.value;
   const i = e.target;
   if (i.dataset.ck) {
     const w = pickWeek();

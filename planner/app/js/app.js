@@ -235,7 +235,7 @@ const cardHead = (icon, title, right = '') => `<div class="ch"><span class="chi"
 
 function ring(left, total, label = 'נשארו') {
   const p = total ? Math.max(0, Math.min(1, 1 - left / total)) : 0;
-  return `<div class="ring" style="--p:${p}"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" class="rt"/><circle cx="50" cy="50" r="44" class="rv" pathLength="100"/></svg>
+  return `<div class="ring ${label === 'נשארו' && left <= 5 ? 'soon' : ''}" style="--p:${p}"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" class="rt"/><circle cx="50" cy="50" r="44" class="rv" pathLength="100"/></svg>
     <div class="rin"><small>${label}</small><b>${left}</b><small>דק׳</small></div></div>`;
 }
 
@@ -1498,6 +1498,58 @@ function render(animate) {
     countUp(v);
   } else v.classList.remove('enter');
   lastTab = state.tab;
+  afterRender(v, animate);
+}
+
+// ================================================================ depth & motion
+let revealObs = null;
+function afterRender(v, animate) {
+  // compact header title follows the page title
+  const h1 = v.querySelector('.tt h1'); const mt = $('#miniTitle');
+  if (mt) mt.textContent = h1 ? h1.textContent : 'הכיתה שלי';
+  // cards below the fold slide in when they reach the screen
+  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (revealObs) revealObs.disconnect();
+  revealObs = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); revealObs.unobserve(e.target); } }), { rootMargin: '0px 0px -30px 0px' });
+  const H = innerHeight;
+  v.querySelectorAll(':scope > .card, :scope > .lessons > .lrow, :scope > .tiles, :scope > .toolgrid, :scope > .sect, :scope > .addbtn').forEach(el => {
+    if (el.getBoundingClientRect().top > H - 20) { el.classList.add('rv'); revealObs.observe(el); }
+  });
+  onScroll();
+}
+let ticking = false;
+function onScroll() {
+  if (ticking) return; ticking = true;
+  requestAnimationFrame(() => {
+    const y = scrollY;
+    document.documentElement.style.setProperty('--sy', Math.min(y, 400));
+    document.body.classList.toggle('scrolled', y > 120);
+    ticking = false;
+  });
+}
+addEventListener('scroll', onScroll, { passive: true });
+
+// ripple from the finger on buttons
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest('.cta, .toolgrid > button, .quick button, button.card, .trow, .mrow, .presets button, .tagpick .tp, .qtags button, .menu button, .seg button, .fc, .kc');
+  if (!b || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const r = b.getBoundingClientRect(), d = Math.max(r.width, r.height) * 2.2;
+  const s2 = document.createElement('span'); s2.className = 'ripple';
+  s2.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d / 2}px;top:${e.clientY - r.top - d / 2}px`;
+  b.classList.add('rp'); b.appendChild(s2); setTimeout(() => s2.remove(), 650);
+}, { passive: true });
+
+// loading sheet while a plan PDF is read
+function loader(show, pct = 0, label = '') {
+  let el = $('#loader');
+  if (!show) { if (el) { el.classList.remove('show'); setTimeout(() => el.remove(), 400); } return; }
+  if (!el) {
+    el = document.createElement('div'); el.id = 'loader';
+    el.innerHTML = `<div class="ld-card"><div class="ld-book"><i></i><i></i><i></i></div><b>קוראת את התכנון…</b><small id="ldLabel"></small><div class="bar big"><span id="ldBar" style="--w:0%"></span></div></div>`;
+    document.body.appendChild(el); void el.offsetWidth; el.classList.add('show');
+  }
+  $('#ldBar').style.setProperty('--w', Math.round(pct * 100) + '%'); $('#ldBar').style.width = Math.round(pct * 100) + '%';
+  $('#ldLabel').textContent = label;
 }
 function moveTabInd() {
   const on = $('.tabs button.on'), ind = $('.tabs .tab-ind');
@@ -1754,9 +1806,10 @@ $('#file').addEventListener('change', async e => {
   const f = e.target.files[0];
   e.target.value = '';
   if (!f) return;
-  toast('קוראת את התכנון… 📖', 0);
+  loader(true, 0, 'פותחת את הקובץ');
   try {
-    const wk = await parsePlanPdf(pdfjsLib, new Uint8Array(await f.arrayBuffer()));
+    const wk = await parsePlanPdf(pdfjsLib, new Uint8Array(await f.arrayBuffer()), (i, n) => loader(true, i / n, `עמוד ${i} מתוך ${n}`));
+    loader(true, 1, 'מסדרת את השבוע ✨'); await new Promise(r => setTimeout(r, 450)); loader(false);
     if (!wk.days.length) throw new Error('no days');
     const n = wk.days.reduce((a, d) => a + d.periods.length, 0);
     if (!n) { toast('מצאתי את הימים אבל לא את השיעורים 😕 שלחי לי את הקובץ ואתקן', 6000); return; }
@@ -1766,25 +1819,35 @@ $('#file').addEventListener('change', async e => {
     toast(`${wk.number ? 'שבוע ' + wk.number : 'השבוע'} נטען! ${wk.days.length} ימים, ${n} שיעורים 🎉${empty.length ? ` (בלי שיעורים: ${empty.join(', ')})` : ''}`, 4000);
     confetti();
   } catch (err) {
-    console.error(err);
+    console.error(err); loader(false);
     toast('לא הצלחתי לקרוא את הקובץ 😕 זה ה־PDF של התכנון?');
   }
 });
 
-// swipe between days
-let sx = null, sy = null;
-document.addEventListener('touchstart', e => { if (e.target.closest('[data-swipe]')) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; } }, { passive: true });
-document.addEventListener('touchend', e => {
+// swipe between days – the lessons follow the finger and spring back
+let sx = null, sy = null, sdx = 0, swiping = false;
+document.addEventListener('touchstart', e => { if (e.target.closest('[data-swipe]')) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; sdx = 0; swiping = false; } }, { passive: true });
+document.addEventListener('touchmove', e => {
   if (sx == null) return;
-  const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+  const dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
+  if (!swiping && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.4) swiping = true;
+  if (!swiping) return;
+  sdx = dx;
+  const el = $('#view .lessons'); if (el) { el.style.transition = 'none'; el.style.transform = `translateX(${dx * 0.45}px) rotate(${dx * 0.004}deg)`; el.style.opacity = String(1 - Math.min(Math.abs(dx) / 600, 0.35)); }
+}, { passive: true });
+document.addEventListener('touchend', () => {
+  if (sx == null) return;
   sx = null;
-  if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+  const el = $('#view .lessons');
+  const back = () => { if (el) { el.style.transition = 'transform .45s var(--spring), opacity .3s'; el.style.transform = ''; el.style.opacity = ''; } };
+  if (!swiping || Math.abs(sdx) < 70) { back(); return; }
   const w = pickWeek(), sel = currentSelDay(w);
-  const i = w.days.findIndex(d => d.dow === sel), j = dx > 0 ? i + 1 : i - 1;
-  if (w.days[j]) {
-    state.dayDow = w.days[j].dow; render(false);
-    const v = $('#view'); v.classList.remove('enter', 'from-l', 'from-r'); void v.offsetWidth; v.classList.add('enter', dx > 0 ? 'from-l' : 'from-r');
-  }
+  const i = w.days.findIndex(d => d.dow === sel), j = sdx > 0 ? i + 1 : i - 1;
+  if (!w.days[j]) { back(); return; }
+  if (navigator.vibrate) navigator.vibrate(6);
+  state.dayDow = w.days[j].dow; rerender();
+  const nl = $('#view .lessons');
+  if (nl) { nl.classList.remove('slide-l', 'slide-r'); void nl.offsetWidth; nl.classList.add(sdx > 0 ? 'slide-l' : 'slide-r'); }
 }, { passive: true });
 
 // ================================================================ iPhone widget + notifications (Scriptable)
@@ -1859,6 +1922,7 @@ document.addEventListener('visibilitychange', () => {
 addEventListener('resize', moveTabInd);
 
 applyPrefs();
+{ const mb = $('.minibar .mb-logo'); if (mb) mb.outerHTML = logo('mlogo'); }
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 render(true);
 initAuth();

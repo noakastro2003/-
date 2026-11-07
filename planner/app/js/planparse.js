@@ -7,12 +7,13 @@ const DAY_LETTERS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו'];
 const TIME_RANGE = /(\d{1,2}:\d{2})\s*[–-]\s*(\d{1,2}:\d{2})/;
 const LEAD_EMOJI = /^[\p{Extended_Pictographic}️‍\s]+/u;
 
-export async function parsePlanPdf(pdfjsLib, data) {
+export async function parsePlanPdf(pdfjsLib, data, onProgress) {
   const doc = await pdfjsLib.getDocument({ data }).promise;
   const week = { title: '', number: null, cls: '', range: '', year: null, days: [], prep: {}, notes: [], importedAt: new Date().toISOString() };
   let curDay = null;
 
   for (let pn = 1; pn <= doc.numPages; pn++) {
+    if (onProgress) onProgress(pn, doc.numPages);
     const page = await doc.getPage(pn);
     const { items, width, height } = await pageItems(page);
     const links = await pageLinks(page);

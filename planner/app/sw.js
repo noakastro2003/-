@@ -1,7 +1,7 @@
 // Offline cache: the app works in class even without reception.
-const CACHE = 'noa-planner-v22';
+const CACHE = 'noa-planner-v23';
 const FILES = [
-  './', 'index.html', 'css/style.css', 'css/luxe.css', 'fonts/assistant-hebrew-200-normal.woff2', 'fonts/varela-round-hebrew-400-normal.woff2', 'fonts/playpen-sans-hebrew-hebrew-300-normal.woff2', 'fonts/playpen-sans-hebrew-hebrew-400-normal.woff2', 'fonts/assistant-hebrew-300-normal.woff2', 'fonts/assistant-hebrew-400-normal.woff2', 'fonts/assistant-hebrew-600-normal.woff2', 'img/night.jpg', 'fonts/heebo-hebrew-300-normal.woff2', 'js/app.js', 'js/planparse.js', 'js/pdftext.js', 'js/icons.js', 'js/files.js', 'js/genparse.js', 'vendor/identity.mjs',
+  './', 'index.html', 'css/style.css', 'css/luxe.css', 'fonts/assistant-hebrew-200-normal.woff2', 'fonts/varela-round-hebrew-400-normal.woff2', 'fonts/playpen-sans-hebrew-hebrew-300-normal.woff2', 'fonts/playpen-sans-hebrew-hebrew-400-normal.woff2', 'fonts/assistant-hebrew-300-normal.woff2', 'fonts/assistant-hebrew-400-normal.woff2', 'fonts/assistant-hebrew-600-normal.woff2', 'img/night.jpg', 'fonts/heebo-hebrew-300-normal.woff2', 'js/app.js', 'js/planparse.js', 'js/pdftext.js', 'js/icons.js', 'js/files.js', 'js/genparse.js', 'js/toolkit.js', 'vendor/identity.mjs',
   'vendor/pdf.min.mjs', 'vendor/keepawake.mp4', 'vendor/pdf.worker.min.mjs', 'manifest.webmanifest',
   'fonts/heebo-hebrew-400-normal.woff2', 'fonts/heebo-hebrew-500-normal.woff2', 'fonts/heebo-hebrew-700-normal.woff2',
   'fonts/heebo-latin-400-normal.woff2', 'fonts/heebo-latin-500-normal.woff2', 'fonts/heebo-latin-700-normal.woff2',

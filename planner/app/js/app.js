@@ -4,14 +4,15 @@ import { ic, art, spark, squiggle, miniArt, fileBadge, logo } from './icons.js';
 import * as ID from '../vendor/identity.mjs';
 import { putBlob, getBlob, delBlob, extractText, matchLessons, fmtSize, kindOf } from './files.js';
 import { readAnyPlan } from './genparse.js';
+import { QUOTES, BANK, CATS, EV } from './toolkit.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs', import.meta.url).href;
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded'];
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved'];
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [],
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '',
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -262,10 +263,10 @@ function collectFiles(w) {
   }
   return [...map.values()];
 }
-function fileRow(f, compact) {
+function fileRow(f, compact, metaOver) {
   const pin = !!state.pins[f.url];
   const u = f.uses && f.uses[0];
-  const meta = u ? `${ic('folder')}${esc(look(u.p).n)} · ${f.uses.length > 2 ? `${f.uses.length} פעמים השבוע` : [...new Set(f.uses.map(x => 'יום ' + DAY_SHORT[x.d.dow]))].join(', ')}` : '';
+  const meta = metaOver != null ? metaOver : u ? `${ic('folder')}${esc(look(u.p).n)} · ${f.uses.length > 2 ? `${f.uses.length} פעמים השבוע` : [...new Set(f.uses.map(x => 'יום ' + DAY_SHORT[x.d.dow]))].join(', ')}` : '';
   return `<div class="file ${compact ? 'compact' : ''}">
     <a href="${esc(f.url)}" target="_blank" rel="noopener">${fileBadge(fileKind(f))}<span class="fx"><b>${esc(f.text)}</b>${meta && !compact ? `<small>${meta}</small>` : ''}</span>${compact ? ic('chevL', 'chev') : ''}</a>
     ${compact ? '' : `<button class="star ${pin ? 'on' : ''}" data-pin="${esc(f.url)}" data-pintext="${esc(f.text)}" aria-label="נעיצה">${ic(pin ? 'starFill' : 'star')}</button>`}
@@ -274,9 +275,9 @@ function fileRow(f, compact) {
 
 // ---------------------------------------------------------------- uploaded files
 const filesFor = (w, dow, label) => state.files.filter(f => f.ref && f.ref.w === w.id && f.ref.dow === dow && f.ref.label === label);
-function upRow(f, compact) {
+function upRow(f, compact, metaOver) {
   const ref = f.ref && state.weeks[f.ref.w] ? findPeriodIn(state.weeks[f.ref.w], f.ref.dow, f.ref.label) : null;
-  const meta = compact ? `${fmtSize(f.size)}${f.cloud ? ' · ☁️' : ''}` : `${ref ? esc(ref.title) + ' · יום ' + DAY_SHORT[f.ref.dow] : 'כללי'} · ${fmtSize(f.size)}${f.cloud ? ' · ☁️' : ''}`;
+  const meta = metaOver != null ? metaOver : compact ? `${fmtSize(f.size)}${f.cloud ? ' · ☁️' : ''}` : `${ref ? esc(ref.title) + ' · יום ' + DAY_SHORT[f.ref.dow] : 'כללי'} · ${fmtSize(f.size)}${f.cloud ? ' · ☁️' : ''}`;
   return `<div class="file ${compact ? 'compact' : ''} up">
     <button class="a" data-openfile="${f.id}">${fileBadge(kindOf(f.name, f.type))}<span class="fx"><b>${esc(f.name.replace(/\.[^.]+$/, ''))}</b><small>${meta}</small></span>${compact ? ic('chevL', 'chev') : ''}</button>
     ${compact ? '' : `<button class="iconbtn" data-filemenu="${f.id}" aria-label="אפשרויות">${ic('dots')}</button>`}
@@ -307,7 +308,7 @@ function viewNow(w) {
   if (ph.kind === 'lesson') {
     h += top('עכשיו', `${hello()} · ${line()}`, 'books');
     h += birthdayBanner();
-    h += nowCard(w, day, ph.cur, ph) + quickTools();
+    h += nowCard(w, day, ph.cur, ph) + quickTools() + tipCard();
     if (ph.next) h += nextCard(day, ph.next, ph.inMin);
   } else if (ph.kind === 'break') {
     h += top('הפסקה', `${inText(ph.inMin)} · נושמים רגע ☕`, 'books');
@@ -317,7 +318,7 @@ function viewNow(w) {
     h += top(hello(), `יום ${day.name} · מתחילים ב־${ph.next.start}`, 'books');
     h += birthdayBanner();
     h += prepCards(w, day, 'today');
-    h += nextCard(day, ph.next, ph.inMin, 'השיעור הראשון');
+    h += nextCard(day, ph.next, ph.inMin, 'השיעור הראשון') + tipCard();
   } else if (ph.kind === 'after') {
     h += top('סיימת את היום 🎉', `${line()} 💜`, 'books');
     h += birthdayBanner() + teaser;
@@ -570,27 +571,111 @@ function viewPrep(w) {
 // ================================================================ FILES
 function viewFiles(w) {
   const files = collectFiles(w);
-  const q = state.q.trim(), fs = state.fsub;
-  const subjOf = f => look(f.uses[0].p).n;
+  const q = state.q.trim(), mode = state.fgroup || 'day';
   const kindWord = f => ({ ppt: 'מצגת', folder: 'תיקייה', sheet: 'טבלה', pdf: 'pdf' }[fileKind(f)] || 'דף מסמך');
-  const match = f => (!q || (f.text + ' ' + f.uses.map(u => u.p.title).join(' ') + ' ' + kindWord(f)).includes(q)) && (!fs || subjOf(f) === fs);
-  const subs = [...new Set(files.map(subjOf))];
+  const refP = f => f.ref && state.weeks[f.ref.w] ? findPeriodIn(state.weeks[f.ref.w], f.ref.dow, f.ref.label) : null;
   let h = top('קבצים', 'כל הקבצים של הכיתה במקום אחד, נגישים ומהירים', 'folder');
   h += `<button class="cta upl" data-act="uploadfiles">${ic('upload')} העלאת קבצים</button><p class="hint">אני אזהה לבד לאיזה שיעור כל קובץ שייך ✨<br>מהדרייב: "עיון" ← Google Drive</p>`;
   h += `<label class="search">${ic('search')}<input id="fq" type="search" placeholder="חיפוש קובץ" value="${esc(state.q)}"></label>`;
-  h += `<div class="fchips"><button class="fc ${!fs ? 'on' : ''}" data-fsub="">${ic('layers')}הכל</button>${subs.map(s => `<button class="fc ${fs === s ? 'on' : ''}" data-fsub="${esc(s)}">${esc(s)}</button>`).join('')}</div>`;
-  const pinned = Object.entries(state.pins).map(([url, text]) => files.find(f => f.url === url) || { url, text, uses: [] }).filter(f => !f.uses.length ? !q && !fs : match(f));
+  // ---- search: one flat list
+  if (q) {
+    const hit = files.filter(f => (f.text + ' ' + f.uses.map(u => u.p.title + ' ' + look(u.p).n).join(' ') + ' ' + kindWord(f)).includes(q));
+    const ups = state.files.filter(f => (f.name + ' ' + ((refP(f) || {}).title || '')).includes(q));
+    h += hit.length + ups.length
+      ? `<div class="card fgrp open">${cardHead('search', `תוצאות ל"${esc(q)}"`, `<span class="cnt">${hit.length + ups.length}</span>`)}${hit.map(f => fileRow(f)).join('')}${ups.map(f => upRow(f)).join('')}</div>`
+      : `<p class="hint">לא מצאתי "${esc(q)}" 🤔</p>`;
+    return h;
+  }
+  // ---- pinned
+  const pinned = Object.entries(state.pins).map(([url, text]) => files.find(f => f.url === url) || { url, text, uses: [] });
   if (pinned.length) h += `<div class="card pinned">${cardHead('starFill', 'תמיד בשלוף', spark())}${pinned.map(f => fileRow(f)).join('')}</div>`;
-  else if (!q && !fs) h += `<p class="hint">טיפ: לוחצים על ☆ ליד קובץ – והוא יישאר כאן למעלה, בכל שבוע.</p>`;
-  const mine = state.files.filter(f => !q || (f.name + ' ' + ((f.ref && state.weeks[f.ref.w] && (findPeriodIn(state.weeks[f.ref.w], f.ref.dow, f.ref.label) || {}).title) || '')).includes(q))
-    .filter(f => !fs || (f.ref && state.weeks[f.ref.w] && look(findPeriodIn(state.weeks[f.ref.w], f.ref.dow, f.ref.label) || {}).n === fs))
-    .sort((a, b) => (a.added < b.added ? 1 : -1));
-  if (mine.length) h += `<div class="card">${cardHead('upload', 'הקבצים שהעליתי', `<span class="cnt">${mine.length}</span>`)}${mine.map(f => upRow(f)).join('')}</div>`;
-  const rest = files.filter(f => !state.pins[f.url] && match(f));
-  if (rest.length) h += `<h4 class="sect">כל הקבצים</h4>${rest.map(f => `<div class="card fcard">${fileRow(f)}</div>`).join('')}`;
-  if (!files.length && !mine.length) h += `<p class="hint">אין עדיין קבצים לשבוע הזה.</p>`;
-  else if (!pinned.length && !rest.length && !mine.length) h += `<p class="hint">לא מצאתי "${esc(q)}" 🤔</p>`;
+  // ---- groups
+  h += `<div class="seg fseg">${[['day', 'calendar', 'לפי יום'], ['subj', 'books', 'לפי מקצוע'], ['print', 'printer', 'להדפסה']].map(([v, i, l]) => `<button class="${mode === v ? 'on' : ''}" data-fgroup="${v}">${ic(i)}${l}</button>`).join('')}</div>`;
+  const groups = []; // {key, title, sub, rows:[html]}
+  const grp = (key, title, sub) => { let g = groups.find(x => x.key === key); if (!g) groups.push(g = { key, title, sub, rows: [] }); return g; };
+  const weekUps = state.files.filter(f => f.ref && f.ref.w === w.id);
+  const otherUps = state.files.filter(f => !(f.ref && f.ref.w === w.id)).sort((a, b) => (a.added < b.added ? 1 : -1));
+  const today = todayInWeek(w) || upcomingDay(w);
+  if (mode === 'day') {
+    for (const d of w.days) {
+      const g = grp('d' + d.dow, `יום ${d.name}`, d === today ? (todayInWeek(w) ? 'היום' : 'הבא') : '');
+      const seen = new Set();
+      for (const p of d.periods) {
+        for (const l of p.links) if (l.url && !seen.has(l.url)) { seen.add(l.url); const f = files.find(x => x.url === l.url); if (f) g.rows.push(fileRow(f, false, `${esc(p.title)}${p.start ? ' · ' + p.start : ''}`)); }
+        for (const f of weekUps.filter(x => x.ref.dow === d.dow && x.ref.label === p.label)) g.rows.push(upRow(f, false, `${esc(p.title)} · ${fmtSize(f.size)}`));
+      }
+    }
+  } else if (mode === 'subj') {
+    for (const f of files) grp('s' + look(f.uses[0].p).n, look(f.uses[0].p).n).rows.push(fileRow(f, false, [...new Set(f.uses.map(x => 'יום ' + DAY_SHORT[x.d.dow]))].join(', ')));
+    for (const f of weekUps) { const p = refP(f); grp('s' + (p ? look(p).n : 'כללי'), p ? look(p).n : 'כללי').rows.push(upRow(f, false, `יום ${DAY_SHORT[f.ref.dow]} · ${fmtSize(f.size)}`)); }
+    groups.sort((a, b) => b.rows.length - a.rows.length);
+  } else {
+    for (const d of w.days) {
+      const g = grp('p' + d.dow, `יום ${d.name}`, d === today ? (todayInWeek(w) ? 'היום' : 'הבא') : '');
+      (w.prep[d.dow] || []).forEach((sc, si) => sc.items.forEach((it, i) => {
+        if (!it.url) return;
+        const k = `p:${d.dow}:${sc.title}:${i}`, done = ck(w, k);
+        g.rows.push(`<button class="pfile frow ${done ? 'done' : ''}" data-printitem="${d.dow}|${si}|${i}">${ic(/שכפול/.test(it.text) ? 'layers' : 'printer')}<span class="grow"><b>${esc(it.text)}</b><small>${esc(sc.title)}${done ? ' · הודפס ✓' : ''}</small></span>${ic('chevL', 'chev')}</button>`);
+      }));
+    }
+  }
+  if (mode !== 'print' && otherUps.length) grp('other', 'קבצים כלליים ומשבועות אחרים').rows.push(...otherUps.map(f => upRow(f)));
+  const shown = groups.filter(g => g.rows.length);
+  const firstOpen = (shown.find(g => g.sub) || shown[0] || {}).key;
+  for (const g of shown) {
+    const open = state.fopen && g.key in state.fopen ? state.fopen[g.key] : g.key === firstOpen;
+    h += `<div class="card fgrp ${open ? 'open' : ''}">
+      <button class="fgh" data-fopen="${esc(g.key)}"><b>${esc(g.title)}</b>${g.sub ? `<em class="today">${g.sub}</em>` : ''}<span class="cnt">${g.rows.length}</span>${ic('chevD', 'chev')}</button>
+      ${open ? `<div class="fgb">${g.rows.join('')}</div>` : ''}
+    </div>`;
+  }
+  if (!shown.length) h += `<p class="hint">${mode === 'print' ? 'אין קבצי הדפסה עם קישור בשבוע הזה.' : 'אין עדיין קבצים לשבוע הזה.'}</p>`;
+  if (!pinned.length) h += `<p class="hint">טיפ: לוחצים על ☆ ליד קובץ – והוא יישאר תמיד למעלה.</p>`;
   return h;
+}
+
+// ================================================================ TOOLKIT: research-based methods & tips
+const tipOfDay = () => { const t = now(); return BANK[(t.getFullYear() * 400 + t.getMonth() * 31 + t.getDate()) % BANK.length]; };
+function tipCard() {
+  const b = tipOfDay();
+  return `<button class="card tipday" data-tip="${b.id}"><span class="tem">${b.em}</span><span class="grow"><small>${ic('sparkle')} רעיון להיום · ${CATS[b.cat][0]}</small><b>${esc(b.t)}</b><span>${esc(b.what)}</span></span>${ic('chevL', 'chev')}</button>`;
+}
+function tipRow(b) {
+  const saved = state.tsaved.includes(b.id);
+  return `<button class="tkrow" data-tip="${b.id}"><span class="tem">${b.em}</span><span class="grow"><b>${esc(b.t)}${saved ? ' <i class="hs">♥</i>' : ''}</b><small>${esc(b.what)}</small><span class="tkm"><em class="ev ev${b.ev}">${EV[b.ev]}</em><em>${esc(b.min)}</em></span></span>${ic('chevL', 'chev')}</button>`;
+}
+function viewTools() {
+  const c = state.tcat;
+  const list = BANK.filter(b => !c || (c === 'saved' ? state.tsaved.includes(b.id) : b.cat === c));
+  let h = top('שיטות וטיפים', 'מה באמת עובד בכיתה – כל רעיון כאן נשען על מחקר, עם מקור', 'star', { back: 'more' });
+  h += `<button class="cta" data-act="tiprand">🎲 תני לי רעיון לשיעור הבא</button>`;
+  h += `<div class="fchips"><button class="fc ${!c ? 'on' : ''}" data-tcat="">${ic('layers')}הכל</button>${Object.entries(CATS).map(([k, [n, i]]) => `<button class="fc ${c === k ? 'on' : ''}" data-tcat="${k}">${ic(i)}${n}</button>`).join('')}<button class="fc ${c === 'saved' ? 'on' : ''}" data-tcat="saved">${ic('heart')}שמרתי</button></div>`;
+  const groups = c ? [[c, list]] : Object.keys(CATS).map(k => [k, list.filter(b => b.cat === k)]);
+  for (const [k, items] of groups) {
+    if (!items.length) continue;
+    h += `<div class="card tkcard">${cardHead(k === 'saved' ? 'heart' : CATS[k][1], k === 'saved' ? 'מה ששמרתי' : CATS[k][0], `<span class="cnt">${items.length}</span>`)}${items.map(tipRow).join('')}</div>`;
+  }
+  if (!list.length) h += `<p class="hint">עוד לא שמרת רעיונות. לוחצים על ♡ בתוך רעיון שאהבת.</p>`;
+  h += `<p class="hint">המקורות: מחקרים שפורסמו בכתבי עת, סקירות של קרן EEF הבריטית ועקרונות ההוראה של רוזנשיין. ליד כל רעיון – קישור למקור.</p>`;
+  return h;
+}
+function tipSheet(id) {
+  const b = BANK.find(x => x.id === id); if (!b) return;
+  const saved = state.tsaved.includes(b.id);
+  openOverlay(`<div class="ov sheet tksheet">
+    <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="tkh"><span class="tem big">${b.em}</span><div><small>${CATS[b.cat][0]} · ${esc(b.min)}</small><h2>${esc(b.t)}</h2></div></div>
+    <p class="tkwhat">${esc(b.what)}</p>
+    <h4>איך עושים</h4>
+    <ol class="tksteps">${b.how.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
+    ${b.tip ? `<p class="tktip">💡 ${esc(b.tip)}</p>` : ''}
+    <div class="tkwhy"><h4>${ic('target')} למה זה עובד <em class="ev ev${b.ev}">${EV[b.ev]}</em></h4><p>${esc(b.why)}</p>
+      <p class="tksrc">${ic('book')} ${b.src[1] ? `<a href="${esc(b.src[1])}" target="_blank" rel="noopener">${esc(b.src[0])}</a>` : esc(b.src[0])}</p></div>
+    <div class="btnrow">
+      <button class="cta soft" data-tsave="${b.id}">${ic(saved ? 'heart' : 'heart')} ${saved ? 'שמור ♥' : 'לשמור'}</button>
+      ${b.act ? `<button class="cta" data-act="${b.act}">${ic('dice')} מי עונה?</button>` : `<button class="cta" data-act="tiprand">🎲 עוד רעיון</button>`}
+    </div>
+  </div>`);
 }
 
 // ================================================================ MORE + sub screens
@@ -603,6 +688,7 @@ function viewMore(w) {
       ['pencil', 'יומן כיתה', 'data-go="journal"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"']]
       .map(([i, t, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${t}</button>`).join('')}
   </div>
+  <button class="card setlink tkl" data-go="tools"><span class="chi">${ic('sparkle')}</span><span class="grow"><b>שיטות וטיפים לכיתה</b><small>למידה פעילה, בדיקת הבנה והשתתפות – מבוסס מחקר</small></span>${ic('chevL', 'chev')}</button>
   <button class="card setlink" data-go="settings"><span class="chi">${ic('settings')}</span><span class="grow"><b>הגדרות</b><small>${sync.user ? '☁️ מחוברת · ' : ''}חשבון, תצוגה, התראות, ווידג׳ט</small></span>${ic('chevL', 'chev')}</button>
   ${bdCard(14, 'ימי הולדת בשבועיים הקרובים')}
   <div class="card">
@@ -1277,7 +1363,7 @@ function printSheet(w, dow, si, i) {
     </div>` : ''}
     <div class="menu">
       <a class="mbtn" href="${esc(direct)}" target="_blank" rel="noopener">${ic('printer')} פתיחה להדפסה</a>
-      <button data-act="pshare">${ic('upload')} שיתוף</button>
+      <button data-act="pshare" id="pshareBtn" class="${id ? 'loading' : ''}">${ic('upload')} ${id ? 'מכינה את הקובץ לשיתוף…' : 'שיתוף קישור'}</button>
       <a class="mbtn" href="${esc(it.url)}" target="_blank" rel="noopener">${ic('folder')} פתיחה בדרייב</a>
       <button data-act="pcopylink">${ic('link')} העתקת קישור</button>
       <button data-act="pdone">${ic('check')} ${ck(w, k) ? 'בוטל הסימון' : 'סימון שהודפס'}</button>
@@ -1285,6 +1371,34 @@ function printSheet(w, dow, si, i) {
     <p class="hint">בחלון שנפתח: כפתור השיתוף ← "הדפסה"</p>
   </div>`);
   if (copy && navigator.vibrate) navigator.vibrate(10);
+  if (id) {
+    state._print.loading = true;
+    printFile(it, id).then(f => {
+      const P = state._print; if (!P || P.k !== k) return;
+      P.loading = false; P.file = f;
+      const b = $('#pshareBtn'); if (!b) return;
+      b.classList.remove('loading');
+      b.innerHTML = f ? `${ic('upload')} שיתוף הקובץ עצמו (${(f.name.split('.').pop() || 'pdf').toUpperCase()})` : `${ic('link')} שיתוף קישור`;
+      if (!f) b.insertAdjacentHTML('afterend', '<p class="hint">כדי לשתף את הקובץ עצמו: בדרייב ← שיתוף ← "כל מי שיש לו את הקישור"</p>');
+    });
+  }
+}
+// download a Drive/Docs file through /api/drive (cached on the phone) so it can be shared as a real file
+async function printFile(it, id) {
+  const key = 'drv:' + id;
+  try {
+    let rec = await getBlob(key).catch(() => null);
+    if (!rec) {
+      const r = await fetch('/api/drive?u=' + encodeURIComponent(it.url));
+      if (!r.ok) return null;
+      const blob = await r.blob();
+      let name = decodeURIComponent(r.headers.get('x-file-name') || '') || it.text.replace(/[\\/:*?"<>|]/g, '').trim();
+      if (!/\.[a-z0-9]{2,5}$/i.test(name)) name += blob.type === 'application/pdf' ? '.pdf' : '';
+      rec = { blob, name };
+      putBlob(key, rec).catch(() => {});
+    }
+    return new File([rec.blob], rec.name, { type: rec.blob.type || 'application/pdf' });
+  } catch { return null; }
 }
 
 // ================================================================ account & sync (Netlify Identity + Blobs)
@@ -1623,76 +1737,9 @@ function viewAutos() {
 
 // ================================================================ joy: morning welcome, ready moment, streak
 const HE_MONTHS = ['בינואר', 'בפברואר', 'במרץ', 'באפריל', 'במאי', 'ביוני', 'ביולי', 'באוגוסט', 'בספטמבר', 'באוקטובר', 'בנובמבר', 'בדצמבר'];
-const EDU_QUOTES = [
-  ['חֲנֹךְ לַנַּעַר עַל פִּי דַרְכּוֹ', 'משלי כב, ו'],
-  ['אין אדם לומד אלא ממקום שליבו חפץ', 'מסכת עבודה זרה'],
-  ['הרבה למדתי מרבותיי, ומחבריי יותר מרבותיי, ומתלמידיי יותר מכולם', 'מסכת תענית'],
-  ['מִכָּל מְלַמְּדַי הִשְׂכַּלְתִּי', 'תהלים קיט'],
-  ['לא הביישן למד, ולא הקפדן מלמד', 'פרקי אבות'],
-  ['יהי כבוד תלמידך חביב עליך כשלך', 'פרקי אבות'],
-  ['הוי מקבל את כל האדם בסבר פנים יפות', 'פרקי אבות'],
-  ['דִּבְרֵי חֲכָמִים בְּנַחַת נִשְׁמָעִים', 'קהלת ט, יז'],
-  ['כל המלמד את בן חברו תורה – מעלה עליו הכתוב כאילו ילדו', 'מסכת סנהדרין'],
-  ['אין ילדים – יש בני אדם', 'יאנוש קורצ\'אק'],
-  ['תיקון העולם יתאפשר בתיקון הילדים', 'יאנוש קורצ\'אק'],
-  ['להיוולד וללמוד לחיות – מלאכות קשות הן', 'יאנוש קורצ\'אק'],
-  ['השכל אינו כלי שיש למלא אותו, אלא אש שיש להצית', 'פלוטרכוס'],
-  ['הסימן הגדול להצלחתה של מורה: היכולת לומר "הילדים עובדים עכשיו כאילו אני לא קיימת"', 'מריה מונטסורי'],
-  ['הגעתי למסקנה המפחידה שאני הגורם המכריע בכיתה. מצב הרוח שלי הוא שקובע את מזג האוויר', 'חיים גינות'],
-  ['חינוך הוא הנשק החזק ביותר שבעזרתו אפשר לשנות את העולם', 'נלסון מנדלה'],
-  ['כל ילד ראוי לאלוף – מבוגר שלא מוותר עליו, שמבין את כוחו של קשר, ומתעקש שיהיה הטוב ביותר שהוא יכול להיות', 'ריטה פירסון'],
-  ['הוראה היא מעשה האופטימיות הגדול ביותר', 'קולין וילקוקס'],
-];
-const QUOTES = [
-  'ילד אחד שהרגיש שרואים אותו היום – זה כבר יום מוצלח.',
-  'הסבלנות שלך היא מתנה שהם יזכרו שנים.',
-  'לא צריך שיעור מושלם. צריך מורה שאכפת לה – וזו את.',
-  'כל "אה, הבנתי!" בכיתה מתחיל בהכנה שלך.',
-  'את שותלת היום דברים שיפרחו בעוד שנים.',
-  'קצת קפה, הרבה לב – יאללה.',
-  'הילדים לא זוכרים את הדף. הם זוכרים איך הרגישו לידך.',
-  'גם הבלגן הוא חלק מהקסם.',
-  'את לא רק מלמדת – את בונה אנשים.',
-  'צעד קטן בכל שיעור, קפיצה גדולה בסוף השנה.',
-  'היום מישהו ילמד מילה חדשה בזכותך.',
-  'מותר לנשום. את עושה עבודה מדהימה.',
-  'חיוך אחד בבוקר משנה כיתה שלמה.',
-  'כל יום הוא הזדמנות חדשה – לך ולהם.',
-  'את המבוגרת שהם יספרו עליה.',
-  'סדר בראש, לב פתוח, ויאללה לכיתה.',
-  'הם בני מזל שיש להם אותך.',
-  'אין יום רגיל כשיש לך עשרים ושבעה עולמות קטנים.',
-  'גם מורה מדהימה צריכה הפסקה. תני לעצמך אחת היום.',
-  'את לא חייבת להספיק הכל. את חייבת להיות את.',
-  'כל ילד מגיע עם סיפור – ואת חלק ממנו.',
-  'הכיתה שלך היא מקום בטוח. בזכותך.',
-  'השפעה של מורה אחת לא נגמרת אף פעם.',
-  'יש מישהו בכיתה שמחכה דווקא לחיוך שלך.',
-  'היום תהיה רגע אחד קטן שתזכרי. תשימי לב אליו.',
-  'הדבר הכי חכם בכיתה הוא השאלה של ילד – ואת מאפשרת אותה.',
-  'טעויות הן חלק מהשיעור. גם שלך.',
-  'מי שמלמדת – לומדת פעמיים.',
-  'אמונה בילד היא חצי מההצלחה שלו.',
-  'את מראה להם איך נראה מבוגר טוב.',
-  'לב גדול לא נכנס לתכנון – הוא פשוט מגיע איתך.',
-  'מחר הם יהיו קצת יותר גדולים. בזכות היום.',
-  'לפעמים "כל הכבוד" אחד שווה שיעור שלם.',
-  'ההכנה שלך היא השקט שלהם.',
-  'את יודעת יותר ממה שאת חושבת.',
-  'גם ימים קשים נגמרים – והילדים זוכרים את החום.',
-  'כל דף ממורקר, כל מספריים במקום – אהבה בפרטים הקטנים.',
-  'היום את המנצחת על תזמורת קטנה ורועשת 🎶',
-  'הלב שלך מלמד יותר מכל מצגת.',
-  'תסתכלי עליהם רגע מהצד – תראי כמה גדלו.',
-  'סקרנות מדבקת. ואת מלאה בה.',
-  'גם להקשיב זה ללמד.',
-  'הכיתה לא צריכה מורה מושלמת. היא צריכה אותך.',
-  'עוד יום של קסם קטן מתחיל.',
-  'מה שאת זורעת היום – מישהו יקטוף בעוד עשרים שנה.',
-];
 const dateKey = d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 let lastHidden = 0;
-const ALL_QUOTES = () => QUOTES.map(t => [t, '']).concat(EDU_QUOTES);
+const ALL_QUOTES = () => QUOTES;
 function pickQuote() {
   const all = ALL_QUOTES();
   let last = -1; try { last = +localStorage.getItem('hk-q'); } catch { /* fine */ }
@@ -1756,8 +1803,8 @@ function readyMoment(day) {
 
 // ================================================================ render
 const TABS = ['now', 'day', 'prep', 'files', 'more'];
-const SUB = { kids: 'more', todos: 'more', summary: 'more', settings: 'more', journal: 'more', lists: 'more', autos: 'more' };
-const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos };
+const SUB = { kids: 'more', todos: 'more', summary: 'more', settings: 'more', journal: 'more', lists: 'more', autos: 'more', tools: 'more' };
+const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools };
 let lastTab = null;
 function render(animate) {
   let w = pickWeek();
@@ -1772,7 +1819,7 @@ function render(animate) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   moveTabInd();
   const v = $('#view');
-  const needWeek = !['more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos'].includes(state.tab);
+  const needWeek = !['more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools'].includes(state.tab);
   v.innerHTML = !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
   if (animate) {
     const a = TABS.indexOf(SUB[state.tab] || state.tab), b = TABS.indexOf(SUB[lastTab] || lastTab);
@@ -1934,6 +1981,11 @@ document.addEventListener('click', e => {
   if (D.delweek) { if (confirm('למחוק את השבוע הזה מהטלפון?')) { delete state.weeks[D.delweek]; delete state.checks[D.delweek]; delete state.logs[D.delweek]; save(); rerender(); } return; }
   if (D.pin) { if (state.pins[D.pin]) delete state.pins[D.pin]; else { state.pins[D.pin] = D.pintext; miniBurst(t); } save(); setTimeout(rerender, 200); return; }
   if (D.fsub != null) { state.fsub = D.fsub; rerender(); return; }
+  if (D.fgroup) { state.fgroup = D.fgroup; rerender(); return; }
+  if (D.fopen) { state.fopen = state.fopen || {}; const el = t.closest('.fgrp'); state.fopen[D.fopen] = !el.classList.contains('open'); rerender(); return; }
+  if (D.tcat != null) { state.tcat = D.tcat; rerender(); return; }
+  if (D.tip) { tipSheet(D.tip); return; }
+  if (D.tsave) { const i = state.tsaved.indexOf(D.tsave); if (i >= 0) state.tsaved.splice(i, 1); else { state.tsaved.push(D.tsave); miniBurst(t); toast('נשמר ♥'); } save(); tipSheet(D.tsave); if (state.tab === 'tools') rerender(); return; }
   if (D.timer) { timerSetup(+D.timer, +(D.rounds || 1)); return; }
   if (D.tset) { timerSetup(+D.tset, T.setRounds); return; }
   if (D.tmin) { timerSetup(Math.max(1, Math.min(90, T.setMin + +D.tmin)), T.setRounds); return; }
@@ -1965,6 +2017,7 @@ document.addEventListener('click', e => {
     case 'close': closeOverlay(); break;
     case 'topen': timerScreen(); break;
     case 'picker': pickerScreen(); break;
+    case 'tiprand': { const cur = state._tip; let b; do b = BANK[Math.floor(Math.random() * BANK.length)]; while (b.id === cur && BANK.length > 1); state._tip = b.id; tipSheet(b.id); break; }
     case 'pick': doPick(); break;
     case 'split': doSplit(); break;
     case 'savekidsquick': { const k = parseKids($('#kidsQuick').value); if (!k.length) { toast('לא מצאתי שמות 🤔'); break; } state.kids = k; save(); state.pickMode = 'one'; pickerScreen(); toast(`נשמרו ${k.length} ילדים 💜`); break; }
@@ -1984,7 +2037,14 @@ document.addEventListener('click', e => {
     case 'manualweek': manualSheet(false); break;
     case 'templateweek': manualSheet(true); break;
     case 'onblogin': state.onboarded = true; save(); go('settings'); break;
-    case 'pshare': { const P2 = state._print; if (navigator.share) navigator.share({ title: P2.title, text: P2.title, url: P2.url }).catch(() => {}); else navigator.clipboard.writeText(P2.url).then(() => toast('הקישור הועתק 📋')); break; }
+    case 'pshare': {
+      const P2 = state._print;
+      if (P2.loading) { toast('רגע, מורידה את הקובץ… ⏳'); break; }
+      if (P2.file && navigator.canShare && navigator.canShare({ files: [P2.file] })) { navigator.share({ files: [P2.file], title: P2.title }).catch(() => {}); break; }
+      if (navigator.share) navigator.share({ title: P2.title, text: P2.title, url: P2.url }).catch(() => {});
+      else navigator.clipboard.writeText(P2.url).then(() => toast('הקישור הועתק 📋'));
+      break;
+    }
     case 'pcopylink': navigator.clipboard.writeText(state._print.url).then(() => toast('הקישור הועתק 📋')).catch(() => toast('לא הצלחתי להעתיק 😕')); break;
     case 'pdone': { const k = state._print.k; setCk(w, k, !ck(w, k)); closeOverlay(); rerender(); if (ck(w, k)) toast('סומן ✓'); checkReady(w, +k.split(':')[1]); break; }
     case 'pushon': enablePush(); break;

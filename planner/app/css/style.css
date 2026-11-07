@@ -830,3 +830,16 @@ input, textarea, select { font-size: 16px !important; }
 .ov { overflow-x: hidden; touch-action: pan-y; }
 .ov * { max-width: 100%; }
 #overlay, body.noscroll { overscroll-behavior: none; }
+
+/* toolkit spacing */
+.cta.tkrand { margin: 22px 0 18px; }
+.tkchips { margin-bottom: 8px; padding-bottom: 10px; }
+.tkcard { margin: 18px 0 22px; padding: 20px 20px 10px; }
+.tkcard .ch, .tkcard > :first-child { margin-bottom: 8px; }
+.tkrow { padding: 20px 2px; gap: 16px; }
+.tkrow b { margin-bottom: 4px; line-height: 1.35; }
+.tkrow small { line-height: 1.55; }
+.tkm { margin-top: 12px; gap: 8px; }
+.tkm em, .ev { padding: 4px 12px; }
+.tipday { gap: 16px; padding-block: 20px; }
+.tipday b { margin: 6px 0; }

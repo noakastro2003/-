@@ -642,8 +642,8 @@ function viewTools() {
   const c = state.tcat;
   const list = BANK.filter(b => !c || (c === 'saved' ? state.tsaved.includes(b.id) : b.cat === c));
   let h = top('שיטות וטיפים', 'מה באמת עובד בכיתה – כל רעיון כאן נשען על מחקר, עם מקור', 'star', { back: 'more' });
-  h += `<button class="cta" data-act="tiprand">🎲 תני לי רעיון לשיעור הבא</button>`;
-  h += `<div class="fchips"><button class="fc ${!c ? 'on' : ''}" data-tcat="">${ic('layers')}הכל</button>${Object.entries(CATS).map(([k, [n, i]]) => `<button class="fc ${c === k ? 'on' : ''}" data-tcat="${k}">${ic(i)}${n}</button>`).join('')}<button class="fc ${c === 'saved' ? 'on' : ''}" data-tcat="saved">${ic('heart')}שמרתי</button></div>`;
+  h += `<button class="cta tkrand" data-act="tiprand">🎲 תני לי רעיון לשיעור הבא</button>`;
+  h += `<div class="fchips tkchips"><button class="fc ${!c ? 'on' : ''}" data-tcat="">${ic('layers')}הכל</button>${Object.entries(CATS).map(([k, [n, i]]) => `<button class="fc ${c === k ? 'on' : ''}" data-tcat="${k}">${ic(i)}${n}</button>`).join('')}<button class="fc ${c === 'saved' ? 'on' : ''}" data-tcat="saved">${ic('heart')}שמרתי</button></div>`;
   const groups = c ? [[c, list]] : Object.keys(CATS).map(k => [k, list.filter(b => b.cat === k)]);
   for (const [k, items] of groups) {
     if (!items.length) continue;

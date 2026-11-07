@@ -346,3 +346,12 @@
 [data-skin=luxe] #welcome h1 { font-family: var(--round); font-weight: 400; font-size: 36px; }
 [data-skin=luxe] .wl-q { font-size: 20px; line-height: 1.7; }
 .wl-by { margin: 2px 0 0; font-size: 13.5px; color: var(--gold, #B8935A); letter-spacing: .5px; }
+
+/* ================================================================ onboarding */
+.onb { text-align: center; padding: calc(env(safe-area-inset-top, 0px) + 40px) 6px 20px; }
+.onb-logo .wlogo { width: 86px; height: 86px; animation: wlPop .9s var(--ease) both; }
+.onb h1 { font-family: var(--round, 'Varela Round'), sans-serif; font-weight: 400; font-size: 32px; margin: 18px 0 6px; animation: luxIn 1s .1s var(--ease) both; }
+.onb-sub { color: var(--soft); font-size: 16px; line-height: 1.6; margin: 0 10px 18px; animation: luxIn 1s .2s var(--ease) both; }
+.onb-form { text-align: right; animation: luxCard 1s .3s var(--ease) both; }
+.onb-form .cta { margin-top: 14px; }
+.review .row b { font-weight: 600; }

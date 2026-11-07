@@ -20,7 +20,7 @@ export const getBlob = id => tx('readonly', s => s.get(id));
 export const delBlob = id => tx('readwrite', s => s.delete(id));
 
 // ---------------------------------------------------------------- text extraction
-async function unzip(buf, want) {
+export async function unzip(buf, want) {
   const dv = new DataView(buf), dec = new TextDecoder();
   let eocd = -1;
   for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }

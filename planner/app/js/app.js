@@ -3,17 +3,19 @@ import { parsePlanPdf, DAY_NAMES } from './planparse.js';
 import { ic, art, spark, squiggle, miniArt, fileBadge, logo } from './icons.js';
 import * as ID from '../vendor/identity.mjs';
 import { putBlob, getBlob, delBlob, extractText, matchLessons, fmtSize, kindOf } from './files.js';
+import { readAnyPlan } from './genparse.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs', import.meta.url).href;
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready'];
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded'];
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: 'נועה', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [],
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [],
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
+if (state.onboarded == null && (Object.keys(state.weeks).length || state.name)) state.onboarded = true;
 state.prefs = Object.assign({ size: 1, theme: 'auto', skin: 'luxe', notify: true, notifyTime: '07:00' }, state.prefs);
 function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } }
 function saveLocal() {
@@ -212,6 +214,7 @@ const LINES = [
   'נושמים, מחייכים, מתחילים', 'בזכותך כל ילד מרגיש שרואים אותו', 'קפה, תוכנית, וזהו – את מוכנה',
   'גם יום עמוס נגמר בחיוך', 'הילדים שלך בני מזל שיש להם אותך', 'צעד אחד בכל פעם', 'את מתוכננת. הכל בפנים.',
 ];
+const hello = () => `${greet()}${state.name ? ', ' + esc(state.name) : ''}`;
 const greet = () => { const h = now().getHours(); return h < 5 ? 'לילה טוב' : h < 12 ? 'בוקר טוב' : h < 16 ? 'צהריים טובים' : h < 21 ? 'ערב טוב' : 'לילה טוב'; };
 const line = () => { const d = now(); return LINES[(d.getDate() + d.getMonth() * 31) % LINES.length]; };
 
@@ -302,7 +305,7 @@ function viewNow(w) {
   let h = '';
 
   if (ph.kind === 'lesson') {
-    h += top('עכשיו', `${greet()}, ${esc(state.name)} · ${line()}`, 'books');
+    h += top('עכשיו', `${hello()} · ${line()}`, 'books');
     h += birthdayBanner();
     h += nowCard(w, day, ph.cur, ph) + quickTools();
     if (ph.next) h += nextCard(day, ph.next, ph.inMin);
@@ -311,7 +314,7 @@ function viewNow(w) {
     h += birthdayBanner();
     h += nowCard(w, day, ph.next, { kind: 'preview', inMin: ph.inMin }) + quickTools();
   } else if (ph.kind === 'before') {
-    h += top(`${greet()}, ${esc(state.name)}`, `יום ${day.name} · מתחילים ב־${ph.next.start}`, 'books');
+    h += top(hello(), `יום ${day.name} · מתחילים ב־${ph.next.start}`, 'books');
     h += birthdayBanner();
     h += prepCards(w, day, 'today');
     h += nextCard(day, ph.next, ph.inMin, 'השיעור הראשון');
@@ -605,7 +608,8 @@ function viewMore(w) {
   <div class="card">
     ${cardHead('upload', 'תכנון שבועי')}
     <button class="cta" data-act="upload">${ic('upload')} להעלות תכנון של שבוע חדש</button>
-    <p class="hint">מעלים את ה־PDF של התכנון. שבוע עם אותם תאריכים יוחלף.</p>
+    <p class="hint">PDF, Word, Excel או טקסט – בכל מבנה. שבוע עם אותם תאריכים יוחלף.</p>
+    <div class="btnrow"><button class="cta soft" data-act="manualweek">${ic('pencil')} שבוע ידני</button><button class="cta soft" data-act="templateweek" ${weeks.length ? '' : 'disabled'}>${ic('layers')} משבוע קודם</button></div>
     ${weeks.map(x => `<div class="wrow ${w && x.id === w.id ? 'on' : ''}">
       <button class="wsel" data-week="${esc(x.id)}"><b>${esc(x.number ? 'שבוע ' + x.number : x.title)}</b><small dir="ltr">${esc(x.range || '')}</small></button>
       <button class="iconbtn" data-delweek="${esc(x.id)}" aria-label="מחיקה">${ic('trash')}</button>
@@ -712,13 +716,94 @@ function viewSummary(w) {
 }
 
 function viewEmpty() {
-  return top(`שלום ${esc(state.name)}`, 'כאן הכיתה שלך תהיה תמיד בכיס', 'books') + `
+  if (!state.onboarded) return `<section class="onb">
+    <div class="onb-logo">${logo('wlogo')}</div>
+    <h1>ברוכה הבאה ל״הכיתה שלי״</h1>
+    <p class="onb-sub">התכנון השבועי שלך – מסודר, יפה ותמיד בכיס. שלוש שאלות קטנות ומתחילים:</p>
+    <form class="card onb-form" data-onboard>
+      <label class="field">איך קוראים לך?<input name="name" required placeholder="השם שלך" autocomplete="given-name"></label>
+      <div class="frow"><label class="field">איזו כיתה?<input name="cls" placeholder="למשל ב׳2"></label>
+        <label class="field">כמה תלמידים?<input name="size" type="number" inputmode="numeric" min="1" max="60" placeholder="27"></label></div>
+      <button class="cta">${ic('sparkle')} יאללה, מתחילים</button>
+    </form>
+    <p class="hint">יש לך כבר חשבון? <button class="linkbtn" data-act="onblogin">התחברות</button></p>
+  </section>`;
+  return top(state.name ? `שלום ${esc(state.name)}` : 'שלום', 'כאן הכיתה שלך תהיה תמיד בכיס', 'books') + `
   <div class="card empty">
-    ${art('books', 'bob')}
-    <p>מעלים את קובץ התכנון השבועי (PDF) – ואני מסדרת: מה עכשיו, מה הבא, מה להכין.</p>
+    <p>מעלים את התכנון השבועי – <b>בכל צורה</b>: PDF, Word, Excel או טקסט – ואני מסדרת: מה עכשיו, מה הבא, מה להכין.</p>
     <button class="cta" data-act="upload">${ic('upload')} להעלות את התכנון של השבוע</button>
+    <button class="cta soft" data-act="manualweek">${ic('pencil')} לבנות שבוע ידנית</button>
     <p class="hint">יש לך כבר חשבון? <button class="linkbtn" data-go="settings">התחברות</button></p>
   </div>`;
+}
+
+// ================================================================ generic plans: review, manual week, template
+const DEFAULT_BELL = { 'בוקר': ['08:00', '08:20'], 1: ['08:20', '09:00'], 2: ['09:00', '09:45'], 3: ['10:05', '10:50'], 4: ['10:50', '11:35'], 5: ['11:55', '12:40'], 6: ['12:40', '13:25'], 7: ['13:30', '14:15'], 8: ['14:15', '15:00'] };
+function bellFor(label) {
+  for (const w of sortedWeeks().reverse()) for (const d of w.days) { const p = d.periods.find(x => x.label === label && x.start); if (p) return [p.start, p.end]; }
+  return DEFAULT_BELL[label] || ['', ''];
+}
+function nextSunday() { const t = now(); t.setHours(0, 0, 0, 0); const d = addDays(t, t.getDay() >= 5 ? 7 - t.getDay() : -t.getDay()); return d; }
+const isoDay = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function buildWeek(days, startIso, meta = {}) {
+  const sun = new Date(startIso + 'T00:00');
+  const wk = { title: meta.title || '', number: meta.number || null, cls: state.prefs.cls || '', range: '', year: sun.getFullYear(), days: [], prep: {}, notes: [], importedAt: new Date().toISOString(), generic: true };
+  for (const d0 of days) {
+    const dd = addDays(sun, d0.dow);
+    const d = { dow: d0.dow, name: DAY_NAMES[d0.dow], date: `${dd.getDate()}.${dd.getMonth() + 1}`, periods: [] };
+    const used = new Set();
+    d0.periods.forEach((p, i) => {
+      let label = p.label || String(i + 1);
+      while (used.has(label)) label += '׳';
+      used.add(label);
+      const [bs, be] = bellFor(label.replace(/׳+$/, ''));
+      d.periods.push({ ...p, label, start: p.start || bs, end: p.end || be });
+    });
+    d.periods.sort((a, b) => (a.start || '99').localeCompare(b.start || '99'));
+    const mats = d.periods.flatMap(p => p.materials.map(m => ({ text: m.text, period: p.label })));
+    if (mats.length) wk.prep[d.dow] = [{ title: 'להכין / להביא', icon: '', items: mats }];
+    wk.days.push(d);
+  }
+  wk.days.sort((a, b) => a.dow - b.dow);
+  if (wk.days.length) wk.range = `${wk.days[0].date}–${wk.days[wk.days.length - 1].date}`;
+  wk.id = isoDay(sun);
+  if (!wk.title) wk.title = 'השבוע של ' + wk.range;
+  return wk;
+}
+function reviewSheet(res) {
+  state._review = res;
+  const n = res.days.reduce((a, d) => a + d.periods.length, 0);
+  let start = isoDay(nextSunday());
+  const withDate = res.days.find(d => d.date);
+  if (withDate) { const [dd, mm] = withDate.date.split('.').map(Number); const y = res.year || now().getFullYear(); start = isoDay(addDays(new Date(y, mm - 1, dd), -withDate.dow)); }
+  openOverlay(`<form class="ov sheet review" data-review>
+    <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('sparkle')}<h2>${n ? `מצאתי ${n} שיעורים ✨` : 'בואי נסדר יחד'}</h2></div>
+    ${n ? `<div class="card">${res.days.map(d => `<div class="row"><b style="white-space:nowrap">יום ${d.name}</b><span class="dim grow">${d.periods.slice(0, 3).map(p => esc(p.title)).join(' · ')}${d.periods.length > 3 ? ' …' : ''}</span><span class="cnt">${d.periods.length}</span></div>`).join('')}</div>
+      <label class="field">השבוע מתחיל ביום ראשון:<input type="date" name="start" value="${start}" required></label>
+      <label class="field">שם לשבוע (לא חובה)<input name="title" value="${esc(res.number ? 'שבוע ' + res.number : '')}" placeholder="למשל שבוע 9"></label>
+      <p class="hint">אחרי השמירה אפשר לערוך כל שיעור, ולהוסיף שעות, חומרים וקבצים.</p>
+      <div class="btnrow"><button class="cta">${ic('check')} שמירה</button></div>`
+    : `<p class="dim">${res.unsupported ? 'את סוג הקובץ הזה אני עוד לא יודעת לקרוא. אפשר PDF, Word, Excel או טקסט.' : 'לא הצלחתי לזהות בקובץ ימים ושיעורים – אבל זה בסדר גמור. אפשר לבנות את השבוע בכמה נגיעות:'}</p>
+      <div class="menu">
+        <button type="button" data-act="manualweek">${ic('pencil')} לבנות את השבוע ידנית</button>
+        ${Object.keys(state.weeks).length ? `<button type="button" data-act="templateweek">${ic('layers')} לשכפל את השבוע הקודם כתבנית</button>` : ''}
+      </div>`}
+  </form>`);
+}
+function manualSheet(template) {
+  openOverlay(`<form class="ov sheet" data-manual="${template ? 1 : ''}">
+    <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic(template ? 'layers' : 'pencil')}<h2>${template ? 'שבוע חדש מהשבוע הקודם' : 'שבוע חדש'}</h2></div>
+    <label class="field">השבוע מתחיל ביום ראשון:<input type="date" name="start" value="${isoDay(nextSunday())}" required></label>
+    <label class="field">שם לשבוע (לא חובה)<input name="title" placeholder="למשל שבוע 10"></label>
+    <p class="dim">${template ? 'אותם שיעורים ושעות כמו בשבוע האחרון – ואז רק מעדכנים מה משתנה.' : 'נוצר שבוע ריק, ובכל יום מוסיפים שיעורים בכפתור "הוספת שיעור".'}</p>
+    <div class="btnrow"><button class="cta">${ic('check')} יצירה</button></div>
+  </form>`);
+}
+function saveGenericWeek(wk) {
+  state.weeks[wk.id] = wk; state.activeId = wk.id; state.viewWeekId = wk.id === (realWeek() || {}).id ? null : wk.id; save();
+  closeOverlay(); state.dayDow = null; go('day'); confetti();
 }
 
 // ================================================================ overlays (sheet)
@@ -1627,7 +1712,7 @@ function welcome() {
   el.innerHTML = `<div class="wl-in">
     <div class="wl-logo">${logo('wlogo')}</div>
     <small>יום ${DAY_FULL[t.getDay()]}, ${t.getDate()} ${HE_MONTHS[t.getMonth()]}</small>
-    <h1>${greet()}, ${esc(state.name)}</h1>
+    <h1>${hello()}</h1>
     ${(([q, by]) => `<p class="wl-q">${esc(q)}</p>${by ? `<p class="wl-by">— ${esc(by)}</p>` : ''}`)(pickQuote())}
     <p class="wl-i">${esc(info)}${bd.length ? `${info ? '<br>' : ''}🎂 יום הולדת ל${esc(names(bd))}` : ''}</p>
   </div>`;
@@ -1896,6 +1981,9 @@ document.addEventListener('click', e => {
     }
     case 'export': exportBackup(); break;
     case 'uploadfiles': attachTo = null; $('#upfile').click(); break;
+    case 'manualweek': manualSheet(false); break;
+    case 'templateweek': manualSheet(true); break;
+    case 'onblogin': state.onboarded = true; save(); go('settings'); break;
     case 'pshare': { const P2 = state._print; if (navigator.share) navigator.share({ title: P2.title, text: P2.title, url: P2.url }).catch(() => {}); else navigator.clipboard.writeText(P2.url).then(() => toast('הקישור הועתק 📋')); break; }
     case 'pcopylink': navigator.clipboard.writeText(state._print.url).then(() => toast('הקישור הועתק 📋')).catch(() => toast('לא הצלחתי להעתיק 😕')); break;
     case 'pdone': { const k = state._print.k; setCk(w, k, !ck(w, k)); closeOverlay(); rerender(); if (ck(w, k)) toast('סומן ✓'); checkReady(w, +k.split(':')[1]); break; }
@@ -1949,7 +2037,7 @@ document.addEventListener('change', e => {
   }
   if (i.dataset.lognote) { const w = pickWeek(), cur = getLog(w, i.dataset.lognote); if (cur) { cur.note = i.value; save(); toast('נשמר ✓', 1200); } return; }
   if (i.id === 'classSizeIn') { const v = Math.max(1, Math.min(60, +i.value || 0)); if (v) { state.prefs.classSize = v; save(); toast(`נשמר: ${v} תלמידים ✓`, 1500); } return; }
-  if (i.id === 'nameIn') { state.name = i.value.trim() || 'נועה'; save(); toast('נשמר ✓', 1200); }
+  if (i.id === 'nameIn') { state.name = i.value.trim(); save(); toast('נשמר ✓', 1200); }
   if (i.id === 'notifyTime') { state.prefs.notifyTime = i.value || '07:00'; save(); toast('נשמר – לא לשכוח לעדכן את הווידג׳ט 📲', 2400); }
 });
 
@@ -1965,6 +2053,22 @@ document.addEventListener('submit', e => {
   const f = e.target;
   if (f.matches('[data-editor]')) { e.preventDefault(); saveEditor(f); return; }
   if (f.matches('[data-assign]')) { e.preventDefault(); saveAssign(f); return; }
+  if (f.matches('[data-onboard]')) {
+    e.preventDefault();
+    state.name = f.name.value.trim(); if (f.cls.value.trim()) state.prefs.cls = f.cls.value.trim(); if (+f.size.value) state.prefs.classSize = +f.size.value;
+    state.onboarded = true; save(); rerender(); toast(`נעים מאוד, ${state.name} 💜`); confetti(); return;
+  }
+  if (f.matches('[data-review]')) { e.preventDefault(); const r = state._review; saveGenericWeek(buildWeek(r.days, f.start.value, { title: f.title.value.trim(), number: r.number })); return; }
+  if (f.matches('[data-manual]')) {
+    e.preventDefault();
+    let days;
+    if (f.dataset.manual) {
+      const last = sortedWeeks()[sortedWeeks().length - 1];
+      days = last.days.map(d => ({ dow: d.dow, periods: d.periods.map(p => ({ ...JSON.parse(JSON.stringify(p)), sections: [], materials: [], homework: [], links: [], badges: [] })) }));
+    } else days = [0, 1, 2, 3, 4, 5].map(dow => ({ dow, periods: [] }));
+    saveGenericWeek(buildWeek(days, f.start.value, { title: f.title.value.trim() }));
+    return;
+  }
   if (f.matches('[data-noteform]')) { e.preventDefault(); saveNote(f); return; }
   if (f.matches('[data-ladd]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; state.lists.find(x => x.id === f.dataset.ladd).items.push({ id: uid(), text: t, done: false }); save(); rerender(); setTimeout(() => { const n = document.querySelector(`[data-ladd="${f.dataset.ladd}"] input`); if (n) n.focus(); }, 30); return; }
   if (f.matches('[data-lnew]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; const id = uid(); state.lists.push({ id, emoji: '✅', title: t, items: [] }); save(); rerender(); setTimeout(() => { const n = document.querySelector(`[data-ladd="${id}"] input`); if (n) n.focus(); }, 30); return; }
@@ -2016,11 +2120,21 @@ $('#file').addEventListener('change', async e => {
   if (!f) return;
   loader(true, 0, 'פותחת את הקובץ');
   try {
-    const wk = await parsePlanPdf(pdfjsLib, new Uint8Array(await f.arrayBuffer()), (i, n) => loader(true, i / n, `עמוד ${i} מתוך ${n}`));
+    const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+    let wk = null;
+    if (isPdf) {
+      try { wk = await parsePlanPdf(pdfjsLib, new Uint8Array(await f.arrayBuffer()), (i, n) => loader(true, i / n, `עמוד ${i} מתוך ${n}`)); } catch (e2) { console.warn(e2); wk = null; }
+    }
+    const nn = wk ? wk.days.reduce((a, d) => a + d.periods.length, 0) : 0;
+    if (!nn) {
+      loader(true, .7, 'מחפשת ימים ושיעורים…');
+      const res = await readAnyPlan(f, pdfjsLib);
+      loader(true, 1, 'כמעט מוכן ✨'); await new Promise(r => setTimeout(r, 350)); loader(false);
+      reviewSheet(res);
+      return;
+    }
     loader(true, 1, 'מסדרת את השבוע ✨'); await new Promise(r => setTimeout(r, 450)); loader(false);
-    if (!wk.days.length) throw new Error('no days');
-    const n = wk.days.reduce((a, d) => a + d.periods.length, 0);
-    if (!n) { toast('מצאתי את הימים אבל לא את השיעורים 😕 שלחי לי את הקובץ ואתקן', 6000); return; }
+    const n = nn;
     const empty = wk.days.filter(d => !d.periods.length).map(d => d.name);
     state.weeks[wk.id] = wk; state.activeId = wk.id; state.viewWeekId = null; save();
     go('now');
@@ -2028,7 +2142,7 @@ $('#file').addEventListener('change', async e => {
     confetti();
   } catch (err) {
     console.error(err); loader(false);
-    toast('לא הצלחתי לקרוא את הקובץ 😕 זה ה־PDF של התכנון?');
+    reviewSheet({ days: [] });
   }
 });
 

@@ -1539,35 +1539,87 @@ function viewAutos() {
 // ================================================================ joy: morning welcome, ready moment, streak
 const HE_MONTHS = ['בינואר', 'בפברואר', 'במרץ', 'באפריל', 'במאי', 'ביוני', 'ביולי', 'באוגוסט', 'בספטמבר', 'באוקטובר', 'בנובמבר', 'בדצמבר'];
 const QUOTES = [
-  'ילד אחד שהרגיש שרואים אותו היום – זה כבר יום מוצלח.', 'הסבלנות שלך היא מתנה שהם יזכרו שנים.', 'לא צריך שיעור מושלם. צריך מורה שאכפת לה – וזו את.',
-  'כל "אה, הבנתי!" בכיתה מתחיל בהכנה שלך.', 'את שותלת היום דברים שיפרחו בעוד שנים.', 'קצת קפה, הרבה לב – יאללה.', 'הילדים לא זוכרים את הדף. הם זוכרים איך הרגישו לידך.',
-  'גם הבלגן הוא חלק מהקסם.', 'את לא רק מלמדת – את בונה אנשים.', 'צעד קטן בכל שיעור, קפיצה גדולה בסוף השנה.', 'היום מישהו ילמד לקרוא מילה חדשה בזכותך.',
-  'מותר לנשום. את עושה עבודה מדהימה.', 'חיוך אחד בבוקר משנה כיתה שלמה.', 'כל יום הוא הזדמנות חדשה – לך ולהם.', 'את המבוגרת שהם יספרו עליה.',
-  'סדר בראש, לב פתוח, ויאללה לכיתה.', 'הם בני מזל שיש להם אותך.', 'אין יום רגיל כשיש לך עשרים ושישה עולמות קטנים.',
+  'ילד אחד שהרגיש שרואים אותו היום – זה כבר יום מוצלח.',
+  'הסבלנות שלך היא מתנה שהם יזכרו שנים.',
+  'לא צריך שיעור מושלם. צריך מורה שאכפת לה – וזו את.',
+  'כל "אה, הבנתי!" בכיתה מתחיל בהכנה שלך.',
+  'את שותלת היום דברים שיפרחו בעוד שנים.',
+  'קצת קפה, הרבה לב – יאללה.',
+  'הילדים לא זוכרים את הדף. הם זוכרים איך הרגישו לידך.',
+  'גם הבלגן הוא חלק מהקסם.',
+  'את לא רק מלמדת – את בונה אנשים.',
+  'צעד קטן בכל שיעור, קפיצה גדולה בסוף השנה.',
+  'היום מישהו ילמד מילה חדשה בזכותך.',
+  'מותר לנשום. את עושה עבודה מדהימה.',
+  'חיוך אחד בבוקר משנה כיתה שלמה.',
+  'כל יום הוא הזדמנות חדשה – לך ולהם.',
+  'את המבוגרת שהם יספרו עליה.',
+  'סדר בראש, לב פתוח, ויאללה לכיתה.',
+  'הם בני מזל שיש להם אותך.',
+  'אין יום רגיל כשיש לך עשרים ושבעה עולמות קטנים.',
+  'גם מורה מדהימה צריכה הפסקה. תני לעצמך אחת היום.',
+  'את לא חייבת להספיק הכל. את חייבת להיות את.',
+  'כל ילד מגיע עם סיפור – ואת חלק ממנו.',
+  'הכיתה שלך היא מקום בטוח. בזכותך.',
+  'השפעה של מורה אחת לא נגמרת אף פעם.',
+  'יש מישהו בכיתה שמחכה דווקא לחיוך שלך.',
+  'היום תהיה רגע אחד קטן שתזכרי. תשימי לב אליו.',
+  'הדבר הכי חכם בכיתה הוא השאלה של ילד – ואת מאפשרת אותה.',
+  'טעויות הן חלק מהשיעור. גם שלך.',
+  'מי שמלמדת – לומדת פעמיים.',
+  'אמונה בילד היא חצי מההצלחה שלו.',
+  'את מראה להם איך נראה מבוגר טוב.',
+  'לב גדול לא נכנס לתכנון – הוא פשוט מגיע איתך.',
+  'מחר הם יהיו קצת יותר גדולים. בזכות היום.',
+  'לפעמים "כל הכבוד" אחד שווה שיעור שלם.',
+  'ההכנה שלך היא השקט שלהם.',
+  'את יודעת יותר ממה שאת חושבת.',
+  'גם ימים קשים נגמרים – והילדים זוכרים את החום.',
+  'כל דף ממורקר, כל מספריים במקום – אהבה בפרטים הקטנים.',
+  'היום את המנצחת על תזמורת קטנה ורועשת 🎶',
+  'הלב שלך מלמד יותר מכל מצגת.',
+  'תסתכלי עליהם רגע מהצד – תראי כמה גדלו.',
+  'סקרנות מדבקת. ואת מלאה בה.',
+  'גם להקשיב זה ללמד.',
+  'הכיתה לא צריכה מורה מושלמת. היא צריכה אותך.',
+  'עוד יום של קסם קטן מתחיל.',
+  'מה שאת זורעת היום – מישהו יקטוף בעוד עשרים שנה.',
 ];
 const dateKey = d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+let lastHidden = 0;
+function pickQuote() {
+  let last = -1; try { last = +localStorage.getItem('hk-q'); } catch { /* fine */ }
+  let i = Math.floor(Math.random() * QUOTES.length);
+  if (i === last) i = (i + 1 + Math.floor(Math.random() * (QUOTES.length - 1))) % QUOTES.length;
+  try { localStorage.setItem('hk-q', i); } catch { /* fine */ }
+  return QUOTES[i];
+}
 function welcome() {
-  let last = null; try { last = localStorage.getItem('hk-welcome'); } catch { /* fine */ }
-  const t = now(); if ((last === dateKey(t) || fakeNow) && !new URLSearchParams(location.search).has('welcome')) return;
-  try { localStorage.setItem('hk-welcome', dateKey(t)); } catch { /* fine */ }
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches && $('#welcome')) return;
+  const old = $('#welcome'); if (old) old.remove();
+  const t = now();
   const w = realWeek(), day = w && todayInWeek(w);
-  const info = day && day.periods.length ? `${day.periods.length} שיעורים · מתחילים ב־${day.periods[0].start}` : (t.getDay() === 6 ? 'שבת שלום 🕯️' : 'יום בלי שיעורים – תנוחי');
+  const info = day && day.periods.length ? `${day.periods.length} שיעורים · מתחילים ב־${day.periods[0].start}` : (t.getDay() === 6 ? 'שבת שלום 🕯️' : '');
   const bd = bdOn(t);
-  const q = QUOTES[(t.getDate() + t.getMonth() * 7) % QUOTES.length];
   const el = document.createElement('div'); el.id = 'welcome';
   el.innerHTML = `<div class="wl-in">
     <div class="wl-logo">${logo('wlogo')}</div>
     <small>יום ${DAY_FULL[t.getDay()]}, ${t.getDate()} ${HE_MONTHS[t.getMonth()]}</small>
     <h1>${greet()}, ${esc(state.name)}</h1>
-    <p class="wl-q">${esc(q)}</p>
-    <p class="wl-i">${esc(info)}${bd.length ? `<br>🎂 יום הולדת ל${esc(names(bd))}` : ''}</p>
-    <span class="wl-tap">נגיעה להמשך</span>
+    <p class="wl-q">${esc(pickQuote())}</p>
+    <p class="wl-i">${esc(info)}${bd.length ? `${info ? '<br>' : ''}🎂 יום הולדת ל${esc(names(bd))}` : ''}</p>
   </div>`;
   document.body.appendChild(el);
   requestAnimationFrame(() => el.classList.add('show'));
-  const bye = () => { el.classList.remove('show'); el.classList.add('bye'); setTimeout(() => el.remove(), 900); };
-  el.addEventListener('click', bye); setTimeout(bye, 4200);
+  let gone = false;
+  const bye = () => { if (gone) return; gone = true; el.classList.remove('show'); el.classList.add('bye'); setTimeout(() => el.remove(), 600); };
+  el.addEventListener('click', bye); setTimeout(bye, 2300);
 }
+// coming back to the app after a while also counts as "opening" it
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) lastHidden = Date.now();
+  else if (lastHidden && Date.now() - lastHidden > 3 * 60 * 1000) welcome();
+});
 function streak() {
   // consecutive school days (looking back from the latest one) that were fully prepared
   const days = [];
@@ -2062,4 +2114,4 @@ applyPrefs();
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 render(true);
 initAuth();
-setTimeout(welcome, 250);
+welcome();

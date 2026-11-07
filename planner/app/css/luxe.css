@@ -82,7 +82,7 @@
 /* ornaments: thin gold rings around a line icon, slowly turning */
 .orn { position: relative; color: var(--gold); }
 .orn svg { width: 100%; height: auto; overflow: visible; }
-.orn .o1 { fill: none; stroke: var(--gold); stroke-width: .7; stroke-dasharray: 2 5; transform-origin: 60px 60px; animation: ornSpin 60s linear infinite; }
+.orn .o1 { fill: none; stroke: var(--gold); stroke-width: .7; stroke-dasharray: 2 5; transform-box: fill-box; transform-origin: center; animation: ornSpin 60s linear infinite; }
 .orn .o2 { fill: color-mix(in srgb, var(--solid) 70%, transparent); stroke: var(--gold); stroke-width: .9; }
 .orn .oi { opacity: .95; }
 .orn-line { display: block; height: 1px; margin: 14px 0 4px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }

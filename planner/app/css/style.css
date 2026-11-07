@@ -824,3 +824,9 @@ body.scrolled .minibar { transform: translate(-50%, 0); }
 .tksrc .ic { width: 15px; height: 15px; flex: none; margin-top: 2px; }
 .tksrc a { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; direction: ltr; unicode-bidi: plaintext; }
 .tkl .chi { background: linear-gradient(135deg, #F3E3C0, #E2C48A); }
+
+/* iPhone zooms into any field under 16px and the page then slides sideways – keep fields at 16px, sheets vertical-only */
+input, textarea, select { font-size: 16px !important; }
+.ov { overflow-x: hidden; touch-action: pan-y; }
+.ov * { max-width: 100%; }
+#overlay, body.noscroll { overscroll-behavior: none; }

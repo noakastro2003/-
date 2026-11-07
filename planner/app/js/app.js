@@ -925,7 +925,8 @@ function editor(w, dow, label) {
   editor.row = row;
   openOverlay(`<form class="ov sheet editor" novalidate data-editor="${dow}|${esc(label || '')}">
     <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
-    <div class="ovh">${ic('pencil')}<h2>${p ? 'עריכת שיעור' : 'שיעור חדש'} · יום ${esc(day.name)}</h2></div>
+    <div class="ovh">${ic('pencil')}<h2>${p ? 'עריכת שיעור' : 'שיעור חדש'}</h2></div>
+    <p class="dim">יום ${esc(day.name)}</p>
     <label class="field">שם השיעור<input name="title" value="${esc(e.title)}" placeholder="למשל: הקיוסק של בולי"></label>
     <div class="frow">
       <label class="field">מקצוע<select name="subject">${SUBJ.map(s => s[1]).concat(['אחר']).map(n => `<option ${L.n === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>

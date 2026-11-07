@@ -242,7 +242,7 @@
 [data-skin=luxe] #tpill { background: var(--ink); color: var(--bg); bottom: calc(96px + var(--safe-b)); }
 
 /* ---------------------------------------------------------------- sheets */
-[data-skin=luxe] .ov { background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border-top: 1px solid rgba(255, 255, 255, .7); transition: transform .7s var(--ease); }
+[data-skin=luxe] .ov { background: var(--bg); border-top: 1px solid rgba(255, 255, 255, .7); transition: transform .7s var(--ease); }
 [data-skin=luxe] .ovh h2 { font-family: var(--serif); font-weight: 400; font-size: 26px; }
 [data-skin=luxe] .ovh .ic { color: var(--gold); }
 [data-skin=luxe] .ovx { background: transparent; border: 1px solid var(--line); color: var(--ink); }

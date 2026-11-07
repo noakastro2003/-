@@ -886,6 +886,12 @@ function saveGenericWeek(wk) {
 }
 
 // ================================================================ overlays (sheet)
+let lockY = null;
+function lockScroll(on) {
+  const b = document.body;
+  if (on && lockY == null) { lockY = window.scrollY; b.style.top = `-${lockY}px`; b.classList.add('noscroll'); }
+  else if (!on && lockY != null) { b.classList.remove('noscroll'); b.style.top = ''; window.scrollTo(0, lockY); lockY = null; }
+}
 function openOverlay(html) {
   let o = $('#overlay');
   if (!o) { o = document.createElement('div'); o.id = 'overlay'; document.body.appendChild(o); }
@@ -893,12 +899,12 @@ function openOverlay(html) {
   if (already) { $('#overlay .ov').outerHTML = html; return; }
   o.innerHTML = `<div class="ovbg" data-act="close"></div>${html}`;
   void o.offsetWidth; o.classList.add('show');
-  document.body.classList.add('noscroll');
+  lockScroll(true);
   renderTimerPill();
 }
 function closeOverlay() {
   const o = $('#overlay'); if (o) o.classList.remove('show');
-  document.body.classList.remove('noscroll');
+  lockScroll(false);
   setTimeout(renderTimerPill, 50);
 }
 
@@ -907,7 +913,8 @@ const LABELS = ['בוקר', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 function editor(w, dow, label) {
   const day = w.days.find(d => d.dow === dow);
   const p = label ? day.periods.find(x => x.label === label) : null;
-  const e = p || { label: '', start: '', end: '', title: '', subtitle: '', subject: '', sections: [{ label: 'פתיחה', text: '' }, { label: 'גוף השיעור', text: '' }, { label: 'סיום', text: '' }], materials: [], homework: [], links: [], badges: [] };
+  const freeL = LABELS.find(l => !day.periods.some(x => x.label === l)) || '1';
+  const e = p || { label: freeL, start: bellFor(freeL)[0], end: bellFor(freeL)[1], title: '', subtitle: '', subject: '', sections: [{ label: 'פתיחה', text: '' }, { label: 'גוף השיעור', text: '' }, { label: 'סיום', text: '' }], materials: [], homework: [], links: [], badges: [] };
   const L = look(e);
   const used = day.periods.map(x => x.label);
   const row = (type, a = '', b = '') => {
@@ -916,17 +923,17 @@ function editor(w, dow, label) {
     return `<div class="erow one"><input class="ea" value="${esc(a)}" placeholder="${type === 'materials' ? 'למשל: דף עבודה – שכפול 26' : 'למשל: עמ׳ 12'}"><button type="button" class="iconbtn" data-delrow>${ic('x')}</button></div>`;
   };
   editor.row = row;
-  openOverlay(`<form class="ov sheet editor" data-editor="${dow}|${esc(label || '')}">
+  openOverlay(`<form class="ov sheet editor" novalidate data-editor="${dow}|${esc(label || '')}">
     <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
     <div class="ovh">${ic('pencil')}<h2>${p ? 'עריכת שיעור' : 'שיעור חדש'} · יום ${esc(day.name)}</h2></div>
-    <label class="field">שם השיעור<input name="title" value="${esc(e.title)}" required placeholder="למשל: הקיוסק של בולי"></label>
+    <label class="field">שם השיעור<input name="title" value="${esc(e.title)}" placeholder="למשל: הקיוסק של בולי"></label>
     <div class="frow">
       <label class="field">מקצוע<select name="subject">${SUBJ.map(s => s[1]).concat(['אחר']).map(n => `<option ${L.n === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
       <label class="field">שעה<select name="label">${LABELS.map(l => `<option value="${l}" ${e.label === l ? 'selected' : ''} ${used.includes(l) && l !== e.label ? 'disabled' : ''}>${l === 'בוקר' ? 'בוקר' : 'שעה ' + l}</option>`).join('')}</select></label>
     </div>
     <div class="frow">
-      <label class="field">התחלה<input type="time" name="start" value="${esc(e.start)}" required></label>
-      <label class="field">סיום<input type="time" name="end" value="${esc(e.end)}" required></label>
+      <label class="field">התחלה<input type="time" name="start" value="${esc(e.start)}"></label>
+      <label class="field">סיום<input type="time" name="end" value="${esc(e.end)}"></label>
     </div>
     <label class="field">תיאור קצר<input name="subtitle" value="${esc(e.subtitle.split('·').slice(1).join('·').trim())}" placeholder="למשל: עמ׳ 72 + משחק"></label>
     ${['sections', 'materials', 'homework', 'links'].map(type => {
@@ -948,6 +955,10 @@ function saveEditor(f) {
   const subj = f.subject.value;
   const old = oldLabel ? day.periods.find(x => x.label === oldLabel) : null;
   const sub = f.subtitle.value.trim();
+  if (!f.title.value.trim()) { toast('חסר שם לשיעור'); f.title.focus(); return; }
+  const bell = bellFor(f.label.value);
+  if (!f.start.value) f.start.value = bell[0] || '08:00';
+  if (!f.end.value) f.end.value = bell[1] || f.start.value;
   const p = Object.assign(old || {}, {
     label: f.label.value, start: f.start.value, end: f.end.value, title: f.title.value.trim(),
     subject: subj === 'אחר' ? '' : subj, subtitle: (subj === 'אחר' ? '' : subj) + (sub ? ' · ' + sub : ''),
@@ -960,7 +971,7 @@ function saveEditor(f) {
   if (!old) day.periods.push(p);
   day.periods.sort((a, b) => mins(a.start) - mins(b.start));
   if (old && oldLabel !== p.label) moveKeys(w, `${dow}:${oldLabel}`, `${dow}:${p.label}`);
-  save(); closeOverlay(); state.open[`${dow}:${p.label}`] = true; rerender(); toast('נשמר 💜');
+  save(); closeOverlay(); state.open[`${dow}:${p.label}`] = true; rerender(); toast('נשמר ✓');
 }
 function moveKeys(w, from, to) {
   const c = state.checks[w.id] || {};
@@ -2201,6 +2212,10 @@ $('#file').addEventListener('change', async e => {
 
 // swipe between days – the lessons follow the finger and spring back
 let sx = null, sy = null, sdx = 0, swiping = false;
+document.addEventListener('change', e => {
+  const f = e.target.closest('form[data-editor]');
+  if (f && e.target.name === 'label') { const [a, b] = bellFor(e.target.value); if (a) { f.start.value = a; f.end.value = b; } }
+});
 document.addEventListener('touchstart', e => { if (e.target.closest('[data-swipe]')) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; sdx = 0; swiping = false; } }, { passive: true });
 document.addEventListener('touchmove', e => {
   if (sx == null) return;

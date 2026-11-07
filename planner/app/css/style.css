@@ -62,7 +62,7 @@ body {
   background-attachment: fixed;
   transition: background-color .4s, color .4s;
 }
-body.noscroll { overflow: hidden; }
+body.noscroll { overflow: hidden; position: fixed; left: 0; right: 0; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
 button:disabled { opacity: .45; cursor: default; }
 input, textarea, select { font: inherit; color: var(--ink); }
@@ -443,7 +443,7 @@ textarea { resize: vertical; line-height: 1.5; }
 .ovbg { position: absolute; inset: 0; background: rgba(35, 28, 50, .38); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); opacity: 0; transition: opacity .35s; }
 #overlay.show .ovbg { opacity: 1; }
 .ov {
-  position: absolute; left: 50%; bottom: 0; width: min(560px, 100%); max-height: 92vh; overflow-y: auto; overscroll-behavior: contain;
+  position: absolute; left: 50%; bottom: 0; width: min(560px, 100%); max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   background: var(--bg); border-radius: 32px 32px 0 0; padding: 18px 20px calc(24px + var(--safe-b));
   transform: translate(-50%, 105%); transition: transform .5s var(--spring); box-shadow: 0 -10px 40px rgba(35, 28, 50, .2);
 }
@@ -603,7 +603,7 @@ form.busy .cta:first-child::after { content: ''; width: 16px; height: 16px; bord
 html { min-height: 100%; background-color: var(--bg); }
 body { min-height: 100dvh; }
 .tabs::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 200px; background: var(--card); }
-.ov::after { content: ''; position: fixed; left: 0; right: 0; top: 100%; height: 200px; background: var(--bg); }
+#overlay::after { content: ''; position: absolute; left: 0; right: 0; bottom: -200px; height: 200px; background: var(--bg); }
 
 /* ============================================================ week navigation */
 .wknav { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; flex-wrap: wrap; }

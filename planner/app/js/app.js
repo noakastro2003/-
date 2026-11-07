@@ -620,6 +620,8 @@ function viewSettings(w) {
   <div class="card">
     ${cardHead('user', 'פרטים')}
     <label class="field">איך לקרוא לך?<input id="nameIn" value="${esc(state.name)}"></label>
+    <label class="field">כמה תלמידים בכיתה?<input id="classSizeIn" type="number" inputmode="numeric" min="1" max="60" value="${esc(state.prefs.classSize || state.kids.length || (w && w.classSize) || 26)}"></label>
+    <p class="hint">המספר הזה קובע כמה לשכפל מכל דף (במקום מה שכתוב בתכנון)</p>
   </div>
   <div class="card">
     ${cardHead('sparkle', 'תצוגה')}
@@ -1143,12 +1145,13 @@ async function deleteFile(id) {
 
 // ================================================================ print & copy files
 const driveId = url => (url.match(/\/d\/([\w-]{10,})/) || url.match(/[?&]id=([\w-]{10,})/) || [])[1];
-function classSize(w) { return w.classSize || state.kids.length || 26; }
-function copyQty(text, n) {
+// the class size is what's set in the app; the plan's number is only a fallback
+function classSize(w) { return +state.prefs.classSize || state.kids.length || (w && w.classSize) || 26; }
+function copyQty(text, n, planSize) {
   const multi = [...text.matchAll(/(\d+)\s*×\s*([○△☆□◇●])/g)].map(m => `${m[2]} ${m[1]}`);
   if (multi.length) return { label: multi.join(' · '), n: null };
   const m = text.match(/×\s*(\d+)|(\d+)\s*×|שכפול\s+(?:דו-?צדדי\s+)?(\d+)|\((\d+)\)/);
-  if (m) return { n: +(m[1] || m[2] || m[3] || m[4]) };
+  if (m) { const v = +(m[1] || m[2] || m[3] || m[4]); return { n: planSize && v === planSize ? n : v }; }
   if (/לכל זוג/.test(text)) return { n: Math.ceil(n / 2) };
   if (/לכל קבוצה/.test(text)) return { n: state.groups || 5 };
   if (/לכל ילד|משוכפל|לכל תלמיד/.test(text)) return { n };
@@ -1161,7 +1164,7 @@ function copyList(w, dow) {
     if (!/שכפול|משוכפל|לשכפל|×\s*\d|\d+\s*×|\(\d{2}\)/.test(text) || /^[א-ו]\s*[–-]\s*שכפול/.test(text)) return;
     const name = text.replace(/\s*[–-]\s*(שכפול|משוכפל).*$/, '').replace(/\s*\(\d+\)\s*$/, '').replace(/\s*×\s*\d+.*$/, '').trim();
     const key = name.replace(/["'״׳\s]/g, ''); if (!key || seen.has(key)) return; seen.add(key);
-    out.push({ name, where, ...copyQty(text, n), two: /דו-?צדדי/.test(text) });
+    out.push({ name, where, ...copyQty(text, n, w.classSize), two: /דו-?צדדי/.test(text) });
   };
   for (const p of day.periods) for (const m of p.materials) add(m.text, p.title);
   for (const sc of w.prep[dow] || []) for (const it of sc.items) add(it.text, it.period ? 'שעה ' + it.period : '');
@@ -1181,10 +1184,10 @@ function printSheet(w, dow, si, i) {
     <div class="ovh">${ic(copy ? 'layers' : 'printer')}<h2>${esc(it.text)}</h2></div>
     <p class="dim">${copy ? 'קובץ למכונת השכפול' : 'קובץ למדפסת'} · יום ${esc(day ? day.name : '')}</p>
     ${copy ? `<div class="card copies">
-      ${cardHead('layers', 'כמה לשכפל', `<span class="cnt">${classSize(w)} תלמידים</span>`)}
+      ${cardHead('layers', 'כמה לשכפל', `<button class="cnt" data-go="settings">${classSize(w)} תלמידים ✎</button>`)}
       ${list.length ? list.map(c => `<div class="crow"><span class="grow"><b>${esc(c.name)}</b><small>${esc(c.where || '')}${c.two ? ' · דו־צדדי' : ''}</small></span><span class="qty ${c.guess ? 'guess' : ''}">${c.label ? esc(c.label) : '×' + c.n}</span></div>`).join('')
         : `<div class="crow"><span class="grow"><b>כל הדפים בקובץ</b><small>לפי הכיתה</small></span><span class="qty">×${classSize(w)}</span></div>`}
-      ${list.some(c => c.guess) ? '<p class="hint">כמות מסומנת באפור = לא כתוב בתכנון, לקחתי את גודל הכיתה</p>' : '<p class="hint">הכמויות לקוחות מהתכנון של היום</p>'}
+      <p class="hint">לפי ${classSize(w)} תלמידים שהגדרת באפליקציה${list.some(c => c.guess) ? ' · כמות באפור = לא צוינה בתכנון' : ''}</p>
     </div>` : ''}
     <div class="menu">
       <a class="mbtn" href="${esc(direct)}" target="_blank" rel="noopener">${ic('printer')} פתיחה להדפסה</a>
@@ -1809,6 +1812,7 @@ document.addEventListener('change', e => {
     return;
   }
   if (i.dataset.lognote) { const w = pickWeek(), cur = getLog(w, i.dataset.lognote); if (cur) { cur.note = i.value; save(); toast('נשמר ✓', 1200); } return; }
+  if (i.id === 'classSizeIn') { const v = Math.max(1, Math.min(60, +i.value || 0)); if (v) { state.prefs.classSize = v; save(); toast(`נשמר: ${v} תלמידים ✓`, 1500); } return; }
   if (i.id === 'nameIn') { state.name = i.value.trim() || 'נועה'; save(); toast('נשמר ✓', 1200); }
   if (i.id === 'notifyTime') { state.prefs.notifyTime = i.value || '07:00'; save(); toast('נשמר – לא לשכוח לעדכן את הווידג׳ט 📲', 2400); }
 });

@@ -8,9 +8,9 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue'];
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready'];
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: 'נועה', logs: {}, kids: [], todos: [], files: [], cnotes: [], lists: [], autos: [], notifQueue: [],
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: 'נועה', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [],
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -551,6 +551,7 @@ function viewPrep(w) {
   const S = dayStats(w, day);
   h += `<div class="card progress">
     <div class="pg-h"><span class="spill">${ic('target')}התקדמות יום ${esc(day.name)}</span><b><span class="num">${S.done}</span> מתוך ${S.total} הושלמו</b></div>
+    ${streak() > 1 ? `<div class="streak">🔥 ${streak()} ימים ברצף שהכל היה מוכן</div>` : ''}
     <div class="bar big"><span style="--w:${S.total ? S.done / S.total * 100 : 0}%"></span></div>
   </div>`;
   h += prepCards(w, day, 'all');
@@ -592,7 +593,7 @@ function viewFiles(w) {
 // ================================================================ MORE + sub screens
 function viewMore(w) {
   const weeks = Object.values(state.weeks).sort((a, b) => (a.id < b.id ? 1 : -1));
-  return top('עוד', 'כלים קטנים שעושים את היום קל יותר', 'star') + `
+  return top('עוד', streak() > 1 ? `🔥 ${streak()} ימים ברצף שהכל מוכן – אלופה` : 'כלים קטנים שעושים את היום קל יותר', 'star') + `
   <div class="toolgrid">
     ${[['timer', 'טיימר', 'data-act="timer"'], ['dice', 'מי עונה?', 'data-act="picker"'], ['grid', 'מערכת', 'data-day="all"'],
       ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`], ['cake', 'הכיתה שלי', 'data-go="kids"'], ['pin', 'תזכורות', 'data-go="todos"'],
@@ -1535,6 +1536,65 @@ function viewAutos() {
   <p class="hint">ההתראות נשלחות גם כשהאפליקציה סגורה. כל טלפון צריך להפעיל אותן פעם אחת.</p>`;
 }
 
+// ================================================================ joy: morning welcome, ready moment, streak
+const HE_MONTHS = ['בינואר', 'בפברואר', 'במרץ', 'באפריל', 'במאי', 'ביוני', 'ביולי', 'באוגוסט', 'בספטמבר', 'באוקטובר', 'בנובמבר', 'בדצמבר'];
+const QUOTES = [
+  'ילד אחד שהרגיש שרואים אותו היום – זה כבר יום מוצלח.', 'הסבלנות שלך היא מתנה שהם יזכרו שנים.', 'לא צריך שיעור מושלם. צריך מורה שאכפת לה – וזו את.',
+  'כל "אה, הבנתי!" בכיתה מתחיל בהכנה שלך.', 'את שותלת היום דברים שיפרחו בעוד שנים.', 'קצת קפה, הרבה לב – יאללה.', 'הילדים לא זוכרים את הדף. הם זוכרים איך הרגישו לידך.',
+  'גם הבלגן הוא חלק מהקסם.', 'את לא רק מלמדת – את בונה אנשים.', 'צעד קטן בכל שיעור, קפיצה גדולה בסוף השנה.', 'היום מישהו ילמד לקרוא מילה חדשה בזכותך.',
+  'מותר לנשום. את עושה עבודה מדהימה.', 'חיוך אחד בבוקר משנה כיתה שלמה.', 'כל יום הוא הזדמנות חדשה – לך ולהם.', 'את המבוגרת שהם יספרו עליה.',
+  'סדר בראש, לב פתוח, ויאללה לכיתה.', 'הם בני מזל שיש להם אותך.', 'אין יום רגיל כשיש לך עשרים ושישה עולמות קטנים.',
+];
+const dateKey = d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+function welcome() {
+  let last = null; try { last = localStorage.getItem('hk-welcome'); } catch { /* fine */ }
+  const t = now(); if ((last === dateKey(t) || fakeNow) && !new URLSearchParams(location.search).has('welcome')) return;
+  try { localStorage.setItem('hk-welcome', dateKey(t)); } catch { /* fine */ }
+  const w = realWeek(), day = w && todayInWeek(w);
+  const info = day && day.periods.length ? `${day.periods.length} שיעורים · מתחילים ב־${day.periods[0].start}` : (t.getDay() === 6 ? 'שבת שלום 🕯️' : 'יום בלי שיעורים – תנוחי');
+  const bd = bdOn(t);
+  const q = QUOTES[(t.getDate() + t.getMonth() * 7) % QUOTES.length];
+  const el = document.createElement('div'); el.id = 'welcome';
+  el.innerHTML = `<div class="wl-in">
+    <div class="wl-logo">${logo('wlogo')}</div>
+    <small>יום ${DAY_FULL[t.getDay()]}, ${t.getDate()} ${HE_MONTHS[t.getMonth()]}</small>
+    <h1>${greet()}, ${esc(state.name)}</h1>
+    <p class="wl-q">${esc(q)}</p>
+    <p class="wl-i">${esc(info)}${bd.length ? `<br>🎂 יום הולדת ל${esc(names(bd))}` : ''}</p>
+    <span class="wl-tap">נגיעה להמשך</span>
+  </div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  const bye = () => { el.classList.remove('show'); el.classList.add('bye'); setTimeout(() => el.remove(), 900); };
+  el.addEventListener('click', bye); setTimeout(bye, 4200);
+}
+function streak() {
+  // consecutive school days (looking back from the latest one) that were fully prepared
+  const days = [];
+  for (const w of sortedWeeks()) for (const d of w.days) { const dd = dayDate(w, d); if (dd && d.periods.length && dd <= addDays(now(), 1)) days.push(dateKey(dd)); }
+  let n = 0;
+  for (let i = days.length - 1; i >= 0; i--) { if (state.ready[days[i]]) n++; else if (i < days.length - 1 || n) break; }
+  return n;
+}
+function checkReady(w, dow) {
+  const day = w.days.find(d => d.dow === dow); if (!day) return;
+  const S = dayStats(w, day), k = dateKey(dayDate(w, day));
+  const was = !!state.ready[k], is = S.total > 0 && S.done === S.total;
+  if (is === was) return;
+  if (is) state.ready[k] = 1; else delete state.ready[k];
+  save();
+  if (is) readyMoment(day);
+}
+function readyMoment(day) {
+  const n = streak();
+  const el = document.createElement('div'); el.id = 'readyMoment';
+  el.innerHTML = `<div class="rm-card"><div class="rm-glow"></div><b>את מוכנה ליום ${esc(day.name)} ✨</b><span>${n > 1 ? `🔥 ${n} ימים ברצף שהכל מוכן` : 'הכל מסומן. אפשר לנשום.'}</span></div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  confetti(); if (navigator.vibrate) navigator.vibrate([12, 60, 12]);
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 700); }, 2600);
+}
+
 // ================================================================ render
 const TABS = ['now', 'day', 'prep', 'files', 'more'];
 const SUB = { kids: 'more', todos: 'more', summary: 'more', settings: 'more', journal: 'more', lists: 'more', autos: 'more' };
@@ -1764,7 +1824,7 @@ document.addEventListener('click', e => {
     case 'uploadfiles': attachTo = null; $('#upfile').click(); break;
     case 'pshare': { const P2 = state._print; if (navigator.share) navigator.share({ title: P2.title, text: P2.title, url: P2.url }).catch(() => {}); else navigator.clipboard.writeText(P2.url).then(() => toast('הקישור הועתק 📋')); break; }
     case 'pcopylink': navigator.clipboard.writeText(state._print.url).then(() => toast('הקישור הועתק 📋')).catch(() => toast('לא הצלחתי להעתיק 😕')); break;
-    case 'pdone': { const k = state._print.k; setCk(w, k, !ck(w, k)); closeOverlay(); rerender(); if (ck(w, k)) { toast('סומן ✓'); confetti(); } break; }
+    case 'pdone': { const k = state._print.k; setCk(w, k, !ck(w, k)); closeOverlay(); rerender(); if (ck(w, k)) toast('סומן ✓'); checkReady(w, +k.split(':')[1]); break; }
     case 'pushon': enablePush(); break;
     case 'pushoff': disablePush(); break;
     case 'pushtest': pushApi({ action: 'test' }).then(r => toast(r.ok ? 'נשלחה התראת בדיקה 🔔' : 'לא הצלחתי לשלוח 😕')).catch(() => toast('לא הצלחתי לשלוח 😕')); break;
@@ -1793,6 +1853,8 @@ document.addEventListener('change', e => {
     const card = i.closest('.card, .sub');
     const all = card && [...card.querySelectorAll('input[type=checkbox]')].every(x => x.checked);
     if (i.checked && all) confetti(); else if (i.checked) miniBurst(row.querySelector('.box'));
+    const pk = i.dataset.ck.match(/^p:(\d+):/);
+    if (pk) checkReady(pickWeek(), +pk[1]);
     if (state.tab === 'prep') setTimeout(rerender, 450);
     return;
   }
@@ -2000,3 +2062,4 @@ applyPrefs();
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 render(true);
 initAuth();
+setTimeout(welcome, 250);

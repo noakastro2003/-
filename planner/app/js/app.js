@@ -210,14 +210,9 @@ function remindersCard(w, full) {
 }
 
 // ================================================================ shared bits
-const LINES = [
-  'את עושה עבודה מדהימה', 'יום של דברים קטנים וטובים', 'הכיתה שלך בידיים טובות',
-  'נושמים, מחייכים, מתחילים', 'בזכותך כל ילד מרגיש שרואים אותו', 'קפה, תוכנית, וזהו – את מוכנה',
-  'גם יום עמוס נגמר בחיוך', 'הילדים שלך בני מזל שיש להם אותך', 'צעד אחד בכל פעם', 'את מתוכננת. הכל בפנים.',
-];
+const line = () => { const d = now(); return `יום ${DAY_FULL[d.getDay()]}, ${d.getDate()} ${HE_MONTHS[d.getMonth()]}`; };
 const hello = () => `${greet()}${state.name ? ', ' + esc(state.name) : ''}`;
 const greet = () => { const h = now().getHours(); return h < 5 ? 'לילה טוב' : h < 12 ? 'בוקר טוב' : h < 16 ? 'צהריים טובים' : h < 21 ? 'ערב טוב' : 'לילה טוב'; };
-const line = () => { const d = now(); return LINES[(d.getDate() + d.getMonth() * 31) % LINES.length]; };
 
 function top(title, sub, illus, opts = {}) {
   const dot = state.todos.some(todoDue) || bdOn(now()).length;
@@ -311,7 +306,7 @@ function viewNow(w) {
     h += nowCard(w, day, ph.cur, ph) + quickTools() + tipCard();
     if (ph.next) h += nextCard(day, ph.next, ph.inMin);
   } else if (ph.kind === 'break') {
-    h += top('הפסקה', `${inText(ph.inMin)} · נושמים רגע ☕`, 'books');
+    h += top('הפסקה', `השיעור הבא ${inText(ph.inMin)}`, 'books');
     h += birthdayBanner();
     h += nowCard(w, day, ph.next, { kind: 'preview', inMin: ph.inMin }) + quickTools();
   } else if (ph.kind === 'before') {
@@ -323,13 +318,12 @@ function viewNow(w) {
     h += top('סיימת את היום 🎉', `${line()} 💜`, 'books');
     h += birthdayBanner() + teaser;
     const S = dayStats(w, day);
-    h += `<div class="card bravo"><div class="grow"><b>כל הכבוד,</b><span>סיימת ${day.periods.length} שיעורים${S.total ? ` ו־${S.done} מתוך ${S.total} משימות` : ''}</span></div>${art('medal', 'wiggle')}</div>`;
+    h += `<div class="card bravo"><div class="grow"><b>היום הסתיים</b><span>סיימת ${day.periods.length} שיעורים${S.total ? ` ו־${S.done} מתוך ${S.total} משימות` : ''}</span></div>${art('medal', 'wiggle')}</div>`;
     const ng = nextDayGlobal();
     if (ng) h += tomorrowCard(ng.w, ng.d);
     h += howWasCard(w, day);
-    h += `<div class="card rest"><div class="grow"><b>מנוחה נעימה!</b><span>${ic('heart', 'h')} תתחדשי מחר ליום חדש ומוצלח</span></div>${art('moon', 'bob')}</div>`;
   } else {
-    h += top(t.getDay() === 6 ? 'שבת שלום' : 'יום חופשי', 'אין שיעורים היום. תנוחי, מגיע לך 💜', 'books');
+    h += top(t.getDay() === 6 ? 'שבת שלום' : 'יום חופשי', 'אין שיעורים היום', 'books');
     h += birthdayBanner() + teaser;
     const ng = nextDayGlobal();
     if (ng) h += tomorrowCard(ng.w, ng.d);
@@ -563,7 +557,7 @@ function viewPrep(w) {
   h += `<button class="addbtn" data-act="prepedit">${ic(state.prepEdit ? 'check' : 'pencil')} ${state.prepEdit ? 'סיימתי לערוך' : 'עריכת הרשימות'}</button>`;
   const left = S.total - S.done;
   h += left
-    ? `<div class="card almost"><div class="grow"><b>${left <= 3 ? 'כמעט שם!' : 'יאללה, מתקדמות!'}</b><span>עוד ${left} משימות להשלמת היום</span></div>${art('mountain')}</div>`
+    ? `<div class="card almost"><div class="grow"><b>נשארו ${left} משימות</b><span>להכנת יום ${esc(day.name)}</span></div>${art('mountain')}</div>`
     : `<div class="card almost done"><div class="grow"><b>הכל מוכן! 🎉</b><span>את מוכנה ליום ${esc(day.name)}</span></div>${art('star', 'wiggle')}</div>`;
   return h;
 }
@@ -681,7 +675,7 @@ function tipSheet(id) {
 // ================================================================ MORE + sub screens
 function viewMore(w) {
   const weeks = Object.values(state.weeks).sort((a, b) => (a.id < b.id ? 1 : -1));
-  return top('עוד', streak() > 1 ? `🔥 ${streak()} ימים ברצף שהכל מוכן – אלופה` : 'כלים קטנים שעושים את היום קל יותר', 'star') + `
+  return top('עוד', streak() > 1 ? `🔥 ${streak()} ימים ברצף שהכל מוכן` : 'כלים, הגדרות ותכנונים', 'star') + `
   <div class="toolgrid">
     ${[['timer', 'טיימר', 'data-act="timer"'], ['dice', 'מי עונה?', 'data-act="picker"'], ['grid', 'מערכת', 'data-day="all"'],
       ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`], ['cake', 'הכיתה שלי', 'data-go="kids"'], ['pin', 'תזכורות', 'data-go="todos"'],
@@ -701,7 +695,7 @@ function viewMore(w) {
       <button class="iconbtn" data-delweek="${esc(x.id)}" aria-label="מחיקה">${ic('trash')}</button>
     </div>`).join('')}
   </div>
-  <p class="foot">${ic('heart', 'h')} נבנה באהבה בשביל ${esc(state.name)}</p>`;
+  `;
 }
 
 function viewSettings(w) {
@@ -785,11 +779,10 @@ const carryText = (w, S) => `עובר מ${w.number ? 'שבוע ' + w.number : '�
 
 function viewSummary(w) {
   const S = summary(w);
-  const warm = ['שבוע שלם של נתינה. מגיע לך סופ״ש שקט', 'עוד שבוע מאחורייך – והילדים קיבלו ממך המון', 'כל הכבוד. באמת.', 'עשית שבוע מדהים. עכשיו – מנוחה'];
   const bds = w.days.flatMap(d => bdOn(dayDate(w, d)));
   const tile = (n, l) => `<div class="tile"><b class="num">${n}</b><span>${l}</span></div>`;
   const unmarked = S.all.length - S.done - S.part - S.skip;
-  return top(`סיכום ${w.number ? 'שבוע ' + w.number : 'השבוע'}`, warm[(w.number || 0) % warm.length] + ' 💜', 'medal', { back: 'more' }) + `
+  return top(`סיכום ${w.number ? 'שבוע ' + w.number : 'השבוע'}`, esc(w.range || ''), 'medal', { back: 'more' }) + `
   <div class="tiles">
     ${tile(S.all.length, 'שיעורים')}${tile(S.done, '✅ הספקנו')}${tile(S.part, '🌗 חלקית')}
     ${tile(S.skip, '⏭ לא הספקנו')}${tile(`${S.pd}/${S.pt}`, '✂️ הכנות')}${tile(bds.length, '🎂 ימי הולדת')}
@@ -805,16 +798,16 @@ function viewEmpty() {
   if (!state.onboarded) return `<section class="onb">
     <div class="onb-logo">${logo('wlogo')}</div>
     <h1>ברוכה הבאה ל״הכיתה שלי״</h1>
-    <p class="onb-sub">התכנון השבועי שלך – מסודר, יפה ותמיד בכיס. שלוש שאלות קטנות ומתחילים:</p>
+    <p class="onb-sub">כמה פרטים כדי להתחיל:</p>
     <form class="card onb-form" data-onboard>
       <label class="field">איך קוראים לך?<input name="name" required placeholder="השם שלך" autocomplete="given-name"></label>
       <div class="frow"><label class="field">איזו כיתה?<input name="cls" placeholder="למשל ב׳2"></label>
         <label class="field">כמה תלמידים?<input name="size" type="number" inputmode="numeric" min="1" max="60" placeholder="27"></label></div>
-      <button class="cta">${ic('sparkle')} יאללה, מתחילים</button>
+      <button class="cta">${ic('sparkle')} מתחילים</button>
     </form>
     <p class="hint">יש לך כבר חשבון? <button class="linkbtn" data-act="onblogin">התחברות</button></p>
   </section>`;
-  return top(state.name ? `שלום ${esc(state.name)}` : 'שלום', 'כאן הכיתה שלך תהיה תמיד בכיס', 'books') + `
+  return top(state.name ? `שלום ${esc(state.name)}` : 'שלום', 'מעלים את התכנון השבועי ומתחילים', 'books') + `
   <div class="card empty">
     <p>מעלים את התכנון השבועי – <b>בכל צורה</b>: PDF, Word, Excel או טקסט – ואני מסדרת: מה עכשיו, מה הבא, מה להכין.</p>
     <button class="cta" data-act="upload">${ic('upload')} להעלות את התכנון של השבוע</button>
@@ -991,7 +984,7 @@ function timerSetup(min, rounds) {
     <div class="presets">${[1, 2, 3, 4, 5, 7, 10, 15, 20].map(m => `<button class="${m === min ? 'on' : ''}" data-tset="${m}">${m}</button>`).join('')}</div>
     <div class="stepper"><button data-tmin="-1">−</button><div><b>${min}</b><span>דקות</span></div><button data-tmin="1">＋</button></div>
     <div class="stepper"><button data-trnd="-1">−</button><div><b>${rounds}</b><span>${rounds > 1 ? 'תחנות / סבבים' : 'סבב אחד'}</span></div><button data-trnd="1">＋</button></div>
-    <button class="cta" data-act="tstart">${ic('play')} יאללה, מתחילים</button>
+    <button class="cta" data-act="tstart">${ic('play')} מתחילים</button>
   </div>`);
 }
 function timerStart() {
@@ -1794,7 +1787,7 @@ function checkReady(w, dow) {
 function readyMoment(day) {
   const n = streak();
   const el = document.createElement('div'); el.id = 'readyMoment';
-  el.innerHTML = `<div class="rm-card"><div class="rm-glow"></div><b>את מוכנה ליום ${esc(day.name)} ✨</b><span>${n > 1 ? `🔥 ${n} ימים ברצף שהכל מוכן` : 'הכל מסומן. אפשר לנשום.'}</span></div>`;
+  el.innerHTML = `<div class="rm-card"><div class="rm-glow"></div><b>את מוכנה ליום ${esc(day.name)} ✨</b><span>${n > 1 ? `🔥 ${n} ימים ברצף שהכל מוכן` : 'כל המשימות סומנו'}</span></div>`;
   document.body.appendChild(el);
   requestAnimationFrame(() => el.classList.add('show'));
   confetti(); if (navigator.vibrate) navigator.vibrate([12, 60, 12]);
@@ -2116,7 +2109,7 @@ document.addEventListener('submit', e => {
   if (f.matches('[data-onboard]')) {
     e.preventDefault();
     state.name = f.name.value.trim(); if (f.cls.value.trim()) state.prefs.cls = f.cls.value.trim(); if (+f.size.value) state.prefs.classSize = +f.size.value;
-    state.onboarded = true; save(); rerender(); toast(`נעים מאוד, ${state.name} 💜`); confetti(); return;
+    state.onboarded = true; save(); rerender(); toast('נשמר ✓'); confetti(); return;
   }
   if (f.matches('[data-review]')) { e.preventDefault(); const r = state._review; saveGenericWeek(buildWeek(r.days, f.start.value, { title: f.title.value.trim(), number: r.number })); return; }
   if (f.matches('[data-manual]')) {

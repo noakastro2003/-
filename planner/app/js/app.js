@@ -455,7 +455,7 @@ function viewDay(w) {
   </div>`;
   const bd = state.kids.length ? bdOn(dayDate(w, day)) : [];
   if (bd.length) h += `<div class="card bday small">${art('cake', 'bob')}<div><b>יום הולדת ל${esc(names(bd))} 🎉</b></div></div>`;
-  h += `<div class="lessons" data-swipe>${day.periods.map(p => lessonRow(w, day, p, ph)).join('')}</div>`;
+  h += `<div class="lessons" data-swipe>${day.periods.map(p => lessonRow(w, day, p, ph)).join('') || `<div class="card empty"><p>אין שיעורים ביום הזה בתכנון.</p><p class="hint">אם זו טעות – מעלים שוב את ה־PDF של השבוע (עוד ← להעלות תכנון)</p></div>`}</div>`;
   h += `<button class="addbtn" data-edit="${day.dow}|">${ic('plus')} הוספת שיעור ליום ${esc(day.name)}</button>`;
   const hw = day.periods.filter(p => p.homework.length);
   if (hw.length) h += `<div class="card">${cardHead('homework', 'שיעורי בית היום')}${hw.map(p => `<div class="note"><b>${esc(p.title)}</b><span>${esc(p.homework.join(' · '))}</span></div>`).join('')}</div>`;
@@ -472,8 +472,7 @@ function lessonRow(w, day, p, ph) {
   return `<article class="lrow ${open ? 'open' : ''} ${isNow ? 'now' : ''}" style="--c:${look(p).c}" data-id="${esc(id)}">
     <button class="lr-h" data-toggle="${esc(id)}" aria-expanded="${open}">
       ${pill(p)}
-      <span class="lr-t"><b>${logIcon(w, id)}${esc(p.title)}</b>${isNow ? '<i class="live">עכשיו</i>' : ''}</span>
-      <span class="lr-time">${esc(p.start)}–${esc(p.end)}</span>
+      <span class="lr-t"><b>${logIcon(w, id)}${esc(p.title)}</b><small class="lr-time">${esc(p.start)}–${esc(p.end)}${isNow ? ' <i class="live">עכשיו</i>' : ''}</small></span>
       <span class="circ">${ic('chevD')}</span>
     </button>
     <div class="lr-b"><div class="lr-in">
@@ -1759,10 +1758,12 @@ $('#file').addEventListener('change', async e => {
   try {
     const wk = await parsePlanPdf(pdfjsLib, new Uint8Array(await f.arrayBuffer()));
     if (!wk.days.length) throw new Error('no days');
-    state.weeks[wk.id] = wk; state.activeId = wk.id; save();
     const n = wk.days.reduce((a, d) => a + d.periods.length, 0);
+    if (!n) { toast('מצאתי את הימים אבל לא את השיעורים 😕 שלחי לי את הקובץ ואתקן', 6000); return; }
+    const empty = wk.days.filter(d => !d.periods.length).map(d => d.name);
+    state.weeks[wk.id] = wk; state.activeId = wk.id; state.viewWeekId = null; save();
     go('now');
-    toast(`${wk.number ? 'שבוע ' + wk.number : 'השבוע'} נטען! ${wk.days.length} ימים, ${n} שיעורים 🎉`);
+    toast(`${wk.number ? 'שבוע ' + wk.number : 'השבוע'} נטען! ${wk.days.length} ימים, ${n} שיעורים 🎉${empty.length ? ` (בלי שיעורים: ${empty.join(', ')})` : ''}`, 4000);
     confetti();
   } catch (err) {
     console.error(err);

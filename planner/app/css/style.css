@@ -652,3 +652,6 @@ body { min-height: 100dvh; }
 .pstat small { color: var(--soft); font-size: 13px; }
 .editor select, [data-autonew] select { width: 100%; font-size: 15.5px; padding: 11px 12px; border-radius: var(--r-btn); border: 1.5px solid var(--line); background: var(--tint2); }
 .toolgrid { grid-template-columns: repeat(3, 1fr); }
+.lr-t { flex-direction: column; align-items: flex-start; gap: 2px; }
+.lr-t .lr-time { display: flex; align-items: center; gap: 6px; }
+.lr-h { align-items: center; }

@@ -3,6 +3,7 @@
 
 const SKIP = /מפגש בוקר|^צוות|ישיבה|השתלמות|^פרטני|^א['׳]1$/;
 export const PM_TYPES = [
+  ['all', 'sparkle', 'הכל בהודעה אחת'],
   ['today', 'book', 'סיכום היום'],
   ['week', 'calendar', 'עדכון שבועי'],
   ['dict', 'text', 'מילים להכתבה'],
@@ -120,4 +121,69 @@ export function buildBday({ opts }) {
     '* עוגה *פרווה* 🎂', '* טרופיות 🧃', '* סוכריות טופי / מרשמלו 🍬', '* מפיות', '* חבילת מגבונים', '',
     'אם תרצו להביא דבר מה נוסף, אבקש לעדכן אותי בפרטי מראש, כדי שאוכל לוודא שהוא מתאים להנחיות האלרגיה בבית הספר.', '',
     '*הורי הילדים החוגגים – אנא אשרו את ההודעה בפרטי. ❤️*', '', 'תודה רבה על שיתוף הפעולה וההיענות!'];
+}
+
+// ---- everything in one message: learned, homework, dictation, tests, birthdays, gear, events
+export function autoTests(w) {
+  return w.days.flatMap(d => d.periods.filter(p => /מבדק|משימת הערכה|מבחן/.test(`${p.title} ${p.subtitle}`)).map(p => `ביום ${d.name}${d.date ? ' ' + d.date : ''} – ${topicOf(p.title)}`));
+}
+export function autoEvents(w) {
+  const ev = [];
+  for (const d of w.days) for (const p of d.periods) {
+    const txt = `${p.title} ${p.subtitle}`;
+    if (/הכתבה/.test(txt)) ev.push(`ביום ${d.name} – הכתבה ✍️`);
+    else if (/מסיב|טיול|יום הליכה|טקס(?!ט)|שובר שגרה|חגיג/.test(txt)) ev.push(`ביום ${d.name} – ${topicOf(p.title)} 🎉`);
+  }
+  return [...new Set(ev)];
+}
+export function weekBdays(w, kids) {
+  const out = [];
+  for (const d of w.days) {
+    if (!d.date) continue;
+    const key = d.date.split('.').map(Number).join('.');
+    for (const k of kids) if (k.bd === key) out.push(k.name);
+  }
+  return out;
+}
+const andJoin = n => (n.length > 1 ? n.slice(0, -1).join(', ') + ' ו' + n[n.length - 1] : n[0] || '');
+
+export function buildAll({ w, day, look, at, opts }) {
+  const on = k => opts[k] !== false;
+  const isDay = opts.scope === 'day' && day;
+  const days = isDay ? [day] : w.days;
+  const out = [isDay ? opener(at) : '*הורים יקרים, שבוע טוב! ❤️🌷*', '', isDay ? 'מצרפת את סיכום היום והודעות חשובות להמשך:' : 'כמה עדכונים לקראת השבוע הקרוב:', ''];
+  if (on('learn')) {
+    const by = new Map();
+    for (const d of days) for (const p of d.periods) {
+      if (SKIP.test(p.title) || SKIP.test(look(p).n)) continue;
+      const s = subj(p, look), t = topicOf(p.title); if (!t) continue;
+      const m = by.get(s) || new Map(); m.set(t, (m.get(t) || 0) + 1); by.set(s, m);
+    }
+    if (by.size) {
+      out.push(isDay ? '*📝 מה למדנו היום?*' : '*📝 מה נלמד השבוע?*');
+      for (const [s, m] of by) out.push(`* ${s}: ${[...m].sort((a, b) => b[1] - a[1]).slice(0, isDay ? 3 : 2).map(x => x[0]).join(', ')}`);
+      out.push('');
+    }
+  }
+  if (on('hw')) {
+    const hw = days.flatMap(d => d.periods.filter(p => p.homework.length).map(p => `* ${subj(p, look)}${isDay ? '' : ` (יום ${d.name})`}: ${p.homework.join(', ')}`));
+    out.push('*📚 שיעורי בית:*', ...(hw.length ? hw : [isDay ? 'היום לא ניתנו שיעורי בית.' : 'יפורסמו במהלך השבוע.']), '');
+  }
+  if (on('dict') && (opts.words || []).length) {
+    out.push('*✍️ מילים להכתבה*' + (opts.dictWhen ? ` – ${opts.dictWhen}` : ''), ...(opts.topic ? [`הנושא: ${opts.topic}`] : []), '', ...opts.words, '',
+      'מומלץ להתאמן על ידי כתיבה של המילים, הקראה שלהן בקול ולאחר מכן כתיבה חוזרת בעזרת השמיעה❤️', '');
+  }
+  if (on('tests') && (opts.tests || []).length) {
+    out.push('*📝 מבדקים:*', ...opts.tests.map(t => `* ${t}`), 'מומלץ להקדיש מעט זמן לחזרה ותרגול לקראתם.', '');
+  }
+  if (on('events') && (opts.events || []).length) out.push('*📌 חשוב לזכור:*', ...opts.events.map(t => `* ${t}`), '');
+  if (on('bday') && (opts.names || []).length) {
+    out.push('*🎂 חגיגת ימי הולדת*', `${opts.bdayWhen ? opts.bdayWhen.replace(/^יום/, 'ביום') + ' ' : ''}נחגוג יחד את יום ההולדת של *${andJoin(opts.names)}!*🥳🎈`);
+    if (on('treats')) out.push('הורי הילדים החוגגים יחלקו ביניהם את הכיבוד:', '* עוגה *פרווה* 🎂', '* טרופיות 🧃', '* סוכריות טופי / מרשמלו 🍬', '* מפיות', '* חבילת מגבונים',
+      '*הורי הילדים החוגגים – אנא אשרו את ההודעה בפרטי. ❤️*');
+    out.push('');
+  }
+  if (on('gear') && (opts.gear || []).length) out.push('*🎒 ציוד:*', 'לצורך הפעילויות, אבקש לצייד את הילדים ב:', ...opts.gear.map(g => `* ${g}`), 'במידה וישנה בעייה בהשגת הציוד עדכנו אותי🙏🏻', '');
+  out.push('תודה על שיתוף הפעולה!', closing(at));
+  return out;
 }

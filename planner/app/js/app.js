@@ -6,13 +6,13 @@ import { putBlob, getBlob, delBlob, extractText, matchLessons, fmtSize, kindOf }
 import { readAnyPlan } from './genparse.js';
 import { QUOTES, BANK, CATS, EV } from './toolkit.js';
 import { weekPrintHtml } from './printweek.js';
-import { PM_TYPES, buildToday, buildWeek as buildWeekMsg, buildDict, buildGear, buildTest, buildBday } from './parentmsg.js';
+import { PM_TYPES, buildToday, buildWeek as buildWeekMsg, buildDict, buildGear, buildTest, buildBday, buildAll, autoTests, autoEvents, weekBdays } from './parentmsg.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs', import.meta.url).href;
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 31; // keep in step with CACHE in sw.js
+const APP_V = 32; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict'];
 const state = Object.assign({
   weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {},
@@ -687,6 +687,12 @@ function pmDefaults(w, type) {
   const t = now();
   const today = todayInWeek(w), next = w.days.find(d => dayDate(w, d) > t) || w.days[w.days.length - 1];
   const past = w.days.filter(d => dayDate(w, d) && dayDate(w, d) <= t).pop() || w.days[0];
+  if (type === 'all') {
+    const n = (w.notes || []).find(x => /הכתבה/.test(x.label));
+    const g = (next ? next.periods : []).flatMap(p => [...p.materials.map(m => m.text), ...p.sections.map(x => x.text)]).filter(x => /להביא|לצייד|להגיע עם/.test(x));
+    return { scope: t.getDay() === 6 || t.getDay() === 5 ? 'week' : 'day', dow: (today || past).dow, topic: n ? (n.label.split('·')[1] || '').trim() : '', words: n ? splitWords(n.text) : [], dictWhen: '',
+      tests: autoTests(w), events: autoEvents(w), names: weekBdays(w, state.kids), bdayWhen: '', gear: g, treats: false };
+  }
   if (type === 'today') return { dow: (today || past).dow, learned: true, hw: true, help: true };
   if (type === 'week') return { learn: true, hw: true, events: true, gear: [] };
   if (type === 'gear') {
@@ -711,7 +717,7 @@ function pmDefaults(w, type) {
 function pmText(w) {
   const P = state.pm, o = P.opts, at = now();
   const day = o.dow != null ? w.days.find(d => d.dow === +o.dow) : null;
-  const f = { today: buildToday, week: buildWeekMsg, dict: buildDict, gear: buildGear, test: buildTest, bday: buildBday }[P.type];
+  const f = { all: buildAll, today: buildToday, week: buildWeekMsg, dict: buildDict, gear: buildGear, test: buildTest, bday: buildBday }[P.type];
   let txt = f({ w, day, look, at, kids: state.kids, opts: o }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
   if (P.sign && state.name) txt += `\n${state.name} 🌻`;
   return txt;
@@ -719,7 +725,7 @@ function pmText(w) {
 function viewMsgs(w) {
   let h = top('הודעה להורים', 'הודעה מוכנה לקבוצת ההורים, בסגנון שלך – בודקים, מתקנים ושולחים', 'heart', { back: 'more' });
   if (!w) return h + `<p class="hint">צריך קודם תכנון שבועי.</p>`;
-  state.pm = state.pm || { type: 'today', sign: false };
+  state.pm = state.pm || { type: 'all', sign: false };
   const P = state.pm;
   if (!P.opts || P.optsFor !== P.type + w.id) { P.opts = pmDefaults(w, P.type); P.optsFor = P.type + w.id; P.text = null; }
   const o = P.opts;
@@ -729,6 +735,16 @@ function viewMsgs(w) {
   const ta = (k, l, ph) => `<label class="field">${l}<textarea rows="4" data-pmopt="${k}" data-lines="1" placeholder="${ph}">${esc((o[k] || []).join('\n'))}</textarea></label>`;
   const inp = (k, l, ph) => `<label class="field">${l}<input data-pmopt="${k}" value="${esc(o[k] || '')}" placeholder="${ph}"></label>`;
   let f = '';
+  if (P.type === 'all') {
+    f = `<div class="seg pmscope"><button class="${o.scope !== 'day' ? 'on' : ''}" data-pmscope="week">${ic('calendar')}על השבוע</button><button class="${o.scope === 'day' ? 'on' : ''}" data-pmscope="day">${ic('sun')}על יום אחד</button></div>`
+      + (o.scope === 'day' ? dayPick() : '')
+      + `<p class="pmlbl">מה להכניס:</p><div class="fchips">${tog('learn', 'מה למדנו')}${tog('hw', 'שיעורי בית')}${tog('dict', 'הכתבה')}${tog('tests', 'מבדקים')}${tog('events', 'אירועים')}${tog('bday', 'ימי הולדת')}${tog('gear', 'ציוד')}</div>`
+      + (o.dict !== false ? `<details class="pmsec" open><summary>✍️ הכתבה</summary>${inp('topic', 'הנושא', 'שם המספר בלשון זכר')}${inp('dictWhen', 'מתי ההכתבה (לא חובה)', 'ביום ראשון')}${ta('words', 'המילים (שורה לכל מילה)', 'אֶחָד\nשְׁנַיִם')}</details>` : '')
+      + (o.tests !== false ? `<details class="pmsec" open><summary>📝 מבדקים</summary>${ta('tests', 'שורה לכל מבדק', 'ביום שלישי 24/11 – מבדק בתורה')}</details>` : '')
+      + (o.events !== false ? `<details class="pmsec"><summary>📌 אירועים ותזכורות</summary>${ta('events', 'שורה לכל דבר', 'ביום שישי – מסיבת פיג׳מות')}</details>` : '')
+      + (o.bday !== false ? `<details class="pmsec" open><summary>🎂 ימי הולדת</summary>${ta('names', 'החוגגים (שורה לכל ילד)', 'בר\nנועה')}${inp('bdayWhen', 'מתי חוגגים (לא חובה)', 'יום שישי, 27.11')}<div class="fchips">${`<button class="fc ${o.treats ? 'on' : ''}" data-pmtog2="treats">${o.treats ? '✓ ' : ''}רשימת כיבוד להורי החוגגים</button>`}</div></details>` : '')
+      + (o.gear !== false ? `<details class="pmsec"><summary>🎒 ציוד</summary>${ta('gear', 'שורה לכל פריט', 'דבק סטיק')}</details>` : '');
+  }
   if (P.type === 'today') f = dayPick() + `<div class="fchips">${tog('learned', 'מה למדנו')}${tog('hw', 'שיעורי בית')}${tog('help', '"כאן לעזרה"')}</div>`;
   if (P.type === 'week') f = `<div class="fchips">${tog('learn', 'מה נלמד')}${tog('hw', 'שיעורי בית')}${tog('events', 'אירועים וימי הולדת')}</div>` + ta('gear', 'ציוד להביא השבוע (שורה לכל פריט, לא חובה)', 'מרקרים בארבעה צבעים');
   if (P.type === 'gear') f = dayPick() + ta('gear', 'מה להביא (שורה לכל פריט)', 'דבק סטיק\nמספריים');
@@ -2131,6 +2147,8 @@ document.addEventListener('click', e => {
   if (D.pmtype) { state.pm.type = D.pmtype; rerender(); return; }
   if (D.pmtog) { state.pm.opts[D.pmtog] = state.pm.opts[D.pmtog] === false; state.pm.text = null; rerender(); return; }
   if (D.pmday) { const P = state.pm; P.opts.dow = +D.pmday; if (P.type === 'gear') { const d = w.days.find(x => x.dow === +D.pmday); P.opts.gear = d.periods.flatMap(p => [...p.materials.map(m => m.text), ...p.sections.map(x => x.text)]).filter(x => /להביא|לצייד|להגיע עם/.test(x)); } P.text = null; rerender(); return; }
+  if (D.pmscope) { state.pm.opts.scope = D.pmscope; state.pm.text = null; rerender(); return; }
+  if (D.pmtog2) { state.pm.opts[D.pmtog2] = !state.pm.opts[D.pmtog2]; state.pm.text = null; rerender(); return; }
   if (D.pmsign) { state.pm.sign = !state.pm.sign; state.pm.text = null; rerender(); return; }
   if (D.tcat != null) { state.tcat = D.tcat; rerender(); return; }
   if (D.tip) { tipSheet(D.tip); return; }

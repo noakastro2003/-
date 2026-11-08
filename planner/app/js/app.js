@@ -6,12 +6,13 @@ import { putBlob, getBlob, delBlob, extractText, matchLessons, fmtSize, kindOf }
 import { readAnyPlan } from './genparse.js';
 import { QUOTES, BANK, CATS, EV } from './toolkit.js';
 import { weekPrintHtml } from './printweek.js';
+import { PM_TYPES, buildToday, buildWeek as buildWeekMsg, buildDict, buildGear, buildTest, buildBday } from './parentmsg.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs', import.meta.url).href;
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 30; // keep in step with CACHE in sw.js
+const APP_V = 31; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict'];
 const state = Object.assign({
   weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {},
@@ -678,6 +679,85 @@ function printWeek(w) {
 }
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 
+
+// ================================================================ messages to parents (in Noa's style)
+const HE_MONTH = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+const toLines = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean);
+function pmDefaults(w, type) {
+  const t = now();
+  const today = todayInWeek(w), next = w.days.find(d => dayDate(w, d) > t) || w.days[w.days.length - 1];
+  const past = w.days.filter(d => dayDate(w, d) && dayDate(w, d) <= t).pop() || w.days[0];
+  if (type === 'today') return { dow: (today || past).dow, learned: true, hw: true, help: true };
+  if (type === 'week') return { learn: true, hw: true, events: true, gear: [] };
+  if (type === 'gear') {
+    const d = next;
+    const g = d ? d.periods.flatMap(p => [...p.materials.map(m => m.text), ...p.sections.map(x => x.text)]).filter(x => /להביא|לצייד|להגיע עם/.test(x)) : [];
+    return { dow: d && d.dow, gear: g };
+  }
+  if (type === 'dict') {
+    const n = (w.notes || []).find(x => /הכתבה/.test(x.label));
+    return { topic: n ? (n.label.split('·')[1] || '').trim() : '', words: n ? splitWords(n.text) : [] };
+  }
+  if (type === 'test') {
+    const hit = w.days.flatMap(d => d.periods.filter(p => /מבדק|משימת הערכה|מבחן/.test(p.title)).map(p => ({ d, p })))[0];
+    return { what: hit ? hit.p.title : 'מבדק', when: hit ? `ביום ${hit.d.name}${hit.d.date ? ' ' + hit.d.date : ''}` : '', topics: [] };
+  }
+  if (type === 'bday') {
+    const m = t.getMonth() + 1;
+    return { month: HE_MONTH[m - 1], names: state.kids.filter(k => k.bd && +k.bd.split('.')[1] === m).map(k => k.name), when: '' };
+  }
+  return {};
+}
+function pmText(w) {
+  const P = state.pm, o = P.opts, at = now();
+  const day = o.dow != null ? w.days.find(d => d.dow === +o.dow) : null;
+  const f = { today: buildToday, week: buildWeekMsg, dict: buildDict, gear: buildGear, test: buildTest, bday: buildBday }[P.type];
+  let txt = f({ w, day, look, at, kids: state.kids, opts: o }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (P.sign && state.name) txt += `\n${state.name} 🌻`;
+  return txt;
+}
+function viewMsgs(w) {
+  let h = top('הודעה להורים', 'הודעה מוכנה לקבוצת ההורים, בסגנון שלך – בודקים, מתקנים ושולחים', 'heart', { back: 'more' });
+  if (!w) return h + `<p class="hint">צריך קודם תכנון שבועי.</p>`;
+  state.pm = state.pm || { type: 'today', sign: false };
+  const P = state.pm;
+  if (!P.opts || P.optsFor !== P.type + w.id) { P.opts = pmDefaults(w, P.type); P.optsFor = P.type + w.id; P.text = null; }
+  const o = P.opts;
+  h += `<div class="pmtypes">${PM_TYPES.map(([id, i, l]) => `<button class="${P.type === id ? 'on' : ''}" data-pmtype="${id}">${ic(i)}<span>${l}</span></button>`).join('')}</div>`;
+  const tog = (k, l) => `<button class="fc ${o[k] !== false ? 'on' : ''}" data-pmtog="${k}">${o[k] !== false ? '✓ ' : ''}${l}</button>`;
+  const dayPick = () => `<div class="fchips">${w.days.map(d => `<button class="fc ${+o.dow === d.dow ? 'on' : ''}" data-pmday="${d.dow}">יום ${esc(d.name)}</button>`).join('')}</div>`;
+  const ta = (k, l, ph) => `<label class="field">${l}<textarea rows="4" data-pmopt="${k}" data-lines="1" placeholder="${ph}">${esc((o[k] || []).join('\n'))}</textarea></label>`;
+  const inp = (k, l, ph) => `<label class="field">${l}<input data-pmopt="${k}" value="${esc(o[k] || '')}" placeholder="${ph}"></label>`;
+  let f = '';
+  if (P.type === 'today') f = dayPick() + `<div class="fchips">${tog('learned', 'מה למדנו')}${tog('hw', 'שיעורי בית')}${tog('help', '"כאן לעזרה"')}</div>`;
+  if (P.type === 'week') f = `<div class="fchips">${tog('learn', 'מה נלמד')}${tog('hw', 'שיעורי בית')}${tog('events', 'אירועים וימי הולדת')}</div>` + ta('gear', 'ציוד להביא השבוע (שורה לכל פריט, לא חובה)', 'מרקרים בארבעה צבעים');
+  if (P.type === 'gear') f = dayPick() + ta('gear', 'מה להביא (שורה לכל פריט)', 'דבק סטיק\nמספריים');
+  if (P.type === 'dict') f = inp('topic', 'הנושא', 'שם המספר בלשון זכר') + ta('words', 'המילים (שורה לכל מילה)', 'אֶחָד\nשְׁנַיִם');
+  if (P.type === 'test') f = inp('what', 'איזה מבדק', 'המבדק במתמטיקה') + inp('when', 'מתי', 'ביום שלישי 24/11') + ta('topics', 'נושאים (לא חובה)', 'חיבור וחיסור עד 20');
+  if (P.type === 'bday') f = inp('month', 'ילידי חודש', 'נובמבר') + ta('names', 'החוגגים', 'שם בכל שורה') + inp('when', 'מתי חוגגים', 'יום שישי, 27.11');
+  f += `<div class="fchips"><button class="fc ${P.sign ? 'on' : ''}" data-pmsign="1">${P.sign ? '✓ ' : ''}חתימה: ${esc(state.name || 'השם שלך')} 🌻</button></div>`;
+  h += `<div class="card pmopts">${f}</div>`;
+  const txt = P.text != null ? P.text : pmText(w);
+  h += `<div class="card pmprev">${cardHead('phone2', 'ההודעה', P.text != null ? '<button class="linkbtn" data-act="pmreset">לבנות מחדש</button>' : '')}
+    <textarea id="pmText" rows="14" dir="rtl">${esc(txt)}</textarea>
+    <p class="hint">אפשר לתקן כאן חופשי. *כוכביות* = מודגש בווטסאפ.</p>
+    <a class="cta wa" id="pmWa" href="https://wa.me/?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">${ic('phone2')} שליחה בווטסאפ</a>
+    <div class="btnrow"><button class="cta soft" data-act="pmcopy">${ic('file')} העתקה</button><button class="cta soft" data-act="pmshare">${ic('upload')} שיתוף</button></div>
+  </div>`;
+  return h;
+}
+function pmRefresh() {
+  const w = pickWeek(), t = $('#pmText'); if (!w || !t) return;
+  const txt = state.pm.text != null ? state.pm.text : pmText(w);
+  if (state.pm.text == null) t.value = txt;
+  const a = $('#pmWa'); if (a) a.href = 'https://wa.me/?text=' + encodeURIComponent(txt);
+}
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (el.dataset && el.dataset.pmopt && state.pm) { state.pm.opts[el.dataset.pmopt] = el.dataset.lines ? toLines(el.value) : el.value; state.pm.text = null; pmRefresh(); }
+  if (el.id === 'pmText' && state.pm) { state.pm.text = el.value; const a = $('#pmWa'); if (a) a.href = 'https://wa.me/?text=' + encodeURIComponent(el.value); }
+});
+
 // ================================================================ TOOLKIT: research-based methods & tips
 const tipOfDay = () => { const t = now(); return BANK[(t.getFullYear() * 400 + t.getMonth() * 31 + t.getDate()) % BANK.length]; };
 function tipCard() {
@@ -730,7 +810,7 @@ function viewMore(w) {
     ${[['timer', 'טיימר', 'data-act="timer"'], ['dice', 'מי עונה?', 'data-act="picker"'], ['grid', 'מערכת', 'data-day="all"'],
       ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`], ['cake', 'הכיתה שלי', 'data-go="kids"'], ['pin', 'תזכורות', 'data-go="todos"'],
       ['pencil', 'יומן כיתה', 'data-go="journal"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"'],
-      ['text', 'הגרלת הכתבה', 'data-act="dictfree"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"']]
+      ['phone2', 'הודעה להורים', 'data-go="msgs"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"']]
       .map(([i, t, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${t}</button>`).join('')}
   </div>
   <button class="card setlink tkl" data-go="tools"><span class="chi">${ic('sparkle')}</span><span class="grow"><b>שיטות וטיפים לכיתה</b><small>למידה פעילה, בדיקת הבנה והשתתפות – מבוסס מחקר</small></span>${ic('chevL', 'chev')}</button>
@@ -1866,8 +1946,8 @@ function readyMoment(day) {
 
 // ================================================================ render
 const TABS = ['now', 'day', 'prep', 'files', 'more'];
-const SUB = { kids: 'more', todos: 'more', summary: 'more', settings: 'more', journal: 'more', lists: 'more', autos: 'more', tools: 'more' };
-const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools };
+const SUB = { kids: 'more', todos: 'more', summary: 'more', settings: 'more', journal: 'more', lists: 'more', autos: 'more', tools: 'more', msgs: 'more' };
+const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs };
 let lastTab = null;
 function render(animate) {
   let w = pickWeek();
@@ -1882,7 +1962,7 @@ function render(animate) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   moveTabInd();
   const v = $('#view');
-  const needWeek = !['more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools'].includes(state.tab);
+  const needWeek = !['more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs'].includes(state.tab);
   v.innerHTML = !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
   if (animate) {
     const a = TABS.indexOf(SUB[state.tab] || state.tab), b = TABS.indexOf(SUB[lastTab] || lastTab);
@@ -2048,6 +2128,10 @@ document.addEventListener('click', e => {
   if (D.fopen) { state.fopen = state.fopen || {}; const el = t.closest('.fgrp'); state.fopen[D.fopen] = !el.classList.contains('open'); rerender(); return; }
   if (D.printweek) { printWeek(state.weeks[D.printweek]); return; }
   if (D.dict) { const [dow, label] = D.dict.split('|'); const key = `${w.id}:${dow}:${label}`; dictSheet(key, dictSource(w, +dow, label)); return; }
+  if (D.pmtype) { state.pm.type = D.pmtype; rerender(); return; }
+  if (D.pmtog) { state.pm.opts[D.pmtog] = state.pm.opts[D.pmtog] === false; state.pm.text = null; rerender(); return; }
+  if (D.pmday) { const P = state.pm; P.opts.dow = +D.pmday; if (P.type === 'gear') { const d = w.days.find(x => x.dow === +D.pmday); P.opts.gear = d.periods.flatMap(p => [...p.materials.map(m => m.text), ...p.sections.map(x => x.text)]).filter(x => /להביא|לצייד|להגיע עם/.test(x)); } P.text = null; rerender(); return; }
+  if (D.pmsign) { state.pm.sign = !state.pm.sign; state.pm.text = null; rerender(); return; }
   if (D.tcat != null) { state.tcat = D.tcat; rerender(); return; }
   if (D.tip) { tipSheet(D.tip); return; }
   if (D.tsave) { const i = state.tsaved.indexOf(D.tsave); if (i >= 0) state.tsaved.splice(i, 1); else { state.tsaved.push(D.tsave); miniBurst(t); toast('נשמר ♥'); } save(); tipSheet(D.tsave); if (state.tab === 'tools') rerender(); return; }
@@ -2090,6 +2174,9 @@ document.addEventListener('click', e => {
       if (navigator.vibrate) navigator.vibrate(12);
       dictSheet(D2.k, words, shuffled(words, D2.order.length ? D2.order : null)); break;
     }
+    case 'pmreset': state.pm.text = null; rerender(); break;
+    case 'pmcopy': navigator.clipboard.writeText($('#pmText').value).then(() => toast('ההודעה הועתקה 📋')).catch(() => toast('לא הצלחתי להעתיק 😕')); break;
+    case 'pmshare': { const v = $('#pmText').value; if (navigator.share) navigator.share({ text: v }).catch(() => {}); else navigator.clipboard.writeText(v).then(() => toast('ההודעה הועתקה 📋')); break; }
     case 'tiprand': { const cur = state._tip; let b; do b = BANK[Math.floor(Math.random() * BANK.length)]; while (b.id === cur && BANK.length > 1); state._tip = b.id; tipSheet(b.id); break; }
     case 'pick': doPick(); break;
     case 'split': doSplit(); break;

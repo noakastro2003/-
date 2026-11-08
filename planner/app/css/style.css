@@ -921,3 +921,13 @@ input, textarea, select { font-size: 16px !important; }
 .field input[type=date]::-webkit-date-and-time-value, .field input[type=time]::-webkit-date-and-time-value { text-align: start; }
 .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23A08C6A' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important; background-repeat: no-repeat !important; background-position: left 16px center !important; padding-left: 36px !important; }
 .autonew .cta { margin-top: 20px; }
+
+/* parent messages */
+.pmtypes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0 6px; }
+.pmtypes button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px; border-radius: 20px; background: var(--card); border: 1px solid var(--line); font-size: 14px; color: var(--soft); box-shadow: var(--sh2); transition: all .3s var(--spring); }
+.pmtypes button .ic { width: 24px; height: 24px; color: var(--accent-ink); }
+.pmtypes button.on { color: var(--ink); font-weight: 600; border-color: color-mix(in srgb, var(--gold, #C9A25F) 70%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold, #C9A25F) 18%, transparent), var(--sh2); transform: translateY(-2px); }
+.pmopts { margin-top: 14px; display: grid; gap: 4px; }
+.pmopts .fchips { padding-block: 4px; flex-wrap: wrap; }
+.pmprev textarea { width: 100%; box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 18px; padding: 14px; background: var(--tint2); line-height: 1.6; resize: vertical; min-height: 300px; font-family: inherit; }
+.cta.wa { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; background: linear-gradient(135deg, #2BAE66, #1E8E52) !important; color: #fff !important; text-decoration: none; }

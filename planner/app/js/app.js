@@ -6,16 +6,16 @@ import { putBlob, getBlob, delBlob, extractText, matchLessons, fmtSize, kindOf }
 import { readAnyPlan } from './genparse.js';
 import { QUOTES, BANK, CATS, EV } from './toolkit.js';
 import { weekPrintHtml } from './printweek.js';
-import { PM_TYPES, buildToday, buildWeek as buildWeekMsg, buildDict, buildGear, buildTest, buildBday, buildAll, autoTests, autoEvents, weekBdays } from './parentmsg.js';
+import { PM_TYPES, buildToday, buildWeek as buildWeekMsg, buildDict, buildGear, buildTest, buildBday, buildAll, autoTests, autoEvents, weekBdays, buildPersonal, buildForms, formPersonal, buildChange, buildHoliday, nextHoliday, HOLIDAY_NAMES, OPENERS, CLOSERS, stripEmoji, waHtml } from './parentmsg.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs', import.meta.url).href;
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 33; // keep in step with CACHE in sw.js
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict'];
+const APP_V = 34; // keep in step with CACHE in sw.js
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes'];
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {},
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [],
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -162,10 +162,12 @@ const chk = (key, on, body, extra = '') => `<label class="chk ${on ? 'on' : ''}"
 
 // ================================================================ birthdays
 function parseKids(text) {
-  return text.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+  return text.split('\n').map(l => l.trim()).filter(Boolean).map(l0 => {
+    const ph = l0.match(/(?:\+?972[-\s]?|0)5\d[-\s]?\d{3}[-\s]?\d{4}/);
+    const l = ph ? l0.replace(ph[0], ' ').replace(/\s{2,}/g, ' ').trim() : l0;
     const m = l.match(/(\d{1,2})\s*[./\-]\s*(\d{1,2})(?:\s*[./\-]\s*\d{2,4})?/);
     const name = l.replace(m ? m[0] : '', '').replace(/[–\-:,|]+\s*$/, '').replace(/^\s*[–\-:,|]+/, '').trim();
-    return name ? { name, bd: m ? `${+m[1]}.${+m[2]}` : '' } : null;
+    return name ? { name, bd: m ? `${+m[1]}.${+m[2]}` : '', phone: ph ? ph[0].replace(/\D/g, '').replace(/^972/, '0') : '' } : null;
   }).filter(Boolean);
 }
 const bdOn = d => d ? state.kids.filter(k => k.bd && k.bd === `${d.getDate()}.${d.getMonth() + 1}`) : [];
@@ -694,6 +696,11 @@ function pmDefaults(w, type) {
       tests: autoTests(w), events: autoEvents(w), names: weekBdays(w, state.kids), bdayWhen: '', gear: g, treats: false };
   }
   if (type === 'today') return { dow: (today || past).dow, learned: true, hw: true, help: true };
+  if (type === 'personal') return { kid: '', kind: 'star', notes: [], noteIds: [], extra: '' };
+  if (type === 'forms') { const f = state.forms[state.forms.length - 1]; return { form: f ? f.id : '' }; }
+  if (type === 'change') { const ch = recentChanges(); return { picked: ch.filter(c => Date.now() - c.at < 3 * 864e5).map(c => c.id), lines: [] }; }
+  if (type === 'holiday') { const h = nextHoliday(t); return { holiday: h ? h.name : (t.getDay() >= 4 ? 'שבת' : 'שבת'), extra: '' }; }
+  if (type === 'mine') return {};
   if (type === 'week') return { learn: true, hw: true, events: true, gear: [] };
   if (type === 'gear') {
     const d = next;
@@ -717,8 +724,17 @@ function pmDefaults(w, type) {
 function pmText(w) {
   const P = state.pm, o = P.opts, at = now();
   const day = o.dow != null ? w.days.find(d => d.dow === +o.dow) : null;
-  const f = { all: buildAll, today: buildToday, week: buildWeekMsg, dict: buildDict, gear: buildGear, test: buildTest, bday: buildBday }[P.type];
-  let txt = f({ w, day, look, at, kids: state.kids, opts: o }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (P.type === 'mine') return P.text || '';
+  if (P.type === 'change') o.lines = [...recentChanges().filter(c => (o.picked || []).includes(c.id)).map(changeLine), ...(o.more || [])];
+  if (P.type === 'forms') { const fm = state.forms.find(x => x.id === o.form); o.title = fm ? fm.title : ''; }
+  const f = { all: buildAll, personal: buildPersonal, forms: buildForms, change: buildChange, holiday: buildHoliday, today: buildToday, week: buildWeekMsg, dict: buildDict, gear: buildGear, test: buildTest, bday: buildBday }[P.type];
+  o.len = P.len || 'normal';
+  const out = f({ w, day, look, at, kids: state.kids, opts: o });
+  const fixedStart = ['dict', 'bday', 'test', 'forms'].includes(P.type);
+  if (P.opener && !fixedStart) out[0] = P.opener;
+  if (P.closer && !['dict', 'bday'].includes(P.type)) { let i = out.length - 1; while (i > 0 && !out[i].trim()) i--; out[i] = P.closer; }
+  let txt = out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (P.noemoji) txt = stripEmoji(txt);
   if (P.sign && state.name) txt += `\n${state.name} 🌻`;
   return txt;
 }
@@ -745,46 +761,143 @@ function viewMsgs(w) {
       + (o.bday !== false ? `<details class="pmsec" open><summary>🎂 ימי הולדת</summary>${ta('names', 'החוגגים (שורה לכל ילד)', 'בר\nנועה')}${inp('bdayWhen', 'מתי חוגגים (לא חובה)', 'יום שישי, 27.11')}<div class="fchips">${`<button class="fc ${o.treats ? 'on' : ''}" data-pmtog2="treats">${o.treats ? '✓ ' : ''}רשימת כיבוד להורי החוגגים</button>`}</div></details>` : '')
       + (o.gear !== false ? `<details class="pmsec"><summary>🎒 ציוד</summary>${ta('gear', 'שורה לכל פריט', 'דבק סטיק')}</details>` : '');
   }
+  if (P.type === 'personal') {
+    const kids = state.kids;
+    f = kids.length ? `<p class="pmlbl">לאיזה הורה?</p><div class="fchips">${kids.map(k => `<button class="fc ${o.kid === k.name ? 'on' : ''}" data-pmkid="${esc(k.name)}">${esc(k.name)}${k.phone ? ' 📞' : ''}</button>`).join('')}</div>`
+      : `<p class="hint">צריך קודם רשימת ילדים (עוד ← הכיתה שלי). עם טלפון של הורה – ההודעה תישלח ישר אליו.</p>`;
+    f += `<div class="seg pmscope"><button class="${o.kind === 'star' ? 'on' : ''}" data-pmkind="star">🌟 מילה טובה</button><button class="${o.kind !== 'star' ? 'on' : ''}" data-pmkind="update">${ic('phone2')} עדכון</button></div>`;
+    if (o.kid) {
+      const ns = state.cnotes.filter(n => (n.kids || []).includes(o.kid)).slice(-8).reverse();
+      if (ns.length) f += `<p class="pmlbl">מתוך יומן הכיתה:</p><div class="pmnotes">${ns.map(n => `<button class="${(o.noteIds || []).includes(n.id) ? 'on' : ''}" data-pmnote="${n.id}"><span>${(TAGS[n.tag] || TAGS.note)[0]}</span><span class="grow">${esc(n.text || TAGS[n.tag][1])}</span><small>${new Date(n.at).getDate()}.${new Date(n.at).getMonth() + 1}</small></button>`).join('')}</div>`;
+    }
+    f += `<label class="field">מה לכתוב (במילים שלך)<input data-pmopt="extra" value="${esc(o.extra || '')}" placeholder="${o.kind === 'star' ? 'עזר לחבר בשיעור חשבון' : 'היום היה לו קשה להתרכז'}"></label>`;
+  }
+  if (P.type === 'forms') {
+    const fm = state.forms.find(x => x.id === o.form);
+    f = `<p class="pmlbl">איזה טופס?</p><div class="fchips">${state.forms.map(x => `<button class="fc ${x.id === o.form ? 'on' : ''}" data-pmform="${x.id}">${esc(x.title)}</button>`).join('')}</div>
+      <form class="addtodo" data-formnew><input name="t" placeholder="טופס חדש: אישור יום ההליכה" autocomplete="off"><button aria-label="הוספה">${ic('plus')}</button></form>`;
+    if (fm) {
+      const miss = state.kids.filter(k => !fm.done.includes(k.name));
+      f += state.kids.length ? `<p class="pmlbl">מי כבר החזיר? (לוחצים לסימון) · נשארו ${miss.length}</p><div class="fchips">${state.kids.map(k => `<button class="fc ${fm.done.includes(k.name) ? 'on' : ''}" data-formkid="${esc(k.name)}">${fm.done.includes(k.name) ? '✓ ' : ''}${esc(k.name)}</button>`).join('')}</div>` : `<p class="hint">צריך רשימת ילדים (עוד ← הכיתה שלי).</p>`;
+      if (miss.length) f += `<details class="pmsec"><summary>📞 תזכורת אישית להורים שלא החזירו (${miss.length})</summary>${miss.map(k => `<button class="pmkidsend" data-wakid="${esc(k.name)}">${ic('phone2')} ${esc(k.name)}${k.phone ? '' : ' <small>(אין טלפון)</small>'}</button>`).join('')}</details>`;
+      f += `<button class="linkbtn" data-formdel="${fm.id}">מחיקת הטופס</button>`;
+    }
+  }
+  if (P.type === 'change') {
+    const ch = recentChanges();
+    f = ch.length ? `<p class="pmlbl">שינויים שעשית במערכת (לוחצים לבחירה):</p><div class="pmnotes">${ch.map(c => `<button class="${(o.picked || []).includes(c.id) ? 'on' : ''}" data-pmch="${c.id}"><span>🔁</span><span class="grow">${esc(changeLine(c))}</span></button>`).join('')}</div>`
+      : `<p class="hint">כשמזיזים, מוסיפים או מוחקים שיעור באפליקציה – השינוי יופיע כאן.</p>`;
+    f += ta('more', 'שינויים נוספים (שורה לכל שינוי)', 'תנ״ך מעכשיו רק ביום שלישי');
+  }
+  if (P.type === 'holiday') {
+    const nh = nextHoliday(now());
+    f = `${nh ? `<p class="pmlbl">החג הבא: <b>${nh.name}</b> ${nh.inDays === 0 ? '(היום)' : `בעוד ${nh.inDays} ימים`}</p>` : ''}<div class="fchips">${HOLIDAY_NAMES.map(n => `<button class="fc ${o.holiday === n ? 'on' : ''}" data-pmhol="${esc(n)}">${esc(n)}</button>`).join('')}</div>`
+      + `<label class="field">משפט אישי (לא חובה)<input data-pmopt="extra" value="${esc(o.extra || '')}" placeholder="אני נהנית ללוות את הילדים…"></label>`;
+  }
+  if (P.type === 'mine') {
+    f = state.pmtpl.length ? `<div class="pmnotes">${state.pmtpl.map(x => `<div class="pmtpl"><button data-pmtpl="${x.id}"><span>⭐</span><span class="grow">${esc(x.name)}</span></button><button class="iconbtn" data-pmtpldel="${x.id}" aria-label="מחיקה">${ic('trash')}</button></div>`).join('')}</div>`
+      : `<p class="hint">עוד אין תבניות. כותבים הודעה בכל סוג אחר ולוחצים "⭐ שמירה כתבנית".</p>`;
+  }
   if (P.type === 'today') f = dayPick() + `<div class="fchips">${tog('learned', 'מה למדנו')}${tog('hw', 'שיעורי בית')}${tog('help', '"כאן לעזרה"')}</div>`;
   if (P.type === 'week') f = `<div class="fchips">${tog('learn', 'מה נלמד')}${tog('hw', 'שיעורי בית')}${tog('events', 'אירועים וימי הולדת')}</div>` + ta('gear', 'ציוד להביא השבוע (שורה לכל פריט, לא חובה)', 'מרקרים בארבעה צבעים');
   if (P.type === 'gear') f = dayPick() + ta('gear', 'מה להביא (שורה לכל פריט)', 'דבק סטיק\nמספריים');
   if (P.type === 'dict') f = inp('topic', 'הנושא', 'שם המספר בלשון זכר') + ta('words', 'המילים (שורה לכל מילה)', 'אֶחָד\nשְׁנַיִם');
   if (P.type === 'test') f = inp('what', 'איזה מבדק', 'המבדק במתמטיקה') + inp('when', 'מתי', 'ביום שלישי 24/11') + ta('topics', 'נושאים (לא חובה)', 'חיבור וחיסור עד 20');
   if (P.type === 'bday') f = inp('month', 'ילידי חודש', 'נובמבר') + ta('names', 'החוגגים', 'שם בכל שורה') + inp('when', 'מתי חוגגים', 'יום שישי, 27.11');
+  if (P.type !== 'mine') f += `<details class="pmsec pmstyle"><summary>🎨 סגנון ואורך</summary>
+    <div class="seg pmscope">${[['short', 'קצרה'], ['normal', 'רגילה'], ['long', 'מפורטת']].map(([v, l]) => `<button class="${(P.len || 'normal') === v ? 'on' : ''}" data-pmlen="${v}">${l}</button>`).join('')}</div>
+    <label class="field">פתיחה<select data-pmsel="opener"><option value="">לפי השעה</option>${OPENERS.map(x => `<option ${P.opener === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+    <label class="field">סיום<select data-pmsel="closer"><option value="">לפי היום והשעה</option>${CLOSERS.map(x => `<option ${P.closer === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+    <div class="fchips"><button class="fc ${P.noemoji ? 'on' : ''}" data-pmemoji="1">${P.noemoji ? '✓ ' : ''}בלי אימוג׳ים</button></div>
+  </details>`;
   f += `<div class="fchips"><button class="fc ${P.sign ? 'on' : ''}" data-pmsign="1">${P.sign ? '✓ ' : ''}חתימה: ${esc(state.name || 'השם שלך')} 🌻</button></div>`;
   h += `<div class="card pmopts">${f}</div>`;
   const txt = P.text != null ? P.text : pmText(w);
   h += `<div class="card pmprev">${cardHead('phone2', 'ההודעה', P.text != null ? '<button class="linkbtn" data-act="pmreset">לבנות מחדש</button>' : '')}
-    <textarea id="pmText" rows="14" dir="rtl">${esc(txt)}</textarea>
-    <p class="hint">אפשר לתקן כאן חופשי. *כוכביות* = מודגש בווטסאפ.</p>
-    <button class="cta wa" data-act="pmwa">${ic('phone2')} שליחה בווטסאפ</button>
+    <div class="wachat"><div class="wabub" id="pmBub">${waHtml(txt)}<span class="wat">${String(now().getHours()).padStart(2, '0')}:${String(now().getMinutes()).padStart(2, '0')} ✓✓</span></div></div>
+    <details class="pmsec pmedit" ${P.text != null ? 'open' : ''}><summary>✎ עריכת הטקסט</summary><textarea id="pmText" rows="12" dir="rtl">${esc(txt)}</textarea>
+    <p class="hint">*כוכביות* = מודגש · _קו תחתון_ = נטוי</p></details>
+    ${pmAttachUI(w)}
+    ${P.type === 'personal' && o.kid ? (() => { const k = state.kids.find(x => x.name === o.kid); return `<button class="cta wa" data-wakid="${esc(o.kid)}">${ic('phone2')} שליחה להורה של ${esc(o.kid)}${k && k.phone ? '' : ' (בלי טלפון – בוחרים בווטסאפ)'}</button>`; })() : `<button class="cta wa" data-act="pmwa">${ic('phone2')} ${P.file ? 'שליחה בווטסאפ עם הקובץ' : 'שליחה בווטסאפ'}</button>`}
     <div class="btnrow"><button class="cta soft" data-act="pmcopy">${ic('file')} העתקה</button><button class="cta soft" data-act="pmshare">${ic('upload')} שיתוף</button></div>
+    <button class="linkbtn pmsave" data-act="pmsavetpl">⭐ שמירה כתבנית</button>
   </div>`;
+  const wk = state.pmlog.filter(x => Date.now() - x.at < 7 * 864e5);
+  if (state.pmlog.length) h += `<div class="card">${cardHead('clock', 'נשלחו לאחרונה', wk.length ? `<span class="cnt">${wk.length} השבוע</span>` : '')}${state.pmlog.slice(0, 8).map(x => `<button class="pmhist" data-pmlog="${x.id}"><span class="tpill">${new Date(x.at).getDate()}.${new Date(x.at).getMonth() + 1}</span><span class="grow"><b>${esc((PM_TYPES.find(t => t[0] === x.type) || [0, 0, 'הודעה'])[2])}${x.to ? ' · ' + esc(x.to) : ''}</b><small>${esc(x.text.split('\n').find(l => l.trim() && !/^הורים יקרים|^היי|טובים/.test(l)) || x.text.split('\n')[0])}</small></span>${ic('chevL', 'chev')}</button>`).join('')}<p class="hint">לוחצים על הודעה כדי להשתמש בה שוב כבסיס</p></div>`;
   return h;
 }
 function pmRefresh() {
   const w = pickWeek(), t = $('#pmText'); if (!w || !t) return;
   const txt = state.pm.text != null ? state.pm.text : pmText(w);
   if (state.pm.text == null) t.value = txt;
+  pmBubble(txt);
 }
+function pmBubble(txt) { const b = $('#pmBub'); if (b) b.innerHTML = waHtml(txt) + `<span class="wat">${b.querySelector('.wat') ? b.querySelector('.wat').textContent : ''}</span>`; }
+// schedule changes the teacher made in the app
+function logChange(w, day, title, from, to) {
+  state.changes.unshift({ id: uid(), at: Date.now(), w: w.id, dow: day.dow, day: day.name, title, from, to });
+  state.changes = state.changes.slice(0, 30);
+}
+const recentChanges = () => state.changes.filter(c => Date.now() - c.at < 14 * 864e5);
+const labTxt = l => (l === 'בוקר' ? 'בבוקר' : `בשעה ${l}`);
+function changeLine(c) {
+  if (!c.from) return `ביום ${c.day}: נוסף שיעור – ${c.title} (${labTxt(c.to.label)}${c.to.start ? ', ' + c.to.start : ''})`;
+  if (!c.to) return `ביום ${c.day}: השיעור ${c.title} (${labTxt(c.from.label)}) לא יתקיים`;
+  return `ביום ${c.day}: ${c.title} עבר ${labTxt(c.from.label)} ${labTxt(c.to.label).replace(/^ב/, 'ל')}${c.to.start ? ` (${c.to.start})` : ''}`;
+}
+// attach a file (uploaded or a Drive print file) to the message
+function pmAttachChoices(w) {
+  const out = state.files.filter(f => !f.ref || f.ref.w === w.id).slice(-12).reverse().map(f => ({ key: 'u:' + f.id, name: f.name.replace(/\.[^.]+$/, '') }));
+  for (const d of w.days) (w.prep[d.dow] || []).forEach(sc => sc.items.forEach(it => { if (it.url && driveId(it.url)) out.push({ key: 'd:' + it.url, name: it.text, it }); }));
+  return out;
+}
+function pmAttachUI(w) {
+  const ch = pmAttachChoices(w); if (!ch.length) return '';
+  const P = state.pm;
+  return `<label class="field pmattach">📎 לצרף קובץ להודעה<select data-pmsel="attach"><option value="">בלי קובץ</option>${ch.map(c => `<option value="${esc(c.key)}" ${P.attach === c.key ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>${P.attach && !P.file ? '<p class="hint">מכינה את הקובץ…</p>' : ''}`;
+}
+async function pmLoadAttach(w, key) {
+  const P = state.pm; P.file = null;
+  if (!key) return;
+  if (key.startsWith('u:')) {
+    const f = state.files.find(x => x.id === key.slice(2));
+    const b = f && await getBlob(f.id).catch(() => null);
+    if (b) P.file = new File([b], f.name, { type: f.type || b.type });
+  } else {
+    const url = key.slice(2), id = driveId(url);
+    P.file = await printFile({ url, text: (pmAttachChoices(w).find(c => c.key === key) || {}).name || 'קובץ' }, id);
+  }
+  if (!P.file) toast('לא הצלחתי להכין את הקובץ 😕');
+}
+function pmLog(type, text, to) {
+  state.pmlog.unshift({ id: uid(), at: Date.now(), type, text, to: to || '' });
+  state.pmlog = state.pmlog.slice(0, 40); save();
+  if (state.tab === 'msgs') setTimeout(rerender, 400);
+}
+function kidPhone(name) { const k = state.kids.find(x => x.name === name); return k && k.phone ? '972' + k.phone.replace(/^0/, '') : ''; }
 // open WhatsApp itself (the wa.me web link stays stuck in a browser view inside the home-screen app);
 // if WhatsApp did not open, fall back to the phone's share sheet, which lists WhatsApp too
-function sendWhatsApp(text) {
+function sendWhatsApp(text, phone, file) {
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+    // with a file WhatsApp is reached through the share sheet; the text is copied too, in case it drops it
+    navigator.share({ files: [file], text }).catch(() => {});
+    return;
+  }
   let left = false;
   const away = () => { if (document.hidden) left = true; };
   document.addEventListener('visibilitychange', away);
-  location.href = 'whatsapp://send?text=' + encodeURIComponent(text);
+  location.href = 'whatsapp://send?' + (phone ? 'phone=' + phone + '&' : '') + 'text=' + encodeURIComponent(text);
   setTimeout(() => {
     document.removeEventListener('visibilitychange', away);
     if (left) return;
     if (navigator.share) navigator.share({ text }).catch(() => {});
-    else window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+    else window.open('https://wa.me/' + (phone || '') + '?text=' + encodeURIComponent(text), '_blank');
   }, 1600);
 }
 document.addEventListener('input', e => {
   const el = e.target;
   if (el.dataset && el.dataset.pmopt && state.pm) { state.pm.opts[el.dataset.pmopt] = el.dataset.lines ? toLines(el.value) : el.value; state.pm.text = null; pmRefresh(); }
-  if (el.id === 'pmText' && state.pm) state.pm.text = el.value;
+  if (el.id === 'pmText' && state.pm) { state.pm.text = el.value; pmBubble(el.value); }
 });
 
 // ================================================================ TOOLKIT: research-based methods & tips
@@ -911,7 +1024,7 @@ function viewTodos(w) {
 }
 
 function viewKids() {
-  const txt = state.kids.map(k => `${k.name}${k.bd ? ' ' + k.bd : ''}`).join('\n');
+  const txt = state.kids.map(k => `${k.name}${k.bd ? ' ' + k.bd : ''}${k.phone ? ' ' + k.phone : ''}`).join('\n');
   const t = now(); t.setHours(0, 0, 0, 0);
   const up = state.kids.filter(k => k.bd).map(k => {
     const [d, m] = k.bd.split('.').map(Number);
@@ -921,10 +1034,10 @@ function viewKids() {
   return top('הכיתה שלי', 'שמות וימי הולדת – כדי שאף אחד לא יישכח', 'cake', { back: 'more' }) + `
   <div class="card">
     ${cardHead('users', 'הילדים', `<span class="cnt">${state.kids.length}</span>`)}
-    <p class="dim">שורה לכל ילד: שם ואז תאריך לידה (יום.חודש). אפשר להדביק רשימה שלמה.</p>
-    <textarea id="kidsIn" rows="10" placeholder="דנה 12.3&#10;יואב 4.11&#10;מיה 28.6">${esc(txt)}</textarea>
+    <p class="dim">שורה לכל ילד: שם, תאריך לידה (יום.חודש) וטלפון של הורה – לא חובה. אפשר להדביק רשימה שלמה.</p>
+    <textarea id="kidsIn" rows="10" placeholder="דנה 12.3 050-1234567&#10;יואב 4.11&#10;מיה 28.6 052-7654321">${esc(txt)}</textarea>
     <button class="cta" data-act="savekids">שמירה</button>
-    <p class="hint">נשמר רק בטלפון. משמש גם ל"מי עונה?" 🎲</p>
+    <p class="hint">משמש ל"מי עונה?" 🎲, לימי הולדת ולהודעה אישית להורה בווטסאפ 📞</p>
   </div>
   ${up.length ? `<div class="card">${cardHead('cake', 'הבאים בתור')}${up.slice(0, 8).map(({ k, x, days }) =>
     `<div class="row"><span class="tpill">${x.getDate()}.${x.getMonth() + 1}</span><span class="grow">${esc(k.name)}</span><span class="dim">${days === 0 ? 'היום! 🎉' : days === 1 ? 'מחר' : `בעוד ${days} ימים`}</span></div>`).join('')}</div>` : ''}`;
@@ -1132,8 +1245,10 @@ function saveEditor(f) {
     links: get('links').filter(([a, b]) => a || b).map(([text, url]) => ({ text: text || url, url: /^https?:/.test(url) ? url : '' })),
     badges: old ? old.badges : [], edited: true,
   });
+  const was = old ? { label: oldLabel, start: old.start } : null;
   if (!old) day.periods.push(p);
   day.periods.sort((a, b) => mins(a.start) - mins(b.start));
+  if (!old || was.label !== p.label || was.start !== p.start) logChange(w, day, p.title, was, { label: p.label, start: p.start });
   if (old && oldLabel !== p.label) moveKeys(w, `${dow}:${oldLabel}`, `${dow}:${p.label}`);
   save(); closeOverlay(); state.open[`${dow}:${p.label}`] = true; rerender(); toast('נשמר ✓');
 }
@@ -1785,6 +1900,7 @@ const AUTO_DEFAULTS = [
   { id: 'before', kind: 'before', on: false, mins: 10 },
   { id: 'actions', kind: 'actions', on: true, time: '15:00' },
   { id: 'upload', kind: 'weekly', on: true, day: 4, time: '19:00', text: 'להעלות את התכנון של השבוע הבא 📄' },
+  { id: 'pmweek', kind: 'pmweek', on: true, day: 5, time: '12:00' },
 ];
 const AUTO_INFO = {
   morning: ['sun', 'בוקר טוב', 'כל בוקר לימודים: מה להדפיס, מה להביא, השיעור הראשון וימי הולדת'],
@@ -1792,10 +1908,12 @@ const AUTO_INFO = {
   before: ['timer', 'לפני שיעור', 'לפני כל שיעור שצריך בו משהו – מה להכין'],
   actions: ['bell', 'לטיפול', 'בסוף היום: הורים להתקשר אליהם ותלמידים לטיפול'],
   weekly: ['calendar', 'תזכורת שבועית', ''],
+  pmweek: ['phone2', 'עדכון להורים', 'תזכורת לשלוח את העדכון השבועי – לוחצים וההודעה מוכנה'],
   once: ['pin', 'תזכורת חד־פעמית', ''],
 };
 function autos() {
   if (!state.autos || !state.autos.length) state.autos = AUTO_DEFAULTS.map(a => ({ ...a }));
+  if (!state.autos.some(a => a.kind === 'pmweek')) state.autos.push({ ...AUTO_DEFAULTS.find(a => a.kind === 'pmweek') });
   return state.autos;
 }
 function atTime(date, hhmm) { const [h, m] = hhmm.split(':').map(Number); const d = new Date(date); d.setHours(h, m, 0, 0); return d; }
@@ -1803,7 +1921,7 @@ function buildQueue() {
   const out = [], t0 = Date.now(), end = t0 + 8 * 864e5;
   const days = [];
   for (const w of sortedWeeks()) for (const d of w.days) { const dd = dayDate(w, d); if (dd && d.periods.length) days.push({ w, d, dd }); }
-  const add = (at, title, body, tag) => { if (at.getTime() > t0 && at.getTime() < end) out.push({ at: at.getTime(), title, body, tag }); };
+  const add = (at, title, body, tag, url) => { if (at.getTime() > t0 && at.getTime() < end) out.push({ at: at.getTime(), title, body, tag, ...(url ? { url } : {}) }); };
   const sec = (w, d, re) => ((w.prep[d.dow] || []).find(s => re.test(s.title)) || { items: [] }).items.map(i => i.text.split('–')[0].trim());
   for (const a of autos()) {
     if (!a.on) continue;
@@ -1832,6 +1950,7 @@ function buildQueue() {
       add(atTime(dd, a.time), 'לטיפול היום 📞', [par.length ? `📞 להתקשר: ${par.map(n => n.kids.join(', ') || n.text).join(' · ')}` : '', care.length ? `👤 לטיפול: ${care.map(n => n.kids.join(', ') || n.text).join(' · ')}` : ''].filter(Boolean).join('\n'), 'actions');
     }
     if (a.kind === 'weekly') for (let i = 0; i < 8; i++) { const d = addDays(new Date(), i); if (d.getDay() === +a.day) add(atTime(d, a.time), 'תזכורת 💜', a.text || '', 'weekly-' + a.id); }
+    if (a.kind === 'pmweek') for (let i = 0; i < 8; i++) { const d = addDays(new Date(), i); if (d.getDay() === +a.day) add(atTime(d, a.time), 'הודעה להורים 💌', 'העדכון השבועי מוכן – לוחצים, בודקים ושולחים', 'pmweek', './?go=msgs'); }
     if (a.kind === 'once' && a.date) add(atTime(new Date(a.date + 'T00:00'), a.time || '08:00'), 'תזכורת 💜', a.text || '', 'once-' + a.id);
   }
   return out.sort((x, y) => x.at - y.at).slice(0, 300);
@@ -1879,7 +1998,7 @@ function viewAutos() {
     const [icon, title, desc] = AUTO_INFO[a.kind];
     const ctl = a.kind === 'before'
       ? `<select data-auto="${a.id}" data-f="mins">${[5, 10, 15, 20, 30].map(m => `<option ${a.mins === m ? 'selected' : ''} value="${m}">${m} דק׳ לפני</option>`).join('')}</select>`
-      : a.kind === 'weekly' ? `<select data-auto="${a.id}" data-f="day">${DAYS.map((d, i) => `<option value="${i}" ${+a.day === i ? 'selected' : ''}>יום ${d}</option>`).join('')}</select><input type="time" data-auto="${a.id}" data-f="time" value="${esc(a.time)}">`
+      : a.kind === 'weekly' || a.kind === 'pmweek' ? `<select data-auto="${a.id}" data-f="day">${DAYS.map((d, i) => `<option value="${i}" ${+a.day === i ? 'selected' : ''}>יום ${d}</option>`).join('')}</select><input type="time" data-auto="${a.id}" data-f="time" value="${esc(a.time)}">`
       : a.kind === 'once' ? `<input type="date" data-auto="${a.id}" data-f="date" value="${esc(a.date || '')}"><input type="time" data-auto="${a.id}" data-f="time" value="${esc(a.time || '08:00')}">`
       : `<input type="time" data-auto="${a.id}" data-f="time" value="${esc(a.time)}">`;
     return `<div class="card auto ${a.on ? '' : 'off'}">
@@ -2162,6 +2281,25 @@ document.addEventListener('click', e => {
   if (D.pmday) { const P = state.pm; P.opts.dow = +D.pmday; if (P.type === 'gear') { const d = w.days.find(x => x.dow === +D.pmday); P.opts.gear = d.periods.flatMap(p => [...p.materials.map(m => m.text), ...p.sections.map(x => x.text)]).filter(x => /להביא|לצייד|להגיע עם/.test(x)); } P.text = null; rerender(); return; }
   if (D.pmscope) { state.pm.opts.scope = D.pmscope; state.pm.text = null; rerender(); return; }
   if (D.pmtog2) { state.pm.opts[D.pmtog2] = !state.pm.opts[D.pmtog2]; state.pm.text = null; rerender(); return; }
+  if (D.pmkid) { const o = state.pm.opts; o.kid = D.pmkid; o.noteIds = []; o.notes = []; state.pm.text = null; rerender(); return; }
+  if (D.pmkind) { state.pm.opts.kind = D.pmkind; state.pm.text = null; rerender(); return; }
+  if (D.pmnote) { const o = state.pm.opts; const i = o.noteIds.indexOf(D.pmnote); if (i >= 0) o.noteIds.splice(i, 1); else o.noteIds.push(D.pmnote); o.notes = o.noteIds.map(id => (state.cnotes.find(n => n.id === id) || {}).text).filter(Boolean); state.pm.text = null; rerender(); return; }
+  if (D.pmform) { state.pm.opts.form = D.pmform; state.pm.text = null; rerender(); return; }
+  if (D.formkid) { const fm = state.forms.find(x => x.id === state.pm.opts.form); if (fm) { const i = fm.done.indexOf(D.formkid); if (i >= 0) fm.done.splice(i, 1); else fm.done.push(D.formkid); save(); rerender(); } return; }
+  if (D.formdel) { if (confirm('למחוק את הטופס?')) { state.forms = state.forms.filter(x => x.id !== D.formdel); state.pm.opts.form = ''; save(); rerender(); } return; }
+  if (D.wakid) {
+    const P = state.pm, fm = P.type === 'forms' && state.forms.find(x => x.id === P.opts.form);
+    const v = fm ? formPersonal(fm.title, D.wakid) : $('#pmText').value;
+    navigator.clipboard && navigator.clipboard.writeText(v).catch(() => {});
+    sendWhatsApp(v, kidPhone(D.wakid)); pmLog(P.type, v, D.wakid); return;
+  }
+  if (D.pmch) { const o = state.pm.opts; const i = o.picked.indexOf(D.pmch); if (i >= 0) o.picked.splice(i, 1); else o.picked.push(D.pmch); state.pm.text = null; rerender(); return; }
+  if (D.pmhol) { state.pm.opts.holiday = D.pmhol; state.pm.text = null; rerender(); return; }
+  if (D.pmtpl) { const x = state.pmtpl.find(y => y.id === D.pmtpl); if (x) { state.pm.text = x.text; rerender(); } return; }
+  if (D.pmtpldel) { if (confirm('למחוק את התבנית?')) { state.pmtpl = state.pmtpl.filter(y => y.id !== D.pmtpldel); save(); rerender(); } return; }
+  if (D.pmlog) { const x = state.pmlog.find(y => y.id === D.pmlog); if (x) { state.pm.type = x.type === 'mine' ? 'mine' : x.type; state.pm.optsFor = null; viewMsgs(pickWeek()); state.pm.text = x.text; rerender(); window.scrollTo({ top: 0, behavior: 'smooth' }); toast('ההודעה נטענה – אפשר לערוך ולשלוח'); } return; }
+  if (D.pmlen) { state.pm.len = D.pmlen; state.pm.text = null; rerender(); return; }
+  if (D.pmemoji) { state.pm.noemoji = !state.pm.noemoji; state.pm.text = null; rerender(); return; }
   if (D.pmsign) { state.pm.sign = !state.pm.sign; state.pm.text = null; rerender(); return; }
   if (D.tcat != null) { state.tcat = D.tcat; rerender(); return; }
   if (D.tip) { tipSheet(D.tip); return; }
@@ -2205,10 +2343,11 @@ document.addEventListener('click', e => {
       if (navigator.vibrate) navigator.vibrate(12);
       dictSheet(D2.k, words, shuffled(words, D2.order.length ? D2.order : null)); break;
     }
-    case 'pmwa': { const v = $('#pmText').value; navigator.clipboard && navigator.clipboard.writeText(v).catch(() => {}); sendWhatsApp(v); break; }
+    case 'pmwa': { const v = $('#pmText').value; navigator.clipboard && navigator.clipboard.writeText(v).catch(() => {}); sendWhatsApp(v, '', state.pm.file); pmLog(state.pm.type, v); break; }
+    case 'pmsavetpl': { const v = $('#pmText').value.trim(); if (!v) break; const n = prompt('שם לתבנית:', (PM_TYPES.find(x => x[0] === state.pm.type) || [0, 0, ''])[2]); if (!n) break; state.pmtpl.push({ id: uid(), name: n.trim(), text: v }); save(); toast('נשמר בתבניות שלי ⭐'); break; }
     case 'pmreset': state.pm.text = null; rerender(); break;
-    case 'pmcopy': navigator.clipboard.writeText($('#pmText').value).then(() => toast('ההודעה הועתקה 📋')).catch(() => toast('לא הצלחתי להעתיק 😕')); break;
-    case 'pmshare': { const v = $('#pmText').value; if (navigator.share) navigator.share({ text: v }).catch(() => {}); else navigator.clipboard.writeText(v).then(() => toast('ההודעה הועתקה 📋')); break; }
+    case 'pmcopy': navigator.clipboard.writeText($('#pmText').value).then(() => { toast('ההודעה הועתקה 📋'); pmLog(state.pm.type, $('#pmText').value); }).catch(() => toast('לא הצלחתי להעתיק 😕')); break;
+    case 'pmshare': { const v = $('#pmText').value; const fl = state.pm.file; pmLog(state.pm.type, v); if (navigator.share) navigator.share(fl && navigator.canShare && navigator.canShare({ files: [fl] }) ? { files: [fl], text: v } : { text: v }).catch(() => {}); else navigator.clipboard.writeText(v).then(() => toast('ההודעה הועתקה 📋')); break; }
     case 'tiprand': { const cur = state._tip; let b; do b = BANK[Math.floor(Math.random() * BANK.length)]; while (b.id === cur && BANK.length > 1); state._tip = b.id; tipSheet(b.id); break; }
     case 'pick': doPick(); break;
     case 'split': doSplit(); break;
@@ -2221,7 +2360,8 @@ document.addEventListener('click', e => {
     case 'dellesson': {
       const f = t.closest('form'); const [dow, lb] = f.dataset.editor.split('|');
       if (!confirm('למחוק את השיעור?')) return;
-      const day = w.days.find(d => d.dow === +dow); day.periods = day.periods.filter(p => p.label !== lb);
+      const day = w.days.find(d => d.dow === +dow); const gone = day.periods.find(p => p.label === lb); day.periods = day.periods.filter(p => p.label !== lb);
+      if (gone) logChange(w, day, gone.title, { label: lb, start: gone.start }, null);
       save(); closeOverlay(); rerender(); toast('השיעור נמחק'); break;
     }
     case 'export': exportBackup(); break;
@@ -2258,6 +2398,11 @@ document.addEventListener('click', e => {
 function findPeriod(w, id) { const [dow, lb] = id.split(':'); return w.days.find(d => d.dow === +dow).periods.find(p => p.label === lb); }
 
 document.addEventListener('change', e => {
+  const sel = e.target.dataset && e.target.dataset.pmsel;
+  if (sel && state.pm) {
+    if (sel === 'attach') { state.pm.attach = e.target.value; state.pm.file = null; rerender(); pmLoadAttach(pickWeek(), e.target.value).then(() => rerender()); return; }
+    state.pm[sel] = e.target.value; state.pm.text = null; rerender(); return;
+  }
   if (e.target.name === 'kind' && e.target.closest('form.autonew')) e.target.closest('form').dataset.kind = e.target.value;
   const i = e.target;
   if (i.dataset.ck) {
@@ -2325,6 +2470,7 @@ document.addEventListener('submit', e => {
   if (f.matches('[data-noteform]')) { e.preventDefault(); saveNote(f); return; }
   if (f.matches('[data-ladd]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; state.lists.find(x => x.id === f.dataset.ladd).items.push({ id: uid(), text: t, done: false }); save(); rerender(); setTimeout(() => { const n = document.querySelector(`[data-ladd="${f.dataset.ladd}"] input`); if (n) n.focus(); }, 30); return; }
   if (f.matches('[data-lnew]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; const id = uid(); state.lists.push({ id, emoji: '✅', title: t, items: [] }); save(); rerender(); setTimeout(() => { const n = document.querySelector(`[data-ladd="${id}"] input`); if (n) n.focus(); }, 30); return; }
+  if (f.matches('[data-formnew]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; const id = uid(); state.forms.push({ id, title: t, done: [] }); state.pm.opts.form = id; save(); rerender(); return; }
   if (f.matches('[data-autonew]')) { e.preventDefault(); autos().push({ id: uid(), kind: f.kind.value, on: true, text: f.text.value.trim(), day: +f.day.value, date: f.date.value, time: f.time.value || '16:00' }); save(); rerender(); toast('התזכורת נוספה 🔔'); return; }
   if (f.matches('[data-prepnew]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; const dow = +f.dataset.prepnew; const w = pickWeek(); (w.prep[dow] = w.prep[dow] || []).push({ title: t, icon: '', items: [] }); save(); rerender(); return; }
   if (f.matches('[data-auth]')) {
@@ -2517,6 +2663,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     if (!$('#overlay.show')) go(); else document.addEventListener('visibilitychange', () => { if (document.hidden) go(); }, { once: true });
   });
 }
+{ const g = new URLSearchParams(location.search).get('go'); if (g && VIEWS[g]) state.tab = g; }
 render(true);
 initAuth();
 welcome();

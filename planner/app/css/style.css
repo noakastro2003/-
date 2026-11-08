@@ -937,3 +937,27 @@ input, textarea, select { font-size: 16px !important; }
 .pmsec { border: 1px solid var(--line); border-radius: 18px; padding: 4px 14px 10px; margin-top: 10px; background: var(--tint2); }
 .pmsec summary { cursor: pointer; padding: 10px 0 4px; font-weight: 600; font-size: 15.5px; list-style: none; }
 .pmsec summary::-webkit-details-marker { display: none; }
+
+/* parent messages – upgrades */
+.pmnotes { display: grid; gap: 8px; margin: 6px 0 4px; }
+.pmnotes button, .pmtpl > button:first-child { display: flex; align-items: center; gap: 10px; width: 100%; text-align: start; padding: 12px 14px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); font-size: 15px; }
+.pmnotes button.on { border-color: #C9A25F; box-shadow: 0 0 0 3px color-mix(in srgb, #C9A25F 18%, transparent); }
+.pmnotes small { color: var(--soft); font-size: 12px; }
+.pmtpl { display: flex; gap: 8px; align-items: center; }
+.pmkidsend { display: flex; align-items: center; gap: 8px; width: 100%; padding: 11px 6px; font-size: 15.5px; border-top: 1px solid var(--line); text-align: start; }
+.pmkidsend:first-of-type { border-top: 0; }
+.pmkidsend .ic { width: 18px; height: 18px; color: #1E8E52; }
+.wachat { background: #EFE7DD url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='8' cy='8' r='1.2' fill='%23d9cfc2'/%3E%3Ccircle cx='28' cy='24' r='1' fill='%23d9cfc2'/%3E%3C/svg%3E"); border-radius: 20px; padding: 14px 12px; margin-top: 6px; }
+[data-theme=dark] .wachat { background-color: #0B141A; }
+.wabub { position: relative; background: #D9FDD3; color: #111B21; border-radius: 14px 0 14px 14px; padding: 9px 11px 20px; font-size: 15px; line-height: 1.45; margin-inline-start: 18px; box-shadow: 0 1px 1px rgba(0,0,0,.1); white-space: normal; word-wrap: break-word; }
+[data-theme=dark] .wabub { background: #005C4B; color: #E9EDEF; }
+.wabub b { font-weight: 700; }
+.wat { position: absolute; bottom: 4px; left: 10px; font-size: 11px; color: #53BDEB; }
+.pmedit textarea { margin-top: 6px; min-height: 260px; }
+.pmattach { margin-top: 12px; }
+.pmsave { display: block; margin: 12px auto 2px; }
+.pmhist { display: flex; align-items: center; gap: 12px; width: 100%; text-align: start; padding: 12px 2px; border-top: 1px solid var(--line); }
+.pmhist:first-of-type { border-top: 0; }
+.pmhist b { display: block; font-size: 15px; font-weight: 500; }
+.pmhist small { display: block; color: var(--soft); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62vw; }
+.pmhist .chev { width: 16px; height: 16px; color: var(--soft); }

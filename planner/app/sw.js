@@ -1,5 +1,5 @@
 // Offline cache: the app works in class even without reception.
-const CACHE = 'noa-planner-v33';
+const CACHE = 'noa-planner-v34';
 const FILES = [
   './', 'index.html', 'css/style.css', 'css/luxe.css', 'fonts/assistant-hebrew-200-normal.woff2', 'fonts/varela-round-hebrew-400-normal.woff2', 'fonts/playpen-sans-hebrew-hebrew-300-normal.woff2', 'fonts/playpen-sans-hebrew-hebrew-400-normal.woff2', 'fonts/assistant-hebrew-300-normal.woff2', 'fonts/assistant-hebrew-400-normal.woff2', 'fonts/assistant-hebrew-600-normal.woff2', 'img/night.jpg', 'fonts/heebo-hebrew-300-normal.woff2', 'js/app.js', 'js/planparse.js', 'js/pdftext.js', 'js/icons.js', 'js/files.js', 'js/genparse.js', 'js/toolkit.js', 'js/printweek.js', 'js/parentmsg.js', 'vendor/identity.mjs',
   'vendor/pdf.min.mjs', 'vendor/keepawake.mp4', 'vendor/pdf.worker.min.mjs', 'manifest.webmanifest',
@@ -40,7 +40,8 @@ self.addEventListener('push', e => {
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-    for (const c of list) if ('focus' in c) return c.focus();
-    return self.clients.openWindow(e.notification.data && e.notification.data.url || './');
+    const url = e.notification.data && e.notification.data.url || './';
+    for (const c of list) if ('focus' in c) return c.focus().then(w => (url !== './' && w && 'navigate' in w ? w.navigate(url) : w));
+    return self.clients.openWindow(url);
   }));
 });

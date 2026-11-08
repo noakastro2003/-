@@ -930,7 +930,7 @@ input, textarea, select { font-size: 16px !important; }
 .pmopts { margin-top: 14px; display: grid; gap: 4px; }
 .pmopts .fchips { padding-block: 4px; flex-wrap: wrap; }
 .pmprev textarea { width: 100%; box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 18px; padding: 14px; background: var(--tint2); line-height: 1.6; resize: vertical; min-height: 300px; font-family: inherit; }
-.cta.wa { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; background: linear-gradient(135deg, #2BAE66, #1E8E52) !important; color: #fff !important; text-decoration: none; }
+.cta.wa { width: 100%; border: 0; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; background: linear-gradient(135deg, #2BAE66, #1E8E52) !important; color: #fff !important; text-decoration: none; }
 .pmtypes button:first-child { grid-column: 1 / -1; flex-direction: row; justify-content: center; gap: 10px; font-size: 16px; }
 .pmscope { margin-bottom: 6px; }
 .pmlbl { margin: 10px 4px 0; font-size: 14px; color: var(--soft); }

@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 32; // keep in step with CACHE in sw.js
+const APP_V = 33; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict'];
 const state = Object.assign({
   weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {},
@@ -757,7 +757,7 @@ function viewMsgs(w) {
   h += `<div class="card pmprev">${cardHead('phone2', 'ההודעה', P.text != null ? '<button class="linkbtn" data-act="pmreset">לבנות מחדש</button>' : '')}
     <textarea id="pmText" rows="14" dir="rtl">${esc(txt)}</textarea>
     <p class="hint">אפשר לתקן כאן חופשי. *כוכביות* = מודגש בווטסאפ.</p>
-    <a class="cta wa" id="pmWa" href="https://wa.me/?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">${ic('phone2')} שליחה בווטסאפ</a>
+    <button class="cta wa" data-act="pmwa">${ic('phone2')} שליחה בווטסאפ</button>
     <div class="btnrow"><button class="cta soft" data-act="pmcopy">${ic('file')} העתקה</button><button class="cta soft" data-act="pmshare">${ic('upload')} שיתוף</button></div>
   </div>`;
   return h;
@@ -766,12 +766,25 @@ function pmRefresh() {
   const w = pickWeek(), t = $('#pmText'); if (!w || !t) return;
   const txt = state.pm.text != null ? state.pm.text : pmText(w);
   if (state.pm.text == null) t.value = txt;
-  const a = $('#pmWa'); if (a) a.href = 'https://wa.me/?text=' + encodeURIComponent(txt);
+}
+// open WhatsApp itself (the wa.me web link stays stuck in a browser view inside the home-screen app);
+// if WhatsApp did not open, fall back to the phone's share sheet, which lists WhatsApp too
+function sendWhatsApp(text) {
+  let left = false;
+  const away = () => { if (document.hidden) left = true; };
+  document.addEventListener('visibilitychange', away);
+  location.href = 'whatsapp://send?text=' + encodeURIComponent(text);
+  setTimeout(() => {
+    document.removeEventListener('visibilitychange', away);
+    if (left) return;
+    if (navigator.share) navigator.share({ text }).catch(() => {});
+    else window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  }, 1600);
 }
 document.addEventListener('input', e => {
   const el = e.target;
   if (el.dataset && el.dataset.pmopt && state.pm) { state.pm.opts[el.dataset.pmopt] = el.dataset.lines ? toLines(el.value) : el.value; state.pm.text = null; pmRefresh(); }
-  if (el.id === 'pmText' && state.pm) { state.pm.text = el.value; const a = $('#pmWa'); if (a) a.href = 'https://wa.me/?text=' + encodeURIComponent(el.value); }
+  if (el.id === 'pmText' && state.pm) state.pm.text = el.value;
 });
 
 // ================================================================ TOOLKIT: research-based methods & tips
@@ -2192,6 +2205,7 @@ document.addEventListener('click', e => {
       if (navigator.vibrate) navigator.vibrate(12);
       dictSheet(D2.k, words, shuffled(words, D2.order.length ? D2.order : null)); break;
     }
+    case 'pmwa': { const v = $('#pmText').value; navigator.clipboard && navigator.clipboard.writeText(v).catch(() => {}); sendWhatsApp(v); break; }
     case 'pmreset': state.pm.text = null; rerender(); break;
     case 'pmcopy': navigator.clipboard.writeText($('#pmText').value).then(() => toast('ההודעה הועתקה 📋')).catch(() => toast('לא הצלחתי להעתיק 😕')); break;
     case 'pmshare': { const v = $('#pmText').value; if (navigator.share) navigator.share({ text: v }).catch(() => {}); else navigator.clipboard.writeText(v).then(() => toast('ההודעה הועתקה 📋')); break; }

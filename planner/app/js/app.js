@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 35; // keep in step with CACHE in sw.js
+const APP_V = 36; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided'];
 const state = Object.assign({
   weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {},
@@ -984,7 +984,7 @@ function viewClass() {
   const wk = weekKey();
   const kings = Object.entries(state.kings || {}).map(([n, v]) => [n, v[wk] || 0, Object.values(v).reduce((a, b) => a + b, 0)]);
   h += `<div class="card">${cardHead('star', 'מלך שיעור 👑', `<span class="cnt">השבוע</span>`)}
-    ${state.kids.length ? `<div class="fchips wrap">${state.kids.map(k => { const r = kings.find(x => x[0] === k.name); return `<button class="fc ${r && r[1] ? 'on' : ''}" data-king="${esc(k.name)}">${esc(k.name)}${r && r[1] ? ` 👑${r[1] > 1 ? r[1] : ''}` : ''}</button>`; }).join('')}</div><p class="hint">לחיצה = עוד כתר השבוע · לחיצה ארוכה = ביטול</p>` : '<p class="hint">צריך רשימת ילדים (עוד ← הכיתה שלי).</p>'}
+    ${state.kids.length ? `<div class="fchips wrap">${state.kids.map(k => { const r = kings.find(x => x[0] === k.name); return `<button class="fc ${r && r[1] ? 'on' : ''}" data-king="${esc(k.name)}">${esc(k.name)}${r && r[1] ? ` 👑${r[1] > 1 ? r[1] : ''}` : ''}</button>`; }).join('')}</div><p class="hint">לחיצה = עוד כתר השבוע · לחיצה ארוכה = ביטול כתר</p>${state._lastKing ? `<button class="linkbtn" data-unking="${esc(state._lastKing)}">↩︎ ביטול הכתר האחרון (${esc(state._lastKing)})</button>` : ''}` : '<p class="hint">צריך רשימת ילדים (עוד ← הכיתה שלי).</p>'}
   </div>`;
   return h;
 }
@@ -2604,7 +2604,8 @@ document.addEventListener('click', e => {
   if (D.cmsec) { const [id, i] = D.cmsec.split('|'); state.sec[id] = +i; classMode(); return; }
   if (D.pt) { const [i, d] = D.pt.split('|').map(Number); state.points[i].pts = Math.max(0, state.points[i].pts + d); save(); if (d > 0) miniBurst(t); rerender(); if ($('#proj.show')) projector('points'); return; }
   if (D.projmode) { const m = D.projmode; projector(m, m === 'dict' ? (state._dict && state._dict.order) : m === 'groups' ? state._teams : null); return; }
-  if (D.king) { state.kings[D.king] = state.kings[D.king] || {}; const k = weekKey(); state.kings[D.king][k] = (state.kings[D.king][k] || 0) + 1; save(); miniBurst(t); rerender(); return; }
+  if (D.king) { if (kingHeld) { kingHeld = false; return; } state.kings[D.king] = state.kings[D.king] || {}; const k = weekKey(); state.kings[D.king][k] = (state.kings[D.king][k] || 0) + 1; state._lastKing = D.king; save(); miniBurst(t); rerender(); return; }
+  if (D.unking) { unKing(D.unking); state._lastKing = null; rerender(); return; }
   if (D.kid) { kidSheet(D.kid); return; }
   if (D.kidmsg) { closeOverlay(); state.pm = { type: 'personal', sign: false }; go('msgs'); state.pm.opts.kid = D.kidmsg; rerender(); return; }
   if (D.kidnote) { noteSheet(null, 'note'); state._note.kids = [D.kidnote]; const b = document.querySelector(`[data-pickkid="${CSS.escape(D.kidnote)}"]`); if (b) b.classList.add('on'); return; }
@@ -2920,11 +2921,12 @@ document.addEventListener('change', e => {
   const f = e.target.closest('form[data-editor]');
   if (f && e.target.name === 'label') { const [a, b] = bellFor(e.target.value); if (a) { f.start.value = a; f.end.value = b; } }
 });
-document.addEventListener('contextmenu', e => {
-  const b = e.target.closest('[data-king]'); if (!b) return;
-  e.preventDefault(); const n = b.dataset.king, k = weekKey();
-  if (state.kings[n] && state.kings[n][k]) { state.kings[n][k]--; save(); rerender(); toast('כתר אחד בוטל'); }
-});
+// long press on a name removes one crown (iPhone has no contextmenu, so time the touch ourselves)
+let kingHeld = false, kingTimer = 0;
+function unKing(n) { const k = weekKey(); if (state.kings[n] && state.kings[n][k]) { state.kings[n][k]--; save(); rerender(); toast(`כתר אחד של ${n} בוטל`); if (navigator.vibrate) navigator.vibrate(15); } else toast(`ל${n} אין כתרים השבוע`); }
+document.addEventListener('touchstart', e => { const b = e.target.closest('[data-king]'); if (!b) return; kingHeld = false; clearTimeout(kingTimer); kingTimer = setTimeout(() => { kingHeld = true; unKing(b.dataset.king); }, 550); }, { passive: true });
+['touchend', 'touchmove', 'touchcancel'].forEach(ev => document.addEventListener(ev, () => clearTimeout(kingTimer), { passive: true }));
+document.addEventListener('contextmenu', e => { if (e.target.closest('[data-king]')) { e.preventDefault(); if (!('ontouchstart' in window)) unKing(e.target.closest('[data-king]').dataset.king); } });
 document.addEventListener('touchstart', e => { if (e.target.closest('[data-swipe]')) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; sdx = 0; swiping = false; } }, { passive: true });
 document.addEventListener('touchmove', e => {
   if (sx == null) return;

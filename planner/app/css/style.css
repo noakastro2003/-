@@ -1056,3 +1056,4 @@ body.incm { overflow: hidden; }
 .gd-dots i.on { width: 22px; border-radius: 9px; background: #C9A25F; }
 .filepick { display: flex; align-items: center; gap: 8px; padding: 14px 16px; margin: 8px 0; border-radius: var(--r-btn); border: 1.5px dashed var(--line); background: var(--tint2); color: var(--soft); font-size: 15px; cursor: pointer; }
 .filepick .ic { width: 18px; height: 18px; color: var(--accent-ink); }
+[data-king] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }

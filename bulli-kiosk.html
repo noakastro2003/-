@@ -65,21 +65,22 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 #home .sign h1 b{color:var(--coral);font-weight:400}
 #home .sign::before,#home .sign::after{content:"";position:absolute;top:-70px;width:8px;height:70px;background:#B07A3E;border-radius:4px}
 #home .sign::before{right:80px}#home .sign::after{left:80px}
-.cards{position:absolute;left:40px;right:40px;top:304px;display:flex;gap:26px;justify-content:center}
-.card{width:278px;height:350px;border-radius:36px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+.cards{position:absolute;left:30px;right:30px;top:304px;display:flex;gap:20px;justify-content:center}
+.card{width:228px;height:350px;border-radius:36px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
   padding-top:22px;position:relative;transition:transform .15s;animation:cardIn .6s cubic-bezier(.3,1.5,.5,1) backwards}
 .card:nth-child(2){animation-delay:.08s}.card:nth-child(3){animation-delay:.16s}.card:nth-child(4){animation-delay:.24s}
 @keyframes cardIn{from{transform:translateY(60px) scale(.8);opacity:0}}
 .card:active{transform:translateY(6px)}
-.card .ic{width:220px;height:200px;border-radius:28px;background:rgba(255,255,255,.7);display:grid;place-items:center;overflow:hidden}
-.card .ic svg{width:210px;height:190px}
-.card .nm{margin-top:18px;font-size:33px;line-height:1.25;text-align:center;padding:0 14px}
+.card .ic{width:196px;height:190px;border-radius:28px;background:rgba(255,255,255,.7);display:grid;place-items:center;overflow:hidden}
+.card .ic svg{width:190px;height:172px}
+.card .nm{margin-top:16px;font-size:30px;line-height:1.25;text-align:center;padding:0 14px}
 .card .num{position:absolute;top:-16px;right:-10px;width:58px;height:58px;border-radius:50%;background:#fff;
   display:grid;place-items:center;font-size:30px;box-shadow:0 4px 0 rgba(0,0,0,.08)}
 .c1{background:#FFE0D8;box-shadow:0 10px 0 #F2B6A8}.c1 .num{color:var(--coral-d)}
 .c2{background:#D6F1EC;box-shadow:0 10px 0 #A4DCD2}.c2 .num{color:var(--teal-d)}
 .c3{background:#FFF0C4;box-shadow:0 10px 0 #F1D486}.c3 .num{color:var(--sun-d)}
 .c4{background:#E8E0F6;box-shadow:0 10px 0 #C9B9E6}.c4 .num{color:var(--plum)}
+.c5{background:#E2F3D6;box-shadow:0 10px 0 #B9DDA2}.c5 .num{color:#4E9A3A}
 .copy{position:absolute;bottom:calc(10px - var(--ey,0px));left:0;right:0;text-align:center;font-size:15px;color:#9C8A7A;z-index:70;pointer-events:none}
 .deco-coins{position:absolute;bottom:26px;width:100%;height:80px;pointer-events:none}
 
@@ -478,6 +479,16 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .pc svg{width:100%;height:100%;filter:drop-shadow(0 4px 3px rgba(40,20,0,.25));display:block}
 .pc.k10{width:104px;height:104px}.pc.k1{width:78px;height:78px}
 .pc.lift svg{transform:scale(1.12)}
+/* ===== addition level ===== */
+#game.addm #wallet,#game.addm #prod{display:none}
+#game.addm #qpanel{top:458px}
+.pgroup{position:absolute;top:462px;height:120px;z-index:8;display:flex;align-items:center;justify-content:center;gap:12px;pointer-events:none}
+.pgroup svg{width:104px;height:104px;filter:drop-shadow(0 6px 4px rgba(90,50,10,.2))}
+.pgroup .gt{background:var(--sun);border-radius:16px;padding:2px 18px;font-size:42px;box-shadow:0 5px 0 var(--sun-d)}
+.pmat{position:absolute;top:588px;height:196px;z-index:7;border-radius:26px;background:rgba(255,255,255,.35);box-shadow:inset 0 0 0 4px rgba(176,122,62,.25)}
+.tf{position:absolute;z-index:9;pointer-events:none;border-radius:14px;box-shadow:inset 0 0 0 3px rgba(160,60,40,.25);
+  background-image:linear-gradient(90deg,rgba(160,60,40,.18) 2px,transparent 2px),linear-gradient(rgba(160,60,40,.18) 2px,transparent 2px);background-size:52px 52px;background-position:-1px -1px}
+.tf.full{box-shadow:inset 0 0 0 4px var(--sun),0 0 18px rgba(255,201,74,.9);animation:breathe 1.2s ease-in-out infinite}
 </style>
 </head>
 <body>
@@ -545,6 +556,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
       <button class="card c2" data-level="2"><span class="num">2</span><div class="ic" id="ic2"></div><div class="nm">קוֹנִים בְּלִי לִפְרוֹט</div></button>
       <button class="card c3" data-level="3"><span class="num">3</span><div class="ic" id="ic3"></div><div class="nm">קוֹנִים עִם פְּרִיטָה</div></button>
       <button class="card c4" data-level="4"><span class="num">4</span><div class="ic" id="ic4"></div><div class="nm">יוֹם עָמוּס</div></button>
+      <button class="card c5" data-level="5"><span class="num">5</span><div class="ic" id="ic5"></div><div class="nm">עוֹשִׂים חֶשְׁבּוֹן</div></button>
     </div>
     <button id="shopBtn"><svg id="shopIcon" viewBox="0 0 112 142"></svg><span>קִישּׁוּטִים</span><span class="tot" id="shopTot"></span></button>
     <div class="copy">© נועה קסטרו</div>
@@ -594,8 +606,8 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
         <div class="machine" id="machine">
           <div class="meye l"><i></i></div><div class="meye r"><i></i></div>
           <div class="slotm"></div>
-          <div class="win"><svg viewBox="0 0 176 176"><use href="#coin10" x="96" y="52" width="70" height="70"/><path d="M92 87 H70 M80 77 L70 87 L80 97" stroke="#16867A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><use href="#coin1" x="14" y="38" width="34" height="34"/><use href="#coin1" x="40" y="38" width="34" height="34"/><use href="#coin1" x="14" y="60" width="34" height="34"/><use href="#coin1" x="40" y="60" width="34" height="34"/><use href="#coin1" x="14" y="82" width="34" height="34"/></svg></div>
-          <div class="plate">פּוֹרֵט</div>
+          <div class="win" id="mwin"><svg viewBox="0 0 176 176"><use href="#coin10" x="96" y="52" width="70" height="70"/><path d="M92 87 H70 M80 77 L70 87 L80 97" stroke="#16867A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><use href="#coin1" x="14" y="38" width="34" height="34"/><use href="#coin1" x="40" y="38" width="34" height="34"/><use href="#coin1" x="14" y="60" width="34" height="34"/><use href="#coin1" x="40" y="60" width="34" height="34"/><use href="#coin1" x="14" y="82" width="34" height="34"/></svg></div>
+          <div class="plate" id="mplate">פּוֹרֵט</div>
         </div>
         <div class="drawer hidden" id="drawer">
           <div class="comp" id="compT"><div class="cl">עֲשָׂרוֹת</div></div>
@@ -612,8 +624,8 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
         <div id="bbb" class="bub robo tr off"></div>
         <div id="qpanel" class="hidden">
           <div class="eq">
-            <div class="eqc"><svg class="eqi" viewBox="0 0 120 90"><use href="#walletS"/></svg><div class="eqn" id="eqA"></div></div>
-            <div class="eqo">−</div>
+            <div class="eqc"><svg class="eqi" id="eqAI" viewBox="0 0 120 90"><use href="#walletS"/></svg><div class="eqn" id="eqA"></div></div>
+            <div class="eqo" id="eqOp">−</div>
             <div class="eqc"><svg class="eqi" id="eqPI" viewBox="0 0 120 120"><use href="#p-artik"/></svg><div class="eqn" id="eqB"></div></div>
             <div class="eqo">=</div>
             <div class="eqc"><div class="eqi sp"></div><div class="disp" id="disp2"></div></div>
@@ -693,6 +705,8 @@ document.addEventListener('gesturestart',e=>e.preventDefault());
 document.addEventListener('contextmenu',e=>e.preventDefault());
 
 /* ---------------- icons ---------------- */
+const SUB_WIN=`<svg viewBox="0 0 176 176"><use href="#coin10" x="96" y="52" width="70" height="70"/><path d="M92 87 H70 M80 77 L70 87 L80 97" stroke="#16867A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><use href="#coin1" x="14" y="38" width="34" height="34"/><use href="#coin1" x="40" y="38" width="34" height="34"/><use href="#coin1" x="14" y="60" width="34" height="34"/><use href="#coin1" x="40" y="60" width="34" height="34"/><use href="#coin1" x="14" y="82" width="34" height="34"/></svg>`;
+const ADD_WIN=`<svg viewBox="0 0 176 176"><use href="#coin1" x="104" y="38" width="34" height="34"/><use href="#coin1" x="130" y="38" width="34" height="34"/><use href="#coin1" x="104" y="60" width="34" height="34"/><use href="#coin1" x="130" y="60" width="34" height="34"/><use href="#coin1" x="117" y="82" width="34" height="34"/><path d="M98 87 H76 M86 77 L76 87 L86 97" stroke="#16867A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><use href="#coin10" x="6" y="52" width="70" height="70"/></svg>`;
 const ICON_BRK='<svg class="bi" viewBox="0 0 152 68"><use href="#coin10" x="92" y="4" width="60" height="60"/><path d="M84 34 H62 M70 26 L62 34 L70 42" stroke="#16867A" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><use href="#coin1" x="0" y="6" width="30" height="30"/><use href="#coin1" x="24" y="6" width="30" height="30"/><use href="#coin1" x="0" y="32" width="30" height="30"/><use href="#coin1" x="24" y="32" width="30" height="30"/></svg>';
 const ICON={
   home:'<svg viewBox="0 0 60 60"><path d="M8 28 L30 9 L52 28" stroke="#FF7B6B" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 26 V50 Q15 52 17 52 H43 Q45 52 45 50 V26" fill="#FFC94A" stroke="#E9A928" stroke-width="4" stroke-linejoin="round"/><rect x="25" y="36" width="10" height="16" rx="3" fill="#FF7B6B"/></svg>',
@@ -888,6 +902,8 @@ const PRODUCTS=[
   let ones='';for(let i=0;i<10;i++)ones+=u('coin1',8+(i%5)*24,52+Math.floor(i/5)*60+(i%2)*8,40);
   $('#ic3').innerHTML=`<svg viewBox="0 0 210 190">${u('coin10',122,48,86)}<path d="M126 92 H140" stroke="#E9A928" stroke-width="8" stroke-linecap="round"/><path d="M120 80 L132 92 L120 104" transform="translate(-2 0) scale(-1 1) translate(-252 0)" stroke="#E9A928" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>${ones}</svg>`;
   const ch=(c,x,y,s)=>`<svg x="${x}" y="${y}" width="${s}" height="${s*1.2}" viewBox="0 0 200 240">${c.svg('happy')}</svg>`;
+  {let o='';for(let i=0;i<10;i++)o+=u('coin1',100+(i%5)*20,40+Math.floor(i/5)*44+(i%2)*6,34);
+   $('#ic5').innerHTML=`<svg viewBox="0 0 210 190">${o}<path d="M92 76 H66 M76 66 L66 76 L76 86" stroke="#4E9A3A" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>${u('coin10',2,40,70)}<text x="105" y="170" text-anchor="middle" font-family="Varela Round,Arial" font-size="44" fill="#4E9A3A">+</text></svg>`}
   $('#ic4').innerHTML=`<svg viewBox="0 0 210 190">${ch(CHARS[2],-6,30,96)}${ch(CHARS[3],120,30,96)}${ch(CHARS[6],52,56,110)}</svg>`;
 })();
 
@@ -958,7 +974,16 @@ function arrange(list,r,rowSize,dur,stagger,sc){
     y+=(d+gap)*k;
   });
 }
+function layoutTray(dur){
+  const tens=inZone('reg').filter(c=>c.v===10),ones=inZone('reg').filter(c=>c.v===1);
+  tens.forEach((c,i)=>{c.sc=.55;setPos(c,446,250+i*52,dur);c.el.style.zIndex=30+i});
+  ones.forEach((c,i)=>{c.sc=.52;const f=Math.floor(i/10),k=i%10,row=Math.floor(k/5),col=k%5;
+    setPos(c,TF[0].x+260-26-col*52,TF[f%2].y+26+row*52,dur);c.el.style.zIndex=40+i});
+  document.querySelectorAll('.tf').forEach((e,i)=>e.classList.toggle('full',ones.length>=10&&i===0&&G.phase==='build'));
+}
+const TF=[{x:70,y:216},{x:70,y:326}];
 function layout(dur,stagger){
+  if(G.level===5){(G.groups||[]).forEach((g,i)=>arrange(inZone('g'+i),g.r,5,dur,stagger,.75));layoutTray(dur);return}
   if(G.level===1){
     arrange(inZone('tens'),R.tens,5,dur,stagger,.66);arrange(inZone('ones'),R.ones,5,dur,stagger,.66);
   }else{
@@ -971,6 +996,7 @@ let drag=null;
 function toStage(e){const b=stage.getBoundingClientRect();return{x:(e.clientX-b.left)/scale-EX,y:(e.clientY-b.top)/scale}}
 function canTouch(c){
   if(G.busy)return false;
+  if(G.level===5&&G.phase!=='count')return G.phase==='build'&&(c.zone[0]==='g'||(c.zone==='reg'&&c.v===1&&inZone('reg').filter(k=>k.v===1).length>=10));
   if(G.phase==='count')return c.zone===G.countZone||(G.level===1&&(c.zone==='tens'||c.zone==='ones'));
   if(G.level===1)return G.phase==='sort';
   return G.phase==='pay'&&(c.zone==='wallet'||c.zone==='reg');
@@ -1014,6 +1040,7 @@ document.addEventListener('pointercancel',e=>endDrag(e,true));
 
 function onTap(c){
   if(G.phase==='count'){countTap(c);return}
+  if(G.level===5){if(c.zone[0]==='g')toTray(c);return}
   if(G.level===1){
     if(c.zone==='pile'){if(G.sel)G.sel.el.classList.remove('sel');if(G.sel===c){G.sel=null;return}G.sel=c;c.el.classList.add('sel');SND.pick()}
     return;
@@ -1023,6 +1050,7 @@ function onTap(c){
 }
 function onDrop(c,pos,p){
   const t=dropTarget(p);
+  if(G.level===5){if(t==='reg')toTray(c);else if(t==='mach'&&inZone('reg').filter(k=>k.v===1).length>=10&&c.zone==='reg')exchange();else layout(300);return}
   if(G.level===1){
     if(t==='tens'||t==='ones'){placeTray(c,t);return}
     // free drop back onto the pile
@@ -1216,7 +1244,7 @@ function burst(x,y,layer,n){
 }
 
 /* ---------------- patience ---------------- */
-const PAT_SEC={1:150,2:110,3:90,4:65};
+const PAT_SEC={1:150,2:110,3:90,4:65,5:100};
 function patFace(p){
   const col=p>.6?'#7CC46A':p>.3?'#FFC94A':'#FF9F5A';
   const angry=p<=.35;const mo=p>.6?'<path d="M17 32 Q27 42 37 32" stroke="#3A2E4D" stroke-width="4" fill="none" stroke-linecap="round"/>':p>.3?'<path d="M18 35 H36" stroke="#3A2E4D" stroke-width="4" stroke-linecap="round"/>':'<path d="M18 38 Q27 31 36 38" stroke="#3A2E4D" stroke-width="4" fill="none" stroke-linecap="round"/>';
@@ -1279,11 +1307,14 @@ function resetFront(){
 function today(){const d=new Date();return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate()}
 function saveDay(){STORE.day={level:G.level,round:G.round,tips:G.tipsToday,breaks:G.breaksToday,date:today()};save()}
 async function startGame(level){
-  G.phase='intro';G.level=level;G.round=0;G.token++;G.adapt=(STORE.adapt&&STORE.adapt[level])||0;G.streakOk=0;G.streakBad=0;G.specials=0;G.tipsToday=0;G.breaksToday=0;G.patRun=false;G.paused=false;G.pat=1;lastBand=-1;G.sel=null;
+  G.phase='intro';G.level=level;G.round=0;G.token++;G.exchToday=0;G.groups=[];G.adapt=(STORE.adapt&&STORE.adapt[level])||0;G.streakOk=0;G.streakBad=0;G.specials=0;G.tipsToday=0;G.breaksToday=0;G.patRun=false;G.paused=false;G.pat=1;lastBand=-1;G.sel=null;
   try{const d=STORE.day;if(d&&d.level===level&&d.date===today()&&d.round>0&&d.round<10){G.round=d.round;G.tipsToday=d.tips||0;G.breaksToday=d.breaks||0}}catch(e){}
   const tk=G.token;
   $('#game').classList.toggle('lv1',level===1);
   ['#register','#machine','#wallet','#prod'].forEach(s=>$(s).classList.toggle('hidden',level===1));
+  $('#game').classList.toggle('addm',level===5);$('#mplate').textContent=level===5?'מַחְלִיף':'פּוֹרֵט';$('#mwin').innerHTML=level===5?ADD_WIN:SUB_WIN;
+  document.querySelectorAll('.tf,.pgroup,.pmat').forEach(e=>e.remove());
+  if(level===5)TF.forEach(f=>{const d=document.createElement('div');d.className='tf';d.style.left=f.x+'px';d.style.top=f.y+'px';d.style.width='260px';d.style.height='104px';$('#back .pin').appendChild(d)});
   $('#drawer').classList.toggle('hidden',level!==1);
   $('#kp1').classList.toggle('hidden',level!==1);
   $('#qpanel').classList.add('hidden');
@@ -1328,8 +1359,28 @@ function splitPrice(P){
   return null}
 function itemsSVG(){const n=G.items.length;return {vb:`0 0 ${120*n} 120`,html:G.items.map((it,i)=>`<use href="#p-${it.prod.id}" x="${i*120}" y="0" width="120" height="120"/>`).join('')}}
 function priceText(){return G.items.length>1?`<span dir="ltr">${G.items.map(i=>i.price).join(' + ')}</span> ₪`:nis(G.price)}
+function genAdd(r){
+  r=Math.max(0,Math.min(9,r+(G.adapt||0)*3));
+  const carry=!(r>=5&&Math.random()<.25);
+  for(let t=0;t<300;t++){
+    const teens=r<3?0:r<6?(Math.random()<.5?1:0):(Math.random()<.6?2:1);
+    let o1,o2;if(carry){o1=ri(2,9);o2=ri(Math.max(1,10-o1),9)}else{o1=ri(1,7);o2=ri(1,9-o1)}
+    const t1=teens>=1?1:0,t2=teens>=2?1:0;const p1=t1*10+o1,p2=t2*10+o2;if(p1<2||p2<2)continue;
+    const A=PRODUCTS.filter(p=>p1>=p.min&&p1<=p.max),B=PRODUCTS.filter(p=>p2>=p.min&&p2<=p.max);if(!A.length||!B.length)continue;
+    const a=A[ri(0,A.length-1)],bb=B.filter(p=>p!==a);if(!bb.length)continue;
+    const its=[{prod:a,price:p1},{prod:bb[ri(0,bb.length-1)],price:p2}];return Math.random()<.5?its:its.reverse();
+  }
+  return [{prod:PRODUCTS[1],price:5},{prod:PRODUCTS[3],price:8}];
+}
 function makeOrder(){
   const hi=G.cust.hi;
+  if(G.level===5){
+    G.items=genAdd(G.round);G.price=G.items[0].price+G.items[1].price;G.prod=G.items[0].prod;G.lastProd=G.items[1].prod;
+    G.carry=(G.items[0].price%10+G.items[1].price%10)>=10;
+    G.orderLine=`${hi} ${G.items[0].prod.name} ${vav(G.items[1].prod.name)}.<br>כַּמָּה זֶה עוֹלֶה?`;
+    G.items.forEach(x=>{const it=document.querySelector(`#shelf .it[data-id="${x.prod.id}"]`);if(it)it.classList.add('pick')});
+    return;
+  }
   if(G.level===1){
     const R1=Math.max(0,Math.min(9,G.round+(G.adapt||0)*3));const tens=ri(1,Math.min(9,R1<2?3:2+R1)),ones=ri(R1<1?1:0,9);
     G.tens=tens;G.ones=ones;G.target=tens*10+ones;
@@ -1346,12 +1397,69 @@ function makeOrder(){
 }
 function showTicket(){
   const t=$('#ticket');
-  t.innerHTML=G.level===1?`<svg viewBox="0 0 120 120"><use href="#coin10" x="40" y="10" width="64" height="64"/><use href="#coin1" x="12" y="44" width="50" height="50"/><use href="#coin10" x="50" y="52" width="58" height="58"/></svg><div class="tp">?</div>`
+  t.innerHTML=G.level===5?`<div class="tpair">${G.items.map(i=>`<svg viewBox="0 0 120 120"><use href="#p-${i.prod.id}"/></svg>`).join('')}</div><div class="tp">?</div>`:G.level===1?`<svg viewBox="0 0 120 120"><use href="#coin10" x="40" y="10" width="64" height="64"/><use href="#coin1" x="12" y="44" width="50" height="50"/><use href="#coin10" x="50" y="52" width="58" height="58"/></svg><div class="tp">?</div>`
     :(G.items.length>1?`<div class="tpair">${G.items.map(i=>`<svg viewBox="0 0 120 120"><use href="#p-${i.prod.id}"/></svg>`).join('')}</div>`:`<svg viewBox="0 0 120 120"><use href="#p-${G.prod.id}"/></svg>`)+`<div class="tp">${priceText()}</div>`;
   t.className='';void t.offsetWidth;t.className='in';SND.tap();
 }
 $('#goBtn').addEventListener('click',()=>{if(G.phase==='order')goRegister()});
 $('#ticket').addEventListener('click',()=>{if(G.phase==='order')goRegister()});
+async function goRegisterAdd(tk){
+  document.querySelectorAll('.pgroup,.pmat').forEach(e=>e.remove());
+  $('#regScr').innerHTML='?';$('#regScr').classList.remove('two');
+  const n=G.items.length,W=820/n;G.groups=[];
+  G.items.forEach((it,i)=>{const gx=40+820-(i+1)*W;
+    const g=document.createElement('div');g.className='pgroup';g.style.left=gx+'px';g.style.width=(W-14)+'px';
+    g.innerHTML=`<svg viewBox="0 0 120 120"><use href="#p-${it.prod.id}"/></svg><div class="gt">${nis(it.price)}</div>`;$('#back .pin').appendChild(g);
+    const m=document.createElement('div');m.className='pmat';m.style.left=(gx+6)+'px';m.style.width=(W-26)+'px';$('#back .pin').appendChild(m);
+    G.groups.push({r:{x:gx+16,y:596,w:W-46,h:182}})});
+  await pan('back');if(tk!==G.token)return;
+  G.items.forEach((it,i)=>{for(let k=0;k<Math.floor(it.price/10);k++)makeCoin(10,1100,330,'g'+i);for(let k=0;k<it.price%10;k++)makeCoin(1,1100,330,'g'+i)});
+  G.coins.forEach(c=>c.el.style.opacity=0);
+  requestAnimationFrame(()=>{G.coins.forEach(c=>c.el.style.opacity=1);layout(600,40)});SND.clink();
+  await wait(600+G.coins.length*40);if(tk!==G.token)return;
+  G.phase='build';G.patRun=true;G.lastAct=Date.now();G.exch=false;
+  if(!LS.get('demoAdd')){const c=G.coins.find(c=>c.zone==='g0');if(c)startDemo(c.v,c.x,c.y,275,320)}
+}
+function toTray(c){
+  c.zone='reg';SND.clink();LS.set('demoAdd','1');try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}layout(350);
+  if(G.coins.some(k=>k.zone[0]==='g'))return;
+  afterBuilt();
+}
+function afterBuilt(){
+  if(G.phase!=='build')return;
+  const ones=inZone('reg').filter(c=>c.v===1).length;
+  if(ones>=10){
+    $('#machine').classList.add('flash');bsay('יֵשׁ פֹּה 10 יְחִידוֹת!<br>מַחְלִיפִים?','think',4000);
+    const o=inZone('reg').find(c=>c.v===1);if(o)setTimeout(()=>{if(G.phase==='build'&&!G.busy)startDemo(1,o.x,o.y,MC.x,MC.y)},900);
+    return;
+  }
+  showAddQuestion();
+}
+function showAddQuestion(){
+  $('#machine').classList.remove('flash');stopDemo();layoutTray(300);
+  $('#eqAI').setAttribute('viewBox','0 0 120 120');$('#eqAI').innerHTML=`<use href="#p-${G.items[1].prod.id}"/>`;$('#eqA').textContent=G.items[1].price;
+  $('#eqOp').textContent='+';$('#eqPI').setAttribute('viewBox','0 0 120 120');$('#eqPI').innerHTML=`<use href="#p-${G.items[0].prod.id}"/>`;$('#eqB').textContent=G.items[0].price;
+  $('#qpanel').classList.remove('hidden');answer='';paintDisp();setWait(false);
+  G.baseLine=G.orderLine;G.phase='question';G.lastAct=Date.now();
+}
+async function exchange(){
+  const tk=G.token;const ones=inZone('reg').filter(c=>c.v===1).slice(0,10);if(ones.length<10)return;
+  G.busy=true;G.patRun=false;stopDemo();bquiet();$('#machine').classList.remove('flash');stat('exchanges');G.exchToday=(G.exchToday||0)+1;
+  const m=$('#machine');m.classList.remove('working');void m.offsetWidth;m.classList.add('working');SND.whirr();
+  const fast=+(LS.get('exch')||0)>4;LS.set('exch',+(LS.get('exch')||0)+1);const gap=fast?45:140;const labels=[];
+  ones.forEach((c,i)=>setTimeout(()=>{if(tk!==G.token)return;c.zone='mach';c.el.style.zIndex=900+i;setPos(c,MC.x,MC.y,300);SND.count(i+1);
+    const l=document.createElement('div');l.className='cnt';l.textContent=i+1;l.style.left=c.x+'px';l.style.top=(c.y-50)+'px';fx.appendChild(l);labels.push(l)},i*gap));
+  await wait(10*gap+400);if(tk!==G.token)return;
+  labels.forEach(l=>l.remove());ones.forEach(removeCoin);sparks(MC.x,MC.y);
+  const t=makeCoin(10,MC.x,MC.y,'mach');t.el.style.zIndex=950;t.el.classList.add('glow');
+  const eq=document.createElement('div');eq.className='cnt big';eq.textContent='10 × 1 = 10';eq.style.left=MC.x+'px';eq.style.top=(MC.y-110)+'px';fx.appendChild(eq);
+  bsay('אוֹתוֹ כֶּסֶף!','happy',1800);
+  await wait(fast?500:1000);if(tk!==G.token)return;
+  eq.remove();t.el.classList.remove('glow');t.zone='reg';layout(500);m.classList.remove('working');
+  await wait(600);if(tk!==G.token)return;
+  G.busy=false;G.exch=true;G.patRun=true;G.lastAct=Date.now();
+  if(!G.coins.some(k=>k.zone[0]==='g'))afterBuilt();
+}
 async function goRegister(){
   const tk=G.token;G.phase='toReg';G.patRun=false;
   $('#goBtn').className='off';$('#fbub').classList.add('off');bquiet();
@@ -1360,6 +1468,7 @@ async function goRegister(){
   const wl=$('#wallet');wl.classList.remove('closed');$('#wtag').style.visibility='';
   G.baseLine=G.orderLine;$('#bubble').innerHTML=G.baseLine;$('#bubble').classList.remove('off');setMood('calm');
   paintBot('#bbot','calm');
+  if(G.level===5){await goRegisterAdd(tk);return}
   if(G.level===1){paintDisp()}
   else{
     const IS=itemsSVG();$('#prodSvg').setAttribute('viewBox',IS.vb);$('#prodSvg').innerHTML=IS.html;$('#ptag').innerHTML=priceText();$('#prod').classList.remove('off');
@@ -1436,13 +1545,15 @@ setInterval(()=>{
   if(G.phase==='pay'){
     if(!payableNoBreak()){G.hint=false;checkHint(true)}
     else{const c=inZone('wallet').find(c=>c.v===1&&G.price-sumZ('reg')<10)||inZone('wallet').find(c=>c.v<=G.price-sumZ('reg'));if(c)startDemo(c.v,c.x,c.y,275,330)}
-  }else if(G.phase==='sort'){const c=inZone('pile')[0];if(c)startDemo(c.v,c.x,c.y,c.v===10?620:200,280)}
+  }else if(G.phase==='build'){const c=G.coins.find(c=>c.zone[0]==='g');if(c)startDemo(c.v,c.x,c.y,275,320);else afterBuilt()}
+  else if(G.phase==='sort'){const c=inZone('pile')[0];if(c)startDemo(c.v,c.x,c.y,c.v===10?620:200,280)}
 },1000);
 let handEl=null;
 function showHand(x,y){removeHand();handEl=document.createElement('div');handEl.className='hand';handEl.innerHTML=ICON.hand;handEl.style.left=x+'px';handEl.style.top=y+'px';fx.appendChild(handEl)}
 function removeHand(){if(handEl){handEl.remove();handEl=null}}
 $('#machine').addEventListener('click',()=>{
   G.lastAct=Date.now();
+  if(G.level===5){if(G.phase!=='build'||G.busy)return;if(inZone('reg').filter(c=>c.v===1).length>=10)exchange();else{SND.soft();bsay('צָרִיךְ 10<br>יְחִידוֹת','think',1800)}return}
   if(G.level!==1&&G.phase==='pay'&&G.busy){document.querySelectorAll('.machine .meye').forEach(e=>{e.classList.add('nope');setTimeout(()=>e.classList.remove('nope'),500)});return}
   if(G.level===1||G.phase!=='pay'||G.busy)return;stopDemo();
   const tens=inZone('wallet').filter(c=>c.v===10);
@@ -1496,7 +1607,7 @@ async function paid(){
   inZone('wallet').forEach((c,i)=>{c.el.classList.remove('glow');setPos(c,445,625,450,i*15);setTimeout(()=>c.el.classList.add('gone'),200+i*15)});
   await wait(550);if(tk!==G.token)return;
   $('#wallet').classList.add('closed');
-  $('#eqA').textContent=G.start;$('#eqB').textContent=G.price;{const IS=itemsSVG();$('#eqPI').setAttribute('viewBox',IS.vb);$('#eqPI').innerHTML=IS.html}
+  $('#eqAI').setAttribute('viewBox','0 0 120 90');$('#eqAI').innerHTML='<use href="#walletS"/>';$('#eqOp').textContent='−';$('#eqA').textContent=G.start;$('#eqB').textContent=G.price;{const IS=itemsSVG();$('#eqPI').setAttribute('viewBox',IS.vb);$('#eqPI').innerHTML=IS.html}
   $('#qpanel').classList.remove('hidden');answer='';paintDisp();setWait(false);
   G.baseLine='כַּמָּה נִשְׁאַר לִי?';say(G.baseLine);
   G.phase='question';G.patRun=true;G.lastAct=Date.now();
@@ -1506,12 +1617,16 @@ async function paid(){
 async function submit(){
   const tk=G.token;stopDemo();
   const val=parseInt(answer,10);
-  const right=G.level===1?G.target:G.start-G.price;
+  const right=G.level===1?G.target:G.level===5?G.price:G.start-G.price;
   const dp=disp();
   if(val===right){
     G.phase='done';G.patRun=false;paintPat();dp.classList.add('good');SND.correct();bquiet();
     if(G.level===1){inZone('pile').forEach(c=>c.zone=c.v===10?'tens':'ones');layout(500,30);
       const b=document.createElement('div');b.className='banner';b.id='banner';b.textContent=G.ones?`${G.tens} עֲשָׂרוֹת וְ־${G.ones} יְחִידוֹת = ${right}`:`${G.tens} עֲשָׂרוֹת = ${right}`;$('#back .pin').appendChild(b)}
+    else if(G.level===5){$('#regScr').textContent=nis(right);
+      const nT=Math.floor(right/10),nO=right%10;let k=0;
+      for(let i=0;i<nT+nO;i++){const v=i<nT?10:1;const cc=document.createElement('div');cc.className='flyc';cc.innerHTML=`<svg viewBox="0 0 100 100"><use href="#coin${v}"/></svg>`;fx.appendChild(cc);
+        arcFly(cc,1080,330,200+(k++%6)*40,300,140,700,i*110,true).finished.then(()=>{cc.remove();SND.clink()}).catch(()=>{})}}
     else if($('#wallet').classList.contains('closed')){$('#wallet').classList.remove('closed');inZone('wallet').forEach(c=>c.el.classList.remove('gone'));layout(450,20)}
     say(`נָכוֹן!<br>${nis(right)}`,'happy');paintBot('#bbot','happy');$('#bbot').classList.remove('hop');void $('#bbot').offsetWidth;$('#bbot').classList.add('hop');
     sparks(G.level===1?1178:1115,G.level===1?210:320,fx);
@@ -1528,6 +1643,12 @@ async function submit(){
   G.phase='wait';G.patRun=false;G.firstTry=false;G.helped=true;SND.soft();dp.classList.remove('wig');void dp.offsetWidth;dp.classList.add('wig');
   setWait(true);
   if(G.plan&&G.round+1<10)G.plan[G.round+1]=G.plan[G.round];
+  if(G.level===5){
+    const forgot=G.carry&&val===G.price-10;if(forgot)stat('eCarry');
+    bsay(forgot?'שָׁכַחְנוּ אֶת<br>הָעֶשֶׂר הֶחָדָשׁ!':'נִסְפּוֹר יַחַד!','think',2600);
+    await wait(700);if(tk!==G.token)return;
+    beginCount('reg');return;
+  }
   if(G.level===1){
     const rev=G.ones>0&&G.ones!==G.tens&&val===G.ones*10+G.tens;if(rev)stat('eRev');
     bsay(rev?'הָעֲשָׂרוֹת<br>קוֹדֶם!':'נְסַדֵּר<br>וְנִסְפּוֹר!','think',2600);
@@ -1585,7 +1706,7 @@ async function serve(tk){
   if(G.round>=10){await wait(1600);if(tk!==G.token)return;endGame();}
   else{await wait(250);if(tk!==G.token)return;frontRound()}
 }
-function countList(){return G.level===1?G.coins.filter(c=>c.zone==='tens'||c.zone==='ones'):inZone('wallet')}
+function countList(){if(G.level===5)return inZone('reg');return G.level===1?G.coins.filter(c=>c.zone==='tens'||c.zone==='ones'):inZone('wallet')}
 function beginCount(zone){
   stat('help');
   fx.querySelectorAll('.cnt').forEach(e=>e.remove());
@@ -1606,7 +1727,7 @@ function countTap(c){
   c.counted=true;c.el.classList.remove('glow');c.el.classList.add('counted');
   G.countTotal+=c.v;SND.count(G.countTotal>=10?Math.round(G.countTotal/4):G.countTotal);
   const l=document.createElement('div');l.className='cnt'+(c.v===10?' t':'');l.textContent=G.countTotal;
-  l.style.left=c.x+'px';l.style.top=(c.y-D[c.v]*(c.sc||1)/2-34)+'px';fx.appendChild(l);
+  l.style.left=c.x+'px';l.style.top=(G.level===5?c.y-23:c.y-D[c.v]*(c.sc||1)/2-34)+'px';fx.appendChild(l);
   if(c.v===10&&tensLeft.length===1&&list.some(k=>k.v===1)){guide('וְעַכְשָׁו הַיְּחִידוֹת');list.filter(k=>k.v===1).forEach(k=>k.el.classList.add('glow'))}
   if(list.every(k=>k.counted)){
     removeGuide();
@@ -1630,7 +1751,7 @@ function removeGuide(){if(guideEl){guideEl.remove();guideEl=null}}
 function endGame(){
   G.phase='idle';G.patRun=false;clearCoins();resetFront();show('end');SND.fanfare();
   $('#endTips').innerHTML=`${jarIcon()}<span>טִיפִּים הַיּוֹם: ${nis(G.tipsToday)}</span>`;
-  const nb=G.breaksToday||0;$('#endLine').textContent=nb===1?'הַיּוֹם פָּרַטְנוּ פַּעַם אַחַת!':nb>1?`הַיּוֹם פָּרַטְנוּ ${nb} פְּעָמִים!`:'';
+  const nb=G.breaksToday||0,ne=G.exchToday||0;$('#endLine').textContent=G.level===5?(ne===1?'הַיּוֹם הֶחְלַפְנוּ פַּעַם אַחַת!':ne>1?`הַיּוֹם הֶחְלַפְנוּ ${ne} פְּעָמִים!`:''):nb===1?'הַיּוֹם פָּרַטְנוּ פַּעַם אַחַת!':nb>1?`הַיּוֹם פָּרַטְנוּ ${nb} פְּעָמִים!`:'';
   STORE.day=null;if(!STORE.done)STORE.done=[];if(!STORE.done.includes(G.level)){STORE.done.push(G.level);save()}
   const es=$('#endStars');es.innerHTML='';
   for(let i=0;i<10;i++){const s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.setAttribute('viewBox','0 0 100 100');s.innerHTML='<use href="#star"/>';es.appendChild(s);
@@ -1657,7 +1778,7 @@ function renderShop(){
   });
 }
 function paintHome(){paintWho();$('#shopTot').textContent=nis(STORE.tips);$('#shopIcon').innerHTML=jarSVG(STORE.tips||8);applyDecor();
-  const done=STORE.done||[];const next=[1,2,3,4].find(l=>!done.includes(l));
+  const done=STORE.done||[];const next=[1,2,3,4,5].find(l=>!done.includes(l));
   document.querySelectorAll('.card').forEach(c=>{const l=+c.dataset.level;c.classList.toggle('done',done.includes(l));c.classList.toggle('next',l===next)})}
 
 /* ---------------- profiles UI ---------------- */
@@ -1685,12 +1806,12 @@ function renderTeacher(){
   const P=DB.profiles,ids=Object.keys(P);
   const pct=(a,b)=>b?Math.round(100*a/b)+'%':'–';
   const rows=ids.map((id,i)=>{const c=CHARS.find(c=>c.id===id),p=P[id],st=p.stats||{},dn=p.done||[];
-    return `<tr><td><span class="mini">${c?avSVG(c):''}</span></td><td>${[1,2,3,4].map(l=>`<span class="lv${dn.includes(l)?' ok':''}">${l}</span>`).join('')}</td>
-    <td>${st.cust||0}</td><td>${pct(st.first||0,st.cust||0)}</td><td>${st.breaks||0}</td><td>${st.extraBreak||0}</td><td>${st.eRegroup||0}</td><td>${st.eRev||0}</td><td>${st.eAdd||0}</td><td>${st.help||0}</td><td>${p.tips||0} ₪</td>
+    return `<tr><td><span class="mini">${c?avSVG(c):''}</span></td><td>${[1,2,3,4,5].map(l=>`<span class="lv${dn.includes(l)?' ok':''}">${l}</span>`).join('')}</td>
+    <td>${st.cust||0}</td><td>${pct(st.first||0,st.cust||0)}</td><td>${st.breaks||0}</td><td>${st.extraBreak||0}</td><td>${st.eRegroup||0}</td><td>${st.eRev||0}</td><td>${st.eAdd||0}</td><td>${st.eCarry||0}</td><td>${st.exchanges||0}</td><td>${st.help||0}</td><td>${p.tips||0} ₪</td>
     <td><button class="rst" data-id="${id}">איפוס</button></td></tr>`}).join('');
   $('#tpanel').innerHTML=`<h3><span>מסך מורה</span><button class="close" id="tClose">✕</button></h3>
   <div class="trow"><span>לחץ זמן (מד סבלנות וכעס של הקונים):</span><button class="tog${DB.settings.pressure?' on':''}" id="tPress">${DB.settings.pressure?'פועל':'כבוי'}</button></div>
-  ${ids.length?`<table><tr><th>ילד/ה</th><th>רמות שהושלמו</th><th>קונים</th><th>נכון בניסיון ראשון</th><th>פריטות</th><th>פריטות מיותרות</th><th>שכחו שפרטו<br>(43−7→44)</th><th>הפכו עשרות<br>ויחידות</th><th>חיברו במקום<br>לחסר</th><th>עזרת ספירה</th><th>טיפים</th><th></th></tr>${rows}</table>`:'<p>עוד אין שחקנים. כל ילד/ה בוחר/ת דמות במסך הבית.</p>'}
+  ${ids.length?`<table><tr><th>ילד/ה</th><th>רמות שהושלמו</th><th>קונים</th><th>נכון בניסיון ראשון</th><th>פריטות</th><th>פריטות מיותרות</th><th>שכחו שפרטו<br>(43−7→44)</th><th>הפכו עשרות<br>ויחידות</th><th>חיברו במקום<br>לחסר</th><th>שכחו את העשר<br>החדש (17+8→15)</th><th>החלפות<br>10→עשר</th><th>עזרת ספירה</th><th>טיפים</th><th></th></tr>${rows}</table>`:'<p>עוד אין שחקנים. כל ילד/ה בוחר/ת דמות במסך הבית.</p>'}
   <div class="note">הנתונים נשמרים בטאבלט הזה בלבד. "פריטות מיותרות" = פריטה כשאפשר היה לשלם בלעדיה. הקושי מתאים את עצמו: 3 הצלחות ברצף בניסיון ראשון מגדילות מספרים, 2 טעויות ברצף מקטינות ומקדימות רמזים.</div>`;
   $('#tClose').onclick=()=>$('#teach').classList.add('hidden');
   $('#tPress').onclick=()=>{DB.settings.pressure=!DB.settings.pressure;save();renderTeacher()};
@@ -1765,7 +1886,7 @@ paintBot('#hbot','happy',false,true);paintHome();
 if(DB.cur&&DB.profiles[DB.cur]){useProfile(DB.cur);paintHome()}
 if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 // test hook (no effect on play)
-window.__kiosk={G,startGame,submit:()=>submit(),setAnswer:a=>{answer=String(a);paintDisp()},goRegister:()=>goRegister(),get STORE(){return STORE},DB,useProfile,CHARS,fullBody};
+window.__kiosk={G,startGame,submit:()=>submit(),setAnswer:a=>{answer=String(a);paintDisp()},goRegister:()=>goRegister(),exchange:()=>exchange(),get STORE(){return STORE},DB,useProfile,CHARS,fullBody};
 })();
 </script>
 </body>

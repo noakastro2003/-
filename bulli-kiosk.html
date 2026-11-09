@@ -21,15 +21,16 @@
 html,body{margin:0;height:100%;overflow:hidden;background:#FDE9CF;color:var(--ink);
   font-family:'Varela Round','Arial Rounded MT Bold','Arial Hebrew',Arial,sans-serif;
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;overscroll-behavior:none}
-#stage{position:absolute;left:0;top:0;width:1280px;height:800px;transform-origin:0 0;overflow:hidden;
-  background:var(--wall);border-radius:0;box-shadow:0 0 60px rgba(120,70,20,.18)}
-.screen{position:absolute;inset:0;display:none}
+#stage{position:absolute;left:0;top:0;width:1280px;height:800px;transform-origin:0 0;overflow:hidden;--ex:0px;--ey:0px;
+  background:var(--wall);border-radius:0;}
+.screen{position:absolute;left:var(--ex,0px);top:0;width:1280px;height:800px;display:none;z-index:0}
+.screen::before{content:"";position:absolute;z-index:-1;left:calc(-1*var(--ex,0px));right:calc(-1*var(--ex,0px));top:0;bottom:calc(-1*var(--ey,0px));background:inherit}
 .screen.on{display:block}
 button{font-family:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;touch-action:manipulation}
 .hidden{display:none!important}
 
 /* ---------- awning ---------- */
-.awning{position:absolute;left:0;top:0;width:1280px;height:84px;z-index:50;
+.awning{position:absolute;left:calc(-1*var(--ex,0px));top:0;width:calc(1280px + 2*var(--ex,0px));height:84px;z-index:50;
   background:repeating-linear-gradient(90deg,var(--aw) 0 64px,#FFF6E8 64px 128px);
   box-shadow:0 4px 0 rgba(0,0,0,.04)}
 .awning::after{content:"";position:absolute;left:0;right:0;top:84px;height:26px;
@@ -40,7 +41,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
   background:#fff;box-shadow:0 6px 0 #EAD6BE,0 10px 18px rgba(80,40,10,.15);display:grid;place-items:center;transition:transform .12s}
 .roundbtn:active{transform:translateY(4px);box-shadow:0 2px 0 #EAD6BE}
 .roundbtn svg{width:50px;height:50px}
-.btn-r{right:22px}.btn-l{left:22px}
+.btn-r{right:calc(22px - var(--ex,0px))}.btn-l{left:calc(22px - var(--ex,0px))}
 #stars{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:60;display:flex;gap:6px;
   background:#fff;border-radius:40px;padding:10px 20px;box-shadow:0 6px 0 #EAD6BE,0 10px 18px rgba(80,40,10,.12)}
 #stars .slot{width:46px;height:46px;position:relative}
@@ -74,13 +75,13 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .c2{background:#D6F1EC;box-shadow:0 10px 0 #A4DCD2}.c2 .num{color:var(--teal-d)}
 .c3{background:#FFF0C4;box-shadow:0 10px 0 #F1D486}.c3 .num{color:var(--sun-d)}
 .c4{background:#E8E0F6;box-shadow:0 10px 0 #C9B9E6}.c4 .num{color:var(--plum)}
-.copy{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:15px;color:#9C8A7A;z-index:70;pointer-events:none}
+.copy{position:absolute;bottom:calc(10px - var(--ey,0px));left:0;right:0;text-align:center;font-size:15px;color:#9C8A7A;z-index:70;pointer-events:none}
 .deco-coins{position:absolute;bottom:26px;width:100%;height:80px;pointer-events:none}
 
 /* ---------- game ---------- */
 #game{background:radial-gradient(#F7E3C5 2px,transparent 3px) 0 0/30px 30px,var(--wall)}
 .shelf{position:absolute;left:880px;top:118px;width:380px;height:14px;background:var(--wood-d);border-radius:7px;opacity:.0}
-.counter{position:absolute;left:0;top:440px;width:1280px;height:360px;z-index:6;
+.counter{position:absolute;left:calc(-1*var(--ex,0px));top:440px;width:calc(1280px + 2*var(--ex,0px));height:calc(360px + var(--ey,0px));z-index:6;
   background:linear-gradient(#F7D29B 0 16px,#E9B676 16px 22px,#E2AC6A 22px),var(--wood);
   box-shadow:0 -6px 14px rgba(120,70,20,.15)}
 .counter::before{content:"";position:absolute;inset:22px 0 0 0;opacity:.18;
@@ -232,12 +233,13 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 @keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 /* ===== v2: world, lobby, robots ===== */
 #game{background:var(--wall)}
-#world{position:absolute;left:0;top:0;width:2560px;height:800px;transition:transform 1s cubic-bezier(.65,0,.35,1)}
-#world.back{transform:translateX(-1280px)}
+#world{position:absolute;left:calc(-1*var(--ex,0px));top:0;width:calc(2560px + 4*var(--ex,0px));height:calc(800px + var(--ey,0px));transition:transform 1s cubic-bezier(.65,0,.35,1)}
+#world.back{transform:translateX(calc(-1280px - 2*var(--ex,0px)))}
 #world.snap{transition:none}
-.panel{position:absolute;top:0;width:1280px;height:800px;overflow:hidden}
+.panel{position:absolute;top:0;width:calc(1280px + 2*var(--ex,0px));height:calc(800px + var(--ey,0px));overflow:hidden}
+.pin{position:absolute;left:var(--ex,0px);top:0;width:1280px;height:800px}
 #front{left:0;background:repeating-linear-gradient(90deg,#FFF1DC 0 44px,#FCE7CA 44px 88px)}
-#back{left:1280px;background:radial-gradient(#F7E3C5 2px,transparent 3px) 0 0/30px 30px,var(--wall)}
+#back{left:calc(1280px + 2*var(--ex,0px));background:radial-gradient(#F7E3C5 2px,transparent 3px) 0 0/30px 30px,var(--wall)}
 .fwin{position:absolute;left:110px;top:140px;width:600px;height:300px;border-radius:24px;overflow:hidden;border:14px solid var(--wood-d);
   box-shadow:0 8px 0 #B07A3E,0 14px 20px rgba(90,50,10,.15);background:linear-gradient(#8FD3F4,#D8F1FB 75%)}
 .fwin::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:12px;margin-left:-6px;background:var(--wood-d);z-index:3}
@@ -254,9 +256,9 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .bell{position:absolute;left:1082px;top:120px;width:46px;height:50px;transform-origin:50% 0}
 .bell.ring{animation:ring .9s ease}
 @keyframes ring{20%{transform:rotate(22deg)}40%{transform:rotate(-18deg)}60%{transform:rotate(10deg)}80%{transform:rotate(-5deg)}}
-.floor{position:absolute;left:0;top:582px;width:1280px;height:218px;background:repeating-conic-gradient(#F1DCBB 0 25%,#FFF6E6 0 50%) 0 0/92px 92px;
+.floor{position:absolute;left:calc(-1*var(--ex,0px));top:582px;width:calc(1280px + 2*var(--ex,0px));height:calc(218px + var(--ey,0px));background:repeating-conic-gradient(#F1DCBB 0 25%,#FFF6E6 0 50%) 0 0/92px 92px;
   box-shadow:inset 0 12px 14px rgba(120,70,20,.12)}
-.ocounter{position:absolute;left:0;top:500px;width:660px;height:300px;z-index:6;border-radius:0 26px 0 0;
+.ocounter{position:absolute;left:calc(-1*var(--ex,0px));top:500px;width:calc(660px + var(--ex,0px));height:calc(300px + var(--ey,0px));z-index:6;border-radius:0 26px 0 0;
   background:linear-gradient(#F7D29B 0 18px,#E9B676 18px 26px,#DFA662 26px);box-shadow:8px -6px 18px rgba(120,70,20,.2)}
 .ocounter::before{content:"";position:absolute;left:28px;right:28px;top:56px;bottom:28px;border-radius:22px;border:5px solid rgba(176,122,62,.32)}
 #walkers{position:absolute;inset:0;z-index:4}
@@ -306,7 +308,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 #goBtn.off{opacity:0;pointer-events:none;transform:scale(.6)}
 #goBtn.pulse{animation:gpulse 1.3s ease-in-out infinite}
 @keyframes gpulse{50%{transform:scale(1.07)}}
-#pat{position:absolute;left:124px;top:12px;width:228px;height:76px;z-index:60;background:#fff;border-radius:38px;box-shadow:0 6px 0 #EAD6BE,0 10px 18px rgba(80,40,10,.12);
+#pat{position:absolute;left:calc(124px - var(--ex,0px));top:12px;width:228px;height:76px;z-index:60;background:#fff;border-radius:38px;box-shadow:0 6px 0 #EAD6BE,0 10px 18px rgba(80,40,10,.12);
   display:flex;align-items:center;gap:10px;padding:0 14px;transition:opacity .3s,transform .3s}
 #pat .face{width:54px;height:54px;flex:none}
 #pat .bar{flex:1;height:26px;border-radius:13px;background:#F3E6D3;overflow:hidden}
@@ -356,7 +358,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 #shopBtn .tot{background:var(--sun);border-radius:20px;padding:2px 14px;box-shadow:0 4px 0 var(--sun-d)}
 #shop{background:linear-gradient(#DDF2FB,#FFF3E0 75%)}
 #shop h2{position:absolute;top:122px;left:0;right:0;text-align:center;margin:0;font-size:56px;font-weight:400}
-#shopJar{position:absolute;left:124px;top:12px;z-index:60;height:76px;border-radius:38px;background:#fff;box-shadow:0 6px 0 #EAD6BE;display:flex;align-items:center;gap:10px;padding:0 20px 0 14px;font-size:36px}
+#shopJar{position:absolute;left:calc(124px - var(--ex,0px));top:12px;z-index:60;height:76px;border-radius:38px;background:#fff;box-shadow:0 6px 0 #EAD6BE;display:flex;align-items:center;gap:10px;padding:0 20px 0 14px;font-size:36px}
 #shopJar svg{width:46px;height:58px}
 .sgrid{position:absolute;left:90px;right:90px;top:214px;display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
 .sitem{height:262px;background:#fff;border-radius:32px;box-shadow:0 8px 0 #EAD6BE;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
@@ -466,7 +468,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
   <!-- GAME -->
   <section id="game" class="screen">
     <div id="world">
-      <div class="panel" id="front">
+      <div class="panel" id="front"><div class="pin">
         <div class="fwin"><svg class="street" viewBox="0 0 572 272" preserveAspectRatio="none">
           <circle cx="470" cy="62" r="34" fill="#FFE27A"/><circle cx="470" cy="62" r="48" fill="#FFE27A" opacity=".3"/>
           <rect x="20" y="118" width="110" height="120" rx="10" fill="#F8C8B8"/><rect x="138" y="88" width="90" height="150" rx="10" fill="#CBB8E6"/>
@@ -498,8 +500,8 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
       <div id="fbub" class="bub tl off"></div>
       <div id="fbb" class="bub robo tl off"></div>
       <div id="ffx" class="fxl"></div>
-      </div>
-      <div class="panel" id="back">
+      </div></div>
+      <div class="panel" id="back"><div class="pin">
         <div id="cust"></div>
         <div class="counter"></div>
         <div class="register" id="register"><div class="lbl">קוּפָּה</div><div class="scr" id="regScr"></div><div class="tray"></div></div>
@@ -529,7 +531,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
         <div id="kp1" class="hidden"><div class="disp" id="disp1"></div><div class="keys v" id="keys1"></div></div>
         <div id="coins"></div>
         <div id="fx"></div>
-      </div>
+      </div></div>
     </div>
     <div class="awning"></div>
     <button class="roundbtn btn-r" id="homeBtn" aria-label="home"></button>
@@ -574,10 +576,14 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 const $=s=>document.querySelector(s);
 const stage=$('#stage');
 let scale=1;
+let EX=0;
 function fit(){
   const w=innerWidth,h=innerHeight;
   scale=Math.min(w/1280,h/800);
-  stage.style.transform=`translate(${(w-1280*scale)/2}px,${(h-800*scale)/2}px) scale(${scale})`;
+  const W=w/scale,H=h/scale;EX=Math.max(0,(W-1280)/2);
+  stage.style.width=W+'px';stage.style.height=H+'px';
+  stage.style.setProperty('--ex',EX+'px');stage.style.setProperty('--ey',Math.max(0,H-800)+'px');
+  stage.style.transform=`scale(${scale})`;
   $('#rotate').classList.toggle('show',h>w*1.1);
 }
 addEventListener('resize',fit);addEventListener('orientationchange',()=>setTimeout(fit,200));fit();
@@ -860,7 +866,7 @@ function layout(dur,stagger){
 
 /* ---------------- drag ---------------- */
 let drag=null;
-function toStage(e){const b=stage.getBoundingClientRect();return{x:(e.clientX-b.left)/scale,y:(e.clientY-b.top)/scale}}
+function toStage(e){const b=stage.getBoundingClientRect();return{x:(e.clientX-b.left)/scale-EX,y:(e.clientY-b.top)/scale}}
 function canTouch(c){
   if(G.busy)return false;
   if(G.phase==='count')return c.zone===G.countZone||(G.level===1&&(c.zone==='tens'||c.zone==='ones'));
@@ -956,7 +962,7 @@ function buildStars(){
     d.innerHTML='<svg viewBox="0 0 100 100" style="position:absolute;inset:0"><use href="#starE"/></svg><svg class="on" viewBox="0 0 100 100" style="position:absolute;inset:0"><use href="#star"/></svg>';s.appendChild(d)}
 }
 function markCur(){document.querySelectorAll('#stars .slot').forEach((s,i)=>s.classList.toggle('cur',i===G.round))}
-function stageXY(el){const b=el.getBoundingClientRect(),s=stage.getBoundingClientRect();return{x:(b.left+b.width/2-s.left)/scale,y:(b.top+b.height/2-s.top)/scale}}
+function stageXY(el){const b=el.getBoundingClientRect(),s=stage.getBoundingClientRect();return{x:(b.left+b.width/2-s.left)/scale-EX,y:(b.top+b.height/2-s.top)/scale}}
 function flyStar(from){
   const slot=document.querySelectorAll('#stars .slot')[G.round];if(!slot)return;
   const to=stageXY(slot);
@@ -1426,7 +1432,7 @@ function guide(text){
   removeGuide();guideEl=document.createElement('div');guideEl.className='guide';
   guideEl.innerHTML=`<svg viewBox="0 0 100 100" width="40" height="40">${ICON.hand.replace(/^<svg[^>]*>|<\/svg>$/g,'')}</svg><span>${text}</span>`;
   guideEl.style.left='300px';guideEl.style.top=G.level===1?'440px':'428px';
-  $('#back').appendChild(guideEl);
+  $('#back .pin').appendChild(guideEl);
 }
 function removeGuide(){if(guideEl){guideEl.remove();guideEl=null}}
 
@@ -1462,7 +1468,10 @@ function renderShop(){
 function paintHome(){$('#shopTot').textContent=nis(STORE.tips);$('#shopIcon').innerHTML=jarSVG(STORE.tips||8);applyDecor()}
 
 /* ---------------- navigation ---------------- */
-document.querySelectorAll('.card').forEach(c=>c.addEventListener('click',()=>{ac();SND.tap();startGame(+c.dataset.level)}));
+function goFull(){try{const d=document.documentElement;if(document.fullscreenElement||document.webkitFullscreenElement)return;
+  const f=d.requestFullscreen||d.webkitRequestFullscreen;if(f){const r=f.call(d);if(r&&r.catch)r.catch(()=>{})}}catch(e){}}
+document.addEventListener('fullscreenchange',()=>setTimeout(fit,100));document.addEventListener('webkitfullscreenchange',()=>setTimeout(fit,100));
+document.querySelectorAll('.card').forEach(c=>c.addEventListener('click',()=>{goFull();ac();SND.tap();startGame(+c.dataset.level)}));
 $('#homeBtn').addEventListener('click',()=>{SND.tap();G.paused=true;$('#exitDlg').classList.remove('hidden')});
 $('#exitNo').addEventListener('click',()=>{SND.tap();G.paused=false;$('#exitDlg').classList.add('hidden')});
 $('#exitYes').addEventListener('click',()=>{SND.tap();G.paused=false;$('#exitDlg').classList.add('hidden');goHome()});

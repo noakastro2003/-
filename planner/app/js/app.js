@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 47; // keep in step with CACHE in sw.js
+const APP_V = 48; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -434,14 +434,13 @@ function tomorrowCard(w, nd) {
   const links = nd.periods.flatMap(p => p.links).filter(l => l.url);
   const file = links.find(l => fileKind(l) === 'ppt') || links[0];
   const isTomorrow = sameDay(dayDate(w, nd), addDays(now(), 1));
-  const row = (icon, label, val, attrs, hue) => `<button class="trow ${hue}" ${attrs}><span class="tri">${icon}</span><span class="grow">${label} ${val}</span>${ic('chevL', 'chev')}</button>`;
+  const row = (icon, label, val, attrs, hue) => `<button class="trow ${hue}${hue === 'hue-lav' ? ' lead' : ''}" ${attrs}><span class="tri">${icon}</span><span class="grow">${label} ${val}</span>${ic('chevL', 'chev')}</button>`;
   return `<div class="card tmrw hue-lav">
     ${cardHead('calendar', isTomorrow ? 'מחר מחכה לך' : `יום ${nd.name} מחכה לך`, spark())}
     ${first ? row(ic('alarm'), `<span class="tpill">${esc(first.start)}</span>`, esc(first.title), `data-goto="${nd.dow}|${esc(first.label)}" data-gowk="${w.id}"`, 'hue-lav') : ''}
     ${pr && pr.items.length ? row(ic('printer'), '<b>להדפיס בבוקר:</b>', `${pr.items.length} פריטים`, `data-pday="${nd.dow}" data-gowk="${w.id}"`, 'hue-blue') : ''}
     ${br && br.items.length ? row(ic('backpack'), '<b>להביא:</b>', esc(br.items.slice(0, 2).map(i => i.text.split('–')[0].trim()).join(', ')) + (br.items.length > 2 ? ` ועוד ${br.items.length - 2}` : ''), `data-pday="${nd.dow}" data-gowk="${w.id}"`, 'hue-sage') : ''}
     ${file ? `<a class="trow hue-apr" href="${esc(file.url)}" target="_blank" rel="noopener"><span class="tri">${fileBadge(fileKind(file))}</span><span class="grow"><b>קובץ חשוב:</b> ${esc(file.text)}</span>${ic('chevL', 'chev')}</a>` : ''}
-    ${art('sunrise', 'sunrise')}
   </div>`;
 }
 
@@ -1772,7 +1771,7 @@ function viewSettings(w) {
   <div class="card">
     ${cardHead('sparkle', 'תצוגה')}
     <div class="setrow"><span>גודל טקסט</span><div class="seg">${[0.9, 1, 1.15, 1.3].map((v, i) => `<button class="${P.size === v ? 'on' : ''}" data-size="${v}" style="font-size:${13 + i * 3}px">א</button>`).join('')}</div></div>
-    <div class="setrow pal"><span>צבעי המשבצות</span><div class="seg">${[['soft', 'פסטל רך'], ['cream', 'שמנת וזהב'], ['vivid', 'יותר צבע'], ['my', 'הצבעים שלי']].map(([v, l]) => `<button class="${(P.palette || 'soft') === v ? 'on' : ''}" data-pal="${v}"><span class="sw sw-${v}">${v === 'my' ? MYPAL.slice(0, 3).map(([k]) => `<i style="background:${myPal()[k]}"></i>`).join('') : '<i></i><i></i><i></i>'}</span>${l}</button>`).join('')}</div></div>
+    <div class="setrow pal"><span>צבעי המשבצות</span><div class="seg">${[['soft', 'פסטל רך'], ['cream', 'שמנת וזהב'], ['vivid', 'יותר צבע'], ['my', 'הצבעים שלי']].map(([v, l]) => `<button class="${(P.palette || 'soft') === v ? 'on' : ''}" data-pal="${v}" aria-pressed="${(P.palette || 'soft') === v}"><span class="sw sw-${v}">${v === 'my' ? MYPAL.slice(0, 3).map(([k]) => `<i style="background:${myPal()[k]}"></i>`).join('') : '<i></i><i></i><i></i>'}</span>${l}</button>`).join('')}</div></div>
     ${P.palette === 'my' ? `<div class="mypal">${MYPAL.map(([k, l]) => `<label class="mpc"><input type="color" value="${myPal()[k]}" data-mypal="${k}" aria-label="צבע ${l}"><span>צבע ${l}</span></label>`).join('')}
       <p class="hint">לוחצים על עיגול ובוחרים צבע. במצב לילה הגוון מתכהה לבד.</p>
       <button class="linkbtn" data-act="mypalreset">חזרה לצבעים המקוריים</button></div>` : ''}
@@ -2696,7 +2695,9 @@ function todayList(folded) {
   const add = state._addTodo
     ? `<form class="addtodo" data-addtodo><input name="t" placeholder="מה לא לשכוח?" autocomplete="off" autofocus><button aria-label="הוספה">${ic('plus')}</button></form>`
     : `<button class="tladd" data-act="addtodo">${ic('plus')} תזכורת</button>`;
-  if (!rows.length) return `<div class="card tlist empty hue-rose">${cardHead('pin', 'לא לשכוח', add)}<p class="dim">אין כרגע משהו פתוח ✓</p>${state._addTodo ? '' : ''}</div>`;
+  if (!rows.length) return state._addTodo
+    ? `<div class="card tlist hue-rose">${cardHead('pin', 'לא לשכוח')}${add}</div>`
+    : `<div class="tlempty">${ic('pin')}<span class="grow">לא לשכוח · <span class="dim">אין משהו פתוח ✓</span></span>${add}</div>`;
   return `<div class="card tlist hue-rose">${cardHead('pin', 'לא לשכוח', `<span class="cnt">${rows.length}</span>`)}
     ${rows.slice(0, 5).join('')}
     ${more > 0 ? `<button class="linkbtn tlmore" data-go="todos">ועוד ${more} ←</button>` : ''}
@@ -3195,7 +3196,7 @@ document.addEventListener('click', async e => {
   if (D.libtake) { const it = (state._lib || []).find(x => x.id === D.libtake); if (it) { takeLesson(it.data, it.fromName); miniBurst(t); } return; }
   if (D.go2) { closeClassMode(); go(D.go2); return; }
   if (D.cmsec) { const [id, i] = D.cmsec.split('|'); state.sec[id] = +i; classMode(); return; }
-  if (D.pt) { const [i, d] = D.pt.split('|').map(Number); state.points[i].pts = Math.max(0, state.points[i].pts + d); save(); if (d > 0) miniBurst(t); rerender(); if ($('#proj.show')) projector('points'); return; }
+  if (D.pt) { const [i, d] = D.pt.split('|').map(Number); state.points[i].pts = Math.max(0, state.points[i].pts + d); save(); if (d > 0) miniBurst(t); if (navigator.vibrate) navigator.vibrate(d > 0 ? 10 : 5); rerender(); const n = document.querySelectorAll('.ptn')[i]; if (n) n.classList.add('bump'); if ($('#proj.show')) projector('points'); return; }
   if (D.projmode) { const m = D.projmode; projector(m, m === 'dict' ? (state._dict && state._dict.order) : m === 'groups' ? state._teams : null); return; }
   if (D.king) { if (kingHeld) { kingHeld = false; return; } state.kings[D.king] = state.kings[D.king] || {}; const k = weekKey(); state.kings[D.king][k] = (state.kings[D.king][k] || 0) + 1; state._lastKing = D.king; save(); miniBurst(t); rerender(); return; }
   if (D.unking) { unKing(D.unking); state._lastKing = null; rerender(); return; }
@@ -3411,7 +3412,12 @@ document.addEventListener('change', e => {
   if (i.dataset.prepitem) { const [dow, si, ii] = i.dataset.prepitem.split('|').map(Number); pickWeek().prep[dow][si].items[ii].text = i.value.trim(); save(); return; }
   if (i.dataset.todo) {
     const td = state.todos.find(x => x.id === i.dataset.todo);
-    if (td) { td.done = i.checked; save(); i.closest('.chk').classList.toggle('on', i.checked); if (i.checked) miniBurst(i.closest('.chk').querySelector('.box')); }
+    if (td) {
+      td.done = i.checked; save(); if (i.checked && navigator.vibrate) navigator.vibrate(8);
+      const c = i.closest('.chk'), r = i.closest('.tlrow');
+      if (c) { c.classList.toggle('on', i.checked); if (i.checked) miniBurst(c.querySelector('.box')); }
+      else if (r && i.checked) { r.classList.add('done'); miniBurst(r.querySelector('.tlchk')); setTimeout(rerender, 380); }
+    }
     return;
   }
   if (i.dataset.lognote) { const w = pickWeek(), cur = getLog(w, i.dataset.lognote); if (cur) { cur.note = i.value; save(); toast('נשמר ✓', 1200); } return; }

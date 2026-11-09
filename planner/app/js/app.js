@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 39; // keep in step with CACHE in sw.js
+const APP_V = 40; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 const state = Object.assign({
   weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null,
@@ -109,7 +109,7 @@ function nextDayGlobal() {
 function weekNav(w) {
   const ws = sortedWeeks(), i = ws.indexOf(w), real = realWeek();
   if (ws.length < 2 && w === real) return '';
-  return `<div class="wknav">
+  return `<div class="wknav" data-swipe>
     <button data-wk="prev" ${i <= 0 ? 'disabled' : ''} aria-label="שבוע קודם">${ic('chevR')}</button>
     <div class="wk-t"><b>${esc(w.number ? 'שבוע ' + w.number : w.title)}</b><small dir="ltr">${esc(w.range || '')}</small></div>
     <button data-wk="next" ${i >= ws.length - 1 ? 'disabled' : ''} aria-label="שבוע הבא">${ic('chevL')}</button>
@@ -339,7 +339,7 @@ function viewNow(w) {
     const rest = ref ? day.periods.filter(p => mins(p.start) > mins(ref.start)) : [];
     if (rest.length) h += `<div class="card">${cardHead('calendar', 'ובהמשך היום')}${rest.map(p => miniRow(w, day, p)).join('')}</div>`;
   }
-  h += actionsCard() + remindersCard(w);
+  h += todayList() + planNotes(w);
   return h;
 }
 
@@ -2511,6 +2511,34 @@ function viewJournal() {
   <div class="card">${list.length ? list.map(n => noteRow(n, true)).join('') : '<p class="dim">עוד אין הערות. בכל שיעור יש כפתורים מהירים: 👤 📞 ⭐ ⚠️ 📝</p>'}</div>
   ${kidsRows.length ? `<div class="card">${cardHead('users', 'לפי ילד/ה')}${kidsRows.map(([k, v]) => `<div class="row"><span class="grow">${esc(k)}</span>${v.star ? `<span class="tpill">⭐ ${v.star}</span>` : ''}${v.disrupt ? `<span class="tpill warn">⚠️ ${v.disrupt}</span>` : ''}</div>`).join('')}</div>` : ''}`;
 }
+// "עכשיו": one tidy list – parents to call, children to follow up, my reminders – short, with a "more" link
+function todayList() {
+  const acts = openActions(), todos = state.todos.filter(t => todoDue(t) && !t.done);
+  const rows = [
+    ...acts.map(n => { const [e, t] = TAGS[n.tag] || TAGS.note; return `<div class="tlrow"><button class="tlchk" data-cdone="${n.id}" aria-label="טופל">${ic('check')}</button><span class="grow"><b>${e} ${esc(n.kids.join(', ') || t)}</b>${n.text ? ` <span>– ${esc(n.text)}</span>` : ''}</span></div>`; }),
+    ...todos.map(t => `<div class="tlrow"><label class="tlchk"><input type="checkbox" data-todo="${t.id}"><span>${ic('check')}</span></label><span class="grow"><b>📌 ${esc(t.text)}</b>${t.date ? ` <small class="tpill">${esc(fmtDate(t.date))}</small>` : ''}</span></div>`),
+  ];
+  const more = rows.length - 5;
+  const add = state._addTodo
+    ? `<form class="addtodo" data-addtodo><input name="t" placeholder="מה לא לשכוח?" autocomplete="off" autofocus><button aria-label="הוספה">${ic('plus')}</button></form>`
+    : `<button class="tladd" data-act="addtodo">${ic('plus')} תזכורת</button>`;
+  if (!rows.length) return `<div class="card tlist empty">${cardHead('pin', 'לא לשכוח', add)}<p class="dim">אין כרגע משהו פתוח ✓</p>${state._addTodo ? '' : ''}</div>`;
+  return `<div class="card tlist">${cardHead('pin', 'לא לשכוח', `<span class="cnt">${rows.length}</span>`)}
+    ${rows.slice(0, 5).join('')}
+    ${more > 0 ? `<button class="linkbtn tlmore" data-go="todos">ועוד ${more} ←</button>` : ''}
+    <div class="tlfoot">${add}${acts.length ? `<button class="linkbtn" data-go="journal">יומן כיתה</button>` : ''}</div>
+  </div>`;
+}
+// notes that came with the weekly plan – folded, one line each, open on tap
+function planNotes(w) {
+  const ns = (w && w.notes || []).filter(n => n.text);
+  if (!ns.length) return '';
+  state.noteOpen = state.noteOpen || {};
+  return `<div class="card pnotes">${cardHead('book', 'מהתכנון השבועי')}${ns.map((n, i) => {
+    const items = String(n.text).split(/\s·\s/).map(x => x.trim()).filter(Boolean), open = state.noteOpen[i];
+    return `<div class="pn ${open ? 'open' : ''}"><button class="pnh" data-pnote="${i}"><b>${esc(n.label)}</b><span class="cnt">${items.length}</span>${ic('chevD', 'chev')}</button>${open ? `<ul>${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>`;
+  }).join('')}</div>`;
+}
 function actionsCard() {
   const a = openActions();
   if (!a.length) return '';
@@ -2942,6 +2970,7 @@ document.addEventListener('click', e => {
   if (D.pmscope) { state.pm.opts.scope = D.pmscope; state.pm.text = null; rerender(); return; }
   if (D.pmtog2) { state.pm.opts[D.pmtog2] = !state.pm.opts[D.pmtog2]; state.pm.text = null; rerender(); return; }
   if (D.belldel != null) { const r = state._bellDraft || bellRows(); r.splice(+D.belldel, 1); state._bellDraft = r; rerender(); return; }
+  if (D.pnote != null) { state.noteOpen = state.noteOpen || {}; state.noteOpen[D.pnote] = !state.noteOpen[D.pnote]; rerender(); return; }
   if (D.cls) { switchClass(D.cls); return; }
   if (D.clsf != null) { state.clsFilter = D.clsf; rerender(); return; }
   if (D.role) { const st = roleSet(state.prefs.role); if (st.has(D.role)) { if (st.size > 1) st.delete(D.role); else { toast('צריך לסמן לפחות אחת'); return; } } else st.add(D.role); state.prefs.role = roleOf(st); save(); classesSheet(); return; }
@@ -3048,6 +3077,7 @@ document.addEventListener('click', e => {
     case 'bellauto': state.prefs.bellAuto = !state.prefs.bellAuto; save(); rerender(); break;
     case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
     case 'classes': classesSheet(); break;
+    case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
     case 'stepsdone': state.prefs.stepsDone = true; save(); rerender(); break;
     case 'sharecode': { const c = soc.data && soc.data.me.code; if (!c) break; const tx = `היי! אני משתמשת באפליקציה "הכיתה שלי" לתכנון השבועי 💜\nבואי נהיה חברות שם ונשתף שיעורים – הקוד שלי: ${c}\nhttps://noa-hakita.netlify.app`; if (navigator.share) navigator.share({ text: tx }).catch(() => {}); else navigator.clipboard.writeText(tx).then(() => toast('הועתק 📋')); break; }
     case 'shsend': { const S2 = state._share; socApi('send', { to: S2.to, kind: S2.kind, title: S2.title, data: S2.data }).then(r => { closeOverlay(); toast(`נשלח ל־${r.sent} ✓`); confetti(); }).catch(e => toast(e.code === 'too-big' ? 'השבוע גדול מדי לשליחה – שולחים כקובץ' : 'לא הצלחתי לשלוח 😕')); break; }
@@ -3257,7 +3287,7 @@ document.addEventListener('submit', e => {
   e.preventDefault();
   const text = f.t.value.trim();
   if (!text) return;
-  state.todos.push({ id: uid(), text, date: f.d && f.d.value ? f.d.value : null, done: false });
+  state.todos.push({ id: uid(), text, date: f.d && f.d.value ? f.d.value : null, done: false }); state._addTodo = false;
   save(); rerender(); toast('נוסף 📌', 1200);
 });
 
@@ -3330,7 +3360,16 @@ document.addEventListener('touchend', () => {
   if (!swiping || Math.abs(sdx) < 70) { back(); return; }
   const w = pickWeek(), sel = currentSelDay(w);
   const i = w.days.findIndex(d => d.dow === sel), j = sdx > 0 ? i + 1 : i - 1;
-  if (!w.days[j]) { back(); return; }
+  if (!w.days[j]) {
+    // past the last (or before the first) day: move to the next / previous week
+    const ws = sortedWeeks(), nw = ws[ws.indexOf(w) + (sdx > 0 ? 1 : -1)];
+    if (!nw) { back(); toast(sdx > 0 ? 'זה השבוע האחרון שהועלה' : 'זה השבוע הראשון'); return; }
+    if (navigator.vibrate) navigator.vibrate(10);
+    state.viewWeekId = nw === realWeek() ? null : nw.id; state.dayDow = (sdx > 0 ? nw.days[0] : nw.days[nw.days.length - 1]).dow; state.open = {};
+    rerender(); toast(nw.number ? `שבוע ${nw.number}` : 'שבוע ' + (nw.range || ''));
+    const nl2 = $('#view .lessons'); if (nl2) { nl2.classList.remove('slide-l', 'slide-r'); void nl2.offsetWidth; nl2.classList.add(sdx > 0 ? 'slide-l' : 'slide-r'); }
+    return;
+  }
   if (navigator.vibrate) navigator.vibrate(6);
   state.dayDow = w.days[j].dow; rerender();
   const nl = $('#view .lessons');

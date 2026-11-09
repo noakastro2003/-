@@ -1130,3 +1130,28 @@ body.onboarding .tabs, body.onboarding .minibar { display: none !important; }
 .rbox { width: 28px; height: 28px; flex: none; border-radius: 9px; border: 2px solid var(--line); display: grid; place-items: center; font-size: 17px; font-weight: 700; color: #fff; transition: all .25s var(--spring); }
 .rolepick button.on .rbox { background: #C9A25F; border-color: #C9A25F; transform: scale(1.06); }
 .onb .big + .cta { margin-top: 8px; }
+/* "לא לשכוח" on now – compact one-line rows */
+.tlist .tlrow { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-top: 1px solid var(--line); font-size: 15.5px; }
+.tlist .tlrow:first-of-type { border-top: 0; }
+.tlrow b { font-weight: 500; }
+.tlrow .grow > span { color: var(--soft); }
+.tlchk { width: 28px; height: 28px; flex: none; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; color: transparent; cursor: pointer; }
+.tlchk input { position: absolute; opacity: 0; pointer-events: none; }
+.tlchk span { display: grid; place-items: center; }
+.tlchk .ic { width: 15px; height: 15px; }
+.tlchk:active { background: #E6F4E6; color: #357A40; border-color: #9CD3A5; }
+.tlfoot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.tladd { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; color: var(--accent-ink); padding: 6px 12px; border-radius: 99px; background: var(--tint2); }
+.tladd .ic { width: 15px; height: 15px; }
+.tlmore { display: block; margin: 4px 0 0; }
+.tlist.empty .dim { margin: 2px 4px 4px; }
+.tlist .addtodo { flex: 1; margin: 0; }
+/* plan notes – folded */
+.pnotes .pn { border-top: 1px solid var(--line); }
+.pnotes .pn:first-of-type { border-top: 0; }
+.pnh { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 2px; text-align: start; }
+.pnh b { flex: 1; font-size: 15.5px; font-weight: 500; }
+.pnh .chev { width: 16px; height: 16px; color: var(--soft); transition: transform .3s var(--spring); }
+.pn.open .pnh .chev { transform: rotate(180deg); }
+.pn ul { margin: 0 0 10px; padding-inline-start: 22px; font-size: 14.5px; line-height: 1.6; color: var(--ink); animation: fgIn .35s var(--ease); }
+.pn li + li { margin-top: 4px; }

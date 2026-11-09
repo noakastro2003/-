@@ -369,6 +369,17 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 #end .tips{position:absolute;top:500px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:14px;font-size:44px}
 #end .tips svg{width:56px;height:70px}
 #end .row{top:600px}
+/* customer life */
+.ceyes{transform-box:fill-box;transform-origin:50% 50%;animation:blink 4.8s infinite;animation-delay:var(--b,0s)}
+.headg{transform-box:fill-box;transform-origin:50% 92%;animation:tilt 5.5s ease-in-out infinite;animation-delay:var(--d,0s)}
+@keyframes tilt{0%,100%{transform:rotate(0)}28%{transform:rotate(-3.5deg)}62%{transform:rotate(3deg)}}
+.walking .headg{animation:none}
+.talking .cm{transform-box:fill-box;transform-origin:50% 20%;animation:talkm .15s infinite alternate}
+.walker .fl{transition:transform .25s ease}
+.walker.goL .fl{transform:scaleX(-1) rotate(3deg)}
+.walker.goR .fl{transform:rotate(3deg)}
+.walker.bye .armR,.walker.walking.bye .armR{transform-origin:50% 6%;animation:byew .32s ease-in-out infinite alternate}
+@keyframes byew{from{transform:rotate(-155deg)}to{transform:rotate(-120deg)}}
 </style>
 </head>
 <body>
@@ -431,12 +442,12 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
     <div id="hbot" class="robot"></div>
     <div class="sign"><h1>הַקִּיּוֹסְק שֶׁל <b>בּוּלִי</b></h1></div>
     <div class="cards">
-      <button class="card c1" data-level="1"><span class="num">1</span><div class="ic" id="ic1"></div><div class="nm">סוֹפְרִים אֶת הַקֻּפָּה</div></button>
-      <button class="card c2" data-level="2"><span class="num">2</span><div class="ic" id="ic2"></div><div class="nm">קוֹנִים בְּלִי לִפְרֹט</div></button>
+      <button class="card c1" data-level="1"><span class="num">1</span><div class="ic" id="ic1"></div><div class="nm">סוֹפְרִים אֶת הַקּוּפָּה</div></button>
+      <button class="card c2" data-level="2"><span class="num">2</span><div class="ic" id="ic2"></div><div class="nm">קוֹנִים בְּלִי לִפְרוֹט</div></button>
       <button class="card c3" data-level="3"><span class="num">3</span><div class="ic" id="ic3"></div><div class="nm">קוֹנִים עִם פְּרִיטָה</div></button>
       <button class="card c4" data-level="4"><span class="num">4</span><div class="ic" id="ic4"></div><div class="nm">יוֹם עָמוּס</div></button>
     </div>
-    <button id="shopBtn"><svg id="shopIcon" viewBox="0 0 112 142"></svg><span>קִשּׁוּטִים</span><span class="tot" id="shopTot"></span></button>
+    <button id="shopBtn"><svg id="shopIcon" viewBox="0 0 112 142"></svg><span>קִישּׁוּטִים</span><span class="tot" id="shopTot"></span></button>
     <div class="copy">© נועה קסטרו</div>
   </section>
 
@@ -471,7 +482,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
       <div class="dec hidden" id="d-fish"><svg viewBox="0 0 112 102"><use href="#s-fish"/></svg></div>
       <div id="jar"><svg id="jarSvg" viewBox="0 0 112 142"></svg><div id="jarN"></div></div>
       <div id="fbot" class="robot"></div>
-      <button id="goBtn" class="off"><svg viewBox="0 0 60 60"><use href="#i-register"/></svg><span>לַקֻּפָּה</span></button>
+      <button id="goBtn" class="off"><svg viewBox="0 0 60 60"><use href="#i-register"/></svg><span>לַקּוּפָּה</span></button>
       <div id="fbub" class="bub tl off"></div>
       <div id="fbb" class="bub robo tl off"></div>
       <div id="ffx" class="fxl"></div>
@@ -479,7 +490,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
       <div class="panel" id="back">
         <div id="cust"></div>
         <div class="counter"></div>
-        <div class="register" id="register"><div class="lbl">קֻפָּה</div><div class="scr" id="regScr"></div><div class="tray"></div></div>
+        <div class="register" id="register"><div class="lbl">קוּפָּה</div><div class="scr" id="regScr"></div><div class="tray"></div></div>
         <div class="machine" id="machine">
           <div class="meye l"><i></i></div><div class="meye r"><i></i></div>
           <div class="slotm"></div>
@@ -521,7 +532,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
     <button class="roundbtn btn-r" id="shopHome" aria-label="home"></button>
     <div id="shopJar"></div>
     <button class="roundbtn btn-l muteBtn" aria-label="sound"></button>
-    <h2>קִשּׁוּטִים לַקִּיּוֹסְק</h2>
+    <h2>קִישּׁוּטִים לַקִּיּוֹסְק</h2>
     <div class="sgrid" id="sgrid"></div>
     <div id="shopFx" class="fxl"></div>
   </section>
@@ -626,7 +637,8 @@ function neck(s){return `<path d="M86 134 H114 V174 Q100 182 86 174Z" fill="${sh
 function head(s,rx,ry){rx=rx||58;ry=ry||56;const e=`<ellipse cx="100" cy="98" rx="${rx}" ry="${ry}" fill="FILL"/>`;
   return `<circle cx="43" cy="106" r="12" fill="${s}" ${OL(s)}/><circle cx="157" cy="106" r="12" fill="${s}" ${OL(s)}/><path d="M40 103 q4 -5 8 1 M160 103 q-4 -5 -8 1" stroke="${shd(s,.72)}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`+
   `<ellipse cx="100" cy="98" rx="${rx}" ry="${ry}" fill="${s}" ${OL(s)}/>`+ov(e)}
-function mouthN(m,y,cx){cx=cx||100;
+function mouthN(m,y,cx){return `<g class="cm">${mouthR(m,y,cx)}</g>`}
+function mouthR(m,y,cx){cx=cx||100;
   if(m==='happy')return `<path d="M${cx-17} ${y-3} Q${cx} ${y+24} ${cx+17} ${y-3}Z" fill="#8A3442" stroke="#8A3442" stroke-width="2" stroke-linejoin="round"/><path d="M${cx-13} ${y-2} Q${cx} ${y+1} ${cx+13} ${y-2} L${cx+11} ${y+3} Q${cx} ${y+5} ${cx-11} ${y+3}Z" fill="#fff"/><path d="M${cx-9} ${y+12} Q${cx} ${y+6} ${cx+9} ${y+12} Q${cx} ${y+18} ${cx-9} ${y+12}Z" fill="#FF8C94"/>`;
   if(m==='oops')return `<ellipse cx="${cx}" cy="${y+4}" rx="7" ry="8.5" fill="#8A3442"/><ellipse cx="${cx}" cy="${y+8}" rx="4" ry="3" fill="#FF8C94"/>`;
   if(m==='meh')return `<path d="M${cx-10} ${y+4} Q${cx} ${y+1} ${cx+11} ${y+5}" stroke="${INK}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
@@ -634,21 +646,22 @@ function mouthN(m,y,cx){cx=cx||100;
 }
 function face(m,o){
   const y=o.ey||100,s=o.skin,ir=o.iris||'#5A3A2A',br=o.brow||'#5A3A2A',bw=o.bw||5;let out='';
-  const by=m==='oops'?-31:m==='happy'?-27:-25;
+  const by=m==='oops'?-31:m==='happy'?-27:-25;let eo='';
   if(m==='meh')out+=`<path d="M66 ${y-27} L90 ${y-21} M134 ${y-27} L110 ${y-21}" stroke="${br}" stroke-width="${bw}" stroke-linecap="round"/>`;
   else out+=`<path d="M66 ${y+by+3} Q78 ${y+by-3} 90 ${y+by+3} M110 ${y+by+3} Q122 ${y+by-3} 134 ${y+by+3}" stroke="${br}" stroke-width="${bw}" fill="none" stroke-linecap="round"/>`;
   [78,122].forEach((x,i)=>{
     const d=i?1:-1;
-    if(m==='happy'){out+=`<path d="M${x-11} ${y+3} Q${x} ${y-10} ${x+11} ${y+3}" stroke="${INK}" stroke-width="5" fill="none" stroke-linecap="round"/>`;
-      if(o.lash)out+=`<path d="M${x+d*10} ${y+1} l${d*6} -4" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/>`;return}
+    if(m==='happy'){eo+=`<path d="M${x-11} ${y+3} Q${x} ${y-10} ${x+11} ${y+3}" stroke="${INK}" stroke-width="5" fill="none" stroke-linecap="round"/>`;
+      if(o.lash)eo+=`<path d="M${x+d*10} ${y+1} l${d*6} -4" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/>`;return}
     const ry=m==='oops'?14.5:13;
-    out+=`<ellipse cx="${x}" cy="${y}" rx="11.5" ry="${ry}" fill="#fff" stroke="${shd(s,.7)}" stroke-width="2"/>`+
+    eo+=`<ellipse cx="${x}" cy="${y}" rx="11.5" ry="${ry}" fill="#fff" stroke="${shd(s,.7)}" stroke-width="2"/>`+
       `<circle cx="${x+1}" cy="${y+2}" r="8.6" fill="${ir}"/><circle cx="${x+1}" cy="${y+2}" r="8.6" fill="url(#gIris)"/>`+
       `<circle cx="${x+1}" cy="${y+3}" r="4.6" fill="${INK}"/><circle cx="${x+4.5}" cy="${y-2}" r="3.3" fill="#fff"/><circle cx="${x-2.5}" cy="${y+6.5}" r="1.7" fill="#fff"/>`;
-    if(m==='meh')out+=`<path d="M${x-13} ${y-15} H${x+13} V${y-1} Q${x} ${y+2} ${x-13} ${y-1}Z" fill="${s}"/><path d="M${x-12} ${y-1} Q${x} ${y+2} ${x+12} ${y-1}" stroke="${INK}" stroke-width="3.6" fill="none" stroke-linecap="round"/>`;
-    else out+=`<path d="M${x-12} ${y-5} Q${x} ${y-17} ${x+12} ${y-5}" stroke="${INK}" stroke-width="3.6" fill="none" stroke-linecap="round"/>`;
-    if(o.lash&&m!=='meh')out+=`<path d="M${x+d*11} ${y-7} l${d*6} -5" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/>`;
+    if(m==='meh')eo+=`<path d="M${x-13} ${y-15} H${x+13} V${y-1} Q${x} ${y+2} ${x-13} ${y-1}Z" fill="${s}"/><path d="M${x-12} ${y-1} Q${x} ${y+2} ${x+12} ${y-1}" stroke="${INK}" stroke-width="3.6" fill="none" stroke-linecap="round"/>`;
+    else eo+=`<path d="M${x-12} ${y-5} Q${x} ${y-17} ${x+12} ${y-5}" stroke="${INK}" stroke-width="3.6" fill="none" stroke-linecap="round"/>`;
+    if(o.lash&&m!=='meh')eo+=`<path d="M${x+d*11} ${y-7} l${d*6} -5" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/>`;
   });
+  out+=m==='happy'?eo:`<g class="ceyes">${eo}</g>`;
   if(!o.noNose)out+=`<path d="M95 ${y+15} Q100 ${y+20} 105 ${y+15}" stroke="${shd(s,.66)}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
   out+=`<ellipse cx="62" cy="${y+21}" rx="14" ry="9" fill="url(#gBlush)"/><ellipse cx="138" cy="${y+21}" rx="14" ry="9" fill="url(#gBlush)"/>`;
   if(!o.noMouth)out+=mouthN(m,y+29);
@@ -693,7 +706,7 @@ const CHARS=[
   <ellipse cx="124" cy="80" rx="18" ry="15" fill="${shd(f,1.12)}"/>
   <ellipse cx="100" cy="126" rx="33" ry="24" fill="${mz}" ${OL(mz)}/>
   ${face(m,{skin:f,iris:'#5A3A22',ey:92,noNose:1,noMouth:1,brow:shd(f,.62)})}
-  <path d="M100 124 V130" stroke="${INK}" stroke-width="3.5"/>${mo}
+  <path d="M100 124 V130" stroke="${INK}" stroke-width="3.5"/><g class="cm">${mo}</g>
   <path d="M87 112 Q100 103 113 112 Q111 123 100 125 Q89 123 87 112Z" fill="${INK}"/><ellipse cx="95" cy="111" rx="4" ry="2.4" fill="#fff" opacity=".7"/>
   <ellipse cx="42" cy="108" rx="18" ry="38" transform="rotate(16 42 108)" fill="${e}" ${OL(e)}/><ellipse cx="158" cy="108" rx="18" ry="38" transform="rotate(-16 158 108)" fill="${e}" ${OL(e)}/>
   <ellipse cx="44" cy="112" rx="8" ry="24" transform="rotate(16 44 112)" fill="${shd(e,1.25)}" opacity=".7"/><ellipse cx="156" cy="112" rx="8" ry="24" transform="rotate(-16 156 112)" fill="${shd(e,1.25)}" opacity=".7"/>
@@ -716,7 +729,7 @@ const CHARS=[
   <path d="M90 50 Q92 60 90 68 M100 47 V66 M110 50 Q108 60 110 68" stroke="${shd(f,.78)}" stroke-width="5" fill="none" stroke-linecap="round"/>
   <ellipse cx="89" cy="124" rx="15" ry="12" fill="${lt}"/><ellipse cx="111" cy="124" rx="15" ry="12" fill="${lt}"/>
   ${face(m,{skin:f,iris:'#6CBF5E',ey:96,noNose:1,noMouth:1,lash:1,brow:shd(f,.66)})}
-  <path d="M93 113 Q100 108 107 113 Q104 119 100 121 Q96 119 93 113Z" fill="#FF8FA8"/>${mo}
+  <path d="M93 113 Q100 108 107 113 Q104 119 100 121 Q96 119 93 113Z" fill="#FF8FA8"/><g class="cm">${mo}</g>
   <path d="M66 120 L34 112 M66 128 L34 132 M134 120 L166 112 M134 128 L166 132" stroke="${INK}" stroke-width="2.5" stroke-linecap="round" opacity=".45"/>
   <path d="M136 44 L156 30 L158 58Z M136 44 L116 30 L116 58Z" fill="#FF7B6B" ${OL('#FF7B6B')}/><circle cx="136" cy="44" r="7" fill="#E35F50"/>`}},
  {id:'maya',hi:'שָׁלוֹם!',svg(m){const s='#9A6142',h='#2B1D1A';let curls='';
@@ -756,9 +769,9 @@ function fullBody(c,m){
   ${c.animal?`<path d="M70 196 Q100 186 130 196 L126 280 Q100 290 74 280Z" fill="${s}" opacity=".9"/>`:`<path d="M48 280 Q100 290 152 280" stroke="${shd(sh,.8)}" stroke-width="5" fill="none"/>`}
   <g transform="rotate(9 30 188)"><g class="armL"><rect x="14" y="182" width="30" height="96" rx="15" fill="${sh}" ${OL(sh)}/><rect x="14" y="262" width="30" height="12" rx="6" fill="${shd(sh,.85)}"/><circle cx="29" cy="284" r="14" fill="${s}" ${OL(s)}/></g></g>
   <g transform="rotate(-9 170 188)"><g class="armR"><rect x="156" y="182" width="30" height="96" rx="15" fill="${sh}" ${OL(sh)}/><rect x="156" y="262" width="30" height="12" rx="6" fill="${shd(sh,.85)}"/><circle cx="171" cy="284" r="14" fill="${s}" ${OL(s)}/></g></g>
-  <g transform="translate(-14 -34) scale(1.14)">${c.svg(m||'calm')}</g></g></svg>`;
+  <g transform="translate(-14 -34) scale(1.14)"><g class="headg">${c.svg(m||'calm')}</g></g></g></svg>`;
 }
-function charSVG(c,m){return `<svg viewBox="0 0 200 240">${c.svg(m||'calm')}</svg>`}
+function charSVG(c,m){return `<svg viewBox="0 0 200 240"><g class="headg">${c.svg(m||'calm')}</g></svg>`}
 
 /* ---------------- products ---------------- */
 const PRODUCTS=[
@@ -766,9 +779,9 @@ const PRODUCTS=[
  {id:'gum',name:'מַסְטִיק',min:2,max:6},
  {id:'shoko',name:'שׁוֹקוֹ',min:5,max:9},
  {id:'bamba',name:'בַּמְבָּה',min:4,max:9},
- {id:'pencil',name:'עִפָּרוֹן',min:2,max:8},
+ {id:'pencil',name:'עִיפָּרוֹן',min:2,max:8},
  {id:'stick',name:'מַדְבֵּקוֹת',min:3,max:12},
- {id:'lolly',name:'סֻכָּרִיָּה',min:2,max:6},
+ {id:'lolly',name:'סוּכָּרִייָּה',min:2,max:6},
  {id:'ball',name:'כַּדּוּר',min:10,max:19}
 ];
 
@@ -942,7 +955,7 @@ function drag0(c){return c.home||{x:c.x,y:c.y}}
 let sayT=0;
 function say(text,mood,hold){
   const b=$('#bubble');b.innerHTML=text;b.classList.remove('off','pulse');void b.offsetWidth;b.classList.add('pulse');
-  setMood(mood||'calm');
+  setMood(mood||'calm');talk($('#cust'));
   clearTimeout(sayT);
   if(hold)sayT=setTimeout(()=>{b.innerHTML=G.baseLine;setMood('calm')},hold);
 }
@@ -1032,7 +1045,7 @@ const STORE={tips:0,owned:[]};
 try{const d=JSON.parse(localStorage.getItem('bulliKiosk')||'{}');if(typeof d.tips==='number')STORE.tips=d.tips;if(Array.isArray(d.owned))STORE.owned=d.owned}catch(e){}
 function save(){try{localStorage.setItem('bulliKiosk',JSON.stringify(STORE))}catch(e){}}
 const DECOR=[{id:'plant',name:'עָצִיץ',price:10,vb:'0 0 120 150'},{id:'balloon',name:'בָּלוֹנִים',price:15,vb:'0 0 120 230'},{id:'lamp',name:'מְנוֹרָה',price:20,vb:'0 0 120 150'},
-  {id:'pic',name:'תְּמוּנָה',price:25,vb:'0 0 160 128'},{id:'fish',name:'אַקְוַרְיוּם',price:30,vb:'0 0 112 102'},{id:'awning',name:'סוֹכֵךְ סָגֹל',price:40,vb:'0 0 120 120'}];
+  {id:'pic',name:'תְּמוּנָה',price:25,vb:'0 0 160 128'},{id:'fish',name:'אַקְווַרְיוּם',price:30,vb:'0 0 112 102'},{id:'awning',name:'סוֹכֵךְ סָגוֹל',price:40,vb:'0 0 120 120'}];
 function applyDecor(){
   DECOR.forEach(d=>{const el=$('#d-'+d.id);if(el)el.classList.toggle('hidden',!STORE.owned.includes(d.id))});
   const p=STORE.owned.includes('awning');stage.style.setProperty('--aw',p?'#9B7BD0':'#FF7B6B');
@@ -1049,19 +1062,23 @@ const jarIcon=()=>`<svg viewBox="0 0 112 142">${jarSVG(STORE.tips||8)}</svg>`;
 const FEET=700,CPOS=380,QPOS=[830,970,1110],ENTER=1440,EXIT=-220,SPEED=.42;
 function makeWalker(c){
   const el=document.createElement('div');el.className='walker';el.innerHTML=`<div class="fl">${fullBody(c,'calm')}</div>`;
+  el.style.setProperty('--d',(-Math.random()*5).toFixed(2)+'s');el.style.setProperty('--b',(-Math.random()*4).toFixed(2)+'s');
   $('#walkers').appendChild(el);const w={c,el,x:ENTER,mood:'calm'};placeW(w,ENTER,0);return w;
 }
 function placeW(w,x,dur){w.el.style.transition=dur?`transform ${dur}ms linear`:'none';w.el.style.transform=`translate(${x-105}px,${FEET-441}px)`;w.x=x;w.el.style.zIndex=Math.round(3000-x)}
 function walkTo(w,x){
   const dist=Math.abs(x-w.x);if(dist<2)return Promise.resolve();
-  const dur=dist/SPEED;w.el.classList.add('walking');placeW(w,x,dur);
-  return wait(dur).then(()=>w.el.classList.remove('walking'));
+  const dur=dist/SPEED;w.el.classList.remove('goL','goR');w.el.classList.add('walking',x<w.x?'goL':'goR');placeW(w,x,dur);
+  return wait(dur).then(()=>w.el.classList.remove('walking','goL','goR'));
 }
 function setWMood(w,m){if(!w||w.mood===m)return;w.mood=m;w.el.querySelector('.fl').innerHTML=fullBody(w.c,m)}
 function fsay(text,mood){
   const b=$('#fbub');b.innerHTML=text;b.classList.remove('off','pulse');void b.offsetWidth;b.classList.add('pulse');
   if(mood)setWMood(G.front,mood);
+  talk(G.front&&G.front.el);
 }
+const talkT=new WeakMap();
+function talk(el){if(!el)return;el.classList.add('talking');clearTimeout(talkT.get(el));talkT.set(el,setTimeout(()=>el.classList.remove('talking'),1100))}
 function spawnPasser(){
   if(!$('#game').classList.contains('on')||G.view==='back')return;
   const c=CHARS[ri(0,CHARS.length-1)],el=document.createElement('div');el.className='passer walker walking';
@@ -1147,7 +1164,7 @@ async function startGame(level){
   paintBot('#fbot','happy',false,true);paintBot('#bbot','calm');
   show('game');
   await wait(500);if(tk!==G.token)return;
-  bsay('בֹּקֶר טוֹב!<br>פּוֹתְחִים!','happy',2200);
+  bsay('בּוֹקֶר טוֹב!<br>פּוֹתְחִים!','happy',2200);
   await wait(1000);if(tk!==G.token)return;
   paintBot('#fbot','calm');
   frontRound();
@@ -1253,7 +1270,7 @@ function checkHint(failed){
     G.hint=true;
     setTimeout(()=>{
       if(G.phase!=='pay'||!G.hint)return;
-      $('#machine').classList.add('flash');bsay('אוּלַי צָרִיךְ<br>לִפְרֹט?','think',4500);
+      $('#machine').classList.add('flash');bsay('אוּלַי צָרִיךְ<br>לִפְרוֹט?','think',4500);
       showHand(MC.x+40,MC.y-10);
     },failed?1500:500);
   }
@@ -1330,14 +1347,14 @@ async function submit(){
   G.phase='wait';G.patRun=false;SND.soft();dp.classList.remove('wig');void dp.offsetWidth;dp.classList.add('wig');
   setWait(true);
   if(G.level===1){
-    bsay('נְסַדֵּר<br>וְנִסְפֹּר!','calm');
+    bsay('נְסַדֵּר<br>וְנִסְפּוֹר!','calm');
     await wait(700);if(tk!==G.token)return;
     inZone('pile').forEach(c=>c.zone=c.v===10?'tens':'ones');
     layout(600,50);SND.clink();
     await wait(900);if(tk!==G.token)return;
     beginCount(null);
   }else{
-    bsay('נִסְפֹּר יַחַד!','calm');
+    bsay('נִסְפּוֹר יַחַד!','calm');
     await wait(700);if(tk!==G.token)return;
     $('#wallet').classList.remove('closed');
     $('#wtag').innerHTML=`<svg viewBox="0 0 120 90"><use href="#walletS"/></svg><span>?</span>`;
@@ -1367,10 +1384,10 @@ async function serve(tk){
       STORE.tips++;G.tipsToday++;save();paintJar();SND.clink();const j=$('#jar');j.classList.remove('bump');void j.offsetWidth;j.classList.add('bump')}).catch(()=>{});
   }
   await wait(900+tip*260);if(tk!==G.token)return;
-  fsay('לְהִתְרָאוֹת!','happy');
-  await wait(800);if(tk!==G.token)return;
+  fsay('לְהִתְרָאוֹת!','happy');w.el.classList.add('bye');
+  await wait(900);if(tk!==G.token)return;
   $('#fbub').classList.add('off');paintBot('#fbot','calm');
-  G.walkers.shift();G.front=null;walkTo(w,EXIT).then(()=>w.el.remove());
+  G.walkers.shift();G.front=null;walkTo(w,EXIT).then(()=>w.el.remove());setTimeout(()=>w.el.classList.remove('bye'),900);
   G.round++;
   if(G.round>=10){await wait(1600);if(tk!==G.token)return;endGame();}
   else{await wait(250);if(tk!==G.token)return;frontRound()}
@@ -1382,7 +1399,7 @@ function beginCount(zone){
   countList().forEach(c=>{c.counted=false;c.el.classList.toggle('glow',c.v===10)});
   G.phase='count';
   const hasT=countList().some(c=>c.v===10);
-  if(hasT)guide('קֹדֶם הָעֲשָׂרוֹת');else{guide('נִסְפֹּר');countList().forEach(c=>c.el.classList.add('glow'))}
+  if(hasT)guide('קוֹדֶם הָעֲשָׂרוֹת');else{guide('נִסְפּוֹר');countList().forEach(c=>c.el.classList.add('glow'))}
 }
 function countTap(c){
   if(c.counted)return;
@@ -1390,7 +1407,7 @@ function countTap(c){
   const tensLeft=list.filter(k=>k.v===10&&!k.counted);
   if(c.v===1&&tensLeft.length){
     SND.soft();tensLeft.forEach(k=>{k.el.classList.add('wig');setTimeout(()=>k.el.classList.remove('wig'),500)});
-    bsay('קֹדֶם<br>הָעֲשָׂרוֹת','think',1800);return;
+    bsay('קוֹדֶם<br>הָעֲשָׂרוֹת','think',1800);return;
   }
   c.counted=true;c.el.classList.remove('glow');c.el.classList.add('counted');
   G.countTotal+=c.v;SND.count(G.countTotal>=10?Math.round(G.countTotal/4):G.countTotal);

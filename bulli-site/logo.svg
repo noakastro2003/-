@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs>
+ <radialGradient id="lg" cx="50%" cy="40%" r="70%"><stop offset="0" stop-color="#FFF9EF"/><stop offset="1" stop-color="#FFE7C7"/></radialGradient>
+ <radialGradient id="gG" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#FFF2B0"/><stop offset=".45" stop-color="#FFD24A"/><stop offset="1" stop-color="#E8A417"/></radialGradient>
+ <radialGradient id="gS" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".5" stop-color="#DCE2EA"/><stop offset="1" stop-color="#A9B3C1"/></radialGradient>
+ <clipPath id="cl"><rect width="512" height="512" rx="112"/></clipPath>
+</defs>
+<g clip-path="url(#cl)">
+ <rect width="512" height="512" fill="url(#lg)"/>
+ <g>
+  <rect x="0" y="0" width="512" height="118" fill="#FFF6E8"/>
+  <rect x="0" y="0" width="64" height="118" fill="#FF7B6B"/><rect x="128" y="0" width="64" height="118" fill="#FF7B6B"/><rect x="256" y="0" width="64" height="118" fill="#FF7B6B"/><rect x="384" y="0" width="64" height="118" fill="#FF7B6B"/>
+  <circle cx="32" cy="118" r="32" fill="#FF7B6B"/><circle cx="96" cy="118" r="32" fill="#FFF6E8"/><circle cx="160" cy="118" r="32" fill="#FF7B6B"/><circle cx="224" cy="118" r="32" fill="#FFF6E8"/>
+  <circle cx="288" cy="118" r="32" fill="#FF7B6B"/><circle cx="352" cy="118" r="32" fill="#FFF6E8"/><circle cx="416" cy="118" r="32" fill="#FF7B6B"/><circle cx="480" cy="118" r="32" fill="#FFF6E8"/>
+  <rect x="0" y="0" width="512" height="22" fill="#E35F50"/>
+ </g>
+ <ellipse cx="256" cy="470" rx="170" ry="22" fill="#C98F4C" opacity=".18"/>
+ <!-- Booly head -->
+ <rect x="248" y="150" width="16" height="56" rx="8" fill="#8FA3B5"/><circle cx="256" cy="152" r="22" fill="#FF7B6B"/><circle cx="249" cy="145" r="7" fill="#fff" opacity=".7"/>
+ <circle cx="104" cy="320" r="30" fill="#FFC94A"/><circle cx="408" cy="320" r="30" fill="#FFC94A"/>
+ <rect x="110" y="200" width="292" height="236" rx="90" fill="#5FD0C2"/>
+ <path d="M150 232 Q186 212 236 212" stroke="#fff" stroke-width="16" fill="none" stroke-linecap="round" opacity=".45"/>
+ <rect x="146" y="244" width="220" height="156" rx="56" fill="#22304A"/>
+ <path d="M190 322 q26 -36 52 0 M270 322 q26 -36 52 0" stroke="#7FF5E0" stroke-width="15" fill="none" stroke-linecap="round"/>
+ <path d="M220 350 q36 40 72 0Z" fill="#7FF5E0"/>
+ <!-- coins -->
+ <g transform="translate(330 352)"><circle cx="70" cy="76" r="70" fill="#B97A0E"/><circle cx="70" cy="70" r="70" fill="url(#gG)"/><circle cx="70" cy="70" r="55" fill="none" stroke="#D99A1B" stroke-width="4"/>
+  <text x="70" y="88" text-anchor="middle" font-family="Varela Round,Arial Rounded MT Bold,Arial" font-size="50" font-weight="700" fill="#8A5600">10</text></g>
+ <g transform="translate(52 378)"><circle cx="50" cy="55" r="50" fill="#7F8898"/><circle cx="50" cy="50" r="50" fill="url(#gS)"/><circle cx="50" cy="50" r="38" fill="none" stroke="#9EA8B6" stroke-width="3"/>
+  <text x="50" y="68" text-anchor="middle" font-family="Varela Round,Arial Rounded MT Bold,Arial" font-size="48" font-weight="700" fill="#4A5363">1</text></g>
+</g>
+</svg>

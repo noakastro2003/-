@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 40; // keep in step with CACHE in sw.js
+const APP_V = 41; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 const state = Object.assign({
   weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null,
@@ -1373,10 +1373,10 @@ function firstSteps() {
   ];
   const done = items.filter(x => x[2]).length;
   if (done === items.length) return '';
-  return `<div class="card steps">${cardHead('flag', 'צעדים ראשונים', `<span class="cnt">${done}/${items.length}</span>`)}
+  return `<div class="card steps">${cardHead('flag', 'צעדים ראשונים', `<span class="cnt">${done}/${items.length}</span><button class="iconbtn stepsx" data-act="stepsdone" aria-label="סגירת הצעדים הראשונים">${ic('x')}</button>`)}
     <div class="bar"><span style="--w:${done / items.length * 100}%"></span></div>
     ${items.map(([i, t, ok, a]) => `<button class="steprow ${ok ? 'done' : ''}" ${ok ? 'disabled' : a}><span class="sc">${ok ? '✓' : ic(i)}</span><span class="grow">${t}</span>${ok ? '' : ic('chevL', 'chev')}</button>`).join('')}
-    <button class="linkbtn" data-act="stepsdone">להסתיר</button></div>`;
+    </div>`;
 }
 
 // ================================================================ FRIEND TEACHERS (server: /api/social)
@@ -1660,6 +1660,7 @@ function viewSettings(w) {
     <p class="hint">האפליקציה תיפתח במסך מלא ותעבוד גם בלי אינטרנט.</p>
   </div>
   <button class="danger" data-act="wipe">${ic('trash')} מחיקת כל המידע מהטלפון</button>
+  ${state.prefs.stepsDone ? `<button class="linkbtn" data-act="stepsback">להחזיר את "צעדים ראשונים" למסך "עכשיו"</button>` : ''}
   <div class="helprow"><button data-act="snaps">${ic('clock')} שחזור לגרסה קודמת</button><button data-act="report">${ic('warn')} משהו לא עובד?</button></div>
   <p class="hint">גרסה ${APP_V}</p>`;
 }
@@ -3078,7 +3079,8 @@ document.addEventListener('click', e => {
     case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
     case 'classes': classesSheet(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
-    case 'stepsdone': state.prefs.stepsDone = true; save(); rerender(); break;
+    case 'stepsdone': state.prefs.stepsDone = true; save(); rerender(); toast('הצעדים הראשונים נסגרו · אפשר להחזיר בהגדרות'); break;
+    case 'stepsback': state.prefs.stepsDone = false; save(); go('now'); break;
     case 'sharecode': { const c = soc.data && soc.data.me.code; if (!c) break; const tx = `היי! אני משתמשת באפליקציה "הכיתה שלי" לתכנון השבועי 💜\nבואי נהיה חברות שם ונשתף שיעורים – הקוד שלי: ${c}\nhttps://noa-hakita.netlify.app`; if (navigator.share) navigator.share({ text: tx }).catch(() => {}); else navigator.clipboard.writeText(tx).then(() => toast('הועתק 📋')); break; }
     case 'shsend': { const S2 = state._share; socApi('send', { to: S2.to, kind: S2.kind, title: S2.title, data: S2.data }).then(r => { closeOverlay(); toast(`נשלח ל־${r.sent} ✓`); confetti(); }).catch(e => toast(e.code === 'too-big' ? 'השבוע גדול מדי לשליחה – שולחים כקובץ' : 'לא הצלחתי לשלוח 😕')); break; }
     case 'shpub': { const S2 = state._share; socApi('publish', { title: S2.title, data: S2.data }).then(() => { closeOverlay(); toast('השיעור בספרייה שלך – כל החברות רואות אותו ⭐'); }).catch(() => toast('לא הצלחתי לשתף 😕')); break; }

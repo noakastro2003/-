@@ -1155,3 +1155,4 @@ body.onboarding .tabs, body.onboarding .minibar { display: none !important; }
 .pn.open .pnh .chev { transform: rotate(180deg); }
 .pn ul { margin: 0 0 10px; padding-inline-start: 22px; font-size: 14.5px; line-height: 1.6; color: var(--ink); animation: fgIn .35s var(--ease); }
 .pn li + li { margin-top: 4px; }
+.stepsx { width: 44px; height: 44px; margin-inline-start: 6px; } .steps .ch, .steps > :first-child { align-items: center; }

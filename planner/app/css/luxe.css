@@ -17,7 +17,7 @@
 [data-skin=luxe] {
   --bg: #F6F1EA;
   --ink: #2A2130;
-  --soft: #8B8191;
+  --soft: #635C6E;
   --accent: #6F52A6;
   --accent-ink: #5B4190;
   --gold: #B8935A;
@@ -36,7 +36,7 @@
 [data-skin=luxe][data-theme=dark] {
   --bg: #131016;
   --ink: #F2ECE4;
-  --soft: #9C93A3;
+  --soft: #C2BACD;
   --accent: #B9A3E6;
   --accent-ink: #CDBBF2;
   --gold: #D6B67F;
@@ -75,7 +75,7 @@
 [data-skin=luxe] .hb { background: var(--card); border: 1px solid var(--line); color: var(--ink); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
 [data-skin=luxe] .hb .dot { background: var(--gold); box-shadow: 0 0 0 3px rgba(184, 147, 90, .18); }
 [data-skin=luxe] .titlerow { min-height: 118px; }
-[data-skin=luxe] .tt h1 { font-size: 50px; font-weight: 200; line-height: 1.02; letter-spacing: -.5px; animation: luxIn 1.1s var(--ease) both; }
+[data-skin=luxe] .tt h1 { font-size: 34px; font-weight: 200; line-height: 1.02; letter-spacing: -.5px; animation: luxIn 1.1s var(--ease) both; }
 [data-skin=luxe] .tt h1::after { content: ''; display: block; width: 46px; height: 1px; margin: 14px 0 10px; background: var(--gold); animation: lineIn 1.2s .3s var(--ease) both; transform-origin: right; }
 [data-skin=luxe] .tt p { font-size: 14px; color: var(--soft); letter-spacing: .2px; }
 [data-skin=luxe] .tt p .ic.h { color: var(--gold); animation: none; width: 15px; }
@@ -124,7 +124,7 @@
 [data-skin=luxe] .ring .rt { stroke: var(--line); stroke-width: 3; }
 [data-skin=luxe] .ring .rv { stroke: url(#goldGrad); stroke: var(--gold); stroke-width: 3; }
 [data-skin=luxe] .rin b { font-family: var(--serif); font-weight: 300; font-size: 40px; font-variant-numeric: tabular-nums; }
-[data-skin=luxe] .rin small { letter-spacing: 1px; font-size: 11px; }
+[data-skin=luxe] .rin small { letter-spacing: 1px; font-size: 13px; }
 [data-skin=luxe] .ring.soon .rv { stroke: #C77D8A; }
 [data-skin=luxe] .ring.soon .rin b { color: #B4586A; }
 [data-skin=luxe] .segtabs { background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 0; }
@@ -231,7 +231,7 @@
 }
 [data-skin=luxe][data-theme=dark] .tabs { border-color: rgba(255, 255, 255, .06); }
 [data-skin=luxe] .tabs::after { display: none; }
-[data-skin=luxe] .tabs button { font-size: 11.5px; padding: 7px 0 5px; }
+[data-skin=luxe] .tabs button { font-size: 13px; padding: 7px 0 5px; }
 [data-skin=luxe] .tabs button .ic { stroke-width: 1.5; width: 23px; height: 23px; }
 [data-skin=luxe] .tabs button.on { color: var(--ink); font-weight: 500; }
 [data-skin=luxe] .tab-ind { top: 6px; bottom: 6px; border-radius: 999px; background: var(--solid); box-shadow: 0 6px 16px -6px rgba(42, 33, 48, .25); transition: left .6s var(--ease), width .6s var(--ease); }
@@ -317,7 +317,7 @@
 .wl-q { margin: 8px 0 0; font-size: 18px; font-weight: 300; line-height: 1.6; color: var(--ink); }
 .wl-q::before { content: ''; display: block; width: 40px; height: 1px; margin: 0 auto 14px; background: var(--gold, #B8935A); }
 .wl-i { margin: 6px 0 0; color: var(--soft); font-size: 14.5px; }
-.wl-tap { margin-top: 22px; font-size: 12px; letter-spacing: 1px; color: var(--soft); animation: pulse 2.4s infinite; }
+.wl-tap { margin-top: 22px; font-size: 13px; letter-spacing: 1px; color: var(--soft); animation: pulse 2.4s infinite; }
 #readyMoment { position: fixed; inset: 0; z-index: 85; display: grid; place-items: center; pointer-events: none; }
 .rm-card { position: relative; overflow: hidden; padding: 26px 30px; border-radius: 28px; text-align: center; min-width: 260px;
   background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
@@ -340,7 +340,7 @@
 [data-skin=luxe] .tt h1, [data-skin=luxe] .nc-t h2, [data-skin=luxe] .ch h3, [data-skin=luxe] .lr-t b, [data-skin=luxe] .brand, [data-skin=luxe] .minibar b,
 [data-skin=luxe] .wk-t b, [data-skin=luxe] .ovh h2, [data-skin=luxe] .sect, [data-skin=luxe] .tile b, [data-skin=luxe] .rin b, [data-skin=luxe] .qty, [data-skin=luxe] .pname,
 [data-skin=luxe] .tdigits, [data-skin=luxe] .dc, [data-skin=luxe] .nx-t h3, [data-skin=luxe] .ld-card b { font-family: var(--round); font-weight: 400; letter-spacing: 0; }
-[data-skin=luxe] .tt h1 { font-size: 44px; }
+[data-skin=luxe] .tt h1 { font-size: 34px; }
 [data-skin=luxe] .nc-t h2 { font-size: 27px; }
 [data-skin=luxe] .tt p span, [data-skin=luxe] .wl-q, [data-skin=luxe] .rm-card b, [data-skin=luxe] .bday b, [data-skin=luxe] .bravo b, [data-skin=luxe] .rest b, [data-skin=luxe] .almost b, [data-skin=luxe] .streak { font-family: var(--hand); font-weight: 300; }
 [data-skin=luxe] #welcome h1 { font-family: var(--round); font-weight: 400; font-size: 36px; }

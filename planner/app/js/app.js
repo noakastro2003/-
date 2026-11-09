@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 41; // keep in step with CACHE in sw.js
+const APP_V = 42; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 const state = Object.assign({
   weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null,
@@ -223,7 +223,7 @@ function top(title, sub, illus, opts = {}) {
   const dot = state.todos.some(todoDue) || bdOn(now()).length;
   return `<header class="top">
     <div class="brandrow">
-      <div class="brand">${opts.back ? `<button class="back" data-go="${opts.back}" aria-label="חזרה">${ic('chevR')}</button>` : ''}${logo('blogo')}<span>הכיתה שלי${spark('b')}${squiggle('s')}</span></div>
+      <div class="brand">${opts.back ? `<button class="back" data-go="${opts.back}" aria-label="חזרה">${ic('chevR')}</button>` : ''}${logo('blogo')}<span>הכיתה שלי${spark('b')}${squiggle('s')}</span>${syncDot()}</div>
       <div class="hbtns">
         <button class="hb" data-day="all" aria-label="מערכת">${ic('calendar')}</button>
         <button class="hb" data-go="todos" aria-label="תזכורות">${ic('bell')}${dot ? '<i class="dot"></i>' : ''}</button>
@@ -320,7 +320,7 @@ function viewNow(w) {
     h += prepCards(w, day, 'today');
     h += nextCard(day, ph.next, ph.inMin, 'השיעור הראשון') + tipCard();
   } else if (ph.kind === 'after') {
-    h += top('סיימת את היום 🎉', `${line()} 💜`, 'books');
+    h += top('סיימת את היום 🎉', line(), 'books');
     h += birthdayBanner() + teaser;
     const S = dayStats(w, day);
     h += `<div class="card bravo"><div class="grow"><b>היום הסתיים</b><span>סיימת ${day.periods.length} שיעורים${S.total ? ` ו־${S.done} מתוך ${S.total} משימות` : ''}</span></div>${art('medal', 'wiggle')}</div>`;
@@ -334,12 +334,15 @@ function viewNow(w) {
     if (ng) h += tomorrowCard(ng.w, ng.d);
   }
 
+  const busy = ['lesson', 'break'].includes(ph.kind);
   if (day && ['lesson', 'break', 'before'].includes(ph.kind)) {
-    const ref = ph.kind === 'lesson' ? ph.next : ph.next;
+    const ref = ph.next;
     const rest = ref ? day.periods.filter(p => mins(p.start) > mins(ref.start)) : [];
-    if (rest.length) h += `<div class="card">${cardHead('calendar', 'ובהמשך היום')}${rest.map(p => miniRow(w, day, p)).join('')}</div>`;
+    if (rest.length) h += busy
+      ? `<div class="card fold1 ${state._restOpen ? 'open' : ''}"><button class="pnh" data-act="restopen"><b>${ic('calendar')} ובהמשך היום</b><span class="cnt">${rest.length}</span>${ic('chevD', 'chev')}</button>${state._restOpen ? rest.map(p => miniRow(w, day, p)).join('') : ''}</div>`
+      : `<div class="card">${cardHead('calendar', 'ובהמשך היום')}${rest.map(p => miniRow(w, day, p)).join('')}</div>`;
   }
-  h += todayList() + planNotes(w);
+  h += todayList(busy) + (busy ? '' : planNotes(w));
   return h;
 }
 
@@ -377,7 +380,7 @@ function nowCard(w, day, p, ph) {
     ${isDict(p) ? dictBtn(day, p) : ''}
     ${timerHint(p)}
     ${ph.kind === 'lesson' ? lessonNotes(w, day, p) : ''}
-    ${ph.kind === 'lesson' ? `<div class="tline">${ic('clock')}<span>${ph.left} דק׳ מתוך ${ph.len} דק׳</span><div class="bar"><span style="--w:${Math.round(ph.pct * 100)}%"></span></div></div>${logRow(w, id, false)}` : ''}
+    ${ph.kind === 'lesson' ? `<div class="tline">${ic('clock')}<span>${ph.left} דק׳ מתוך ${ph.len} דק׳</span><div class="bar"><span style="--w:${Math.round(ph.pct * 100)}%"></span></div></div>` : ''}
   </article>`;
 }
 
@@ -567,7 +570,7 @@ function viewPrep(w) {
   const left = S.total - S.done;
   h += left
     ? `<div class="card almost"><div class="grow"><b>נשארו ${left} משימות</b><span>להכנת יום ${esc(day.name)}</span></div>${art('mountain')}</div>`
-    : `<div class="card almost done"><div class="grow"><b>הכל מוכן! 🎉</b><span>את מוכנה ליום ${esc(day.name)}</span></div>${art('star', 'wiggle')}</div>`;
+    : `<div class="card almost done"><div class="grow"><b>הכל מוכן! 🎉</b><span>${g('את מוכנה', 'אתה מוכן')} ליום ${esc(day.name)}</span></div>${art('star', 'wiggle')}</div>`;
   return h;
 }
 
@@ -769,7 +772,12 @@ function viewMsgs(w) {
   const P = state.pm;
   if (!P.opts || P.optsFor !== P.type + w.id) { P.opts = pmDefaults(w, P.type); P.optsFor = P.type + w.id; P.text = null; }
   const o = P.opts;
-  h += `<div class="pmtypes">${PM_TYPES.map(([id, i, l]) => `<button class="${P.type === id ? 'on' : ''}" data-pmtype="${id}">${ic(i)}<span>${l}</span></button>`).join('')}</div>`;
+  const MAIN = ['all', 'today', 'week', 'personal'];
+  const showMore = state.pmMore || !MAIN.includes(P.type);
+  const tbtn = ([id, i, l]) => `<button class="${P.type === id ? 'on' : ''}" data-pmtype="${id}">${ic(i)}<span>${l}</span></button>`;
+  h += `<div class="pmtypes main4">${PM_TYPES.filter(x => MAIN.includes(x[0])).map(tbtn).join('')}</div>
+    <button class="linkbtn pmmore" data-act="pmmore">${showMore ? 'פחות סוגים ▴' : `סוגים נוספים (${PM_TYPES.length - MAIN.length}) ▾`}</button>
+    ${showMore ? `<div class="pmtypes">${PM_TYPES.filter(x => !MAIN.includes(x[0])).map(tbtn).join('')}</div>` : ''}`;
   const tog = (k, l) => `<button class="fc ${o[k] !== false ? 'on' : ''}" data-pmtog="${k}">${o[k] !== false ? '✓ ' : ''}${l}</button>`;
   const dayPick = () => `<div class="fchips">${w.days.map(d => `<button class="fc ${+o.dow === d.dow ? 'on' : ''}" data-pmday="${d.dow}">יום ${esc(d.name)}</button>`).join('')}</div>`;
   const ta = (k, l, ph) => `<label class="field">${l}<textarea rows="4" data-pmopt="${k}" data-lines="1" placeholder="${ph}">${esc((o[k] || []).join('\n'))}</textarea></label>`;
@@ -835,7 +843,9 @@ function viewMsgs(w) {
     <div class="fchips"><button class="fc ${P.noemoji ? 'on' : ''}" data-pmemoji="1">${P.noemoji ? '✓ ' : ''}בלי אימוג׳ים</button></div>
   </details>`;
   f += `<div class="fchips"><button class="fc ${P.sign ? 'on' : ''}" data-pmsign="1">${P.sign ? '✓ ' : ''}חתימה: ${esc(state.name || 'השם שלך')} 🌻</button></div>`;
-  h += `<div class="card pmopts">${f}</div>`;
+  const quick = ['all', 'today', 'week'].includes(P.type);
+  const optsHtml = quick ? `<details class="card pmopts pmfold" ${state.pmOptsOpen ? 'open' : ''}><summary>✎ התאמה – מה להכניס, סגנון ואורך</summary>${f}</details>` : `<div class="card pmopts">${f}</div>`;
+  if (!quick) h += optsHtml;
   const txt = P.text != null ? P.text : pmText(w);
   h += `<div class="card pmprev">${cardHead('phone2', 'ההודעה', P.text != null ? '<button class="linkbtn" data-act="pmreset">לבנות מחדש</button>' : '')}
     <div class="wachat"><div class="wabub" id="pmBub">${waHtml(txt)}<span class="wat">${String(now().getHours()).padStart(2, '0')}:${String(now().getMinutes()).padStart(2, '0')} ✓✓</span></div></div>
@@ -846,6 +856,7 @@ function viewMsgs(w) {
     <div class="btnrow"><button class="cta soft" data-act="pmcopy">${ic('file')} העתקה</button><button class="cta soft" data-act="pmshare">${ic('upload')} שיתוף</button></div>
     <button class="linkbtn pmsave" data-act="pmsavetpl">⭐ שמירה כתבנית</button>
   </div>`;
+  if (quick) h += optsHtml;
   const wk = state.pmlog.filter(x => Date.now() - x.at < 7 * 864e5);
   if (state.pmlog.length) h += `<div class="card">${cardHead('clock', 'נשלחו לאחרונה', wk.length ? `<span class="cnt">${wk.length} השבוע</span>` : '')}${state.pmlog.slice(0, 8).map(x => `<button class="pmhist" data-pmlog="${x.id}"><span class="tpill">${new Date(x.at).getDate()}.${new Date(x.at).getMonth() + 1}</span><span class="grow"><b>${esc((PM_TYPES.find(t => t[0] === x.type) || [0, 0, 'הודעה'])[2])}${x.to ? ' · ' + esc(x.to) : ''}</b><small>${esc(x.text.split('\n').find(l => l.trim() && !/^הורים יקרים|^היי|טובים/.test(l)) || x.text.split('\n')[0])}</small></span>${ic('chevL', 'chev')}</button>`).join('')}<p class="hint">לוחצים על הודעה כדי להשתמש בה שוב כבסיס</p></div>`;
   return h;
@@ -992,7 +1003,7 @@ function closeProjector() {
 // class management: team points, noise light, "מלך שיעור"
 const noise = { on: false, ctx: null, raf: 0, level: 0, sens: 5 };
 function viewClass() {
-  let h = top('ניהול כיתה', 'ניקוד לקבוצות, רמזור רעש ומלך שיעור', 'star', { back: 'cls' });
+  let h = top('ניקוד ורמזור', 'ניקוד לקבוצות, רמזור רעש ומלך שיעור', 'star', { back: 'cls' });
   h += `<div class="card">${cardHead('medal', 'ניקוד לקבוצות', `<button class="linkbtn" data-act="projpoints">${ic('screen')} הקרנה</button>`)}
     ${state.points.length ? state.points.map((t, i) => `<div class="ptrow"><b class="grow">${esc(t.name)}</b><button class="iconbtn" data-pt="${i}|-1">−</button><span class="ptn">${t.pts}</span><button class="iconbtn plus" data-pt="${i}|1">+</button></div>`).join('') : '<p class="dim">אין עדיין קבוצות. מוסיפים קבוצה או שולחן:</p>'}
     <form class="addtodo" data-ptnew><input name="t" placeholder="${state.points.length ? 'עוד קבוצה' : 'שולחן 1 / הכחולים'}" autocomplete="off"><button aria-label="הוספה">${ic('plus')}</button></form>
@@ -1180,7 +1191,7 @@ async function tryImportWeek(file) {
     const j = JSON.parse(await file.text());
     if (j.app !== 'hakita-week' || !j.week) return false;
     const wk = j.week;
-    if (state.weeks[wk.id] && !confirm('כבר יש שבוע עם אותם תאריכים. להחליף אותו?')) return true;
+    if (state.weeks[wk.id] && !await ask('כבר יש שבוע עם אותם תאריכים. להחליף אותו?')) return true;
     state.logs[wk.id] = {}; saveGenericWeek(wk); toast(`התכנון${j.from ? ' של ' + j.from : ''} נוסף ✨`); return true;
   } catch { return false; }
 }
@@ -1247,7 +1258,7 @@ const ROLES = {
 // two checkboxes – homeroom and/or subject teacher – stored as one role
 const roleSet = r => new Set(r === 'both' ? ['home', 'subject'] : r ? [r] : []);
 const roleOf = set => set.has('home') && set.has('subject') ? 'both' : set.has('subject') ? 'subject' : set.has('home') ? 'home' : '';
-const ROLE_BOX = { home: ['מחנכת', 'יש לי כיתה שאני מחנכת – ילדים, הורים, ימי הולדת'], subject: ['מורה מקצועית', 'אני מלמדת מקצוע, בכיתה אחת או בכמה כיתות'] };
+const ROLE_BOX = { get home() { return [g('מחנכת', 'מחנך'), g('יש לי כיתה שאני מחנכת – ילדים, הורים, ימי הולדת', 'יש לי כיתה שאני מחנך – ילדים, הורים, ימי הולדת')]; }, get subject() { return [g('מורה מקצועית', 'מורה מקצועי'), g('אני מלמדת מקצוע, בכיתה אחת או בכמה כיתות', 'אני מלמד מקצוע, בכיתה אחת או בכמה כיתות')]; } };
 const rolePick = (role, attr) => { const st = roleSet(role); return `<div class="rolepick">${Object.entries(ROLE_BOX).map(([k, [t, d]]) => `<button class="${st.has(k) ? 'on' : ''}" ${attr}="${k}" role="checkbox" aria-checked="${st.has(k)}"><span class="rbox">${st.has(k) ? '✓' : ''}</span><span class="rtx"><b>${t}</b><small>${d}</small></span></button>`).join('')}</div><p class="hint">אפשר לסמן אחת מהן או את שתיהן</p>`; };
 const curCls = () => state.classes.find(c => c.id === state.curClass) || state.classes[0] || null;
 function ensureClasses() {
@@ -1292,7 +1303,7 @@ function classesSheet() {
       <button class="iconbtn" data-clsedit="${c.id}" aria-label="עריכה">${ic('pencil')}</button>${state.classes.length > 1 ? `<button class="iconbtn" data-clsdel="${c.id}" aria-label="מחיקה">${ic('trash')}</button>` : ''}</div>`).join('')}
     <form class="clsnew" data-clsnew>
       <div class="an-grid"><input name="name" placeholder="שם הכיתה, למשל ג׳1" required><input name="size" type="number" inputmode="numeric" placeholder="מס׳ תלמידים"></div>
-      <input name="subject" placeholder="מה אני מלמדת שם? (למשל אנגלית)">
+      <input name="subject" placeholder="${g('מה אני מלמדת שם?', 'מה אני מלמד שם?')} (למשל אנגלית)">
       <button class="cta soft">${ic('plus')} הוספת כיתה</button>
     </form>
   </div>`);
@@ -1305,12 +1316,12 @@ function viewHub() {
   let h = top(c ? esc(c.name) : 'הכיתה', multiCls() ? 'בוחרים כיתה – והכל מתעדכן לפיה' : 'הילדים, ההורים והמעקב – במקום אחד', 'users');
   h += `<div class="hubcls">${multiCls() ? clsChips(state.curClass) : ''}<button class="linkbtn" data-act="classes">${ic('settings')} ${multiCls() ? 'ניהול כיתות' : 'יש לי עוד כיתות'}</button></div>`;
   const tiles = [['phone2', 'הודעה להורים', 'data-go="msgs"', ''], ['star', 'ציונים', 'data-go="grades"', state.grades.filter(g => !g.cls || g.cls === state.curClass).length || ''],
-    ['pencil', 'יומן כיתה', 'data-go="journal"', openActions().length || ''], ['medal', 'ניהול כיתה', 'data-go="class"', ''], ['users', 'רשימת ילדים', 'data-go="kids"', state.kids.length || ''], ['calendar', 'לוח אירועים', 'data-go="calendar"', '']];
+    ['pencil', 'יומן כיתה', 'data-go="journal"', openActions().length || ''], ['medal', 'ניקוד ורמזור', 'data-go="class"', ''], ['users', 'עריכת הרשימה', 'data-go="kids"', state.kids.length || ''], ['calendar', 'לוח אירועים', 'data-go="calendar"', '']];
   h += `<div class="hubgrid">${tiles.map(([i, l, a, n]) => `<button ${a}><span class="ti">${ic(i)}</span><b>${l}</b>${n ? `<em>${n}</em>` : ''}</button>`).join('')}</div>`;
   if (!state.kids.length) h += `<div class="card">${cardHead('users', 'עוד אין ילדים בכיתה')}<p class="dim">מדביקים רשימת שמות (ואם רוצים גם יום הולדת וטלפון של הורה) – ואז יש כרטיס לכל ילד, "מי עונה?", ימי הולדת והודעות אישיות.</p><button class="cta" data-go="kids">${ic('plus')} הוספת הילדים</button></div>`;
   else {
     const q = quietKids(7);
-    if (q.length && q.length < state.kids.length) h += `<div class="card quiet">${cardHead('heart', 'השבוע עוד לא נרשם כלום על', `<span class="cnt">${q.length}</span>`)}<div class="fchips wrap">${q.map(k => `<button class="fc" data-kid="${esc(k.name)}">${esc(k.name)}</button>`).join('')}</div></div>`;
+    if (q.length && state.kids.length - q.length >= state.kids.length / 3) h += `<div class="card quiet">${cardHead('heart', 'השבוע עוד לא נרשם כלום על', `<span class="cnt">${q.length}</span>`)}<div class="fchips wrap">${q.slice(0, 6).map(k => `<button class="fc" data-kid="${esc(k.name)}">${esc(k.name)}</button>`).join('')}${q.length > 6 ? `<span class="dim">ועוד ${q.length - 6}</span>` : ''}</div></div>`;
     h += `<div class="card">${cardHead('user', 'הילדים', `<span class="cnt">${state.kids.length}</span>`)}<div class="kidgrid">${state.kids.map(k => { const n = kidNotes(k.name).length; return `<button data-kid="${esc(k.name)}"><span class="av">${esc(k.name[0] || '?')}</span><b>${esc(k.name.split(' ')[0])}</b>${n ? `<em>${n}</em>` : ''}</button>`; }).join('')}</div></div>`;
   }
   h += bdCard(14, 'ימי הולדת בשבועיים הקרובים');
@@ -1322,9 +1333,11 @@ function viewOnboard() {
   const st = state.onb || (state.onb = { step: 0, name: state.name || '', role: '', home: '', size: '', classes: [], subject: '' });
   const steps = 4, dots = `<div class="gd-dots">${Array.from({ length: steps }, (_, i) => `<i class="${i === st.step ? 'on' : ''}"></i>`).join('')}</div>`;
   let body = '';
-  if (st.step === 0) body = `<div class="onb-logo">${logo('wlogo')}</div><h1>ברוכה הבאה ל״הכיתה שלי״</h1>
+  if (st.step === 0) body = `<div class="onb-logo">${logo('wlogo')}</div><h1>${g('ברוכה הבאה', 'ברוך הבא')} ל״הכיתה שלי״</h1>
     <p class="onb-sub">התכנון השבועי, הכיתה וההורים – מסודרים במקום אחד. ארבעה צעדים קצרים ומתחילים.</p>
-    <form class="card onb-form" data-onbstep="0"><label class="field">איך קוראים לך?<input name="name" required value="${esc(st.name)}" placeholder="השם שלך" autocomplete="given-name"></label><button class="cta">הבא</button></form>
+    <form class="card onb-form" data-onbstep="0"><label class="field">איך קוראים לך?<input name="name" required value="${esc(st.name)}" placeholder="השם שלך" autocomplete="given-name"></label>
+      <p class="pmlbl">איך לפנות אלייך?</p><div class="seg"><button type="button" class="${!state.prefs.male ? 'on' : ''}" data-addr="f">את</button><button type="button" class="${state.prefs.male ? 'on' : ''}" data-addr="m">אתה</button></div>
+      <button class="cta">הבא</button></form>
     <p class="hint">יש לך כבר חשבון? <button class="linkbtn" data-act="onblogin">התחברות</button></p>`;
   if (st.step === 1) body = `<h1>${esc(st.name)}, מה התפקיד שלך?</h1><p class="onb-sub">אפשר לשנות בכל רגע (הכיתה ← ניהול כיתות)</p>
     <div class="big">${rolePick(st.role, 'data-onbrole')}</div>
@@ -1358,11 +1371,12 @@ function finishOnboard(go2) {
   state.curClass = c0.id; state.kids = c0.kids; state.prefs.cls = c0.name; state.prefs.classSize = c0.size || '';
   state.onboarded = true; state.onb = null; state.guided = true; save();
   go('now'); confetti();
-  setTimeout(() => { guideSheet(0); state._afterGuide = go2; }, 700);
+  setTimeout(() => { if (go2 === 'upload') $('#file').click(); if (go2 === 'manual') manualSheet(); }, 500);
 }
 // first steps – shown on "עכשיו" until done or dismissed
 function firstSteps() {
   if (state.prefs.stepsDone) return '';
+  { const w0 = realWeek(), d0 = w0 && todayInWeek(w0), ph0 = d0 && phase(d0); if (ph0 && (ph0.kind === 'lesson' || ph0.kind === 'break')) return ''; }
   const items = [
     ['upload', 'להעלות או לבנות תכנון שבועי', !!Object.keys(state.weeks).length, 'data-act="upload"'],
     ['users', 'להוסיף את הילדים בכיתה', state.kids.length > 0, 'data-go="kids"'],
@@ -1373,6 +1387,7 @@ function firstSteps() {
   ];
   const done = items.filter(x => x[2]).length;
   if (done === items.length) return '';
+  if (!state._stepsOpen) { const nx = items.find(x => !x[2]); return `<div class="card steps fold"><button class="stepline" data-act="stepsopen"><span class="sc">${ic('flag')}</span><span class="grow"><b>צעדים ראשונים · ${done}/${items.length}</b><small>הבא: ${nx[1]}</small></span>${ic('chevD', 'chev')}</button><button class="iconbtn stepsx" data-act="stepsdone" aria-label="סגירת הצעדים הראשונים">${ic('x')}</button></div>`; }
   return `<div class="card steps">${cardHead('flag', 'צעדים ראשונים', `<span class="cnt">${done}/${items.length}</span><button class="iconbtn stepsx" data-act="stepsdone" aria-label="סגירת הצעדים הראשונים">${ic('x')}</button>`)}
     <div class="bar"><span style="--w:${done / items.length * 100}%"></span></div>
     ${items.map(([i, t, ok, a]) => `<button class="steprow ${ok ? 'done' : ''}" ${ok ? 'disabled' : a}><span class="sc">${ok ? '✓' : ic(i)}</span><span class="grow">${t}</span>${ok ? '' : ic('chevL', 'chev')}</button>`).join('')}
@@ -1401,11 +1416,12 @@ function viewFriends() {
   const D2 = soc.data;
   h += `<div class="card mycode">${cardHead('user', 'הקוד שלי')}
     <div class="code">${esc(D2.me.code)}</div>
-    <p class="dim">שולחים את הקוד לחברה – והיא מוסיפה אותו אצלה. מרגע זה אתן חברות.</p>
+    <p class="dim">שולחים את הקוד לחברה. היא מוסיפה אותו אצלה, ואת מאשרת את הבקשה – ומרגע זה אתן חברות.</p>
     <div class="btnrow"><button class="cta soft" data-act="sharecode">${ic('upload')} שליחת הקוד</button></div>
   </div>`;
   h += `<div class="card">${cardHead('plus', 'הוספת חברה')}<form class="addtodo" data-friendadd><input name="code" placeholder="הקוד של החברה (6 תווים)" autocomplete="off" dir="ltr" maxlength="8"><button aria-label="הוספה">${ic('plus')}</button></form></div>`;
-  if (D2.inbox.length) h += `<div class="card">${cardHead('bell', 'נשלח אלייך', `<span class="cnt">${D2.inbox.length}</span>`)}${D2.inbox.map(x => `<button class="pmhist" data-inbox="${x.id}"><span class="tpill">${x.kind === 'week' ? 'שבוע' : 'שיעור'}</span><span class="grow"><b>${esc(x.title)}</b><small>מ${esc(x.fromName || 'חברה')} · ${new Date(x.at).getDate()}.${new Date(x.at).getMonth() + 1}</small></span>${ic('chevL', 'chev')}</button>`).join('')}</div>`;
+  if ((D2.requests || []).length) h += `<div class="card">${cardHead('heart', 'בקשות חברות', `<span class="cnt">${D2.requests.length}</span>`)}${D2.requests.map(r => `<div class="clsrow"><span class="av">${esc((r.name || '?')[0])}</span><span class="grow"><b>${esc(r.name || 'מורה')}</b><small>${esc(r.school || '')}</small></span><button class="cta sm" data-freq="accept|${r.id}">אישור</button><button class="iconbtn" data-freq="decline|${r.id}" aria-label="דחייה">${ic('x')}</button></div>`).join('')}</div>`;
+  if (D2.inbox.length) h += `<div class="card">${cardHead('bell', g('נשלח אלייך', 'נשלח אליך'), `<span class="cnt">${D2.inbox.length}</span>`)}${D2.inbox.map(x => `<button class="pmhist" data-inbox="${x.id}"><span class="tpill">${x.kind === 'week' ? 'שבוע' : 'שיעור'}</span><span class="grow"><b>${esc(x.title)}</b><small>מ${esc(x.fromName || 'חברה')} · ${new Date(x.at).getDate()}.${new Date(x.at).getMonth() + 1}</small></span>${ic('chevL', 'chev')}</button>`).join('')}</div>`;
   h += `<div class="card">${cardHead('users', 'החברות שלי', `<span class="cnt">${D2.friends.length}</span>`)}${D2.friends.length ? D2.friends.map(f => `<div class="clsrow"><span class="av">${esc((f.name || '?')[0])}</span><span class="grow"><b>${esc(f.name || 'מורה')}</b><small>${esc([f.subjects, f.school].filter(Boolean).join(' · '))}</small></span><button class="cta soft sm" data-flib="${f.id}">השיעורים שלה</button><button class="iconbtn" data-funfriend="${f.id}" aria-label="הסרה">${ic('x')}</button></div>`).join('') : '<p class="dim">עוד אין חברות. שולחים את הקוד, או מוסיפים קוד של חברה.</p>'}</div>`;
   h += `<div class="card">${cardHead('star', 'שיעורים ששיתפתי עם כל החברות')}<button class="cta soft" data-flib="${D2.me.id}">צפייה ועריכה</button><p class="hint">משתפים שיעור מתוך מסך "השבוע": פותחים שיעור ← "שיתוף".</p></div>`;
   h += `<div class="card">${cardHead('pencil', 'הפרופיל שלי')}<form data-profile><label class="field">שם<input name="name" value="${esc(D2.me.name || state.name)}"></label><label class="field">בית ספר<input name="school" value="${esc(D2.me.school || '')}"></label><label class="field">מה אני מלמדת<input name="subjects" value="${esc(D2.me.subjects || '')}" placeholder="מחנכת ב׳ · שפה וחשבון"></label><button class="cta soft">שמירה</button></form></div>`;
@@ -1547,6 +1563,79 @@ async function readBellFile(f) {
   } catch (e) { loader(false); toast('לא הצלחתי לקרוא את הקובץ 😕'); }
 }
 
+
+// ================================================================ CONSISTENT DIALOGS: confirm sheet + undo
+// ask() replaces the phone's grey await ask() box with the app's own sheet; resolves true/false
+function ask(text, { ok = 'אישור', danger = false, title = '' } = {}) {
+  return new Promise(res => {
+    let el = $('#ask'); if (!el) { el = document.createElement('div'); el.id = 'ask'; document.body.appendChild(el); }
+    el.innerHTML = `<div class="askbg" data-askno></div><div class="askbox" role="alertdialog" aria-modal="true">
+      ${title ? `<h3>${esc(title)}</h3>` : ''}<p>${esc(text).replace(/\n/g, '<br>')}</p>
+      <div class="askbtns"><button class="cta soft" data-askno>ביטול</button><button class="cta ${danger ? 'dangerbtn' : ''}" data-askyes>${esc(ok)}</button></div></div>`;
+    el.classList.add('show');
+    const done = v => { el.classList.remove('show'); el.onclick = null; res(v); };
+    el.onclick = e => { if (e.target.closest('[data-askyes]')) done(true); else if (e.target.closest('[data-askno]')) done(false); };
+  });
+}
+// delete now, offer "ביטול" for a few seconds – restores the listed parts of the state
+function withUndo(keys, label, fn) {
+  const snap = JSON.stringify(keys.map(k => state[k]));
+  fn(); save(); rerender();
+  state._undo = () => { const v = JSON.parse(snap); keys.forEach((k, i) => { state[k] = v[i]; }); if (keys.includes('classes')) { const c = curCls(); if (c) state.kids = c.kids; } save(); rerender(); toast('שוחזר ✓'); };
+  toast(label, 6000, 'ביטול');
+}
+
+// ================================================================ APP LOCK (4-digit code, kept as a hash on the phone)
+async function pinHash(pin) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('hakita:' + pin)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+function lockCheck(awayMs) { if (state.prefs.pinHash && (awayMs == null || awayMs > (state.prefs.lockMin || 5) * 60000)) showLock(); }
+function showLock(mode = 'unlock') {
+  let el = $('#lock'); if (!el) { el = document.createElement('div'); el.id = 'lock'; document.body.appendChild(el); }
+  el.dataset.mode = mode; el.dataset.pin = '';
+  const title = mode === 'set' ? 'בחירת קוד של 4 ספרות' : mode === 'confirm' ? 'שוב, לאישור' : 'הכיתה שלי נעולה';
+  el.innerHTML = `<div class="lk-in">${logo('wlogo')}<h2>${title}</h2><div class="lk-dots">${'<i></i>'.repeat(4)}</div>
+    <div class="lk-pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map(k => k === '' ? '<span></span>' : `<button data-lk="${k}">${k}</button>`).join('')}</div>
+    ${mode !== 'unlock' ? '<button class="linkbtn" data-lk="cancel">ביטול</button>' : '<p class="hint">שכחת? אפשר להתחבר לחשבון ולשחזר – הקוד שמור רק בטלפון</p>'}</div>`;
+  el.classList.add('show');
+}
+async function lockKey(k) {
+  const el = $('#lock'); if (!el) return;
+  if (k === 'cancel') { el.classList.remove('show'); return; }
+  let pin = el.dataset.pin || '';
+  pin = k === '⌫' ? pin.slice(0, -1) : (pin + k).slice(0, 4);
+  el.dataset.pin = pin;
+  el.querySelectorAll('.lk-dots i').forEach((d, i) => d.classList.toggle('on', i < pin.length));
+  if (pin.length < 4) return;
+  const h = await pinHash(pin), mode = el.dataset.mode;
+  if (mode === 'set') { state._pin1 = h; showLock('confirm'); return; }
+  if (mode === 'confirm') { if (h === state._pin1) { state.prefs.pinHash = h; save(); el.classList.remove('show'); toast('הנעילה הופעלה 🔒'); rerender(); } else { toast('הקודים לא תואמים – מנסים שוב'); showLock('set'); } return; }
+  if (h === state.prefs.pinHash) el.classList.remove('show');
+  else { el.classList.add('shake'); if (navigator.vibrate) navigator.vibrate(60); setTimeout(() => { el.classList.remove('shake'); el.dataset.pin = ''; el.querySelectorAll('.lk-dots i').forEach(d => d.classList.remove('on')); }, 450); }
+}
+
+// ================================================================ SYNC DOT – is everything saved to the account?
+function syncDot() {
+  if (!sync.user) return '';
+  const st = sync.err ? 'err' : sync.pending || sync.busy ? 'wait' : 'ok';
+  return `<button class="syncdot ${st}" data-go="settings" aria-label="${st === 'ok' ? 'הכל נשמר בחשבון' : st === 'wait' ? 'שומרת…' : 'לא נשמר – בודקים בהגדרות'}"></button>`;
+}
+
+// ================================================================ ONE-TIME TIPS – a short line the first time each screen opens
+const TIPS = {
+  now: 'כאן רואים מה קורה ברגע זה – השיעור, השלבים ומה צריך. "מצב בכיתה" פותח הכל בגדול.',
+  day: 'כל השבוע, יום אחרי יום. מחליקים ימינה ושמאלה בין ימים ושבועות, ולוחצים על שיעור כדי לפתוח אותו.',
+  prep: 'מה להדפיס, לשכפל ולהביא – לכל יום. מסמנים וי, ולוחצים על קובץ כדי להדפיס או לשתף.',
+  cls: 'הילדים, ההורים והמעקב. לוחצים על ילד כדי לראות את כל מה שנרשם עליו.',
+  more: 'תכנון שבוע חדש, לוח צלצולים, מאגר שיעורים, חברות והגדרות.',
+};
+function tipOnce(tab) {
+  const seen = state.prefs.tips || {};
+  if (!TIPS[tab] || seen[tab] || !state.onboarded) return '';
+  return `<div class="card tip1"><span class="grow">${TIPS[tab]}</span><button class="linkbtn" data-tipok="${tab}">הבנתי</button></div>`;
+}
+
+// ================================================================ ADDRESS – את / אתה
+const g = (f, m) => (state.prefs.male ? m : f);
+
 // ================================================================ TOOLKIT: research-based methods & tips
 const tipOfDay = () => { const t = now(); return BANK[(t.getFullYear() * 400 + t.getMonth() * 31 + t.getDate()) % BANK.length]; };
 function tipCard() {
@@ -1561,7 +1650,7 @@ function viewTools() {
   const c = state.tcat;
   const list = BANK.filter(b => !c || (c === 'saved' ? state.tsaved.includes(b.id) : b.cat === c));
   let h = top('שיטות וטיפים', 'מה באמת עובד בכיתה – כל רעיון כאן נשען על מחקר, עם מקור', 'star', { back: 'more' });
-  h += `<button class="cta tkrand" data-act="tiprand">🎲 תני לי רעיון לשיעור הבא</button>`;
+  h += `<button class="cta tkrand" data-act="tiprand">🎲 ${g('תני', 'תן')} לי רעיון לשיעור הבא</button>`;
   h += `<div class="fchips tkchips"><button class="fc ${!c ? 'on' : ''}" data-tcat="">${ic('layers')}הכל</button>${Object.entries(CATS).map(([k, [n, i]]) => `<button class="fc ${c === k ? 'on' : ''}" data-tcat="${k}">${ic(i)}${n}</button>`).join('')}<button class="fc ${c === 'saved' ? 'on' : ''}" data-tcat="saved">${ic('heart')}שמרתי</button></div>`;
   const groups = c ? [[c, list]] : Object.keys(CATS).map(k => [k, list.filter(b => b.cat === k)]);
   for (const [k, items] of groups) {
@@ -1597,7 +1686,7 @@ function viewMore(w) {
   return top('עוד', streak() > 1 ? `🔥 ${streak()} ימים ברצף שהכל מוכן` : 'כלים, הגדרות ותכנונים', 'star') + `
   ${[
     ['תכנון', [['upload', 'תכנון חדש', 'data-act="upload"'], ['layers', 'השבוע הבא', w ? 'data-act="nextweek"' : 'disabled'], ['grid', 'מערכת', 'data-day="all"'], ['clock', 'לוח צלצולים', 'data-go="bells"'], ['book', 'מאגר שיעורים', 'data-go="bank"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`]]],
-    ['כלים לשיעור', [['screen', 'מצב בכיתה', 'data-act="classmode"'], ['timer', 'טיימר', 'data-act="timer"'], ['dice', 'מי עונה?', 'data-act="picker"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"'], ['folder', 'קבצים', 'data-go="files"']]],
+    ['חומרים ורעיונות', [['folder', 'קבצים', 'data-go="files"'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"']]],
     ['תזכורות ושיתוף', [['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"'], ['heart', 'מורות חברות', 'data-go="friends"']]],
   ].map(([t, items]) => `<h4 class="sect msect">${t}</h4><div class="toolgrid">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
   <h4 class="sect msect">עזרה והגדרות</h4>
@@ -1634,6 +1723,13 @@ function viewSettings(w) {
     <div class="setrow"><span>גודל טקסט</span><div class="seg">${[0.9, 1, 1.15, 1.3].map((v, i) => `<button class="${P.size === v ? 'on' : ''}" data-size="${v}" style="font-size:${13 + i * 3}px">א</button>`).join('')}</div></div>
     <div class="setrow"><span>סגנון</span><div class="seg">${[['luxe', 'sparkle', 'יוקרתי'], ['colorful', 'heart', 'צבעוני']].map(([v, i, l]) => `<button class="${(P.skin || 'luxe') === v ? 'on' : ''}" data-skin="${v}">${ic(i)}${l}</button>`).join('')}</div></div>
     <div class="setrow"><span>מצב</span><div class="seg">${[['light', 'sun', 'יום'], ['dark', 'moon', 'לילה'], ['auto', 'sparkle', 'אוטו׳']].map(([v, i, l]) => `<button class="${P.theme === v ? 'on' : ''}" data-theme="${v}">${ic(i)}${l}</button>`).join('')}</div></div>
+  </div>
+  <div class="card">
+    ${cardHead('user', 'פרטיות')}
+    <div class="setrow"><span>שמות ילדים בהתראות<small class="dim"> (על מסך הנעילה)</small></span>${toggle('notifNames', !!P.notifNames)}</div>
+    <div class="setrow"><span>נעילה בקוד${P.pinHash ? ' · פעילה 🔒' : ''}<small class="dim"> – לפני שרואים את האפליקציה</small></span><button class="cta soft sm" data-act="${P.pinHash ? 'pinoff' : 'pinset'}">${P.pinHash ? 'ביטול' : 'הפעלה'}</button></div>
+    ${P.pinHash ? `<div class="setrow"><span>לנעול אחרי</span><div class="seg">${[1, 5, 15].map(m => `<button class="${(P.lockMin || 5) === m ? 'on' : ''}" data-lockmin="${m}">${m} דק׳</button>`).join('')}</div></div>` : ''}
+    <p class="hint">המידע על התלמידים נשמר בטלפון ובחשבון שלך בלבד. קוד הנעילה לא נשלח לשום מקום.</p>
   </div>
   <button class="card setlink" data-go="autos"><span class="chi">${ic('bell')}</span><span class="grow"><b>התראות ואוטומציות</b><small>מתי ועל מה לקבל התראה</small></span>${ic('chevL', 'chev')}</button>
   ${w ? `<div class="card">
@@ -1687,8 +1783,6 @@ function viewKids() {
     <button class="cta" data-act="savekids">שמירה</button>
     <p class="hint">משמש ל"מי עונה?" 🎲, לימי הולדת ולהודעה אישית להורה בווטסאפ 📞</p>
   </div>
-  ${state.kids.length ? `<div class="card">${cardHead('user', 'כרטיס תלמיד', '<span class="cnt">לוחצים על שם</span>')}<div class="fchips wrap">${state.kids.map(k => `<button class="fc" data-kid="${esc(k.name)}">${esc(k.name)}</button>`).join('')}</div></div>` : ''}
-  ${(() => { const q = quietKids(7); return state.kids.length && q.length && q.length < state.kids.length ? `<div class="card quiet">${cardHead('heart', 'השבוע עוד לא נרשם כלום על', `<span class="cnt">${q.length}</span>`)}<p class="dim">אולי מילה טובה, שיחה קצרה או פתק ביומן?</p><div class="fchips wrap">${q.map(k => `<button class="fc" data-kid="${esc(k.name)}">${esc(k.name)}</button>`).join('')}</div></div>` : ''; })()}
   ${up.length ? `<div class="card">${cardHead('cake', 'הבאים בתור')}${up.slice(0, 8).map(({ k, x, days }) =>
     `<div class="row"><span class="tpill">${x.getDate()}.${x.getMonth() + 1}</span><span class="grow">${esc(k.name)}</span><span class="dim">${days === 0 ? 'היום! 🎉' : days === 1 ? 'מחר' : `בעוד ${days} ימים`}</span></div>`).join('')}</div>` : ''}`;
 }
@@ -1723,7 +1817,7 @@ function viewSummary(w) {
 function viewEmpty() {
   if (!state.onboarded) return `<section class="onb">
     <div class="onb-logo">${logo('wlogo')}</div>
-    <h1>ברוכה הבאה ל״הכיתה שלי״</h1>
+    <h1>${g('ברוכה הבאה', 'ברוך הבא')} ל״הכיתה שלי״</h1>
     <p class="onb-sub">כמה פרטים כדי להתחיל:</p>
     <form class="card onb-form" data-onboard>
       <label class="field">איך קוראים לך?<input name="name" required placeholder="השם שלך" autocomplete="given-name"></label>
@@ -2125,7 +2219,7 @@ function importBackup() {
     try {
       const j = JSON.parse(await inp.files[0].text());
       if (j.app !== 'hakita-sheli') throw new Error('not ours');
-      if (!confirm('לשחזר מהגיבוי? המידע הנוכחי בטלפון יוחלף.')) return;
+      if (!await ask('לשחזר מהגיבוי? המידע הנוכחי בטלפון יוחלף.')) return;
       Object.assign(state, j.data); save(); applyPrefs(); go('now'); toast('שוחזר! 💜');
     } catch { toast('זה לא קובץ גיבוי של האפליקציה 😕'); }
   };
@@ -2513,8 +2607,9 @@ function viewJournal() {
   ${kidsRows.length ? `<div class="card">${cardHead('users', 'לפי ילד/ה')}${kidsRows.map(([k, v]) => `<div class="row"><span class="grow">${esc(k)}</span>${v.star ? `<span class="tpill">⭐ ${v.star}</span>` : ''}${v.disrupt ? `<span class="tpill warn">⚠️ ${v.disrupt}</span>` : ''}</div>`).join('')}</div>` : ''}`;
 }
 // "עכשיו": one tidy list – parents to call, children to follow up, my reminders – short, with a "more" link
-function todayList() {
+function todayList(folded) {
   const acts = openActions(), todos = state.todos.filter(t => todoDue(t) && !t.done);
+  if (folded && !state._tlOpen) { const n = acts.length + todos.length; return n ? `<div class="card fold1"><button class="pnh" data-act="tlopen"><b>${ic('pin')} לא לשכוח</b><span class="cnt">${n}</span>${ic('chevD', 'chev')}</button></div>` : ''; }
   const rows = [
     ...acts.map(n => { const [e, t] = TAGS[n.tag] || TAGS.note; return `<div class="tlrow"><button class="tlchk" data-cdone="${n.id}" aria-label="טופל">${ic('check')}</button><span class="grow"><b>${e} ${esc(n.kids.join(', ') || t)}</b>${n.text ? ` <span>– ${esc(n.text)}</span>` : ''}</span></div>`; }),
     ...todos.map(t => `<div class="tlrow"><label class="tlchk"><input type="checkbox" data-todo="${t.id}"><span>${ic('check')}</span></label><span class="grow"><b>📌 ${esc(t.text)}</b>${t.date ? ` <small class="tpill">${esc(fmtDate(t.date))}</small>` : ''}</span></div>`),
@@ -2613,7 +2708,7 @@ function buildQueue() {
     if (!a.on) continue;
     if (a.kind === 'morning') for (const { w, d, dd } of days) {
       const lines = [];
-      const bd = bdOn(dd); if (bd.length) lines.push(`🎂 יום הולדת ל${names(bd)}!`);
+      const bd = bdOn(dd); if (bd.length) lines.push(state.prefs.notifNames ? `🎂 יום הולדת ל${names(bd)}!` : `🎂 ${bd.length > 1 ? bd.length + ' ימי הולדת' : 'יום הולדת'} בכיתה היום`);
       lines.push(`📅 ${d.periods[0].start} · ${d.periods[0].title}`);
       const pr = sec(w, d, /ערב|הדפסה/), br = sec(w, d, /להכין|להביא/);
       if (pr.length) lines.push(`🖨 להדפיס: ${pr.join(' · ')}`);
@@ -2633,7 +2728,8 @@ function buildQueue() {
       if (dd < new Date(new Date().toDateString())) continue;
       const o = openActions(); if (!o.length) continue;
       const par = o.filter(n => n.tag === 'parent'), care = o.filter(n => n.tag === 'care');
-      add(atTime(dd, a.time), 'לטיפול היום 📞', [par.length ? `📞 להתקשר: ${par.map(n => n.kids.join(', ') || n.text).join(' · ')}` : '', care.length ? `👤 לטיפול: ${care.map(n => n.kids.join(', ') || n.text).join(' · ')}` : ''].filter(Boolean).join('\n'), 'actions');
+      const nm = !!state.prefs.notifNames;
+      add(atTime(dd, a.time), 'לטיפול היום 📞', [par.length ? `📞 להתקשר: ${nm ? par.map(n => n.kids.join(', ') || n.text).join(' · ') : par.length + ' הורים'}` : '', care.length ? `👤 לטיפול: ${nm ? care.map(n => n.kids.join(', ') || n.text).join(' · ') : care.length + ' תלמידים'}` : ''].filter(Boolean).join('\n'), 'actions');
     }
     if (a.kind === 'weekly') for (let i = 0; i < 8; i++) { const d = addDays(new Date(), i); if (d.getDay() === +a.day) add(atTime(d, a.time), 'תזכורת 💜', a.text || '', 'weekly-' + a.id); }
     if (a.kind === 'events') { const by = new Map(); for (const ev of allEvents(9)) if (ev.kind !== 'bday' && ev.kind !== 'todo') { const k = ev.d.toDateString(); by.set(k, [...(by.get(k) || []), ev]); } for (const [, evs] of by) add(atTime(addDays(evs[0].d, -1), a.time), 'מחר 📅', evs.map(x => `${x.icon} ${x.text}`).join('\n'), 'events'); }
@@ -2727,8 +2823,16 @@ function pickQuote() {
   try { localStorage.setItem('hk-q', i); } catch { /* fine */ }
   return all[i];
 }
-function welcome() {
+function welcome(force) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches && $('#welcome')) return;
+  const tk = dateKey(now());
+  if (!force && !new URLSearchParams(location.search).has('welcome')) {
+    let seen = ''; try { seen = localStorage.getItem('hk-wl') || ''; } catch { /* fine */ }
+    const w0 = realWeek(), d0 = w0 && todayInWeek(w0), ph0 = d0 && phase(d0);
+    const inSchool = ph0 && (ph0.kind === 'lesson' || ph0.kind === 'break');
+    if (seen === tk || inSchool || !state.onboarded) return;
+  }
+  try { localStorage.setItem('hk-wl', tk); } catch { /* fine */ }
   const old = $('#welcome'); if (old) old.remove();
   const t = now();
   const w = realWeek(), day = w && todayInWeek(w);
@@ -2746,12 +2850,12 @@ function welcome() {
   requestAnimationFrame(() => el.classList.add('show'));
   let gone = false;
   const bye = () => { if (gone) return; gone = true; el.classList.remove('show'); el.classList.add('bye'); setTimeout(() => el.remove(), 600); };
-  el.addEventListener('click', bye); setTimeout(bye, 3000);
+  el.addEventListener('click', bye); setTimeout(bye, 1600);
 }
 // coming back to the app after a while also counts as "opening" it
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) lastHidden = Date.now();
-  else if (lastHidden && Date.now() - lastHidden > 3 * 60 * 1000) welcome();
+  else if (lastHidden && Date.now() - lastHidden > 3 * 60 * 1000) { welcome(); lockCheck(Date.now() - lastHidden); }
 });
 function streak() {
   // consecutive school days (looking back from the latest one) that were fully prepared
@@ -2773,7 +2877,7 @@ function checkReady(w, dow) {
 function readyMoment(day) {
   const n = streak();
   const el = document.createElement('div'); el.id = 'readyMoment';
-  el.innerHTML = `<div class="rm-card"><div class="rm-glow"></div><b>את מוכנה ליום ${esc(day.name)} ✨</b><span>${n > 1 ? `🔥 ${n} ימים ברצף שהכל מוכן` : 'כל המשימות סומנו'}</span></div>`;
+  el.innerHTML = `<div class="rm-card"><div class="rm-glow"></div><b>${g('את מוכנה', 'אתה מוכן')} ליום ${esc(day.name)} ✨</b><span>${n > 1 ? `🔥 ${n} ימים ברצף שהכל מוכן` : 'כל המשימות סומנו'}</span></div>`;
   document.body.appendChild(el);
   requestAnimationFrame(() => el.classList.add('show'));
   confetti(); if (navigator.vibrate) navigator.vibrate([12, 60, 12]);
@@ -2800,7 +2904,11 @@ function render(animate) {
   const v = $('#view');
   const needWeek = !['more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells'].includes(state.tab);
   document.body.classList.toggle('onboarding', !state.onboarded);
-  v.innerHTML = !state.onboarded ? viewOnboard() : !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
+  let html = !state.onboarded ? viewOnboard() : !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
+  const busyNow = (() => { const w0 = realWeek(), d0 = w0 && todayInWeek(w0), ph0 = d0 && phase(d0); return ph0 && (ph0.kind === 'lesson' || ph0.kind === 'break'); })();
+  const tp = state.onboarded && TABS.includes(state.tab) && !(state.tab === 'now' && busyNow) ? tipOnce(state.tab) : '';
+  if (tp) html = html.replace('</header>', '</header>' + tp);
+  v.innerHTML = html;
   if (animate) {
     const a = TABS.indexOf(SUB[state.tab] || state.tab), b = TABS.indexOf(SUB[lastTab] || lastTab);
     const dir = lastTab == null ? 0 : a !== b ? Math.sign(a - b) : SUB[state.tab] ? 1 : -1;
@@ -2881,7 +2989,7 @@ function go(tab) { state.tab = tab; render(true); window.scrollTo({ top: 0, beha
 function rerender() { const y = window.scrollY; render(false); window.scrollTo({ top: y, behavior: 'instant' }); }
 
 // ================================================================ events
-document.addEventListener('click', e => {
+document.addEventListener('click', async e => {
   const t = e.target.closest('button, a.trow, [data-day]');
   if (!t) return;
   const D = t.dataset, w = pickWeek();
@@ -2929,12 +3037,12 @@ document.addEventListener('click', e => {
   if (D.picktag) { state._note.tag = D.picktag; document.querySelectorAll('.tp').forEach(b => b.classList.toggle('on', b.dataset.picktag === D.picktag)); return; }
   if (D.pickkid) { const k = state._note.kids, i = k.indexOf(D.pickkid); if (i >= 0) k.splice(i, 1); else k.push(D.pickkid); t.classList.toggle('on', i < 0); return; }
   if (D.cdone) { const n = state.cnotes.find(x => x.id === D.cdone); if (n) { n.done = !n.done; save(); if (n.done) miniBurst(t); setTimeout(rerender, 250); } return; }
-  if (D.cdel) { if (confirm('למחוק את ההערה?')) { state.cnotes = state.cnotes.filter(x => x.id !== D.cdel); save(); rerender(); } return; }
+  if (D.cdel) { { withUndo(['cnotes'], 'ההערה נמחקה', () => { state.cnotes = state.cnotes.filter(x => x.id !== D.cdel); }); } return; }
   if (D.jf != null) { state.jfilter = D.jf; rerender(); return; }
   if (D.ledit) { state.listEdit = state.listEdit === D.ledit ? null : D.ledit; rerender(); return; }
   if (D.ldelitem) { const [l, i] = D.ldelitem.split('|'); const L = state.lists.find(x => x.id === l); L.items = L.items.filter(x => x.id !== i); save(); rerender(); return; }
   if (D.lreset) { const L = state.lists.find(x => x.id === D.lreset); L.items.forEach(i => { i.done = false; }); save(); rerender(); return; }
-  if (D.ldel) { if (confirm('למחוק את הרשימה?')) { state.lists = state.lists.filter(x => x.id !== D.ldel); state.listEdit = null; save(); rerender(); } return; }
+  if (D.ldel) { if (true) { withUndo(['lists'], 'הרשימה נמחקה', () => { state.lists = state.lists.filter(x => x.id !== D.ldel); }); state.listEdit = null; save(); rerender(); } return; }
   if (D.ltpl != null) { const [e, title, items] = LIST_TEMPLATES[+D.ltpl]; state.lists.push({ id: uid(), emoji: e, title, items: items.map(x => ({ id: uid(), text: x, done: false })) }); save(); rerender(); toast('הרשימה נוצרה ✓'); return; }
   if (D.autoon) { const a = autos().find(x => x.id === D.autoon); a.on = !a.on; save(); rerender(); return; }
   if (D.autodel) { state.autos = autos().filter(x => x.id !== D.autodel); save(); rerender(); return; }
@@ -2942,7 +3050,7 @@ document.addEventListener('click', e => {
   if (D.openfile) { closeOverlay(); openFile(D.openfile); return; }
   if (D.filemenu) { fileMenu(D.filemenu); return; }
   if (D.reassign) { const f = state.files.find(x => x.id === D.reassign); assignSheet([{ ...f, cur: f.ref ? `${f.ref.w}|${f.ref.dow}|${f.ref.label}` : '', m: null }], true); return; }
-  if (D.delfile) { if (confirm('למחוק את הקובץ?')) { deleteFile(D.delfile).then(() => { closeOverlay(); rerender(); toast('הקובץ נמחק'); }); } return; }
+  if (D.delfile) { if (await ask('למחוק את הקובץ?', { ok: 'מחיקה', danger: true })) { deleteFile(D.delfile).then(() => { closeOverlay(); rerender(); toast('הקובץ נמחק'); }); } return; }
   if (D.attach) { const [dow, label] = D.attach.split('|'); attachTo = { dow: +dow, label }; $('#upfile').click(); return; }
   if (D.edit != null) { const [dow, lb] = D.edit.split('|'); editor(w, +dow, lb || null); return; }
   if (D.addrow) { t.insertAdjacentHTML('beforebegin', editor.row(D.addrow)); const n = t.previousElementSibling.querySelector('input,textarea'); if (n) n.focus(); return; }
@@ -2958,7 +3066,7 @@ document.addEventListener('click', e => {
     state.open[D.log] = true; setTimeout(rerender, D.s === 'done' ? 350 : 0); return;
   }
   if (D.week) { state.activeId = D.week; save(); go('day'); return; }
-  if (D.delweek) { if (confirm('למחוק את השבוע הזה מהטלפון?')) { delete state.weeks[D.delweek]; delete state.checks[D.delweek]; delete state.logs[D.delweek]; save(); rerender(); } return; }
+  if (D.delweek) { const id = D.delweek; withUndo(['weeks', 'checks', 'logs'], 'השבוע נמחק', () => { delete state.weeks[id]; delete state.checks[id]; delete state.logs[id]; if (state.viewWeekId === id) state.viewWeekId = null; }); return; }
   if (D.pin) { if (state.pins[D.pin]) delete state.pins[D.pin]; else { state.pins[D.pin] = D.pintext; miniBurst(t); } save(); setTimeout(rerender, 200); return; }
   if (D.fsub != null) { state.fsub = D.fsub; rerender(); return; }
   if (D.fgroup) { state.fgroup = D.fgroup; rerender(); return; }
@@ -2972,19 +3080,26 @@ document.addEventListener('click', e => {
   if (D.pmtog2) { state.pm.opts[D.pmtog2] = !state.pm.opts[D.pmtog2]; state.pm.text = null; rerender(); return; }
   if (D.belldel != null) { const r = state._bellDraft || bellRows(); r.splice(+D.belldel, 1); state._bellDraft = r; rerender(); return; }
   if (D.pnote != null) { state.noteOpen = state.noteOpen || {}; state.noteOpen[D.pnote] = !state.noteOpen[D.pnote]; rerender(); return; }
+  if (D.addr) { state.prefs.male = D.addr === 'm'; const n = document.querySelector('[data-onbstep="0"] [name=name]'); if (state.onb && n) state.onb.name = n.value; save(); rerender(); return; }
+  if (D.lockmin) { state.prefs.lockMin = +D.lockmin; save(); rerender(); return; }
+  if (D.tipok) { state.prefs.tips = { ...(state.prefs.tips || {}), [D.tipok]: 1 }; save(); rerender(); return; }
+  if (D.lk != null) { lockKey(D.lk); return; }
   if (D.cls) { switchClass(D.cls); return; }
   if (D.clsf != null) { state.clsFilter = D.clsf; rerender(); return; }
   if (D.role) { const st = roleSet(state.prefs.role); if (st.has(D.role)) { if (st.size > 1) st.delete(D.role); else { toast('צריך לסמן לפחות אחת'); return; } } else st.add(D.role); state.prefs.role = roleOf(st); save(); classesSheet(); return; }
-  if (D.clsedit) { const c = state.classes.find(x => x.id === D.clsedit); const n = prompt('שם הכיתה:', c.name); if (n == null) return; const z = prompt('כמה תלמידים?', c.size || ''); const sb = prompt('מה את מלמדת שם? (ריק = מחנכת)', c.subject || ''); c.name = n.trim() || c.name; c.size = +z || 0; c.subject = (sb || '').trim(); if (c.id === state.curClass) { state.prefs.cls = c.name; state.prefs.classSize = c.size || ''; } save(); classesSheet(); rerender(); return; }
-  if (D.clsdel) { const c = state.classes.find(x => x.id === D.clsdel); if (!confirm(`למחוק את ${c.name}? הילדים ברשימה שלה יימחקו.`)) return; state.classes = state.classes.filter(x => x.id !== c.id); if (state.curClass === c.id) { state.curClass = state.classes[0].id; state.kids = state.classes[0].kids; } save(); classesSheet(); rerender(); return; }
+  if (D.clsedit) { const c = state.classes.find(x => x.id === D.clsedit); openOverlay(`<form class="ov sheet" data-clsform="${c.id}"><button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button><div class="ovh">${ic('pencil')}<h2>עריכת כיתה</h2></div>
+    <label class="field">שם הכיתה<input name="name" value="${esc(c.name)}" required></label><label class="field">כמה תלמידים<input name="size" type="number" inputmode="numeric" value="${esc(c.size || '')}"></label>
+    <label class="field">${g('מה אני מלמדת שם (ריק = הכיתה שאני מחנכת)', 'מה אני מלמד שם (ריק = הכיתה שאני מחנך)')}<input name="subject" value="${esc(c.subject || '')}"></label><button class="cta">${ic('check')} שמירה</button></form>`); return; }
+  if (D.clsdel) { const c = state.classes.find(x => x.id === D.clsdel); syncCls(); closeOverlay(); withUndo(['classes', 'curClass'], `${c.name} נמחקה`, () => { state.classes = state.classes.filter(x => x.id !== c.id); if (state.curClass === c.id) { state.curClass = state.classes[0].id; state.kids = state.classes[0].kids; } }); return; }
   if (D.onbrole) { const st = roleSet(state.onb.role); if (st.has(D.onbrole)) st.delete(D.onbrole); else st.add(D.onbrole); state.onb.role = roleOf(st); rerender(); return; }
   if (D.onbnext) { if (!state.onb.role) return; state.onb.step = +D.onbnext; rerender(); window.scrollTo({ top: 0 }); return; }
   if (D.onbback) { state.onb.step = +D.onbback - 1; rerender(); return; }
   if (D.onbgo) { finishOnboard(D.onbgo); return; }
   if (D.sharelesson) { const [dow, lb] = D.sharelesson.split('|'); shareLessonSheet(dow, lb); return; }
   if (D.shto) { const S2 = state._share, i = S2.to.indexOf(D.shto); if (i >= 0) S2.to.splice(i, 1); else S2.to.push(D.shto); shareSheet(); return; }
+  if (D.freq) { const [op, id] = D.freq.split('|'); socApi(op, { id }).then(() => { toast(op === 'accept' ? 'אתן חברות עכשיו ✓' : 'הבקשה נדחתה'); socLoad(true); }).catch(() => toast('לא הצלחתי 😕')); return; }
   if (D.flib) { libSheet(D.flib); return; }
-  if (D.funfriend) { if (!confirm('להסיר את החברה? אפשר להוסיף שוב עם הקוד.')) return; socApi('remove', { id: D.funfriend }).then(() => socLoad(true)); return; }
+  if (D.funfriend) { if (!await ask('להסיר את החברה? אפשר להוסיף שוב עם הקוד.', { ok: 'הסרה', danger: true })) return; socApi('remove', { id: D.funfriend }).then(() => socLoad(true)); return; }
   if (D.inbox) { openInbox(D.inbox); return; }
   if (D.unpub) { socApi('unpublish', { id: D.unpub }).then(() => { toast('הוסר מהספרייה'); libSheet(soc.data.me.id); }); return; }
   if (D.libtake) { const it = (state._lib || []).find(x => x.id === D.libtake); if (it) { takeLesson(it.data, it.fromName); miniBurst(t); } return; }
@@ -2998,21 +3113,21 @@ document.addEventListener('click', e => {
   if (D.kidmsg) { closeOverlay(); state.pm = { type: 'personal', sign: false }; go('msgs'); state.pm.opts.kid = D.kidmsg; rerender(); return; }
   if (D.kidnote) { noteSheet(null, 'note'); state._note.kids = [D.kidnote]; const b = document.querySelector(`[data-pickkid="${CSS.escape(D.kidnote)}"]`); if (b) b.classList.add('on'); return; }
   if (D.gopen != null) { state.gOpen = D.gopen; rerender(); window.scrollTo({ top: 0 }); return; }
-  if (D.gdel) { if (confirm('למחוק את המבדק וכל הציונים שלו?')) { state.grades = state.grades.filter(g => g.id !== D.gdel); state.gOpen = ''; save(); rerender(); } return; }
+  if (D.gdel) { if (true) { withUndo(['grades'], 'המבדק נמחק', () => { state.grades = state.grades.filter(g => g.id !== D.gdel); }); state.gOpen = ''; save(); rerender(); } return; }
   if (D.banksave) { const [dow, lb] = D.banksave.split('|'); const p = findPeriodIn(w, +dow, lb); if (p) { state.bank.push({ id: uid(), at: Date.now(), p: JSON.parse(JSON.stringify({ ...p, homework: [] })) }); save(); miniBurst(t); toast('נשמר במאגר השיעורים ⭐'); } return; }
   if (D.bank) { bankSheet(D.bank); return; }
   if (D.bankto) { const [id, dow] = D.bankto.split('|'); addFromBank(id, dow); return; }
-  if (D.bankdel) { if (confirm('למחוק מהמאגר?')) { state.bank = state.bank.filter(b => b.id !== D.bankdel); save(); closeOverlay(); rerender(); } return; }
+  if (D.bankdel) { if (true) { withUndo(['bank'], 'נמחק מהמאגר', () => { state.bank = state.bank.filter(b => b.id !== D.bankdel); }); save(); closeOverlay(); rerender(); } return; }
   if (D.evdel) { const [tx, dt] = D.evdel.split('|'); state.events = state.events.filter(e => !(e.text === tx && e.date === dt)); save(); rerender(); return; }
   if (D.shareweek) { shareWeekSheet(D.shareweek); return; }
   if (D.guide) { if (D.guide === 'end') { closeOverlay(); const a = state._afterGuide; state._afterGuide = null; if (a === 'upload') $('#file').click(); if (a === 'manual') manualSheet(); } else guideSheet(+D.guide); return; }
-  if (D.snap != null) { getBlob('snaps').then(list => { const sn = list && list[+D.snap]; if (!sn || !confirm(`לשחזר את המצב מ־${sn.day.split('-').reverse().slice(0, 2).join('.')}? המידע הנוכחי יוחלף.`)) return; Object.assign(state, JSON.parse(sn.data)); save(); applyPrefs(); closeOverlay(); go('now'); toast('שוחזר ✓'); }); return; }
+  if (D.snap != null) { getBlob('snaps').then(async list => { const sn = list && list[+D.snap]; if (!sn || !await ask(`לשחזר את המצב מ־${sn.day.split('-').reverse().slice(0, 2).join('.')}? המידע הנוכחי יוחלף.`)) return; Object.assign(state, JSON.parse(sn.data)); save(); applyPrefs(); closeOverlay(); go('now'); toast('שוחזר ✓'); }); return; }
   if (D.pmkid) { const o = state.pm.opts; o.kid = D.pmkid; o.noteIds = []; o.notes = []; state.pm.text = null; rerender(); return; }
   if (D.pmkind) { state.pm.opts.kind = D.pmkind; state.pm.text = null; rerender(); return; }
   if (D.pmnote) { const o = state.pm.opts; const i = o.noteIds.indexOf(D.pmnote); if (i >= 0) o.noteIds.splice(i, 1); else o.noteIds.push(D.pmnote); o.notes = o.noteIds.map(id => (state.cnotes.find(n => n.id === id) || {}).text).filter(Boolean); state.pm.text = null; rerender(); return; }
   if (D.pmform) { state.pm.opts.form = D.pmform; state.pm.text = null; rerender(); return; }
   if (D.formkid) { const fm = state.forms.find(x => x.id === state.pm.opts.form); if (fm) { const i = fm.done.indexOf(D.formkid); if (i >= 0) fm.done.splice(i, 1); else fm.done.push(D.formkid); save(); rerender(); } return; }
-  if (D.formdel) { if (confirm('למחוק את הטופס?')) { state.forms = state.forms.filter(x => x.id !== D.formdel); state.pm.opts.form = ''; save(); rerender(); } return; }
+  if (D.formdel) { if (true) { withUndo(['forms'], 'הטופס נמחק', () => { state.forms = state.forms.filter(x => x.id !== D.formdel); }); state.pm.opts.form = ''; save(); rerender(); } return; }
   if (D.wakid) {
     const P = state.pm, fm = P.type === 'forms' && state.forms.find(x => x.id === P.opts.form);
     const v = fm ? formPersonal(fm.title, D.wakid) : $('#pmText').value;
@@ -3022,7 +3137,7 @@ document.addEventListener('click', e => {
   if (D.pmch) { const o = state.pm.opts; const i = o.picked.indexOf(D.pmch); if (i >= 0) o.picked.splice(i, 1); else o.picked.push(D.pmch); state.pm.text = null; rerender(); return; }
   if (D.pmhol) { state.pm.opts.holiday = D.pmhol; state.pm.text = null; rerender(); return; }
   if (D.pmtpl) { const x = state.pmtpl.find(y => y.id === D.pmtpl); if (x) { state.pm.text = x.text; rerender(); } return; }
-  if (D.pmtpldel) { if (confirm('למחוק את התבנית?')) { state.pmtpl = state.pmtpl.filter(y => y.id !== D.pmtpldel); save(); rerender(); } return; }
+  if (D.pmtpldel) { if (true) { withUndo(['pmtpl'], 'התבנית נמחקה', () => { state.pmtpl = state.pmtpl.filter(y => y.id !== D.pmtpldel); }); save(); rerender(); } return; }
   if (D.pmlog) { const x = state.pmlog.find(y => y.id === D.pmlog); if (x) { state.pm.type = x.type === 'mine' ? 'mine' : x.type; state.pm.optsFor = null; viewMsgs(pickWeek()); state.pm.text = x.text; rerender(); window.scrollTo({ top: 0, behavior: 'smooth' }); toast('ההודעה נטענה – אפשר לערוך ולשלוח'); } return; }
   if (D.pmlen) { state.pm.len = D.pmlen; state.pm.text = null; rerender(); return; }
   if (D.pmemoji) { state.pm.noemoji = !state.pm.noemoji; state.pm.text = null; rerender(); return; }
@@ -3070,7 +3185,7 @@ document.addEventListener('click', e => {
       dictSheet(D2.k, words, shuffled(words, D2.order.length ? D2.order : null)); break;
     }
     case 'pmwa': { const v = $('#pmText').value; navigator.clipboard && navigator.clipboard.writeText(v).catch(() => {}); sendWhatsApp(v, '', state.pm.file); pmLog(state.pm.type, v); break; }
-    case 'pmsavetpl': { const v = $('#pmText').value.trim(); if (!v) break; const n = prompt('שם לתבנית:', (PM_TYPES.find(x => x[0] === state.pm.type) || [0, 0, ''])[2]); if (!n) break; state.pmtpl.push({ id: uid(), name: n.trim(), text: v }); save(); toast('נשמר בתבניות שלי ⭐'); break; }
+    case 'pmsavetpl': { const v = $('#pmText').value.trim(); if (!v) break; state._tplText = v; openOverlay(`<form class="ov sheet" data-tplname><button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button><div class="ovh">${ic('star')}<h2>שמירה כתבנית</h2></div><label class="field">שם לתבנית<input name="n" value="${esc((PM_TYPES.find(x => x[0] === state.pm.type) || [0, 0, ''])[2])}" required></label><button class="cta">${ic('check')} שמירה</button></form>`); break; }
     case 'classmode': classMode(); break;
     case 'belladd': { const r = state._bellDraft || bellRows(); const last = r[r.length - 1]; const nl = BELL_ORDER[Math.min(BELL_ORDER.length - 1, BELL_ORDER.indexOf(last ? last[0] : 'בוקר') + 1)]; r.push([nl, last ? last[2] : '08:00', '']); state._bellDraft = r; rerender(); break; }
     case 'bellsave': bellSave(state._bellDraft || bellRows()); toast('לוח הצלצולים נשמר ⏰'); rerender(); break;
@@ -3080,13 +3195,20 @@ document.addEventListener('click', e => {
     case 'classes': classesSheet(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
     case 'stepsdone': state.prefs.stepsDone = true; save(); rerender(); toast('הצעדים הראשונים נסגרו · אפשר להחזיר בהגדרות'); break;
+    case 'undo': { const f = state._undo; state._undo = null; $('#toast').classList.remove('show'); if (f) f(); break; }
+    case 'pmmore': state.pmMore = !state.pmMore; rerender(); break;
+    case 'pinset': showLock('set'); break;
+    case 'pinoff': if (await ask('לבטל את הנעילה בקוד?', { ok: 'ביטול הנעילה' })) { state.prefs.pinHash = ''; save(); rerender(); toast('הנעילה בוטלה'); } break;
+    case 'restopen': state._restOpen = !state._restOpen; rerender(); break;
+    case 'tlopen': state._tlOpen = !state._tlOpen; rerender(); break;
+    case 'stepsopen': state._stepsOpen = !state._stepsOpen; rerender(); break;
     case 'stepsback': state.prefs.stepsDone = false; save(); go('now'); break;
     case 'sharecode': { const c = soc.data && soc.data.me.code; if (!c) break; const tx = `היי! אני משתמשת באפליקציה "הכיתה שלי" לתכנון השבועי 💜\nבואי נהיה חברות שם ונשתף שיעורים – הקוד שלי: ${c}\nhttps://noa-hakita.netlify.app`; if (navigator.share) navigator.share({ text: tx }).catch(() => {}); else navigator.clipboard.writeText(tx).then(() => toast('הועתק 📋')); break; }
     case 'shsend': { const S2 = state._share; socApi('send', { to: S2.to, kind: S2.kind, title: S2.title, data: S2.data }).then(r => { closeOverlay(); toast(`נשלח ל־${r.sent} ✓`); confetti(); }).catch(e => toast(e.code === 'too-big' ? 'השבוע גדול מדי לשליחה – שולחים כקובץ' : 'לא הצלחתי לשלוח 😕')); break; }
     case 'shpub': { const S2 = state._share; socApi('publish', { title: S2.title, data: S2.data }).then(() => { closeOverlay(); toast('השיעור בספרייה שלך – כל החברות רואות אותו ⭐'); }).catch(() => toast('לא הצלחתי לשתף 😕')); break; }
     case 'shfile': closeOverlay(); shareWeek(state._share.data); break;
     case 'intakelesson': { const it = state._inbox; takeLesson(it.data, it.fromName); socApi('inbox-del', { id: it.id }).then(() => socLoad(true)); closeOverlay(); break; }
-    case 'intakeweek': { const it = state._inbox, wk = it.data; if (state.weeks[wk.id] && !confirm('כבר יש לך שבוע בתאריכים האלה. להחליף אותו?')) break; socApi('inbox-del', { id: it.id }).then(() => socLoad(true)); state.logs[wk.id] = {}; saveGenericWeek(wk); toast(`השבוע של ${it.fromName || 'החברה'} נוסף ✨`); break; }
+    case 'intakeweek': { const it = state._inbox, wk = it.data; if (state.weeks[wk.id] && !await ask('כבר יש לך שבוע בתאריכים האלה. להחליף אותו?')) break; socApi('inbox-del', { id: it.id }).then(() => socLoad(true)); state.logs[wk.id] = {}; saveGenericWeek(wk); toast(`השבוע של ${it.fromName || 'החברה'} נוסף ✨`); break; }
     case 'indel': socApi('inbox-del', { id: state._inbox.id }).then(() => { closeOverlay(); socLoad(true); }); break;
     case 'cmclose': closeClassMode(); break;
     case 'projtext': projector('text'); break;
@@ -3094,13 +3216,13 @@ document.addEventListener('click', e => {
     case 'projdict': projector('dict', state._dict && state._dict.order); break;
     case 'projclose': closeProjector(); break;
     case 'ptzero': state.points.forEach(p => { p.pts = 0; }); save(); rerender(); break;
-    case 'ptclear': if (confirm('למחוק את כל הקבוצות?')) { state.points = []; save(); rerender(); } break;
+    case 'ptclear': withUndo(['points'], 'הקבוצות נמחקו', () => { state.points = []; }); break;
     case 'noise': noiseToggle(); break;
     case 'nextweek': {
       const cur = pickWeek(); if (!cur) break;
       const { wk, carried } = nextWeekFrom(cur);
-      if (state.weeks[wk.id] && !confirm('כבר יש תכנון לשבוע הבא. להחליף אותו?')) break;
-      if (!state.weeks[wk.id] && !confirm(`לבנות את השבוע הבא מתוך השבוע הזה?\nאותם שיעורים ושעות${carried.length ? `, ו־${carried.length} שיעורים שלא הספקת יעברו לשבוע הבא` : ''}.`)) break;
+      if (state.weeks[wk.id] && !await ask('כבר יש תכנון לשבוע הבא. להחליף אותו?')) break;
+      if (!state.weeks[wk.id] && !await ask(`לבנות את השבוע הבא מתוך השבוע הזה?\nאותם שיעורים ושעות${carried.length ? `, ו־${carried.length} שיעורים שלא הספקת יעברו לשבוע הבא` : ''}.`)) break;
       saveGenericWeek(wk); toast(carried.length ? `${carried.length} שיעורים עברו לשבוע הבא ✓` : 'השבוע הבא מוכן לעריכה ✓'); break;
     }
     case 'guide': guideSheet(0); break;
@@ -3121,10 +3243,11 @@ document.addEventListener('click', e => {
     case 'prepedit': state.prepEdit = !state.prepEdit; rerender(); break;
     case 'dellesson': {
       const f = t.closest('form'); const [dow, lb] = f.dataset.editor.split('|');
-      if (!confirm('למחוק את השיעור?')) return;
-      const day = w.days.find(d => d.dow === +dow); const gone = day.periods.find(p => p.label === lb); day.periods = day.periods.filter(p => p.label !== lb);
-      if (gone) logChange(w, day, gone.title, { label: lb, start: gone.start }, null);
-      save(); closeOverlay(); rerender(); toast('השיעור נמחק'); break;
+      closeOverlay();
+      withUndo(['weeks'], 'השיעור נמחק', () => {
+        const day = w.days.find(d => d.dow === +dow); const gone = day.periods.find(p => p.label === lb); day.periods = day.periods.filter(p => p.label !== lb);
+        if (gone) logChange(w, day, gone.title, { label: lb, start: gone.start }, null);
+      }); break;
     }
     case 'export': exportBackup(); break;
     case 'uploadfiles': attachTo = null; $('#upfile').click(); break;
@@ -3146,7 +3269,7 @@ document.addEventListener('click', e => {
     case 'pushtest': pushApi({ action: 'test' }).then(r => toast(r.ok ? 'נשלחה התראת בדיקה 🔔' : 'לא הצלחתי לשלוח 😕')).catch(() => toast('לא הצלחתי לשלוח 😕')); break;
     case 'cancelupload': cancelUpload(); break;
     case 'syncnow': push().then(() => pull()).then(() => { rerender(); toast(sync.err ? 'לא הצלחתי לסנכרן 😕' : 'מסונכרן ✓'); }); break;
-    case 'logout': if (confirm('להתנתק? המידע יישאר בטלפון הזה.')) ID.logout().catch(() => {}).finally(() => { sync.user = null; sync.pulled = false; state.syncV = 0; saveLocal(); rerender(); toast('התנתקת'); }); break;
+    case 'logout': if (await ask('להתנתק? המידע יישאר בטלפון הזה.', { ok: 'התנתקות' })) ID.logout().catch(() => {}).finally(() => { sync.user = null; sync.pulled = false; state.syncV = 0; saveLocal(); rerender(); toast('התנתקת'); }); break;
     case 'forgot': {
       const em = $('[data-auth] [name=email]').value.trim();
       if (!em) { $('#authErr').textContent = 'כתבי קודם את המייל 🙂'; break; }
@@ -3154,7 +3277,7 @@ document.addEventListener('click', e => {
       break;
     }
     case 'import': importBackup(); break;
-    case 'wipe': if (confirm('למחוק את כל המידע מהטלפון? אי אפשר לבטל.')) { localStorage.removeItem(KEY); location.reload(); } break;
+    case 'wipe': if (await ask('למחוק את כל המידע מהטלפון? אי אפשר לבטל.', { ok: 'מחיקת הכל', danger: true })) { localStorage.removeItem(KEY); location.reload(); } break;
   }
 });
 function findPeriod(w, id) { const [dow, lb] = id.split(':'); return w.days.find(d => d.dow === +dow).periods.find(p => p.label === lb); }
@@ -3241,8 +3364,10 @@ document.addEventListener('submit', e => {
     else { if (f.home) { st.home = f.home.value.trim(); st.size = f.size.value; } if (f.more) { st.classes = f.more.value.split(/[,،\n]+/).map(x => x.trim()).filter(Boolean); st.subject = f.subject.value.trim(); } st.step = 3; }
     rerender(); window.scrollTo({ top: 0 }); return;
   }
+  if (f.matches('[data-clsform]')) { e.preventDefault(); const c = state.classes.find(x => x.id === f.dataset.clsform); c.name = f.name.value.trim() || c.name; c.size = +f.size.value || 0; c.subject = f.subject.value.trim(); c.home = !c.subject; if (c.id === state.curClass) { state.prefs.cls = c.name; state.prefs.classSize = c.size || ''; } save(); classesSheet(); rerender(); toast('נשמר ✓'); return; }
+  if (f.matches('[data-tplname]')) { e.preventDefault(); state.pmtpl.push({ id: uid(), name: f.n.value.trim() || 'תבנית', text: state._tplText }); save(); closeOverlay(); toast('נשמר בתבניות שלי ⭐'); return; }
   if (f.matches('[data-clsnew]')) { e.preventDefault(); syncCls(); state.classes.push({ id: 'c' + uid(), name: f.name.value.trim(), size: +f.size.value || 0, kids: [], home: false, subject: f.subject.value.trim() }); if (state.prefs.role === 'home') state.prefs.role = 'both'; save(); classesSheet(); rerender(); return; }
-  if (f.matches('[data-friendadd]')) { e.preventDefault(); const c = f.code.value.trim(); if (!c) return; socApi('add', { code: c }).then(r => { toast(`${r.friend.name || 'החברה'} נוספה ✓`); confetti(); socLoad(true); }).catch(x => toast(x.code === 'no-such-code' ? 'לא מצאתי את הקוד – כדאי לבדוק שוב' : x.code === 'self' ? 'זה הקוד שלך 🙂' : 'לא הצלחתי להוסיף 😕')); return; }
+  if (f.matches('[data-friendadd]')) { e.preventDefault(); const c = f.code.value.trim(); if (!c) return; socApi('add', { code: c }).then(r => { if (r.pending) toast(`נשלחה בקשה ל${r.friend.name || 'חברה'} – כשהיא תאשר, תהיו חברות`, 4000); else { toast(`${r.friend.name || 'החברה'} נוספה ✓`); confetti(); } f.code.value = ''; socLoad(true); }).catch(x => toast(x.code === 'no-such-code' ? 'לא מצאתי את הקוד – כדאי לבדוק שוב' : x.code === 'self' ? 'זה הקוד שלך 🙂' : 'לא הצלחתי להוסיף 😕')); return; }
   if (f.matches('[data-profile]')) { e.preventDefault(); socApi('profile', { name: f.name.value, school: f.school.value, subjects: f.subjects.value }).then(() => { toast('נשמר ✓'); socLoad(true); }); return; }
   if (f.matches('[data-ptnew]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; state.points.push({ name: t, pts: 0 }); save(); rerender(); return; }
   if (f.matches('[data-gnew]')) { e.preventDefault(); const id = uid(); state.grades.push({ id, title: f.title.value.trim(), kind: f.kind.value, max: +f.max.value || 100, date: isoDay(now()), scores: {} }); state.gOpen = id; save(); rerender(); return; }
@@ -3344,6 +3469,7 @@ let kingHeld = false, kingTimer = 0;
 function unKing(n) { const k = weekKey(); if (state.kings[n] && state.kings[n][k]) { state.kings[n][k]--; save(); rerender(); toast(`כתר אחד של ${n} בוטל`); if (navigator.vibrate) navigator.vibrate(15); } else toast(`ל${n} אין כתרים השבוע`); }
 document.addEventListener('touchstart', e => { const b = e.target.closest('[data-king]'); if (!b) return; kingHeld = false; clearTimeout(kingTimer); kingTimer = setTimeout(() => { kingHeld = true; unKing(b.dataset.king); }, 550); }, { passive: true });
 ['touchend', 'touchmove', 'touchcancel'].forEach(ev => document.addEventListener(ev, () => clearTimeout(kingTimer), { passive: true }));
+document.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('pmfold')) state.pmOptsOpen = e.target.open; }, true);
 document.addEventListener('contextmenu', e => { if (e.target.closest('[data-king]')) { e.preventDefault(); if (!('ontouchstart' in window)) unKing(e.target.closest('[data-king]').dataset.king); } });
 document.addEventListener('touchstart', e => { if (e.target.closest('[data-swipe]')) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; sdx = 0; swiping = false; } }, { passive: true });
 document.addEventListener('touchmove', e => {
@@ -3407,8 +3533,9 @@ async function copyWidgetCode() {
 
 // ================================================================ toys
 let toastT;
-function toast(msg, ms = 2800) {
-  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+function toast(msg, ms = 2800, action) {
+  const t = $('#toast'); t.innerHTML = esc(msg) + (action ? ` <button class="tact" data-act="undo">${esc(action)}</button>` : ''); t.classList.toggle('hasact', !!action); t.classList.add('show');
+  if (!action) state._undo = null;
   clearTimeout(toastT); if (ms) toastT = setTimeout(() => t.classList.remove('show'), ms);
 }
 const COLORS_FUN = ['#A67AF3', '#F6D38A', '#F6B7CF', '#9DD6F9', '#B8D88E', '#F6C28B'];
@@ -3467,6 +3594,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   });
 }
 ensureClasses();
+if (state.prefs.pinHash) showLock();
 { const g = new URLSearchParams(location.search).get('go'); if (g && VIEWS[g]) state.tab = g; }
 setTimeout(() => { const l = +localStorage.getItem('hk-snap') || 0; if (Date.now() - l > 20 * 3600e3) dailySnap(); }, 5000);
 render(true);

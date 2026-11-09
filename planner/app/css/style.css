@@ -1057,3 +1057,76 @@ body.incm { overflow: hidden; }
 .filepick { display: flex; align-items: center; gap: 8px; padding: 14px 16px; margin: 8px 0; border-radius: var(--r-btn); border: 1.5px dashed var(--line); background: var(--tint2); color: var(--soft); font-size: 15px; cursor: pointer; }
 .filepick .ic { width: 18px; height: 18px; color: var(--accent-ink); }
 [data-king] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* ============================================================ reorganisation: hub, classes, onboarding, friends */
+body.onboarding .tabs, body.onboarding .minibar { display: none !important; }
+.quick.q4 { display: grid; grid-template-columns: repeat(4, 1fr); }
+.quick.q4 button { font-size: 13px; padding-inline: 2px; }
+.hubcls { display: flex; flex-direction: column; gap: 4px; margin: 10px 0 4px; }
+.hubcls .linkbtn { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; }
+.hubcls .linkbtn .ic { width: 16px; height: 16px; }
+.clschips .fc { font-size: 15px; }
+.hubgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+.hubgrid button { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 6px 14px; border-radius: 22px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--sh2); }
+.hubgrid .ti { width: 44px; height: 44px; border-radius: 16px; display: grid; place-items: center; background: var(--tint2); }
+.hubgrid .ti .ic { width: 22px; height: 22px; color: var(--accent-ink); }
+[data-skin=luxe] .hubgrid .ti .ic { color: var(--gold); }
+.hubgrid b { font-size: 14px; font-weight: 500; }
+.hubgrid em { position: absolute; top: 8px; left: 10px; font-style: normal; font-size: 11.5px; min-width: 20px; padding: 1px 6px; border-radius: 99px; background: var(--tint); color: var(--accent-ink); }
+.kidgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.kidgrid button { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 2px; border-radius: 16px; }
+.kidgrid button:active { background: var(--tint2); }
+.kidgrid b { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.kidgrid em { position: absolute; top: 4px; left: 12px; font-style: normal; font-size: 10px; background: #C9A25F; color: #fff; border-radius: 99px; padding: 0 5px; }
+.av { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 17px; background: linear-gradient(135deg, #F3E3C0, #E2C48A); color: #5A3E12; }
+.clsb { font-style: normal; font-size: 12px; padding: 1px 8px; margin-inline-end: 6px; border-radius: 99px; background: var(--tint); color: var(--accent-ink); vertical-align: 2px; }
+.pill.clsp { background: var(--tint); }
+.clsfilter { margin: 8px 0 2px; }
+.rolepick { display: grid; gap: 10px; margin: 6px 0 10px; }
+.rolepick button { text-align: start; padding: 14px 16px; border-radius: 20px; background: var(--card); border: 1.5px solid var(--line); display: flex; flex-direction: column; gap: 3px; }
+.rolepick button b { font-size: 16.5px; font-weight: 600; }
+.rolepick button small { color: var(--soft); font-size: 13.5px; }
+.rolepick button.on { border-color: #C9A25F; box-shadow: 0 0 0 3px color-mix(in srgb, #C9A25F 18%, transparent); }
+.rolepick.big button { padding: 20px 18px; }
+.clsrow { display: flex; align-items: center; gap: 10px; padding: 12px 2px; border-top: 1px solid var(--line); }
+.clsrow:first-of-type { border-top: 0; }
+.clsrow b { display: block; font-size: 15.5px; font-weight: 500; }
+.clsrow small { color: var(--soft); font-size: 13px; }
+.clsnew { display: grid; gap: 10px; margin-top: 10px; }
+.clsnew input, .onb-form input { width: 100%; box-sizing: border-box; padding: 13px 14px; border-radius: var(--r-btn); border: 1.5px solid var(--line); background: var(--tint2); min-width: 0; }
+.onb-form .pmlbl { margin-top: 6px; }
+.onb-form .cta { margin-top: 14px; }
+.onb h1 { text-align: center; }
+.onb .gd-dots { margin: 8px 0 20px; }
+.onb .linkbtn { display: block; margin: 14px auto; }
+.onb-start { display: grid; gap: 12px; margin: 18px 0; }
+.onb-start button { display: grid; grid-template-columns: 44px 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center; text-align: start; padding: 16px; border-radius: 22px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--sh2); }
+.onb-start .ic { grid-row: 1 / 3; width: 30px; height: 30px; color: var(--accent-ink); justify-self: center; }
+[data-skin=luxe] .onb-start .ic { color: var(--gold); }
+.onb-start b { font-size: 17px; }
+.onb-start small { color: var(--soft); font-size: 13.5px; }
+.steps .bar { margin: 4px 0 8px; }
+.steprow { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 2px; text-align: start; font-size: 15.5px; border-top: 1px solid var(--line); }
+.steprow .sc { width: 32px; height: 32px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--tint2); }
+.steprow .sc .ic { width: 17px; height: 17px; color: var(--accent-ink); }
+.steprow.done { color: var(--soft); text-decoration: line-through; }
+.steprow.done .sc { background: #E6F4E6; color: #357A40; }
+.steprow .chev { width: 15px; height: 15px; color: var(--soft); }
+.steps .linkbtn { display: block; margin: 8px auto 0; font-size: 13px; }
+.mycode .code { font-size: 38px; letter-spacing: 8px; text-align: center; font-weight: 300; direction: ltr; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+.cta.sm { width: auto; padding: 8px 14px; font-size: 13.5px; margin: 0; flex: none; }
+.gd-tabs { display: flex; justify-content: center; gap: 6px; margin: 4px auto 14px; padding: 6px; border-radius: 99px; background: var(--tint2); width: max-content; }
+.gd-tabs span { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; opacity: .35; transition: all .3s; }
+.gd-tabs span.on { opacity: 1; background: var(--card); box-shadow: var(--sh2); transform: scale(1.12); }
+.gd-tabs .ic { width: 20px; height: 20px; }
+/* bell schedule */
+.bellhead, .bellrow { display: grid; grid-template-columns: 1.1fr 1fr 1fr 36px; gap: 8px; align-items: center; }
+.bellhead { font-size: 12.5px; color: var(--soft); padding: 0 4px 4px; }
+.bellrow { padding: 5px 0; }
+.bellrow select, .bellrow input { width: 100%; min-width: 0; box-sizing: border-box; padding: 10px 8px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--tint2); -webkit-appearance: none; appearance: none; text-align: center; }
+.bellrow .iconbtn { width: 34px; height: 34px; }
+.rolepick button { flex-direction: row !important; align-items: center; gap: 14px !important; }
+.rtx { display: flex; flex-direction: column; gap: 3px; }
+.rbox { width: 28px; height: 28px; flex: none; border-radius: 9px; border: 2px solid var(--line); display: grid; place-items: center; font-size: 17px; font-weight: 700; color: #fff; transition: all .25s var(--spring); }
+.rolepick button.on .rbox { background: #C9A25F; border-color: #C9A25F; transform: scale(1.06); }
+.onb .big + .cta { margin-top: 8px; }

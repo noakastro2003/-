@@ -12,10 +12,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 37; // keep in step with CACHE in sw.js
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided'];
+const APP_V = 39; // keep in step with CACHE in sw.js
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {},
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null,
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -27,7 +27,7 @@ function saveLocal() {
   for (const k of SAVED) o[k] = state[k];
   localStorage.setItem(KEY, JSON.stringify(o));
 }
-function save() { if (sync.user) state.notifQueue = buildQueue(); saveLocal(); schedulePush(); }
+function save() { if (state.classes && state.classes.length) syncCls(); if (sync.user) state.notifQueue = buildQueue(); saveLocal(); schedulePush(); }
 
 // ?now=2026-11-01T10:30 previews any moment
 const fakeNow = new URLSearchParams(location.search).get('now');
@@ -306,16 +306,16 @@ function viewNow(w) {
   let h = '';
 
   if (ph.kind === 'lesson') {
-    h += top('עכשיו', `${hello()} · ${line()}`, 'books');
+    h += top('עכשיו', `${hello()} · ${line()}`, 'books') + firstSteps();
     h += birthdayBanner();
-    h += nowCard(w, day, ph.cur, ph) + `<button class="cta cmbtn" data-act="classmode">${ic('screen')} מצב בכיתה – מסך גדול</button>` + quickTools() + tipCard();
+    h += nowCard(w, day, ph.cur, ph) + quickTools();
     if (ph.next) h += nextCard(day, ph.next, ph.inMin);
   } else if (ph.kind === 'break') {
     h += top('הפסקה', `השיעור הבא ${inText(ph.inMin)}`, 'books');
     h += birthdayBanner();
     h += nowCard(w, day, ph.next, { kind: 'preview', inMin: ph.inMin }) + quickTools();
   } else if (ph.kind === 'before') {
-    h += top(hello(), `יום ${day.name} · מתחילים ב־${ph.next.start}`, 'books');
+    h += top(hello(), `יום ${day.name} · מתחילים ב־${ph.next.start}`, 'books') + firstSteps();
     h += birthdayBanner();
     h += prepCards(w, day, 'today');
     h += nextCard(day, ph.next, ph.inMin, 'השיעור הראשון') + tipCard();
@@ -328,11 +328,10 @@ function viewNow(w) {
     if (ng) h += tomorrowCard(ng.w, ng.d);
     h += howWasCard(w, day);
   } else {
-    h += top(t.getDay() === 6 ? 'שבת שלום' : 'יום חופשי', 'אין שיעורים היום', 'books');
+    h += top(t.getDay() === 6 ? 'שבת שלום' : 'יום חופשי', 'אין שיעורים היום', 'books') + firstSteps();
     h += birthdayBanner() + teaser;
     const ng = nextDayGlobal();
     if (ng) h += tomorrowCard(ng.w, ng.d);
-    h += `<div class="card rest"><div class="grow"><b>יום של מנוחה</b><span>${ic('heart', 'h')} קפה, ספר, ושקט</span></div>${art('moon', 'bob')}</div>`;
   }
 
   if (day && ['lesson', 'break', 'before'].includes(ph.kind)) {
@@ -345,7 +344,8 @@ function viewNow(w) {
 }
 
 function quickTools() {
-  return `<div class="quick">
+  return `<div class="quick q4">
+    <button data-act="classmode">${ic('screen')}מצב בכיתה</button>
     <button data-act="timer">${ic('timer')}טיימר</button>
     <button data-act="picker">${ic('dice')}מי עונה?</button>
     <button data-act="wake" class="${wantAwake ? 'on' : ''}">${ic('sun')}${wantAwake ? 'מסך דלוק ✓' : 'מסך דלוק'}</button>
@@ -361,7 +361,7 @@ function nowCard(w, day, p, ph) {
   const sub = p.subtitle.split('·').slice(1).join('·').trim();
   return `<article class="card nowc" style="--c:${look(p).c}">
     <div class="nc-top">
-      <div class="nc-t">${pill(p)}<h2>${logIcon(w, id)}${esc(p.title)}</h2>${sub ? `<small>${esc(sub)}</small>` : ''}</div>
+      <div class="nc-t">${pill(p)}${p.cls && multiCls() ? `<span class="pill clsp">${esc(p.cls)}</span>` : ''}<h2>${logIcon(w, id)}${esc(p.title)}</h2>${sub ? `<small>${esc(sub)}</small>` : ''}</div>
       ${ph.kind === 'lesson' ? ring(ph.left, ph.len) : ring(ph.inMin, Math.max(ph.inMin, 20), 'בעוד')}
     </div>
     ${p.badges.map(b => `<div class="badge">${esc(b)}</div>`).join('')}
@@ -459,7 +459,8 @@ function viewDay(w) {
   </div>`;
   const bd = state.kids.length ? bdOn(dayDate(w, day)) : [];
   if (bd.length) h += `<div class="card bday small">${art('cake', 'bob')}<div><b>יום הולדת ל${esc(names(bd))} 🎉</b></div></div>`;
-  h += `<div class="lessons" data-swipe>${day.periods.map(p => lessonRow(w, day, p, ph)).join('') || `<div class="card empty"><p>אין שיעורים ביום הזה בתכנון.</p><p class="hint">אם זו טעות – מעלים שוב את ה־PDF של השבוע (עוד ← להעלות תכנון)</p></div>`}</div>`;
+  if (multiCls()) h += `<div class="fchips clsfilter"><button class="fc ${!state.clsFilter ? 'on' : ''}" data-clsf="">כל הכיתות</button>${state.classes.map(c => `<button class="fc ${state.clsFilter === c.name ? 'on' : ''}" data-clsf="${esc(c.name)}">${esc(c.name)}</button>`).join('')}</div>`;
+  h += `<div class="lessons" data-swipe>${day.periods.filter(p => !state.clsFilter || !p.cls || p.cls === state.clsFilter).map(p => lessonRow(w, day, p, ph)).join('') || `<div class="card empty"><p>אין שיעורים ביום הזה בתכנון.</p><p class="hint">אם זו טעות – מעלים שוב את ה־PDF של השבוע (עוד ← להעלות תכנון)</p></div>`}</div>`;
   h += `<button class="addbtn" data-edit="${day.dow}|">${ic('plus')} הוספת שיעור ליום ${esc(day.name)}</button>`;
   const hw = day.periods.filter(p => p.homework.length);
   if (hw.length) h += `<div class="card">${cardHead('homework', 'שיעורי בית היום')}${hw.map(p => `<div class="note"><b>${esc(p.title)}</b><span>${esc(p.homework.join(' · '))}</span></div>`).join('')}</div>`;
@@ -477,7 +478,7 @@ function lessonRow(w, day, p, ph) {
   return `<article class="lrow ${open ? 'open' : ''} ${isNow ? 'now' : ''}" style="--c:${look(p).c}" data-id="${esc(id)}">
     <button class="lr-h" data-toggle="${esc(id)}" aria-expanded="${open}">
       ${pill(p)}
-      <span class="lr-t"><b>${logIcon(w, id)}${esc(p.title)}</b><small class="lr-time">${esc(p.start)}–${esc(p.end)}${isNow ? ' <i class="live">עכשיו</i>' : ''}</small></span>
+      <span class="lr-t"><b>${logIcon(w, id)}${p.cls && multiCls() ? `<i class="clsb">${esc(p.cls)}</i>` : ''}${esc(p.title)}</b><small class="lr-time">${esc(p.start)}–${esc(p.end)}${isNow ? ' <i class="live">עכשיו</i>' : ''}</small></span>
       <span class="circ">${ic('chevD')}</span>
     </button>
     <div class="lr-b"><div class="lr-in">
@@ -494,7 +495,7 @@ function lessonRow(w, day, p, ph) {
       ${lessonNotes(w, day, p)}
       ${timerHint(p)}
       ${logRow(w, id, false)}
-      <div class="btnrow lrow-acts"><button class="editbtn" data-edit="${esc(day.dow + '|' + p.label)}">${ic('pencil')} עריכת השיעור</button><button class="editbtn" data-banksave="${esc(day.dow + '|' + p.label)}">${ic('star')} שמירה במאגר</button></div>
+      <div class="btnrow lrow-acts"><button class="editbtn" data-edit="${esc(day.dow + '|' + p.label)}">${ic('pencil')} עריכת השיעור</button><button class="editbtn" data-banksave="${esc(day.dow + '|' + p.label)}">${ic('star')} למאגר</button><button class="editbtn" data-sharelesson="${esc(day.dow + '|' + p.label)}">${ic('upload')} שיתוף</button></div>
     </div></div>
   </article>`;
 }
@@ -762,7 +763,7 @@ function pmText(w) {
   return txt;
 }
 function viewMsgs(w) {
-  let h = top('הודעה להורים', 'הודעה מוכנה לקבוצת ההורים, בסגנון שלך – בודקים, מתקנים ושולחים', 'heart', { back: 'more' });
+  let h = top('הודעה להורים', 'הודעה מוכנה לקבוצת ההורים, בסגנון שלך – בודקים, מתקנים ושולחים', 'heart', { back: 'cls' });
   if (!w) return h + `<p class="hint">צריך קודם תכנון שבועי.</p>`;
   state.pm = state.pm || { type: 'all', sign: false };
   const P = state.pm;
@@ -991,7 +992,7 @@ function closeProjector() {
 // class management: team points, noise light, "מלך שיעור"
 const noise = { on: false, ctx: null, raf: 0, level: 0, sens: 5 };
 function viewClass() {
-  let h = top('ניהול כיתה', 'ניקוד לקבוצות, רמזור רעש ומלך שיעור', 'star', { back: 'more' });
+  let h = top('ניהול כיתה', 'ניקוד לקבוצות, רמזור רעש ומלך שיעור', 'star', { back: 'cls' });
   h += `<div class="card">${cardHead('medal', 'ניקוד לקבוצות', `<button class="linkbtn" data-act="projpoints">${ic('screen')} הקרנה</button>`)}
     ${state.points.length ? state.points.map((t, i) => `<div class="ptrow"><b class="grow">${esc(t.name)}</b><button class="iconbtn" data-pt="${i}|-1">−</button><span class="ptn">${t.pts}</span><button class="iconbtn plus" data-pt="${i}|1">+</button></div>`).join('') : '<p class="dim">אין עדיין קבוצות. מוסיפים קבוצה או שולחן:</p>'}
     <form class="addtodo" data-ptnew><input name="t" placeholder="${state.points.length ? 'עוד קבוצה' : 'שולחן 1 / הכחולים'}" autocomplete="off"><button aria-label="הוספה">${ic('plus')}</button></form>
@@ -1062,7 +1063,7 @@ function kidSheet(name) {
   </div>`);
 }
 function viewGrades() {
-  let h = top('ציונים', 'הכתבות ומבדקים – מזינים מהר, רואים מי צריך עזרה', 'star', { back: 'more' });
+  let h = top('ציונים', 'הכתבות ומבדקים – מזינים מהר, רואים מי צריך עזרה', 'star', { back: 'cls' });
   const open = state.grades.find(g => g.id === state.gOpen);
   if (open) {
     const vals = state.kids.map(k => open.scores[k.name]).filter(v => v !== '' && v != null).map(Number);
@@ -1153,7 +1154,7 @@ function allEvents(daysAhead = 60) {
   return out.sort((a, b) => a.d - b.d);
 }
 function viewCalendar() {
-  let h = top('לוח אירועים', 'מבדקים, הכתבות, חגים, ימי הולדת ותזכורות – הכל על ציר אחד', 'calendar', { back: 'more' });
+  let h = top('לוח אירועים', 'מבדקים, הכתבות, חגים, ימי הולדת ותזכורות – הכל על ציר אחד', 'calendar', { back: 'cls' });
   h += `<div class="card">${cardHead('plus', 'אירוע חדש')}<form data-evnew class="an-grid evnew"><input name="text" placeholder="טיול שנתי" required><input name="date" type="date" value="${isoDay(now())}" required><button class="cta" style="grid-column:1/-1">${ic('plus')} הוספה</button></form></div>`;
   const ev = allEvents(60); let last = '';
   if (!ev.length) return h + '<p class="hint">אין אירועים בחודשיים הקרובים.</p>';
@@ -1196,15 +1197,17 @@ function reportSheet() {
   </form>`);
 }
 const GUIDE = [
-  ['upload', 'מעלים תכנון', 'PDF, Word, Excel או טקסט – בכל מבנה. או בונים שבוע ידנית. האפליקציה מסדרת ימים, שיעורים, חומרים וקבצים.'],
-  ['home', '"עכשיו" – באמצע השיעור', 'השיעור שמתנהל עכשיו, השלבים, מה צריך והקבצים. "מצב בכיתה" פותח הכל בגדול, עם טיימר ו"מי עונה?".'],
-  ['check', '"להכין" – לפני היום', 'מה להדפיס, לשכפל ולהביא לכל יום, עם כמויות לפי מספר התלמידים.'],
-  ['phone2', 'הודעות להורים', 'הודעה מוכנה בסגנון שלך מתוך התכנון – שיעורי בית, הכתבה, מבדקים וימי הולדת – ושליחה בווטסאפ.'],
+  ['home', 'עכשיו', 'מה מתנהל ברגע זה: השיעור, השלבים, מה צריך והקבצים. "מצב בכיתה" פותח הכל בגדול עם טיימר ו"מי עונה?".', 0],
+  ['calendar', 'השבוע', 'כל השבוע, יום אחרי יום. לוחצים על שיעור כדי לפתוח, לערוך, לשמור במאגר או לשתף עם חברה.', 1],
+  ['check', 'להכין', 'מה להדפיס, לשכפל ולהביא לכל יום – עם כמויות לפי מספר התלמידים. מסמנים וי, והיום מוכן.', 2],
+  ['users', 'הכיתה', 'הילדים, כרטיס לכל ילד, ציונים, יומן, ימי הולדת והודעות להורים. מורה עם כמה כיתות עוברת ביניהן כאן.', 3],
+  ['dots', 'עוד', 'תכנון שבוע חדש, מאגר שיעורים, כלים לשיעור, קבצים, מורות חברות והגדרות.', 4],
 ];
 function guideSheet(i = 0) {
   const [icn, t, d] = GUIDE[i];
   openOverlay(`<div class="ov sheet guide">
     <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="gd-tabs">${['home', 'calendar', 'check', 'users', 'dots'].map((x, j) => `<span class="${GUIDE[i][3] === j ? 'on' : ''}">${ic(x)}</span>`).join('')}</div>
     <div class="gd-ic">${ic(icn)}</div><h2>${t}</h2><p>${d}</p>
     <div class="gd-dots">${GUIDE.map((_, j) => `<i class="${j === i ? 'on' : ''}"></i>`).join('')}</div>
     <button class="cta" data-guide="${i + 1 < GUIDE.length ? i + 1 : 'end'}">${i + 1 < GUIDE.length ? 'הבא' : 'מתחילים ✨'}</button>
@@ -1230,6 +1233,318 @@ async function snapsSheet() {
     <p class="dim">כל יום נשמר לבד עותק של כל המידע בטלפון (10 הימים האחרונים).</p>
     ${list.length ? list.map((s, i) => `<button class="pmhist" data-snap="${i}"><span class="tpill">${s.day.split('-').reverse().slice(0, 2).join('.')}</span><span class="grow"><b>${new Date(s.at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</b></span>${ic('chevL', 'chev')}</button>`).join('') : '<p class="hint">עוד אין עותקים – הראשון יישמר היום.</p>'}
   </div>`);
+}
+
+
+// ================================================================ ROLES & CLASSES
+// role: 'home' = homeroom teacher, 'both' = homeroom + subject teacher, 'subject' = subject teacher only.
+// Each class keeps its own children; state.kids always holds the children of the class in view.
+const ROLES = {
+  home: ['מחנכת', 'כיתה אחת שלי – ילדים, הורים, ימי הולדת'],
+  both: ['מחנכת וגם מורה מקצועית', 'הכיתה שלי + כיתות נוספות שאני מלמדת בהן מקצוע'],
+  subject: ['מורה מקצועית', 'מלמדת מקצוע בכמה כיתות'],
+};
+// two checkboxes – homeroom and/or subject teacher – stored as one role
+const roleSet = r => new Set(r === 'both' ? ['home', 'subject'] : r ? [r] : []);
+const roleOf = set => set.has('home') && set.has('subject') ? 'both' : set.has('subject') ? 'subject' : set.has('home') ? 'home' : '';
+const ROLE_BOX = { home: ['מחנכת', 'יש לי כיתה שאני מחנכת – ילדים, הורים, ימי הולדת'], subject: ['מורה מקצועית', 'אני מלמדת מקצוע, בכיתה אחת או בכמה כיתות'] };
+const rolePick = (role, attr) => { const st = roleSet(role); return `<div class="rolepick">${Object.entries(ROLE_BOX).map(([k, [t, d]]) => `<button class="${st.has(k) ? 'on' : ''}" ${attr}="${k}" role="checkbox" aria-checked="${st.has(k)}"><span class="rbox">${st.has(k) ? '✓' : ''}</span><span class="rtx"><b>${t}</b><small>${d}</small></span></button>`).join('')}</div><p class="hint">אפשר לסמן אחת מהן או את שתיהן</p>`; };
+const curCls = () => state.classes.find(c => c.id === state.curClass) || state.classes[0] || null;
+function ensureClasses() {
+  if (!state.classes.length) {
+    const id = 'c' + uid();
+    state.classes.push({ id, name: state.prefs.cls || 'הכיתה שלי', size: +state.prefs.classSize || state.kids.length || 0, kids: state.kids, home: true, subject: '' });
+    state.curClass = id;
+  }
+  if (!state.prefs.role) state.prefs.role = 'home';
+  if (!curCls()) state.curClass = state.classes[0].id;
+}
+function syncCls() { const c = curCls(); if (c) { c.kids = state.kids; if (+state.prefs.classSize) c.size = +state.prefs.classSize; } }
+function switchClass(id) {
+  syncCls();
+  const c = state.classes.find(x => x.id === id); if (!c) return;
+  state.curClass = id; state.kids = c.kids || (c.kids = []); state.prefs.classSize = c.size || ''; state.prefs.cls = c.name;
+  save(); rerender(); toast(`עברת ל${c.name}`);
+}
+const multiCls = () => state.classes.length > 1;
+const clsSizeFor = name => { const c = state.classes.find(x => x.name === name); return c && +c.size ? +c.size : 0; };
+// find a class name written inside an imported lesson ("ג׳2 – חשבון")
+function tagClasses(wk) {
+  if (!multiCls()) return;
+  const norm = s => String(s || '').replace(/["'״׳`]/g, '').replace(/\s/g, '');
+  for (const d of wk.days) for (const p of d.periods) {
+    if (p.cls) continue;
+    const hay = norm(p.title + ' ' + p.subtitle);
+    const c = state.classes.find(x => norm(x.name) && hay.includes(norm(x.name)));
+    if (c) p.cls = c.name;
+  }
+}
+const clsChips = (sel, attr = 'data-cls') => `<div class="fchips clschips">${state.classes.map(c => `<button class="fc ${c.id === sel ? 'on' : ''}" ${attr}="${c.id}">${c.home ? '🏠 ' : ''}${esc(c.name)}</button>`).join('')}</div>`;
+function classesSheet() {
+  syncCls();
+  openOverlay(`<div class="ov sheet">
+    <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('users')}<h2>הכיתות שלי</h2></div>
+    <p class="pmlbl">התפקיד שלי</p>
+    ${rolePick(state.prefs.role, 'data-role')}
+    <p class="pmlbl">כיתות</p>
+    ${state.classes.map(c => `<div class="clsrow"><span class="grow"><b>${c.home ? '🏠 ' : ''}${esc(c.name)}</b><small>${c.subject ? esc(c.subject) + ' · ' : ''}${(c.kids || []).length} ילדים${c.size ? ` · ${c.size} תלמידים` : ''}</small></span>
+      <button class="iconbtn" data-clsedit="${c.id}" aria-label="עריכה">${ic('pencil')}</button>${state.classes.length > 1 ? `<button class="iconbtn" data-clsdel="${c.id}" aria-label="מחיקה">${ic('trash')}</button>` : ''}</div>`).join('')}
+    <form class="clsnew" data-clsnew>
+      <div class="an-grid"><input name="name" placeholder="שם הכיתה, למשל ג׳1" required><input name="size" type="number" inputmode="numeric" placeholder="מס׳ תלמידים"></div>
+      <input name="subject" placeholder="מה אני מלמדת שם? (למשל אנגלית)">
+      <button class="cta soft">${ic('plus')} הוספת כיתה</button>
+    </form>
+  </div>`);
+}
+
+// ================================================================ "הכיתה" – everything about the children in one place
+function viewHub() {
+  ensureClasses();
+  const c = curCls();
+  let h = top(c ? esc(c.name) : 'הכיתה', multiCls() ? 'בוחרים כיתה – והכל מתעדכן לפיה' : 'הילדים, ההורים והמעקב – במקום אחד', 'users');
+  h += `<div class="hubcls">${multiCls() ? clsChips(state.curClass) : ''}<button class="linkbtn" data-act="classes">${ic('settings')} ${multiCls() ? 'ניהול כיתות' : 'יש לי עוד כיתות'}</button></div>`;
+  const tiles = [['phone2', 'הודעה להורים', 'data-go="msgs"', ''], ['star', 'ציונים', 'data-go="grades"', state.grades.filter(g => !g.cls || g.cls === state.curClass).length || ''],
+    ['pencil', 'יומן כיתה', 'data-go="journal"', openActions().length || ''], ['medal', 'ניהול כיתה', 'data-go="class"', ''], ['users', 'רשימת ילדים', 'data-go="kids"', state.kids.length || ''], ['calendar', 'לוח אירועים', 'data-go="calendar"', '']];
+  h += `<div class="hubgrid">${tiles.map(([i, l, a, n]) => `<button ${a}><span class="ti">${ic(i)}</span><b>${l}</b>${n ? `<em>${n}</em>` : ''}</button>`).join('')}</div>`;
+  if (!state.kids.length) h += `<div class="card">${cardHead('users', 'עוד אין ילדים בכיתה')}<p class="dim">מדביקים רשימת שמות (ואם רוצים גם יום הולדת וטלפון של הורה) – ואז יש כרטיס לכל ילד, "מי עונה?", ימי הולדת והודעות אישיות.</p><button class="cta" data-go="kids">${ic('plus')} הוספת הילדים</button></div>`;
+  else {
+    const q = quietKids(7);
+    if (q.length && q.length < state.kids.length) h += `<div class="card quiet">${cardHead('heart', 'השבוע עוד לא נרשם כלום על', `<span class="cnt">${q.length}</span>`)}<div class="fchips wrap">${q.map(k => `<button class="fc" data-kid="${esc(k.name)}">${esc(k.name)}</button>`).join('')}</div></div>`;
+    h += `<div class="card">${cardHead('user', 'הילדים', `<span class="cnt">${state.kids.length}</span>`)}<div class="kidgrid">${state.kids.map(k => { const n = kidNotes(k.name).length; return `<button data-kid="${esc(k.name)}"><span class="av">${esc(k.name[0] || '?')}</span><b>${esc(k.name.split(' ')[0])}</b>${n ? `<em>${n}</em>` : ''}</button>`; }).join('')}</div></div>`;
+  }
+  h += bdCard(14, 'ימי הולדת בשבועיים הקרובים');
+  return h;
+}
+
+// ================================================================ ONBOARDING: a short setup, then a tour
+function viewOnboard() {
+  const st = state.onb || (state.onb = { step: 0, name: state.name || '', role: '', home: '', size: '', classes: [], subject: '' });
+  const steps = 4, dots = `<div class="gd-dots">${Array.from({ length: steps }, (_, i) => `<i class="${i === st.step ? 'on' : ''}"></i>`).join('')}</div>`;
+  let body = '';
+  if (st.step === 0) body = `<div class="onb-logo">${logo('wlogo')}</div><h1>ברוכה הבאה ל״הכיתה שלי״</h1>
+    <p class="onb-sub">התכנון השבועי, הכיתה וההורים – מסודרים במקום אחד. ארבעה צעדים קצרים ומתחילים.</p>
+    <form class="card onb-form" data-onbstep="0"><label class="field">איך קוראים לך?<input name="name" required value="${esc(st.name)}" placeholder="השם שלך" autocomplete="given-name"></label><button class="cta">הבא</button></form>
+    <p class="hint">יש לך כבר חשבון? <button class="linkbtn" data-act="onblogin">התחברות</button></p>`;
+  if (st.step === 1) body = `<h1>${esc(st.name)}, מה התפקיד שלך?</h1><p class="onb-sub">אפשר לשנות בכל רגע (הכיתה ← ניהול כיתות)</p>
+    <div class="big">${rolePick(st.role, 'data-onbrole')}</div>
+    <button class="cta" data-onbnext="2" ${st.role ? '' : 'disabled'}>הבא</button>
+    <button class="linkbtn" data-onbback="1">חזרה</button>`;
+  if (st.step === 2) body = `<h1>הכיתות שלך</h1>
+    <form class="card onb-form" data-onbstep="2">
+      ${st.role !== 'subject' ? `<p class="pmlbl">🏠 הכיתה שאני מחנכת</p><div class="an-grid"><input name="home" value="${esc(st.home)}" placeholder="למשל ב׳2" ${st.role !== 'subject' ? 'required' : ''}><input name="size" type="number" inputmode="numeric" value="${esc(st.size)}" placeholder="מס׳ תלמידים"></div>` : ''}
+      ${st.role !== 'home' ? `<p class="pmlbl">📚 ${st.role === 'both' ? 'כיתות נוספות שאני מלמדת' : 'הכיתות שאני מלמדת'}</p>
+        <input name="more" value="${esc(st.classes.join(', '))}" placeholder="למשל ג׳1, ג׳2, ד׳3" ${st.role === 'subject' ? 'required' : ''}>
+        <input name="subject" value="${esc(st.subject)}" placeholder="מה אני מלמדת? (למשל אנגלית)">` : ''}
+      <button class="cta">הבא</button>
+    </form><button class="linkbtn" data-onbback="1">חזרה</button>`;
+  if (st.step === 3) body = `<h1>איך מתחילים?</h1><p class="onb-sub">התכנון השבועי הוא הלב של האפליקציה – ממנו נבנים "עכשיו", "להכין" וההודעות להורים.</p>
+    <div class="onb-start">
+      <button data-onbgo="upload">${ic('upload')}<b>יש לי תכנון</b><small>PDF, Word, Excel או טקסט – בכל מבנה</small></button>
+      <button data-onbgo="manual">${ic('pencil')}<b>אבנה שבוע כאן</b><small>מוסיפים שיעורים יום אחרי יום</small></button>
+      <button data-onbgo="later">${ic('sparkle')}<b>אחר כך</b><small>קודם להסתובב באפליקציה</small></button>
+    </div><button class="linkbtn" data-onbback="2">חזרה</button>`;
+  return `<section class="onb">${dots}${body}</section>`;
+}
+function finishOnboard(go2) {
+  const st = state.onb;
+  state.name = st.name; state.prefs.role = st.role || 'home';
+  const mk = (name, extra) => ({ id: 'c' + uid(), name, size: 0, kids: [], home: false, subject: st.subject || '', ...extra });
+  state.classes = [];
+  if (st.role !== 'subject' && st.home) state.classes.push(mk(st.home, { home: true, size: +st.size || 0, kids: state.kids, subject: '' }));
+  for (const n of st.classes) if (n && !state.classes.some(c => c.name === n)) state.classes.push(mk(n));
+  if (!state.classes.length) state.classes.push(mk(st.home || 'הכיתה שלי', { home: st.role !== 'subject' }));
+  const c0 = state.classes[0];
+  state.curClass = c0.id; state.kids = c0.kids; state.prefs.cls = c0.name; state.prefs.classSize = c0.size || '';
+  state.onboarded = true; state.onb = null; state.guided = true; save();
+  go('now'); confetti();
+  setTimeout(() => { guideSheet(0); state._afterGuide = go2; }, 700);
+}
+// first steps – shown on "עכשיו" until done or dismissed
+function firstSteps() {
+  if (state.prefs.stepsDone) return '';
+  const items = [
+    ['upload', 'להעלות או לבנות תכנון שבועי', !!Object.keys(state.weeks).length, 'data-act="upload"'],
+    ['users', 'להוסיף את הילדים בכיתה', state.kids.length > 0, 'data-go="kids"'],
+    ['clock', 'להגדיר את לוח הצלצולים של בית הספר', !!state.prefs.bell, 'data-go="bells"'],
+    ['cloud', 'להתחבר לחשבון (שמירה בכל המכשירים)', !!sync.user, 'data-go="settings"'],
+    ['phone2', 'לשלוח הודעה ראשונה להורים', state.pmlog.length > 0, 'data-go="msgs"'],
+    ['heart', 'להוסיף מורה חברה', !!(soc.data && soc.data.friends.length), 'data-go="friends"'],
+  ];
+  const done = items.filter(x => x[2]).length;
+  if (done === items.length) return '';
+  return `<div class="card steps">${cardHead('flag', 'צעדים ראשונים', `<span class="cnt">${done}/${items.length}</span>`)}
+    <div class="bar"><span style="--w:${done / items.length * 100}%"></span></div>
+    ${items.map(([i, t, ok, a]) => `<button class="steprow ${ok ? 'done' : ''}" ${ok ? 'disabled' : a}><span class="sc">${ok ? '✓' : ic(i)}</span><span class="grow">${t}</span>${ok ? '' : ic('chevL', 'chev')}</button>`).join('')}
+    <button class="linkbtn" data-act="stepsdone">להסתיר</button></div>`;
+}
+
+// ================================================================ FRIEND TEACHERS (server: /api/social)
+const soc = { data: null, busy: false, err: '' };
+async function socApi(op, body, q = '') {
+  try { await ID.refreshSession(); } catch { /* fine */ }
+  const r = await fetch(`/api/social?op=${op}${q}`, { method: body ? 'POST' : 'GET', credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || 'http ' + r.status), { code: j.error, status: r.status });
+  return j;
+}
+async function socLoad(force) {
+  if (!sync.user || soc.busy || (soc.data && !force)) return;
+  soc.busy = true;
+  try { soc.data = await socApi('me'); soc.err = ''; if (!soc.data.me.name && state.name) socApi('profile', { name: state.name }).catch(() => {}); } catch (e) { soc.err = e.message; }
+  soc.busy = false; if (['friends', 'now'].includes(state.tab)) rerender();
+}
+function viewFriends() {
+  let h = top('מורות חברות', 'משתפות שיעורים ושבועות שלמים – ומקבלות שיעורים מחברות', 'heart', { back: 'more' });
+  if (!sync.user) return h + `<div class="card">${cardHead('cloud', 'צריך חשבון')}<p class="dim">כדי לשתף שיעורים עם מורות אחרות, כל אחת צריכה להיות מחוברת לחשבון באפליקציה.</p><button class="cta" data-go="settings">${ic('user')} התחברות / יצירת חשבון</button></div>`;
+  if (!soc.data) { socLoad(); return h + `<p class="hint">${soc.err ? 'לא הצלחתי להתחבר 😕 ' + esc(soc.err) : 'טוענת…'}</p>`; }
+  const D2 = soc.data;
+  h += `<div class="card mycode">${cardHead('user', 'הקוד שלי')}
+    <div class="code">${esc(D2.me.code)}</div>
+    <p class="dim">שולחים את הקוד לחברה – והיא מוסיפה אותו אצלה. מרגע זה אתן חברות.</p>
+    <div class="btnrow"><button class="cta soft" data-act="sharecode">${ic('upload')} שליחת הקוד</button></div>
+  </div>`;
+  h += `<div class="card">${cardHead('plus', 'הוספת חברה')}<form class="addtodo" data-friendadd><input name="code" placeholder="הקוד של החברה (6 תווים)" autocomplete="off" dir="ltr" maxlength="8"><button aria-label="הוספה">${ic('plus')}</button></form></div>`;
+  if (D2.inbox.length) h += `<div class="card">${cardHead('bell', 'נשלח אלייך', `<span class="cnt">${D2.inbox.length}</span>`)}${D2.inbox.map(x => `<button class="pmhist" data-inbox="${x.id}"><span class="tpill">${x.kind === 'week' ? 'שבוע' : 'שיעור'}</span><span class="grow"><b>${esc(x.title)}</b><small>מ${esc(x.fromName || 'חברה')} · ${new Date(x.at).getDate()}.${new Date(x.at).getMonth() + 1}</small></span>${ic('chevL', 'chev')}</button>`).join('')}</div>`;
+  h += `<div class="card">${cardHead('users', 'החברות שלי', `<span class="cnt">${D2.friends.length}</span>`)}${D2.friends.length ? D2.friends.map(f => `<div class="clsrow"><span class="av">${esc((f.name || '?')[0])}</span><span class="grow"><b>${esc(f.name || 'מורה')}</b><small>${esc([f.subjects, f.school].filter(Boolean).join(' · '))}</small></span><button class="cta soft sm" data-flib="${f.id}">השיעורים שלה</button><button class="iconbtn" data-funfriend="${f.id}" aria-label="הסרה">${ic('x')}</button></div>`).join('') : '<p class="dim">עוד אין חברות. שולחים את הקוד, או מוסיפים קוד של חברה.</p>'}</div>`;
+  h += `<div class="card">${cardHead('star', 'שיעורים ששיתפתי עם כל החברות')}<button class="cta soft" data-flib="${D2.me.id}">צפייה ועריכה</button><p class="hint">משתפים שיעור מתוך מסך "השבוע": פותחים שיעור ← "שיתוף".</p></div>`;
+  h += `<div class="card">${cardHead('pencil', 'הפרופיל שלי')}<form data-profile><label class="field">שם<input name="name" value="${esc(D2.me.name || state.name)}"></label><label class="field">בית ספר<input name="school" value="${esc(D2.me.school || '')}"></label><label class="field">מה אני מלמדת<input name="subjects" value="${esc(D2.me.subjects || '')}" placeholder="מחנכת ב׳ · שפה וחשבון"></label><button class="cta soft">שמירה</button></form></div>`;
+  return h;
+}
+function shareLessonSheet(dow, label) {
+  const w = pickWeek(), p = findPeriodIn(w, +dow, label);
+  if (!sync.user) { toast('צריך להתחבר לחשבון כדי לשתף'); go('friends'); return; }
+  if (!soc.data) { socLoad(true).then(() => shareLessonSheet(dow, label)); return; }
+  state._share = { kind: 'lesson', title: p.title, data: { ...JSON.parse(JSON.stringify(p)), homework: [] }, to: [] };
+  shareSheet();
+}
+function shareWeekSheet(id) {
+  const w = state.weeks[id];
+  if (!sync.user || !soc.data || !soc.data.friends.length) { shareWeek(w); return; }
+  state._share = { kind: 'week', title: w.number ? `שבוע ${w.number}` : (w.title || 'תכנון שבועי'), data: w, to: [] };
+  shareSheet();
+}
+function shareSheet() {
+  const S2 = state._share, fr = soc.data ? soc.data.friends : [];
+  openOverlay(`<div class="ov sheet">
+    <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('upload')}<h2>שיתוף ${S2.kind === 'week' ? 'שבוע' : 'שיעור'}</h2></div>
+    <p class="dim">${esc(S2.title)}</p>
+    ${fr.length ? `<p class="pmlbl">למי לשלוח?</p><div class="fchips wrap">${fr.map(f => `<button class="fc ${S2.to.includes(f.id) ? 'on' : ''}" data-shto="${f.id}">${S2.to.includes(f.id) ? '✓ ' : ''}${esc(f.name || 'מורה')}</button>`).join('')}</div>
+      <button class="cta" data-act="shsend" ${S2.to.length ? '' : 'disabled'}>${ic('upload')} שליחה${S2.to.length ? ` ל־${S2.to.length}` : ''}</button>` : '<p class="hint">עוד אין חברות – מוסיפים ב"עוד ← מורות חברות".</p>'}
+    ${S2.kind === 'lesson' ? `<button class="cta soft" data-act="shpub">${ic('star')} שיתוף עם כל החברות (בספרייה שלי)</button>` : `<button class="cta soft" data-act="shfile">${ic('file')} שליחה כקובץ (בווטסאפ / מייל)</button>`}
+  </div>`);
+}
+async function libSheet(id) {
+  const mine = soc.data && id === soc.data.me.id;
+  const f = soc.data && soc.data.friends.find(x => x.id === id);
+  openOverlay(`<div class="ov sheet"><button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button><div class="ovh">${ic('book')}<h2>${mine ? 'השיעורים ששיתפתי' : 'השיעורים של ' + esc(f ? f.name : 'חברה')}</h2></div><p class="hint">טוענת…</p></div>`);
+  try {
+    const { items } = await socApi('library', null, `&id=${encodeURIComponent(id)}`);
+    state._lib = items;
+    const by = new Map(); for (const it of items) { const n = look(it.data || {}).n; by.set(n, [...(by.get(n) || []), it]); }
+    openOverlay(`<div class="ov sheet"><button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button><div class="ovh">${ic('book')}<h2>${mine ? 'השיעורים ששיתפתי' : 'השיעורים של ' + esc(f ? f.name : 'חברה')}</h2></div>
+      ${items.length ? [...by].map(([n, its]) => `<h4 class="pmlbl">${esc(n)}</h4>${its.map(it => `<div class="clsrow"><span class="grow"><b>${esc(it.title)}</b><small>${esc((it.data.sections || []).map(s => s.label).filter(Boolean).join(' · '))}</small></span>${mine ? `<button class="iconbtn" data-unpub="${it.id}" aria-label="הסרה">${ic('trash')}</button>` : `<button class="cta soft sm" data-libtake="${it.id}">${ic('plus')} לקחת</button>`}</div>`).join('')}`).join('') : `<p class="dim">${mine ? 'עוד לא שיתפת שיעורים.' : 'היא עוד לא שיתפה שיעורים.'}</p>`}
+    </div>`);
+  } catch (e) { toast('לא הצלחתי לטעון 😕'); }
+}
+function takeLesson(p, from) {
+  state.bank.push({ id: uid(), at: Date.now(), p: { ...p, from: from || '' } }); save();
+  toast('נוסף למאגר השיעורים שלך ⭐ – משם מוסיפים לכל יום');
+}
+async function openInbox(id) {
+  try {
+    const { item } = await socApi('inbox-get', null, `&id=${encodeURIComponent(id)}`);
+    if (!item) { toast('הפריט כבר לא קיים'); return; }
+    state._inbox = item;
+    const isW = item.kind === 'week';
+    openOverlay(`<div class="ov sheet"><button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+      <div class="ovh">${ic(isW ? 'calendar' : 'book')}<h2>${esc(item.title)}</h2></div>
+      <p class="dim">${isW ? 'שבוע שלם' : 'שיעור'} מ${esc(item.fromName || 'חברה')}</p>
+      ${isW ? `<p class="dim">${item.data.days.map(d => `יום ${d.name}: ${d.periods.length} שיעורים`).join(' · ')}</p>` : (item.data.sections || []).filter(s => s.text).map(s => `<p class="sec"><b>${esc(s.label)}</b> – ${esc(s.text)}</p>`).join('')}
+      <button class="cta" data-act="${isW ? 'intakeweek' : 'intakelesson'}">${ic('plus')} ${isW ? 'הוספת השבוע אצלי' : 'הוספה למאגר השיעורים'}</button>
+      <button class="linkbtn danger-l" data-act="indel">מחיקה</button>
+    </div>`);
+  } catch { toast('לא הצלחתי לפתוח 😕'); }
+}
+
+
+// ================================================================ BELL SCHEDULE – when each period starts and ends (differs by school)
+const BELL_ORDER = ['בוקר', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+function bellRows() {
+  const b = state.prefs.bell;
+  if (b && Object.keys(b).length) return BELL_ORDER.filter(l => b[l]).map(l => [l, ...b[l]]).concat(Object.keys(b).filter(l => !BELL_ORDER.includes(l)).map(l => [l, ...b[l]]));
+  return BELL_ORDER.slice(0, 9).map(l => [l, ...bellFor(l)]);
+}
+function viewBells() {
+  const rows = state._bellDraft || bellRows();
+  let h = top('לוח צלצולים', 'מתי כל שיעור מתחיל ונגמר – לפי בית הספר שלך', 'clock', { back: 'more' });
+  h += `<div class="card">${cardHead('clock', 'השעות', state.prefs.bell ? '<span class="cnt">נשמר ✓</span>' : '')}
+    <div class="bellhead"><span>שיעור</span><span>התחלה</span><span>סיום</span><span></span></div>
+    ${rows.map(([l, s, e], i) => `<div class="bellrow"><select data-bell="${i}|0">${BELL_ORDER.map(x => `<option value="${x}" ${x === l ? 'selected' : ''}>${x === 'בוקר' ? 'בוקר' : 'שעה ' + x}</option>`).join('')}</select><input type="time" data-bell="${i}|1" value="${esc(s || '')}"><input type="time" data-bell="${i}|2" value="${esc(e || '')}"><button class="iconbtn" data-belldel="${i}" aria-label="מחיקה">${ic('x')}</button></div>`).join('')}
+    <button class="addrow" data-act="belladd">${ic('plus')} הוספת שיעור</button>
+    <button class="cta" data-act="bellsave">${ic('check')} שמירת הלוח</button>
+  </div>
+  <div class="card">${cardHead('upload', 'יש לך את לוח הצלצולים בקובץ?')}
+    <p class="dim">PDF, Word, Excel, טקסט – או צילום של הלוח. אני מוצאת את השעות וממלאת את הטבלה, ואת רק בודקת ושומרת.</p>
+    <button class="cta soft" data-act="bellfile">${ic('upload')} העלאת קובץ או תמונה</button>
+    <input type="file" id="bellfile" accept="image/*,.pdf,.docx,.xlsx,.csv,.txt" hidden>
+  </div>
+  <div class="card">${cardHead('layers', 'להחיל על התכנונים')}
+    <p class="dim">השעות של כל שיעור בתכנונים יתעדכנו לפי הלוח.</p>
+    <button class="cta soft" data-act="bellapply">${ic('check')} עדכון השבוע הנוכחי והבאים</button>
+    <div class="setrow"><span>תכנון חדש שאעלה – לפי הלוח</span><button class="switch ${state.prefs.bellAuto ? 'on' : ''}" data-act="bellauto" role="switch" aria-checked="${!!state.prefs.bellAuto}"><i></i></button></div>
+  </div>`;
+  return h;
+}
+function bellSave(rows) {
+  const b = {};
+  for (const [l, s, e] of rows) if (l && s) b[l] = [s, e || s];
+  state.prefs.bell = b; state._bellDraft = null; save();
+}
+function applyBell(wk) {
+  const b = state.prefs.bell; if (!b) return 0;
+  let n = 0;
+  for (const d of wk.days) { for (const p of d.periods) if (b[p.label]) { const [s, e] = b[p.label]; if (p.start !== s || p.end !== e) { p.start = s; p.end = e; n++; } } d.periods.sort((a, c) => mins(a.start) - mins(c.start)); }
+  return n;
+}
+// read times out of any text: "שעה 1  08:00–08:45", "1. 8:00-8:45", "בוקר 7:50 8:10" …
+function parseBellText(text) {
+  const lines = String(text).split(/\n|\r/).map(x => x.trim()).filter(Boolean);
+  const T = /(?:^|[^\d])([01]?\d|2[0-3])\s*[:：]\s*([0-5]\d)(?!\d)/g;
+  const tm = (h, m) => `${String(+h).padStart(2, '0')}:${m}`;
+  let rows = [], next = 1;
+  for (const ln of lines) {
+    if (/הפסק|ארוחה|break|recess/i.test(ln)) continue;
+    const ts = [...ln.matchAll(T)].map(m => tm(m[1], m[2]));
+    if (ts.length < 2) continue;
+    const lab = /בוקר|מפגש/.test(ln) ? 'בוקר' : ((ln.match(/שעה\s*(\d{1,2})/) || ln.match(/^\D{0,3}(\d{1,2})(?![\d:：])/) || [])[1]);
+    const label = lab === 'בוקר' ? 'בוקר' : lab && +lab >= 1 && +lab <= 10 && !rows.some(r => r[0] === String(+lab)) ? String(+lab) : String(next);
+    if (label !== 'בוקר') next = +label + 1;
+    rows.push([label, ts[0], ts[1]]);
+  }
+  if (!rows.length) {
+    // no line had two times: pair all times in order
+    const all = [...String(text).matchAll(T)].map(m => tm(m[1], m[2]));
+    for (let i = 0; i + 1 < all.length; i += 2) rows.push([String(i / 2 + 1), all[i], all[i + 1]]);
+  }
+  return rows.slice(0, 11);
+}
+async function readBellFile(f) {
+  loader(true, .2, 'קוראת את הלוח…');
+  try {
+    let text = '';
+    if (/^image\//.test(f.type) || /\.(png|jpe?g|heic|webp)$/i.test(f.name)) {
+      if (!window.Tesseract) await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+      const r = await window.Tesseract.recognize(f, 'eng', { logger: m => { if (m.status === 'recognizing text') loader(true, .2 + m.progress * .75, 'מזהה את השעות בתמונה…'); } });
+      text = r.data.text;
+    } else text = await extractText(f, pdfjsLib);
+    const rows = parseBellText(text);
+    loader(false);
+    if (!rows.length) { toast('לא מצאתי שעות בקובץ 😕 אפשר למלא ידנית'); return; }
+    state._bellDraft = rows; rerender();
+    toast(`מצאתי ${rows.length} שיעורים – בודקים ושומרים ✓`, 3500);
+  } catch (e) { loader(false); toast('לא הצלחתי לקרוא את הקובץ 😕'); }
 }
 
 // ================================================================ TOOLKIT: research-based methods & tips
@@ -1281,17 +1596,15 @@ function viewMore(w) {
   const weeks = Object.values(state.weeks).sort((a, b) => (a.id < b.id ? 1 : -1));
   return top('עוד', streak() > 1 ? `🔥 ${streak()} ימים ברצף שהכל מוכן` : 'כלים, הגדרות ותכנונים', 'star') + `
   ${[
-    ['בכיתה', [['screen', 'מצב בכיתה', 'data-act="classmode"'], ['timer', 'טיימר', 'data-act="timer"'], ['dice', 'מי עונה?', 'data-act="picker"'], ['medal', 'ניהול כיתה', 'data-go="class"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"']]],
-    ['תלמידים', [['cake', 'הכיתה שלי', 'data-go="kids"'], ['star', 'ציונים', 'data-go="grades"'], ['pencil', 'יומן כיתה', 'data-go="journal"']]],
-    ['תכנון', [['grid', 'מערכת', 'data-day="all"'], ['calendar', 'לוח אירועים', 'data-go="calendar"'], ['book', 'מאגר שיעורים', 'data-go="bank"'], ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`], ['layers', 'השבוע הבא', w ? 'data-act="nextweek"' : 'disabled'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled']]],
-    ['תקשורת ותזכורות', [['phone2', 'הודעה להורים', 'data-go="msgs"'], ['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"']]],
+    ['תכנון', [['upload', 'תכנון חדש', 'data-act="upload"'], ['layers', 'השבוע הבא', w ? 'data-act="nextweek"' : 'disabled'], ['grid', 'מערכת', 'data-day="all"'], ['clock', 'לוח צלצולים', 'data-go="bells"'], ['book', 'מאגר שיעורים', 'data-go="bank"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`]]],
+    ['כלים לשיעור', [['screen', 'מצב בכיתה', 'data-act="classmode"'], ['timer', 'טיימר', 'data-act="timer"'], ['dice', 'מי עונה?', 'data-act="picker"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"'], ['folder', 'קבצים', 'data-go="files"']]],
+    ['תזכורות ושיתוף', [['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"'], ['heart', 'מורות חברות', 'data-go="friends"']]],
   ].map(([t, items]) => `<h4 class="sect msect">${t}</h4><div class="toolgrid">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
   <h4 class="sect msect">עזרה והגדרות</h4>
   <button class="card setlink" data-go="settings"><span class="chi">${ic('settings')}</span><span class="grow"><b>הגדרות</b><small>${sync.user ? '☁️ מחוברת · ' : ''}חשבון, תצוגה, התראות, ווידג׳ט</small></span>${ic('chevL', 'chev')}</button>
   <div class="helprow"><button data-act="guide">${ic('book')} איך זה עובד</button><button data-act="report">${ic('warn')} משהו לא עובד?</button></div>
-  ${bdCard(14, 'ימי הולדת בשבועיים הקרובים')}
   <div class="card">
-    ${cardHead('upload', 'תכנון שבועי')}
+    ${cardHead('upload', 'התכנונים שלי')}
     <button class="cta" data-act="upload">${ic('upload')} להעלות תכנון של שבוע חדש</button>
     <p class="hint">PDF, Word, Excel או טקסט – בכל מבנה, או תכנון שמורה אחרת שיתפה. שבוע עם אותם תאריכים יוחלף. ${ic('upload')} ליד שבוע = שיתוף למורה אחרת.</p>
     <div class="btnrow"><button class="cta soft" data-act="manualweek">${ic('pencil')} שבוע ידני</button><button class="cta soft" data-act="templateweek" ${weeks.length ? '' : 'disabled'}>${ic('layers')} משבוע קודם</button></div>
@@ -1365,7 +1678,7 @@ function viewKids() {
     let x = new Date(t.getFullYear(), m - 1, d); if (x < t) x = new Date(t.getFullYear() + 1, m - 1, d);
     return { k, x, days: Math.round((x - t) / 864e5) };
   }).sort((a, b) => a.days - b.days);
-  return top('הכיתה שלי', 'שמות וימי הולדת – כדי שאף אחד לא יישכח', 'cake', { back: 'more' }) + `
+  return top('הכיתה שלי', 'שמות וימי הולדת – כדי שאף אחד לא יישכח', 'cake', { back: 'cls' }) + `
   <div class="card">
     ${cardHead('users', 'הילדים', `<span class="cnt">${state.kids.length}</span>`)}
     <p class="dim">שורה לכל ילד: שם, תאריך לידה (יום.חודש) וטלפון של הורה – לא חובה. אפשר להדביק רשימה שלמה.</p>
@@ -1419,7 +1732,7 @@ function viewEmpty() {
     </form>
     <p class="hint">יש לך כבר חשבון? <button class="linkbtn" data-act="onblogin">התחברות</button></p>
   </section>`;
-  return top(state.name ? `שלום ${esc(state.name)}` : 'שלום', 'מעלים את התכנון השבועי ומתחילים', 'books') + `
+  return top(state.name ? `שלום ${esc(state.name)}` : 'שלום', 'מעלים את התכנון השבועי ומתחילים', 'books') + firstSteps() + `
   <div class="card empty">
     <p>מעלים את התכנון השבועי – <b>בכל צורה</b>: PDF, Word, Excel או טקסט – ואני מסדרת: מה עכשיו, מה הבא, מה להכין.</p>
     <button class="cta" data-act="upload">${ic('upload')} להעלות את התכנון של השבוע</button>
@@ -1431,6 +1744,7 @@ function viewEmpty() {
 // ================================================================ generic plans: review, manual week, template
 const DEFAULT_BELL = { 'בוקר': ['08:00', '08:20'], 1: ['08:20', '09:00'], 2: ['09:00', '09:45'], 3: ['10:05', '10:50'], 4: ['10:50', '11:35'], 5: ['11:55', '12:40'], 6: ['12:40', '13:25'], 7: ['13:30', '14:15'], 8: ['14:15', '15:00'] };
 function bellFor(label) {
+  if (state.prefs.bell && state.prefs.bell[label]) return state.prefs.bell[label];
   for (const w of sortedWeeks().reverse()) for (const d of w.days) { const p = d.periods.find(x => x.label === label && x.start); if (p) return [p.start, p.end]; }
   return DEFAULT_BELL[label] || ['', ''];
 }
@@ -1495,6 +1809,7 @@ function manualSheet(template) {
   </form>`);
 }
 function saveGenericWeek(wk) {
+  tagClasses(wk); if (state.prefs.bellAuto) applyBell(wk);
   state.weeks[wk.id] = wk; state.activeId = wk.id; state.viewWeekId = wk.id === (realWeek() || {}).id ? null : wk.id; save();
   closeOverlay(); state.dayDow = null; go('day'); confetti();
 }
@@ -1543,6 +1858,7 @@ function editor(w, dow, label) {
     <p class="dim">יום ${esc(day.name)}</p>
     <label class="field">שם השיעור<input name="title" value="${esc(e.title)}" placeholder="למשל: הקיוסק של בולי"></label>
     <div class="frow">
+      ${multiCls() ? `<label class="field">כיתה<select name="cls"><option value="">—</option>${state.classes.map(c => `<option ${e.cls === c.name ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>` : ''}
       <label class="field">מקצוע<select name="subject">${SUBJ.map(s => s[1]).concat(['אחר']).map(n => `<option ${L.n === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
       <label class="field">שעה<select name="label">${LABELS.map(l => `<option value="${l}" ${e.label === l ? 'selected' : ''} ${used.includes(l) && l !== e.label ? 'disabled' : ''}>${l === 'בוקר' ? 'בוקר' : 'שעה ' + l}</option>`).join('')}</select></label>
     </div>
@@ -1576,7 +1892,7 @@ function saveEditor(f) {
   if (!f.end.value) f.end.value = bell[1] || f.start.value;
   const p = Object.assign(old || {}, {
     label: f.label.value, start: f.start.value, end: f.end.value, title: f.title.value.trim(),
-    subject: subj === 'אחר' ? '' : subj, subtitle: (subj === 'אחר' ? '' : subj) + (sub ? ' · ' + sub : ''),
+    cls: f.cls ? f.cls.value : (old ? old.cls || '' : ''), subject: subj === 'אחר' ? '' : subj, subtitle: (subj === 'אחר' ? '' : subj) + (sub ? ' · ' + sub : ''),
     sections: get('sections').filter(([a, b]) => a || b).map(([label, text]) => ({ label, text })),
     materials: get('materials').filter(([a]) => a).map(([text]) => ({ text })),
     homework: get('homework').filter(([a]) => a).map(([a]) => a),
@@ -2189,7 +2505,7 @@ function viewJournal() {
   const byKid = {};
   for (const n of state.cnotes) for (const k of n.kids) { byKid[k] = byKid[k] || { star: 0, disrupt: 0 }; if (n.tag === 'star') byKid[k].star++; if (n.tag === 'disrupt') byKid[k].disrupt++; }
   const kidsRows = Object.entries(byKid).filter(([, v]) => v.star || v.disrupt).sort((a, b) => b[1].star - a[1].star);
-  return top('יומן כיתה', 'כל מה שרשמת בשיעורים – במקום אחד', 'notepad', { back: 'more' }) + `
+  return top('יומן כיתה', 'כל מה שרשמת בשיעורים – במקום אחד', 'notepad', { back: 'cls' }) + `
   <button class="cta" data-cnote="" data-tag="note">${ic('plus')} הערה חדשה</button>
   <div class="fchips">${[['', 'הכל'], ['open', `לטיפול (${openActions().length})`], ...Object.entries(TAGS).map(([k, [e, t]]) => [k, e + ' ' + t])].map(([k, t]) => `<button class="fc ${f === k ? 'on' : ''}" data-jf="${k}">${t}</button>`).join('')}</div>
   <div class="card">${list.length ? list.map(n => noteRow(n, true)).join('') : '<p class="dim">עוד אין הערות. בכל שיעור יש כפתורים מהירים: 👤 📞 ⭐ ⚠️ 📝</p>'}</div>
@@ -2436,9 +2752,9 @@ function readyMoment(day) {
 }
 
 // ================================================================ render
-const TABS = ['now', 'day', 'prep', 'files', 'more'];
-const SUB = { kids: 'more', todos: 'more', summary: 'more', settings: 'more', journal: 'more', lists: 'more', autos: 'more', tools: 'more', msgs: 'more', class: 'more', grades: 'more', bank: 'more', calendar: 'more' };
-const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar };
+const TABS = ['now', 'day', 'prep', 'cls', 'more'];
+const SUB = { files: 'more', friends: 'more', bells: 'more', kids: 'cls', grades: 'cls', journal: 'cls', class: 'cls', msgs: 'cls', calendar: 'cls', todos: 'more', summary: 'more', settings: 'more',  lists: 'more', autos: 'more', tools: 'more',   bank: 'more',  };
+const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, cls: viewHub, friends: viewFriends, bells: viewBells, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar };
 let lastTab = null;
 function render(animate) {
   let w = pickWeek();
@@ -2453,8 +2769,9 @@ function render(animate) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   moveTabInd();
   const v = $('#view');
-  const needWeek = !['more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar'].includes(state.tab);
-  v.innerHTML = !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
+  const needWeek = !['more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells'].includes(state.tab);
+  document.body.classList.toggle('onboarding', !state.onboarded);
+  v.innerHTML = !state.onboarded ? viewOnboard() : !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
   if (animate) {
     const a = TABS.indexOf(SUB[state.tab] || state.tab), b = TABS.indexOf(SUB[lastTab] || lastTab);
     const dir = lastTab == null ? 0 : a !== b ? Math.sign(a - b) : SUB[state.tab] ? 1 : -1;
@@ -2624,6 +2941,23 @@ document.addEventListener('click', e => {
   if (D.pmday) { const P = state.pm; P.opts.dow = +D.pmday; if (P.type === 'gear') { const d = w.days.find(x => x.dow === +D.pmday); P.opts.gear = d.periods.flatMap(p => [...p.materials.map(m => m.text), ...p.sections.map(x => x.text)]).filter(x => /להביא|לצייד|להגיע עם/.test(x)); } P.text = null; rerender(); return; }
   if (D.pmscope) { state.pm.opts.scope = D.pmscope; state.pm.text = null; rerender(); return; }
   if (D.pmtog2) { state.pm.opts[D.pmtog2] = !state.pm.opts[D.pmtog2]; state.pm.text = null; rerender(); return; }
+  if (D.belldel != null) { const r = state._bellDraft || bellRows(); r.splice(+D.belldel, 1); state._bellDraft = r; rerender(); return; }
+  if (D.cls) { switchClass(D.cls); return; }
+  if (D.clsf != null) { state.clsFilter = D.clsf; rerender(); return; }
+  if (D.role) { const st = roleSet(state.prefs.role); if (st.has(D.role)) { if (st.size > 1) st.delete(D.role); else { toast('צריך לסמן לפחות אחת'); return; } } else st.add(D.role); state.prefs.role = roleOf(st); save(); classesSheet(); return; }
+  if (D.clsedit) { const c = state.classes.find(x => x.id === D.clsedit); const n = prompt('שם הכיתה:', c.name); if (n == null) return; const z = prompt('כמה תלמידים?', c.size || ''); const sb = prompt('מה את מלמדת שם? (ריק = מחנכת)', c.subject || ''); c.name = n.trim() || c.name; c.size = +z || 0; c.subject = (sb || '').trim(); if (c.id === state.curClass) { state.prefs.cls = c.name; state.prefs.classSize = c.size || ''; } save(); classesSheet(); rerender(); return; }
+  if (D.clsdel) { const c = state.classes.find(x => x.id === D.clsdel); if (!confirm(`למחוק את ${c.name}? הילדים ברשימה שלה יימחקו.`)) return; state.classes = state.classes.filter(x => x.id !== c.id); if (state.curClass === c.id) { state.curClass = state.classes[0].id; state.kids = state.classes[0].kids; } save(); classesSheet(); rerender(); return; }
+  if (D.onbrole) { const st = roleSet(state.onb.role); if (st.has(D.onbrole)) st.delete(D.onbrole); else st.add(D.onbrole); state.onb.role = roleOf(st); rerender(); return; }
+  if (D.onbnext) { if (!state.onb.role) return; state.onb.step = +D.onbnext; rerender(); window.scrollTo({ top: 0 }); return; }
+  if (D.onbback) { state.onb.step = +D.onbback - 1; rerender(); return; }
+  if (D.onbgo) { finishOnboard(D.onbgo); return; }
+  if (D.sharelesson) { const [dow, lb] = D.sharelesson.split('|'); shareLessonSheet(dow, lb); return; }
+  if (D.shto) { const S2 = state._share, i = S2.to.indexOf(D.shto); if (i >= 0) S2.to.splice(i, 1); else S2.to.push(D.shto); shareSheet(); return; }
+  if (D.flib) { libSheet(D.flib); return; }
+  if (D.funfriend) { if (!confirm('להסיר את החברה? אפשר להוסיף שוב עם הקוד.')) return; socApi('remove', { id: D.funfriend }).then(() => socLoad(true)); return; }
+  if (D.inbox) { openInbox(D.inbox); return; }
+  if (D.unpub) { socApi('unpublish', { id: D.unpub }).then(() => { toast('הוסר מהספרייה'); libSheet(soc.data.me.id); }); return; }
+  if (D.libtake) { const it = (state._lib || []).find(x => x.id === D.libtake); if (it) { takeLesson(it.data, it.fromName); miniBurst(t); } return; }
   if (D.go2) { closeClassMode(); go(D.go2); return; }
   if (D.cmsec) { const [id, i] = D.cmsec.split('|'); state.sec[id] = +i; classMode(); return; }
   if (D.pt) { const [i, d] = D.pt.split('|').map(Number); state.points[i].pts = Math.max(0, state.points[i].pts + d); save(); if (d > 0) miniBurst(t); rerender(); if ($('#proj.show')) projector('points'); return; }
@@ -2640,8 +2974,8 @@ document.addEventListener('click', e => {
   if (D.bankto) { const [id, dow] = D.bankto.split('|'); addFromBank(id, dow); return; }
   if (D.bankdel) { if (confirm('למחוק מהמאגר?')) { state.bank = state.bank.filter(b => b.id !== D.bankdel); save(); closeOverlay(); rerender(); } return; }
   if (D.evdel) { const [tx, dt] = D.evdel.split('|'); state.events = state.events.filter(e => !(e.text === tx && e.date === dt)); save(); rerender(); return; }
-  if (D.shareweek) { shareWeek(state.weeks[D.shareweek]); return; }
-  if (D.guide) { if (D.guide === 'end') closeOverlay(); else guideSheet(+D.guide); return; }
+  if (D.shareweek) { shareWeekSheet(D.shareweek); return; }
+  if (D.guide) { if (D.guide === 'end') { closeOverlay(); const a = state._afterGuide; state._afterGuide = null; if (a === 'upload') $('#file').click(); if (a === 'manual') manualSheet(); } else guideSheet(+D.guide); return; }
   if (D.snap != null) { getBlob('snaps').then(list => { const sn = list && list[+D.snap]; if (!sn || !confirm(`לשחזר את המצב מ־${sn.day.split('-').reverse().slice(0, 2).join('.')}? המידע הנוכחי יוחלף.`)) return; Object.assign(state, JSON.parse(sn.data)); save(); applyPrefs(); closeOverlay(); go('now'); toast('שוחזר ✓'); }); return; }
   if (D.pmkid) { const o = state.pm.opts; o.kid = D.pmkid; o.noteIds = []; o.notes = []; state.pm.text = null; rerender(); return; }
   if (D.pmkind) { state.pm.opts.kind = D.pmkind; state.pm.text = null; rerender(); return; }
@@ -2708,6 +3042,20 @@ document.addEventListener('click', e => {
     case 'pmwa': { const v = $('#pmText').value; navigator.clipboard && navigator.clipboard.writeText(v).catch(() => {}); sendWhatsApp(v, '', state.pm.file); pmLog(state.pm.type, v); break; }
     case 'pmsavetpl': { const v = $('#pmText').value.trim(); if (!v) break; const n = prompt('שם לתבנית:', (PM_TYPES.find(x => x[0] === state.pm.type) || [0, 0, ''])[2]); if (!n) break; state.pmtpl.push({ id: uid(), name: n.trim(), text: v }); save(); toast('נשמר בתבניות שלי ⭐'); break; }
     case 'classmode': classMode(); break;
+    case 'belladd': { const r = state._bellDraft || bellRows(); const last = r[r.length - 1]; const nl = BELL_ORDER[Math.min(BELL_ORDER.length - 1, BELL_ORDER.indexOf(last ? last[0] : 'בוקר') + 1)]; r.push([nl, last ? last[2] : '08:00', '']); state._bellDraft = r; rerender(); break; }
+    case 'bellsave': bellSave(state._bellDraft || bellRows()); toast('לוח הצלצולים נשמר ⏰'); rerender(); break;
+    case 'bellfile': $('#bellfile').click(); break;
+    case 'bellauto': state.prefs.bellAuto = !state.prefs.bellAuto; save(); rerender(); break;
+    case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
+    case 'classes': classesSheet(); break;
+    case 'stepsdone': state.prefs.stepsDone = true; save(); rerender(); break;
+    case 'sharecode': { const c = soc.data && soc.data.me.code; if (!c) break; const tx = `היי! אני משתמשת באפליקציה "הכיתה שלי" לתכנון השבועי 💜\nבואי נהיה חברות שם ונשתף שיעורים – הקוד שלי: ${c}\nhttps://noa-hakita.netlify.app`; if (navigator.share) navigator.share({ text: tx }).catch(() => {}); else navigator.clipboard.writeText(tx).then(() => toast('הועתק 📋')); break; }
+    case 'shsend': { const S2 = state._share; socApi('send', { to: S2.to, kind: S2.kind, title: S2.title, data: S2.data }).then(r => { closeOverlay(); toast(`נשלח ל־${r.sent} ✓`); confetti(); }).catch(e => toast(e.code === 'too-big' ? 'השבוע גדול מדי לשליחה – שולחים כקובץ' : 'לא הצלחתי לשלוח 😕')); break; }
+    case 'shpub': { const S2 = state._share; socApi('publish', { title: S2.title, data: S2.data }).then(() => { closeOverlay(); toast('השיעור בספרייה שלך – כל החברות רואות אותו ⭐'); }).catch(() => toast('לא הצלחתי לשתף 😕')); break; }
+    case 'shfile': closeOverlay(); shareWeek(state._share.data); break;
+    case 'intakelesson': { const it = state._inbox; takeLesson(it.data, it.fromName); socApi('inbox-del', { id: it.id }).then(() => socLoad(true)); closeOverlay(); break; }
+    case 'intakeweek': { const it = state._inbox, wk = it.data; if (state.weeks[wk.id] && !confirm('כבר יש לך שבוע בתאריכים האלה. להחליף אותו?')) break; socApi('inbox-del', { id: it.id }).then(() => socLoad(true)); state.logs[wk.id] = {}; saveGenericWeek(wk); toast(`השבוע של ${it.fromName || 'החברה'} נוסף ✨`); break; }
+    case 'indel': socApi('inbox-del', { id: state._inbox.id }).then(() => { closeOverlay(); socLoad(true); }); break;
     case 'cmclose': closeClassMode(); break;
     case 'projtext': projector('text'); break;
     case 'projpoints': projector('points'); break;
@@ -2780,6 +3128,8 @@ document.addEventListener('click', e => {
 function findPeriod(w, id) { const [dow, lb] = id.split(':'); return w.days.find(d => d.dow === +dow).periods.find(p => p.label === lb); }
 
 document.addEventListener('change', e => {
+  if (e.target.id === 'bellfile' && e.target.files[0]) { readBellFile(e.target.files[0]); e.target.value = ''; return; }
+  if (e.target.dataset && e.target.dataset.bell) { const [i, k] = e.target.dataset.bell.split('|').map(Number); const r = state._bellDraft || bellRows(); r[i][k] = e.target.value; state._bellDraft = r; return; }
   if (e.target.name === 'shot' && e.target.files[0]) { const n = $('#shotName'); if (n) n.textContent = '✓ ' + e.target.files[0].name; }
   const sel = e.target.dataset && e.target.dataset.pmsel;
   if (sel && state.pm) {
@@ -2853,6 +3203,15 @@ document.addEventListener('submit', e => {
   if (f.matches('[data-noteform]')) { e.preventDefault(); saveNote(f); return; }
   if (f.matches('[data-ladd]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; state.lists.find(x => x.id === f.dataset.ladd).items.push({ id: uid(), text: t, done: false }); save(); rerender(); setTimeout(() => { const n = document.querySelector(`[data-ladd="${f.dataset.ladd}"] input`); if (n) n.focus(); }, 30); return; }
   if (f.matches('[data-lnew]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; const id = uid(); state.lists.push({ id, emoji: '✅', title: t, items: [] }); save(); rerender(); setTimeout(() => { const n = document.querySelector(`[data-ladd="${id}"] input`); if (n) n.focus(); }, 30); return; }
+  if (f.matches('[data-onbstep]')) {
+    e.preventDefault(); const st = state.onb;
+    if (f.dataset.onbstep === '0') { st.name = f.name.value.trim(); st.step = 1; }
+    else { if (f.home) { st.home = f.home.value.trim(); st.size = f.size.value; } if (f.more) { st.classes = f.more.value.split(/[,،\n]+/).map(x => x.trim()).filter(Boolean); st.subject = f.subject.value.trim(); } st.step = 3; }
+    rerender(); window.scrollTo({ top: 0 }); return;
+  }
+  if (f.matches('[data-clsnew]')) { e.preventDefault(); syncCls(); state.classes.push({ id: 'c' + uid(), name: f.name.value.trim(), size: +f.size.value || 0, kids: [], home: false, subject: f.subject.value.trim() }); if (state.prefs.role === 'home') state.prefs.role = 'both'; save(); classesSheet(); rerender(); return; }
+  if (f.matches('[data-friendadd]')) { e.preventDefault(); const c = f.code.value.trim(); if (!c) return; socApi('add', { code: c }).then(r => { toast(`${r.friend.name || 'החברה'} נוספה ✓`); confetti(); socLoad(true); }).catch(x => toast(x.code === 'no-such-code' ? 'לא מצאתי את הקוד – כדאי לבדוק שוב' : x.code === 'self' ? 'זה הקוד שלך 🙂' : 'לא הצלחתי להוסיף 😕')); return; }
+  if (f.matches('[data-profile]')) { e.preventDefault(); socApi('profile', { name: f.name.value, school: f.school.value, subjects: f.subjects.value }).then(() => { toast('נשמר ✓'); socLoad(true); }); return; }
   if (f.matches('[data-ptnew]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; state.points.push({ name: t, pts: 0 }); save(); rerender(); return; }
   if (f.matches('[data-gnew]')) { e.preventDefault(); const id = uid(); state.grades.push({ id, title: f.title.value.trim(), kind: f.kind.value, max: +f.max.value || 100, date: isoDay(now()), scores: {} }); state.gOpen = id; save(); rerender(); return; }
   if (f.matches('[data-evnew]')) { e.preventDefault(); state.events.push({ text: f.text.value.trim(), date: f.date.value, icon: '⭐' }); save(); rerender(); toast('נוסף ללוח ✓'); return; }
@@ -2931,6 +3290,7 @@ $('#file').addEventListener('change', async e => {
     loader(true, 1, 'מסדרת את השבוע ✨'); await new Promise(r => setTimeout(r, 450)); loader(false);
     const n = nn;
     const empty = wk.days.filter(d => !d.periods.length).map(d => d.name);
+    tagClasses(wk); if (state.prefs.bellAuto) applyBell(wk);
     state.weeks[wk.id] = wk; state.activeId = wk.id; state.viewWeekId = null; save();
     go('now');
     toast(`${wk.number ? 'שבוע ' + wk.number : 'השבוע'} נטען! ${wk.days.length} ימים, ${n} שיעורים 🎉${empty.length ? ` (בלי שיעורים: ${empty.join(', ')})` : ''}`, 4000);
@@ -3065,6 +3425,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     if (!$('#overlay.show')) go(); else document.addEventListener('visibilitychange', () => { if (document.hidden) go(); }, { once: true });
   });
 }
+ensureClasses();
 { const g = new URLSearchParams(location.search).get('go'); if (g && VIEWS[g]) state.tab = g; }
 setTimeout(() => { const l = +localStorage.getItem('hk-snap') || 0; if (Date.now() - l > 20 * 3600e3) dailySnap(); }, 5000);
 render(true);

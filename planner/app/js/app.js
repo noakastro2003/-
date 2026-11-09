@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 36; // keep in step with CACHE in sw.js
+const APP_V = 37; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided'];
 const state = Object.assign({
   weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {},
@@ -636,6 +636,28 @@ function viewFiles(w) {
   return h;
 }
 
+
+// why a file could not be read – so the message says what to do, and a report carries the details
+async function fileDiag(f, isPdf) {
+  const d = { name: f.name, type: f.type || '?', size: f.size, err: f._err || '' };
+  if (!isPdf || !f.size) return d;
+  try {
+    const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
+    d.pages = doc.numPages; let txt = '';
+    for (let i = 1; i <= Math.min(2, doc.numPages); i++) txt += (await (await doc.getPage(i)).getTextContent()).items.map(x => x.str).join(' ');
+    d.chars = txt.replace(/\s+/g, '').length; d.start = txt.replace(/\s+/g, ' ').trim().slice(0, 80);
+  } catch (x) { d.err = d.err || String(x && (x.name || x.message) || x); }
+  return d;
+}
+function diagReason(d) {
+  if (!d) return '';
+  if (!d.size) return 'הקובץ הגיע ריק (0KB). זה קורה כשהקובץ עוד לא ירד לטלפון מווטסאפ או מ־iCloud – פותחים אותו פעם אחת, שומרים שוב ב"קבצים" ומעלים מחדש.';
+  if (/Password/i.test(d.err)) return 'הקובץ מוגן בסיסמה. צריך לשמור אותו מחדש בלי סיסמה.';
+  if (/Invalid|Missing|Corrupt|FormatError/i.test(d.err)) return 'הקובץ פגום או שלא ירד עד הסוף. כדאי לשמור אותו שוב ולנסות.';
+  if (d.pages && d.chars != null && d.chars < 40) return 'זה PDF של תמונה – צילום מסך, סריקה או "הדפסה כתמונה" – ואין בו טקסט שאפשר לקרוא. צריך את הקובץ המקורי (למשל זה שיוצא מ־Word, Google Docs או Canva כ־PDF רגיל).';
+  return 'הקובץ נקרא, אבל המבנה שלו שונה מהתכנונים שאני מכירה.';
+}
+const diagText = d => d ? `קובץ: ${d.name} · ${d.type} · ${Math.round(d.size / 1024)}KB${d.pages != null ? ` · ${d.pages} עמודים · ${d.chars} תווים` : ''}${d.err ? ` · שגיאה: ${d.err}` : ''}${d.start ? `\nתחילת הטקסט: ${d.start}` : ''}` : '';
 
 // ================================================================ dictation: shuffle the word order
 const isDict = p => /הכתבה/.test(`${p.title} ${p.subtitle} ${p.sections.map(s => s.label + ' ' + s.text).join(' ')}`);
@@ -1453,7 +1475,9 @@ function reviewSheet(res) {
       <label class="field">שם לשבוע (לא חובה)<input name="title" value="${esc(res.number ? 'שבוע ' + res.number : '')}" placeholder="למשל שבוע 9"></label>
       <p class="hint">אחרי השמירה אפשר לערוך כל שיעור, ולהוסיף שעות, חומרים וקבצים.</p>
       <div class="btnrow"><button class="cta">${ic('check')} שמירה</button></div>`
-    : `<p class="dim">${res.unsupported ? 'את סוג הקובץ הזה אני עוד לא יודעת לקרוא. אפשר PDF, Word, Excel או טקסט.' : 'לא הצלחתי לזהות בקובץ ימים ושיעורים – אבל זה בסדר גמור. אפשר לבנות את השבוע בכמה נגיעות:'}</p>
+    : `<p class="dim">${res.unsupported ? 'את סוג הקובץ הזה אני עוד לא יודעת לקרוא. אפשר PDF, Word, Excel או טקסט.' : diagReason(res.diag) || 'לא הצלחתי לזהות בקובץ ימים ושיעורים.'}</p>
+      ${res.diag ? `<button type="button" class="linkbtn" data-act="diagreport">שליחת פרטי הקובץ לבדיקה</button>` : ''}
+      <p class="dim">בינתיים אפשר לבנות את השבוע בכמה נגיעות:</p>
       <div class="menu">
         <button type="button" data-act="manualweek">${ic('pencil')} לבנות את השבוע ידנית</button>
         ${Object.keys(state.weeks).length ? `<button type="button" data-act="templateweek">${ic('layers')} לשכפל את השבוע הקודם כתבנית</button>` : ''}
@@ -2701,6 +2725,7 @@ document.addEventListener('click', e => {
     }
     case 'guide': guideSheet(0); break;
     case 'report': reportSheet(); break;
+    case 'diagreport': { const t2 = `קובץ תכנון שלא נקרא · גרסה ${APP_V}\n${diagText(state._review && state._review.diag)}\n${navigator.userAgent}`; if (navigator.share) navigator.share({ text: t2 }).catch(() => {}); else navigator.clipboard.writeText(t2).then(() => toast('הפרטים הועתקו 📋')); break; }
     case 'snaps': snapsSheet(); break;
     case 'pmreset': state.pm.text = null; rerender(); break;
     case 'pmcopy': navigator.clipboard.writeText($('#pmText').value).then(() => { toast('ההודעה הועתקה 📋'); pmLog(state.pm.type, $('#pmText').value); }).catch(() => toast('לא הצלחתי להעתיק 😕')); break;
@@ -2892,12 +2917,13 @@ $('#file').addEventListener('change', async e => {
     const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
     let wk = null;
     if (isPdf) {
-      try { wk = await parsePlanPdf(pdfjsLib, new Uint8Array(await f.arrayBuffer()), (i, n) => loader(true, i / n, `עמוד ${i} מתוך ${n}`)); } catch (e2) { console.warn(e2); wk = null; }
+      try { wk = await parsePlanPdf(pdfjsLib, new Uint8Array(await f.arrayBuffer()), (i, n) => loader(true, i / n, `עמוד ${i} מתוך ${n}`)); } catch (e2) { console.warn(e2); wk = null; f._err = String(e2 && (e2.name || e2.message) || e2); }
     }
     const nn = wk ? wk.days.reduce((a, d) => a + d.periods.length, 0) : 0;
     if (!nn) {
       loader(true, .7, 'מחפשת ימים ושיעורים…');
-      const res = await readAnyPlan(f, pdfjsLib);
+      const res = await readAnyPlan(f, pdfjsLib).catch(x => ({ days: [], err: String(x && x.message || x) }));
+      if (!res.days.reduce((a, d) => a + d.periods.length, 0)) res.diag = await fileDiag(f, isPdf);
       loader(true, 1, 'כמעט מוכן ✨'); await new Promise(r => setTimeout(r, 350)); loader(false);
       reviewSheet(res);
       return;
@@ -2911,7 +2937,7 @@ $('#file').addEventListener('change', async e => {
     confetti();
   } catch (err) {
     console.error(err); loader(false);
-    reviewSheet({ days: [] });
+    reviewSheet({ days: [], diag: await fileDiag(f, /\.pdf$/i.test(f.name) || f.type === 'application/pdf').catch(() => ({ size: f.size, err: String(err) })) });
   }
 });
 

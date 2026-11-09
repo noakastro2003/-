@@ -14,6 +14,7 @@
       var dark = p.theme === 'dark' || ((!p.theme || p.theme === 'auto') && matchMedia('(prefers-color-scheme: dark)').matches);
       if (dark) { document.getElementById('sbar').content = 'black-translucent'; document.documentElement.dataset.theme = 'dark'; }
       document.documentElement.dataset.skin = p.skin || 'luxe';
+      document.documentElement.dataset.palette = p.palette || 'soft';
     } catch (e) {}
   </script>
   <meta name="apple-mobile-web-app-title" content="הכיתה שלי">

@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 44; // keep in step with CACHE in sw.js
+const APP_V = 45; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1772,6 +1772,7 @@ function viewSettings(w) {
   <div class="card">
     ${cardHead('sparkle', 'תצוגה')}
     <div class="setrow"><span>גודל טקסט</span><div class="seg">${[0.9, 1, 1.15, 1.3].map((v, i) => `<button class="${P.size === v ? 'on' : ''}" data-size="${v}" style="font-size:${13 + i * 3}px">א</button>`).join('')}</div></div>
+    <div class="setrow pal"><span>צבעי המשבצות</span><div class="seg">${[['soft', 'פסטל רך'], ['cream', 'שמנת וזהב'], ['vivid', 'יותר צבע']].map(([v, l]) => `<button class="${(P.palette || 'soft') === v ? 'on' : ''}" data-pal="${v}"><span class="sw sw-${v}"><i></i><i></i><i></i></span>${l}</button>`).join('')}</div></div>
     <div class="setrow"><span>סגנון</span><div class="seg">${[['luxe', 'sparkle', 'יוקרתי'], ['colorful', 'heart', 'צבעוני']].map(([v, i, l]) => `<button class="${(P.skin || 'luxe') === v ? 'on' : ''}" data-skin="${v}">${ic(i)}${l}</button>`).join('')}</div></div>
     <div class="setrow"><span>מצב</span><div class="seg">${[['light', 'sun', 'יום'], ['dark', 'moon', 'לילה'], ['auto', 'sparkle', 'אוטו׳']].map(([v, i, l]) => `<button class="${P.theme === v ? 'on' : ''}" data-theme="${v}">${ic(i)}${l}</button>`).join('')}</div></div>
   </div>
@@ -2225,6 +2226,7 @@ function applyPrefs() {
   const dark = p.theme === 'dark' || (p.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   document.documentElement.dataset.skin = p.skin || 'luxe';
+  document.documentElement.dataset.palette = p.palette || 'soft';
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = dark ? '#1C1924' : '#FAF7F4';
   const sb = $('#sbar'); if (sb) sb.content = dark ? 'black-translucent' : 'default';
 }
@@ -3224,6 +3226,7 @@ document.addEventListener('click', async e => {
     state.absent = { d: todayKey(), names: ab }; state._absOpen = true; state._teams = null; save(); pickerScreen(); return;
   }
   if (D.size) { state.prefs.size = +D.size; save(); applyPrefs(); rerender(); return; }
+  if (D.pal) { state.prefs.palette = D.pal; save(); applyPrefs(); rerender(); return; }
   if (D.skin) { state.prefs.skin = D.skin; save(); applyPrefs(); rerender(); return; }
   if (D.theme) { state.prefs.theme = D.theme; save(); applyPrefs(); rerender(); return; }
   if (D.deltodo) { state.todos = state.todos.filter(x => x.id !== D.deltodo); save(); rerender(); return; }

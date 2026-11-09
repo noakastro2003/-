@@ -33,3 +33,8 @@ python3 tools/render_sample.py font/NoaBubble-Regular.otf samples/bubble_sample.
 python3 tools/compare_glyphs.py WORKDIR font/NoaBubble-Regular.otf samples/bubble_compare_original_vs_font.png
 ```
 דרוש: `opencv-python-headless numpy scikit-image fonttools potracer pillow` (ו-libraqm לרינדור הדוגמה).
+
+## הקיוסק של ב'2 – משחק כסף לכיתה ב'
+
+- `kiosk-b2.html` – משחק בקובץ אחד, עובד בלי אינטרנט (הפונט Varela Round מוטמע). לפתוח בדפדפן בטאבלט, לרוחב.
+- 4 משחקים: ספירת הקופה, קנייה בלי פריטה, קנייה עם פריטה (מכונת "פורט"), יום עמוס (ערבוב).

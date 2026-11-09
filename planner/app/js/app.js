@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 46; // keep in step with CACHE in sw.js
+const APP_V = 47; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1772,7 +1772,10 @@ function viewSettings(w) {
   <div class="card">
     ${cardHead('sparkle', 'תצוגה')}
     <div class="setrow"><span>גודל טקסט</span><div class="seg">${[0.9, 1, 1.15, 1.3].map((v, i) => `<button class="${P.size === v ? 'on' : ''}" data-size="${v}" style="font-size:${13 + i * 3}px">א</button>`).join('')}</div></div>
-    <div class="setrow pal"><span>צבעי המשבצות</span><div class="seg">${[['soft', 'פסטל רך'], ['cream', 'שמנת וזהב'], ['vivid', 'יותר צבע']].map(([v, l]) => `<button class="${(P.palette || 'soft') === v ? 'on' : ''}" data-pal="${v}"><span class="sw sw-${v}"><i></i><i></i><i></i></span>${l}</button>`).join('')}</div></div>
+    <div class="setrow pal"><span>צבעי המשבצות</span><div class="seg">${[['soft', 'פסטל רך'], ['cream', 'שמנת וזהב'], ['vivid', 'יותר צבע'], ['my', 'הצבעים שלי']].map(([v, l]) => `<button class="${(P.palette || 'soft') === v ? 'on' : ''}" data-pal="${v}"><span class="sw sw-${v}">${v === 'my' ? MYPAL.slice(0, 3).map(([k]) => `<i style="background:${myPal()[k]}"></i>`).join('') : '<i></i><i></i><i></i>'}</span>${l}</button>`).join('')}</div></div>
+    ${P.palette === 'my' ? `<div class="mypal">${MYPAL.map(([k, l]) => `<label class="mpc"><input type="color" value="${myPal()[k]}" data-mypal="${k}" aria-label="צבע ${l}"><span>צבע ${l}</span></label>`).join('')}
+      <p class="hint">לוחצים על עיגול ובוחרים צבע. במצב לילה הגוון מתכהה לבד.</p>
+      <button class="linkbtn" data-act="mypalreset">חזרה לצבעים המקוריים</button></div>` : ''}
     <div class="setrow"><span>סגנון</span><div class="seg">${[['luxe', 'sparkle', 'יוקרתי'], ['colorful', 'heart', 'צבעוני']].map(([v, i, l]) => `<button class="${(P.skin || 'luxe') === v ? 'on' : ''}" data-skin="${v}">${ic(i)}${l}</button>`).join('')}</div></div>
     <div class="setrow"><span>מצב</span><div class="seg">${[['light', 'sun', 'יום'], ['dark', 'moon', 'לילה'], ['auto', 'sparkle', 'אוטו׳']].map(([v, i, l]) => `<button class="${P.theme === v ? 'on' : ''}" data-theme="${v}">${ic(i)}${l}</button>`).join('')}</div></div>
   </div>
@@ -2219,6 +2222,23 @@ function doPick() {
 }
 
 // ================================================================ prefs, wake lock, backup
+// "my colors": the teacher picks each box color; night mode gets a darkened version automatically
+const MYPAL = [['lav', '1'], ['blue', '2'], ['sage', '3'], ['apr', '4'], ['rose', '5'], ['gold', '6']];
+const MYPAL_DEF = { lav: '#E9E0F4', blue: '#DDE8F4', sage: '#DFEADC', apr: '#F6E1D0', rose: '#F6DCE2', gold: '#F2E6CC' };
+const myPal = () => ({ ...MYPAL_DEF, ...(state.prefs.myPal || {}) });
+function nightOf(hex) { // same hue, deep and calm: dark lightness, moderate saturation
+  const n = parseInt(hex.slice(1), 16), [r, g, b] = [n >> 16, (n >> 8) & 255, n & 255].map(v => v / 255);
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l0 = (mx + mn) / 2;
+  const s0 = d ? d / (1 - Math.abs(2 * l0 - 1)) : 0;
+  const h = !d ? 0 : mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  const S = Math.min(.42, s0 * .55 + .1), L = .23, C = (1 - Math.abs(2 * L - 1)) * S, X = C * (1 - Math.abs(h % 2 - 1)), m = L - C / 2;
+  const [a, b2, c] = h < 1 ? [C, X, 0] : h < 2 ? [X, C, 0] : h < 3 ? [0, C, X] : h < 4 ? [0, X, C] : h < 5 ? [X, 0, C] : [C, 0, X];
+  return '#' + [a, b2, c].map(v => Math.round((v + m) * 255).toString(16).padStart(2, '0')).join('');
+}
+function applyMyPal(p, dark) {
+  const st = document.documentElement.style, m = { ...MYPAL_DEF, ...(p.myPal || {}) };
+  for (const [k] of MYPAL) { if (p.palette === 'my') st.setProperty('--p-' + k, dark ? nightOf(m[k]) : m[k]); else st.removeProperty('--p-' + k); }
+}
 function applyPrefs() {
   const p = state.prefs;
   document.documentElement.style.setProperty('--z', p.size || 1);
@@ -2227,6 +2247,7 @@ function applyPrefs() {
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   document.documentElement.dataset.skin = p.skin || 'luxe';
   document.documentElement.dataset.palette = p.palette || 'soft';
+  applyMyPal(p, dark);
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = dark ? '#1C1924' : '#FAF7F4';
   const sb = $('#sbar'); if (sb) sb.content = dark ? 'black-translucent' : 'default';
 }
@@ -3227,6 +3248,7 @@ document.addEventListener('click', async e => {
   }
   if (D.size) { state.prefs.size = +D.size; save(); applyPrefs(); rerender(); return; }
   if (D.pal) { state.prefs.palette = D.pal; save(); applyPrefs(); rerender(); return; }
+  if (D.act === 'mypalreset') { delete state.prefs.myPal; save(); applyPrefs(); rerender(); return; }
   if (D.skin) { state.prefs.skin = D.skin; save(); applyPrefs(); rerender(); return; }
   if (D.theme) { state.prefs.theme = D.theme; save(); applyPrefs(); rerender(); return; }
   if (D.deltodo) { state.todos = state.todos.filter(x => x.id !== D.deltodo); save(); rerender(); return; }
@@ -3353,6 +3375,7 @@ document.addEventListener('click', async e => {
 function findPeriod(w, id) { const [dow, lb] = id.split(':'); return w.days.find(d => d.dow === +dow).periods.find(p => p.label === lb); }
 
 document.addEventListener('change', e => {
+  if (e.target.dataset && e.target.dataset.mypal) { save(); rerender(); return; }
   if (e.target.id === 'bellfile' && e.target.files[0]) { readBellFile(e.target.files[0]); e.target.value = ''; return; }
   if (e.target.dataset && e.target.dataset.bell) { const [i, k] = e.target.dataset.bell.split('|').map(Number); const r = state._bellDraft || bellRows(); r[i][k] = e.target.value; state._bellDraft = r; return; }
   if (e.target.name === 'shot' && e.target.files[0]) { const n = $('#shotName'); if (n) n.textContent = '✓ ' + e.target.files[0].name; }
@@ -3398,6 +3421,7 @@ document.addEventListener('change', e => {
 });
 
 document.addEventListener('input', e => {
+  if (e.target.dataset && e.target.dataset.mypal) { state.prefs.myPal = { ...(state.prefs.myPal || {}), [e.target.dataset.mypal]: e.target.value }; applyPrefs(); clearTimeout(applyMyPal.t); applyMyPal.t = setTimeout(save, 400); return; }
   if (e.target.id !== 'fq') return;
   state.q = e.target.value;
   const pos = e.target.selectionStart;

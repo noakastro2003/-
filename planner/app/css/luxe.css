@@ -355,3 +355,15 @@
 .onb-form { text-align: right; animation: luxCard 1s .3s var(--ease) both; }
 .onb-form .cta { margin-top: 14px; }
 .review .row b { font-weight: 600; }
+/* desktop: the luxe skin keeps its glass look in the sidebar */
+@media (min-width: 1000px) {
+  [data-skin=luxe] .tabs { top: 24px; bottom: 24px; right: 24px; left: auto; width: var(--side); border-radius: 30px; padding: 76px 12px 20px; transform: none; }
+  [data-skin=luxe] .tabs button { font-size: 16.5px; padding: 13px 16px; }
+  [data-skin=luxe] .tab-ind { border-radius: 16px; transition: top .5s var(--ease), height .3s var(--ease); }
+  [data-skin=luxe] .tab-ind::after { left: auto; right: 10px; bottom: 50%; margin-bottom: -2px; }
+  [data-skin=luxe] #app { padding: 28px calc(var(--side) + 56px) 48px 40px; }
+  [data-skin=luxe] .tabs::before { font-family: var(--serif); color: var(--gold); }
+}
+@media (min-width: 700px) and (max-width: 999px) {
+  [data-skin=luxe] .tabs { width: min(600px, calc(100% - 48px)); }
+}

@@ -12,8 +12,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 42; // keep in step with CACHE in sw.js
+const APP_V = 43; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
+let ENC = null, cryptoKey = null, appLocked = false;
+const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
 const state = Object.assign({
   weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null,
   prefs: {}, picked: [], groups: 5,
@@ -21,13 +23,38 @@ const state = Object.assign({
 }, load());
 if (state.onboarded == null && (Object.keys(state.weeks).length || state.name)) state.onboarded = true;
 state.prefs = Object.assign({ size: 1, theme: 'auto', skin: 'luxe', notify: true, notifyTime: '07:00' }, state.prefs);
-function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } }
+// With a lock code the saved data is encrypted (AES-GCM, key derived from the code with PBKDF2).
+// Until the code is typed the app holds no data in memory and never writes over the stored copy.
+function load() {
+  try {
+    const j = JSON.parse(localStorage.getItem(KEY)) || {};
+    if (j.enc) { ENC = j; appLocked = true; return {}; }
+    if (LOCKMETA() || (j.prefs && j.prefs.pinHash)) appLocked = true;
+    return j;
+  } catch { return {}; }
+}
+const b64 = u8 => btoa(String.fromCharCode(...new Uint8Array(u8)));
+const unb64 = s2 => Uint8Array.from(atob(s2), c => c.charCodeAt(0));
+async function deriveKey(pin, salt) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 150000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function encryptJSON(obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, new TextEncoder().encode(JSON.stringify(obj)));
+  return { enc: 1, iv: b64(iv), ct: b64(ct) };
+}
+async function decryptJSON(e, key) { const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(e.iv) }, key || cryptoKey, unb64(e.ct)); return JSON.parse(new TextDecoder().decode(pt)); }
+let encBusy = null, encAgain = false;
 function saveLocal() {
+  if (appLocked) return; // never overwrite the stored data with an empty, still-locked state
   const o = { syncV: state.syncV || 0 };
   for (const k of SAVED) o[k] = state[k];
-  localStorage.setItem(KEY, JSON.stringify(o));
+  if (!cryptoKey) { localStorage.setItem(KEY, JSON.stringify(o)); return; }
+  if (encBusy) { encAgain = true; return; }
+  encBusy = encryptJSON(o).then(e => { localStorage.setItem(KEY, JSON.stringify(e)); }).catch(() => {}).finally(() => { encBusy = null; if (encAgain) { encAgain = false; saveLocal(); } });
 }
-function save() { if (state.classes && state.classes.length) syncCls(); if (sync.user) state.notifQueue = buildQueue(); saveLocal(); schedulePush(); }
+function save() { if (appLocked) return; if (state.classes && state.classes.length) syncCls(); if (sync.user) state.notifQueue = buildQueue(); saveLocal(); schedulePush(); }
 
 // ?now=2026-11-01T10:30 previews any moment
 const fakeNow = new URLSearchParams(location.search).get('now');
@@ -1231,7 +1258,7 @@ async function dailySnap() {
     const today = isoDay(new Date());
     if (list[0] && list[0].day === today) list.shift();
     const o = {}; for (const k of SAVED) o[k] = state[k];
-    list.unshift({ day: today, at: Date.now(), data: JSON.stringify(o) });
+    list.unshift({ day: today, at: Date.now(), data: cryptoKey ? JSON.stringify(await encryptJSON(o)) : JSON.stringify(o) });
     await putBlob('snaps', list.slice(0, 10));
     localStorage.setItem('hk-snap', String(Date.now()));
   } catch { /* storage full or private mode */ }
@@ -1587,7 +1614,7 @@ function withUndo(keys, label, fn) {
 
 // ================================================================ APP LOCK (4-digit code, kept as a hash on the phone)
 async function pinHash(pin) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('hakita:' + pin)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
-function lockCheck(awayMs) { if (state.prefs.pinHash && (awayMs == null || awayMs > (state.prefs.lockMin || 5) * 60000)) showLock(); }
+function lockCheck(awayMs) { if ((state.prefs.pinHash || LOCKMETA()) && (awayMs == null || awayMs > (state.prefs.lockMin || 5) * 60000)) showLock(); }
 function showLock(mode = 'unlock') {
   let el = $('#lock'); if (!el) { el = document.createElement('div'); el.id = 'lock'; document.body.appendChild(el); }
   el.dataset.mode = mode; el.dataset.pin = '';
@@ -1596,6 +1623,28 @@ function showLock(mode = 'unlock') {
     <div class="lk-pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map(k => k === '' ? '<span></span>' : `<button data-lk="${k}">${k}</button>`).join('')}</div>
     ${mode !== 'unlock' ? '<button class="linkbtn" data-lk="cancel">ביטול</button>' : '<p class="hint">שכחת? אפשר להתחבר לחשבון ולשחזר – הקוד שמור רק בטלפון</p>'}</div>`;
   el.classList.add('show');
+}
+async function setupEncryption(pin) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  cryptoKey = await deriveKey(pin, salt);
+  localStorage.setItem('hk-lock', JSON.stringify({ salt: b64(salt), hash: await pinHash(pin) }));
+  saveLocal();
+}
+async function unlockWith(pin) {
+  const meta = LOCKMETA(), h = await pinHash(pin);
+  if (meta ? h !== meta.hash : h !== state.prefs.pinHash) return false;
+  if (meta) cryptoKey = await deriveKey(pin, unb64(meta.salt));
+  if (ENC) {
+    const data = await decryptJSON(ENC);
+    Object.assign(state, data);
+    state.prefs = Object.assign({ size: 1, theme: 'auto', skin: 'luxe', notify: true, notifyTime: '07:00' }, state.prefs);
+    ENC = null;
+  }
+  appLocked = false;
+  if (!meta) await setupEncryption(pin); // older lock (code only) → start encrypting now
+  ensureClasses(); applyPrefs(); render(true);
+  if (!sync.ready) initAuth();
+  return true;
 }
 async function lockKey(k) {
   const el = $('#lock'); if (!el) return;
@@ -1607,8 +1656,8 @@ async function lockKey(k) {
   if (pin.length < 4) return;
   const h = await pinHash(pin), mode = el.dataset.mode;
   if (mode === 'set') { state._pin1 = h; showLock('confirm'); return; }
-  if (mode === 'confirm') { if (h === state._pin1) { state.prefs.pinHash = h; save(); el.classList.remove('show'); toast('הנעילה הופעלה 🔒'); rerender(); } else { toast('הקודים לא תואמים – מנסים שוב'); showLock('set'); } return; }
-  if (h === state.prefs.pinHash) el.classList.remove('show');
+  if (mode === 'confirm') { if (h === state._pin1) { state.prefs.pinHash = h; await setupEncryption(pin); save(); el.classList.remove('show'); toast('הנעילה הופעלה 🔒 המידע בטלפון מוצפן'); rerender(); } else { toast('הקודים לא תואמים – מנסים שוב'); showLock('set'); } return; }
+  if (await unlockWith(pin)) el.classList.remove('show');
   else { el.classList.add('shake'); if (navigator.vibrate) navigator.vibrate(60); setTimeout(() => { el.classList.remove('shake'); el.dataset.pin = ''; el.querySelectorAll('.lk-dots i').forEach(d => d.classList.remove('on')); }, 450); }
 }
 
@@ -1690,7 +1739,7 @@ function viewMore(w) {
     ['תזכורות ושיתוף', [['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"'], ['heart', 'מורות חברות', 'data-go="friends"']]],
   ].map(([t, items]) => `<h4 class="sect msect">${t}</h4><div class="toolgrid">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
   <h4 class="sect msect">עזרה והגדרות</h4>
-  <button class="card setlink" data-go="settings"><span class="chi">${ic('settings')}</span><span class="grow"><b>הגדרות</b><small>${sync.user ? '☁️ מחוברת · ' : ''}חשבון, תצוגה, התראות, ווידג׳ט</small></span>${ic('chevL', 'chev')}</button>
+  <button class="card setlink" data-go="settings"><span class="chi">${ic('settings')}</span><span class="grow"><b>הגדרות</b><small>${sync.user ? g('☁️ מחוברת · ', '☁️ מחובר · ') : ''}חשבון, תצוגה, התראות, ווידג׳ט</small></span>${ic('chevL', 'chev')}</button>
   <div class="helprow"><button data-act="guide">${ic('book')} איך זה עובד</button><button data-act="report">${ic('warn')} משהו לא עובד?</button></div>
   <div class="card">
     ${cardHead('upload', 'התכנונים שלי')}
@@ -1922,12 +1971,16 @@ function openOverlay(html) {
   const already = o.classList.contains('show') && $('#overlay .ov');
   if (already) { $('#overlay .ov').outerHTML = html; return; }
   o.innerHTML = `<div class="ovbg" data-act="close"></div>${html}`;
+  const ovEl = o.querySelector('.ov'); if (ovEl) { ovEl.setAttribute('role', 'dialog'); ovEl.setAttribute('aria-modal', 'true'); const h2 = ovEl.querySelector('h2'); if (h2) { h2.id = 'ovTitle'; ovEl.setAttribute('aria-labelledby', 'ovTitle'); } }
+  $('#app').inert = true; $('#tabs').inert = true;
   void o.offsetWidth; o.classList.add('show');
+  setTimeout(() => { const f = o.querySelector('.ov input:not([type=hidden]), .ov textarea, .ov button:not(.ovx)'); if (f && !/^(INPUT|TEXTAREA)$/.test(f.tagName)) f.focus({ preventScroll: true }); }, 350);
   lockScroll(true);
   renderTimerPill();
 }
 function closeOverlay() {
   const o = $('#overlay'); if (o) o.classList.remove('show');
+  $('#app').inert = false; $('#tabs').inert = false;
   lockScroll(false);
   setTimeout(renderTimerPill, 50);
 }
@@ -2261,7 +2314,7 @@ function assignSheet(pending, existing) {
     ${pending.map((f, i) => {
       const top = f.m && f.m[0];
       const sel = f.cur || (top && top.conf !== 'low' ? `${top.weekId}|${top.dow}|${top.label}` : '');
-      const why = top && !existing ? (top.conf === 'high' ? `✨ זיהיתי: ${esc(top.title)}${top.hits.length ? ` <i>(${esc(top.hits.slice(0, 3).join(', '))})</i>` : ''}` : top.conf === 'mid' ? `🤔 אולי: ${esc(top.title)} – כדאי לוודא` : 'לא זיהיתי – בחרי שיעור') : (!existing ? 'לא זיהיתי – בחרי שיעור' : '');
+      const why = top && !existing ? (top.conf === 'high' ? `✨ זיהיתי: ${esc(top.title)}${top.hits.length ? ` <i>(${esc(top.hits.slice(0, 3).join(', '))})</i>` : ''}` : top.conf === 'mid' ? `🤔 אולי: ${esc(top.title)} – כדאי לוודא` : g('לא זיהיתי – בחרי שיעור', 'לא זיהיתי – בחר שיעור')) : (!existing ? 'לא זיהיתי – בחרי שיעור' : '');
       return `<div class="arow" style="--i:${i}">
         <div class="arow-h">${fileBadge(kindOf(f.name, f.type))}<span class="fx"><b>${esc(f.name)}</b><small>${fmtSize(f.size)}</small></span></div>
         ${why ? `<div class="why ${top ? top.conf : ''}">${why}</div>` : ''}
@@ -2504,7 +2557,7 @@ async function initAuth() {
   try {
     const cb = await ID.handleAuthCallback();
     if (cb && cb.type === 'recovery') setTimeout(recoveryScreen, 300);
-    if (cb && cb.type === 'confirmation') toast('המייל אושר – את מחוברת 💜');
+    if (cb && cb.type === 'confirmation') toast(g('המייל אושר – את מחוברת 💜', 'המייל אושר – אתה מחובר 💜'));
   } catch (e) { toast('הקישור לא תקין או שפג תוקפו 😕'); }
   try { sync.user = await ID.getUser(); } catch { sync.user = null; }
   sync.ready = true;
@@ -2855,7 +2908,7 @@ function welcome(force) {
 // coming back to the app after a while also counts as "opening" it
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) lastHidden = Date.now();
-  else if (lastHidden && Date.now() - lastHidden > 3 * 60 * 1000) { welcome(); lockCheck(Date.now() - lastHidden); }
+  else if (lastHidden) { const away = Date.now() - lastHidden; lockCheck(away); if (!appLocked && away > 3 * 60 * 1000 && !$('#lock.show')) welcome(); }
 });
 function streak() {
   // consecutive school days (looking back from the latest one) that were fully prepared
@@ -2909,6 +2962,7 @@ function render(animate) {
   const tp = state.onboarded && TABS.includes(state.tab) && !(state.tab === 'now' && busyNow) ? tipOnce(state.tab) : '';
   if (tp) html = html.replace('</header>', '</header>' + tp);
   v.innerHTML = html;
+  a11yFix(v);
   if (animate) {
     const a = TABS.indexOf(SUB[state.tab] || state.tab), b = TABS.indexOf(SUB[lastTab] || lastTab);
     const dir = lastTab == null ? 0 : a !== b ? Math.sign(a - b) : SUB[state.tab] ? 1 : -1;
@@ -2971,11 +3025,21 @@ function loader(show, pct = 0, label = '') {
   $('#ldBar').style.setProperty('--w', Math.round(pct * 100) + '%'); $('#ldBar').style.width = Math.round(pct * 100) + '%';
   $('#ldLabel').textContent = label;
 }
+// screen readers: folded content is not reachable, switches say what they switch, the current tab is marked
+function a11yFix(root) {
+  root.querySelectorAll('.lrow').forEach(r => { const b = r.querySelector('.lr-b'); if (b) b.inert = !r.classList.contains('open'); });
+  root.querySelectorAll('[role=switch]:not([aria-label])').forEach(sw => { const row = sw.closest('.setrow'); const t = row && row.querySelector('span'); if (t) sw.setAttribute('aria-label', t.textContent.trim()); });
+  document.querySelectorAll('.tabs button').forEach(b => b.toggleAttribute('aria-current', b.classList.contains('on')));
+}
 function moveTabInd() {
   const on = $('.tabs button.on'), ind = $('.tabs .tab-ind');
   if (!on || !ind) return;
-  ind.style.width = on.offsetWidth + 'px';
-  ind.style.left = on.offsetLeft + 'px';
+  if (getComputedStyle(on.parentElement).flexDirection === 'column') {
+    ind.style.left = on.offsetLeft + 'px'; ind.style.width = on.offsetWidth + 'px';
+    ind.style.top = on.offsetTop + 'px'; ind.style.height = on.offsetHeight + 'px'; ind.style.bottom = 'auto';
+  } else { ind.style.top = ''; ind.style.height = ''; ind.style.bottom = '';
+    ind.style.width = on.offsetWidth + 'px';
+    ind.style.left = on.offsetLeft + 'px'; }
 }
 function countUp(root) {
   root.querySelectorAll('.num').forEach(el => {
@@ -3004,6 +3068,7 @@ document.addEventListener('click', async e => {
   if (D.toggle) {
     const card = t.closest('.lrow'), open = !card.classList.contains('open');
     card.classList.toggle('open', open); t.setAttribute('aria-expanded', open); state.open[D.toggle] = open;
+    const lb = card.querySelector('.lr-b'); if (lb) lb.inert = !open;
     if (open) setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 320);
     return;
   }
@@ -3121,7 +3186,7 @@ document.addEventListener('click', async e => {
   if (D.evdel) { const [tx, dt] = D.evdel.split('|'); state.events = state.events.filter(e => !(e.text === tx && e.date === dt)); save(); rerender(); return; }
   if (D.shareweek) { shareWeekSheet(D.shareweek); return; }
   if (D.guide) { if (D.guide === 'end') { closeOverlay(); const a = state._afterGuide; state._afterGuide = null; if (a === 'upload') $('#file').click(); if (a === 'manual') manualSheet(); } else guideSheet(+D.guide); return; }
-  if (D.snap != null) { getBlob('snaps').then(async list => { const sn = list && list[+D.snap]; if (!sn || !await ask(`לשחזר את המצב מ־${sn.day.split('-').reverse().slice(0, 2).join('.')}? המידע הנוכחי יוחלף.`)) return; Object.assign(state, JSON.parse(sn.data)); save(); applyPrefs(); closeOverlay(); go('now'); toast('שוחזר ✓'); }); return; }
+  if (D.snap != null) { getBlob('snaps').then(async list => { const sn = list && list[+D.snap]; if (!sn || !await ask(`לשחזר את המצב מ־${sn.day.split('-').reverse().slice(0, 2).join('.')}? המידע הנוכחי יוחלף.`)) return; let d0 = JSON.parse(sn.data); if (d0.enc) { if (!cryptoKey) { toast('העותק מוצפן – צריך את קוד הנעילה'); return; } d0 = await decryptJSON(d0); } Object.assign(state, d0); save(); applyPrefs(); closeOverlay(); go('now'); toast('שוחזר ✓'); }); return; }
   if (D.pmkid) { const o = state.pm.opts; o.kid = D.pmkid; o.noteIds = []; o.notes = []; state.pm.text = null; rerender(); return; }
   if (D.pmkind) { state.pm.opts.kind = D.pmkind; state.pm.text = null; rerender(); return; }
   if (D.pmnote) { const o = state.pm.opts; const i = o.noteIds.indexOf(D.pmnote); if (i >= 0) o.noteIds.splice(i, 1); else o.noteIds.push(D.pmnote); o.notes = o.noteIds.map(id => (state.cnotes.find(n => n.id === id) || {}).text).filter(Boolean); state.pm.text = null; rerender(); return; }
@@ -3198,7 +3263,7 @@ document.addEventListener('click', async e => {
     case 'undo': { const f = state._undo; state._undo = null; $('#toast').classList.remove('show'); if (f) f(); break; }
     case 'pmmore': state.pmMore = !state.pmMore; rerender(); break;
     case 'pinset': showLock('set'); break;
-    case 'pinoff': if (await ask('לבטל את הנעילה בקוד?', { ok: 'ביטול הנעילה' })) { state.prefs.pinHash = ''; save(); rerender(); toast('הנעילה בוטלה'); } break;
+    case 'pinoff': if (await ask('לבטל את הנעילה בקוד? המידע בטלפון לא יהיה מוצפן.', { ok: 'ביטול הנעילה' })) { state.prefs.pinHash = ''; cryptoKey = null; localStorage.removeItem('hk-lock'); save(); rerender(); toast('הנעילה בוטלה'); } break;
     case 'restopen': state._restOpen = !state._restOpen; rerender(); break;
     case 'tlopen': state._tlOpen = !state._tlOpen; rerender(); break;
     case 'stepsopen': state._stepsOpen = !state._stepsOpen; rerender(); break;
@@ -3277,7 +3342,7 @@ document.addEventListener('click', async e => {
       break;
     }
     case 'import': importBackup(); break;
-    case 'wipe': if (await ask('למחוק את כל המידע מהטלפון? אי אפשר לבטל.', { ok: 'מחיקת הכל', danger: true })) { localStorage.removeItem(KEY); location.reload(); } break;
+    case 'wipe': if (await ask('למחוק את כל המידע מהטלפון? אי אפשר לבטל.', { ok: 'מחיקת הכל', danger: true })) { localStorage.removeItem(KEY); localStorage.removeItem('hk-lock'); location.reload(); } break;
   }
 });
 function findPeriod(w, id) { const [dow, lb] = id.split(':'); return w.days.find(d => d.dow === +dow).periods.find(p => p.label === lb); }
@@ -3593,10 +3658,9 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     if (!$('#overlay.show')) go(); else document.addEventListener('visibilitychange', () => { if (document.hidden) go(); }, { once: true });
   });
 }
-ensureClasses();
-if (state.prefs.pinHash) showLock();
+if (!appLocked) ensureClasses();
+if (appLocked) showLock();
 { const g = new URLSearchParams(location.search).get('go'); if (g && VIEWS[g]) state.tab = g; }
-setTimeout(() => { const l = +localStorage.getItem('hk-snap') || 0; if (Date.now() - l > 20 * 3600e3) dailySnap(); }, 5000);
+setTimeout(() => { const l = +localStorage.getItem('hk-snap') || 0; if (!appLocked && Date.now() - l > 20 * 3600e3) dailySnap(); }, 5000);
 render(true);
-initAuth();
-welcome();
+if (!appLocked) { initAuth(); welcome(); }

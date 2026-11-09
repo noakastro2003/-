@@ -88,83 +88,139 @@ async function importFromClipboard() {
   await a.present();
 }
 
-// ---------------------------------------------------------------- drawing (style guide colours)
-const INK = new Color('#23212A'), SOFT = new Color('#7D7689'), ACC = new Color('#7B4FD6');
-const tint = hex => new Color(hex, 0.32);
-
-function rtlRow(st, text, font, color, lines = 1) {
-  const r = st.addStack(); r.layoutHorizontally(); r.addSpacer();
-  const t = r.addText(text); t.font = font; t.textColor = color; t.lineLimit = lines; t.rightAlignText();
+// ---------------------------------------------------------------- drawing – same look as the app: plum night / champagne day, gold lines
+const DARK = Device.isUsingDarkAppearance();
+const C = DARK
+  ? { bg1: '#2B2236', bg2: '#15111C', ink: '#F7F0E4', soft: '#BDB3C9', gold: '#DDBE82', line: '#FFFFFF', lineA: 0.10, track: '#FFFFFF', trackA: 0.12 }
+  : { bg1: '#FCF8F2', bg2: '#F0E5D4', ink: '#2A2332', soft: '#635C6E', gold: '#B38B4D', line: '#2A2332', lineA: 0.10, track: '#2A2332', trackA: 0.10 };
+const col = (h, a = 1) => new Color(h, a);
+const INK = col(C.ink), SOFT = col(C.soft), GOLD = col(C.gold);
+const F = {
+  brand: Font.mediumRoundedSystemFont(11), title: s => Font.lightRoundedSystemFont(s), label: Font.semiboldRoundedSystemFont(11),
+  body: Font.regularRoundedSystemFont(13), small: Font.mediumRoundedSystemFont(11.5), num: s => Font.lightRoundedSystemFont(s),
+};
+function text(st, t, font, color, { lines = 1, align = 'right', min = 0.7 } = {}) {
+  const r = st.addStack(); r.layoutHorizontally();
+  if (align === 'right') r.addSpacer();
+  const x = r.addText(t); x.font = font; x.textColor = color; x.lineLimit = lines; x.minimumScaleFactor = min;
+  if (align === 'right') x.rightAlignText();
+  if (align === 'left') r.addSpacer();
   return r;
 }
-function chip(st, p, big) {
-  const box = st.addStack(); box.layoutHorizontally(); box.centerAlignContent();
-  box.backgroundColor = tint(p.c || '#D4B7F5'); box.cornerRadius = 14;
-  box.setPadding(big ? 8 : 6, 12, big ? 8 : 6, 12);
-  box.addSpacer();
-  const t = box.addText(big ? `${plabel(p)} – ${p.title}` : p.title);
-  t.font = Font.boldRoundedSystemFont(big ? 15 : 13); t.textColor = INK; t.lineLimit = big ? 2 : 1; t.rightAlignText();
-  return box;
+function icon(st, name, size = 12, color = GOLD) {
+  const sym = SFSymbol.named(name); if (!sym) return;
+  sym.applyFont(Font.mediumSystemFont(size));
+  const im = st.addImage(sym.image); im.imageSize = new Size(size + 2, size + 2); im.tintColor = color;
 }
-function bar(st, pct, width) {
-  const b = st.addStack(); b.size = new Size(width, 6); b.cornerRadius = 3; b.backgroundColor = new Color('#F1EAFD');
-  b.layoutHorizontally();
-  const f = b.addStack(); f.size = new Size(Math.max(4, width * pct), 6); f.cornerRadius = 3; f.backgroundColor = new Color('#A67AF3');
-  b.addSpacer();
+function iconRow(st, name, t, color = INK) {
+  const r = st.addStack(); r.layoutHorizontally(); r.centerAlignContent(); r.addSpacer();
+  const x = r.addText(t); x.font = F.body; x.textColor = color; x.lineLimit = 1; x.minimumScaleFactor = .75;
+  r.addSpacer(6); icon(r, name, 12);
+  return r;
+}
+function hairline(st) { const l = st.addStack(); l.size = new Size(0, 0.6); l.backgroundColor = col(C.line, C.lineA); l.addSpacer(); }
+// gold progress ring with the minutes in the middle
+function ring(pct, label, sub, size = 64) {
+  const d = new DrawContext(); d.size = new Size(size * 2, size * 2); d.opaque = false; d.respectScreenScale = true;
+  const c = size, r = size - 7, w = 7;
+  d.setStrokeColor(col(C.track, C.trackA)); d.setLineWidth(w);
+  d.strokeEllipse(new Rect(c - r, c - r, r * 2, r * 2));
+  const pts = [], n = Math.max(2, Math.round(80 * pct));
+  for (let i = 0; i <= n; i++) { const a = -Math.PI / 2 - (i / 80) * Math.PI * 2; pts.push(new Point(c + r * Math.cos(a), c + r * Math.sin(a))); }
+  const pa = new Path(); pa.addLines(pts); d.addPath(pa); d.setStrokeColor(GOLD); d.setLineWidth(w); d.strokePath();
+  d.setTextAlignedCenter(); d.setTextColor(INK); d.setFont(Font.lightRoundedSystemFont(size * 0.62));
+  d.drawTextInRect(label, new Rect(0, c - size * 0.46, size * 2, size * 0.8));
+  if (sub) { d.setTextColor(SOFT); d.setFont(Font.mediumRoundedSystemFont(size * 0.24)); d.drawTextInRect(sub, new Rect(0, c + size * 0.3, size * 2, size * 0.4)); }
+  return d.getImage();
+}
+function brand(st, right) {
+  const h = st.addStack(); h.layoutHorizontally(); h.centerAlignContent();
+  if (right) { const x = h.addText(right); x.font = F.small; x.textColor = SOFT; }
+  h.addSpacer();
+  const b = h.addText('הכיתה שלי'); b.font = F.brand; b.textColor = GOLD;
+  h.addSpacer(5);
+  const dot = h.addStack(); dot.size = new Size(5, 5); dot.cornerRadius = 2.5; dot.backgroundColor = GOLD;
+  return h;
+}
+const subj = p => (p.subj || '').trim();
+function lessonBlock(st, p, size, lines = 2) {
+  if (subj(p) || p.label) text(st, [plabel(p), subj(p)].filter(Boolean).join(' · '), F.label, GOLD);
+  st.addSpacer(2);
+  text(st, p.title, F.title(size), INK, { lines });
+}
+function restList(st, list, max) {
+  for (const p of list.slice(0, max)) {
+    st.addSpacer(7); hairline(st); st.addSpacer(7);
+    const r = st.addStack(); r.layoutHorizontally(); r.centerAlignContent(); r.addSpacer();
+    const t = r.addText(p.title); t.font = F.body; t.textColor = INK; t.lineLimit = 1; t.minimumScaleFactor = .8; t.rightAlignText();
+    r.addSpacer(10);
+    const tm = r.addText(p.start || ''); tm.font = F.small; tm.textColor = SOFT;
+  }
 }
 
 function build(w, fam) {
   const W = new ListWidget();
-  const g = new LinearGradient(); g.colors = [new Color('#FFFFFF'), new Color('#F4EEFD')]; g.locations = [0, 1];
-  W.backgroundGradient = g; W.url = APP_URL; W.setPadding(14, 14, 14, 14);
-  const small = fam === 'small', now = new Date();
-  const head = (title, sub) => {
-    const h = W.addStack(); h.layoutHorizontally(); h.centerAlignContent();
-    if (sub) { const s = h.addText(sub); s.font = Font.mediumSystemFont(12); s.textColor = SOFT; }
-    h.addSpacer();
-    const t = h.addText(title); t.font = Font.heavyRoundedSystemFont(small ? 15 : 17); t.textColor = INK;
-    W.addSpacer(small ? 6 : 8);
-  };
+  const g = new LinearGradient(); g.colors = [col(C.bg1), col(C.bg2)]; g.locations = [0, 1]; g.startPoint = new Point(1, 0); g.endPoint = new Point(0, 1);
+  W.backgroundGradient = g; W.url = APP_URL;
+  const small = fam === 'small', large = fam === 'large', now = new Date();
+  W.setPadding(small ? 14 : 16, 16, small ? 14 : 16, 16);
   if (!w) {
-    head('הכיתה שלי');
-    rtlRow(W, 'עוד אין תכנון.\nבאפליקציה: עוד ← הגדרות ← עדכון הווידג׳ט', Font.systemFont(12), SOFT, 4);
+    brand(W); W.addSpacer();
+    text(W, 'עוד אין תכנון', F.title(18), INK); W.addSpacer(4);
+    text(W, 'באפליקציה: עוד ← הגדרות ← עדכון הווידג׳ט', F.small, SOFT, { lines: 3 });
     return W;
   }
-  const bd = bdays(w, now);
-  const s = status(w, now);
-  if (bd.length && !small) { rtlRow(W, `🎂 היום יום הולדת ל${bd.join(' ול')}!`, Font.boldSystemFont(12), new Color('#D3546A')); W.addSpacer(4); }
+  const bd = bdays(w, now), s = status(w, now);
+  const lessonLike = s.kind === 'lesson' || s.kind === 'break';
+  brand(W, small ? '' : (s.day ? `יום ${s.day.name} ${s.day.date}` : ''));
+  W.addSpacer(small ? 8 : 10);
 
-  if (s.kind === 'lesson') {
-    head('עכשיו:', small ? '' : `⏱ עוד ${s.left} דק׳`);
-    chip(W, s.cur, true);
-    W.addSpacer(6); bar(W, 1 - s.left / s.len, small ? 120 : 290);
-    if (small) { W.addSpacer(4); rtlRow(W, `עוד ${s.left} דק׳`, Font.mediumSystemFont(12), ACC); }
-    if (s.nextP) { W.addSpacer(8); rtlRow(W, `הבא: ${s.nextP.title}`, Font.mediumSystemFont(13), INK); }
-    if (!small && s.nextP && s.nextP.need) { W.addSpacer(3); rtlRow(W, `להכין: ${s.nextP.need}`, Font.systemFont(12), SOFT); }
-    if (fam === 'large') for (const p of s.after.slice(0, 4)) { W.addSpacer(6); chip(W, p, false); }
-  } else if (s.kind === 'break') {
-    head('הפסקה ☕', small ? '' : `עוד ${s.inMin} דק׳`);
-    chip(W, s.nextP, true);
-    if (small) { W.addSpacer(4); rtlRow(W, `בעוד ${s.inMin} דק׳`, Font.mediumSystemFont(12), ACC); }
-    if (!small && s.nextP.need) { W.addSpacer(6); rtlRow(W, `להכין: ${s.nextP.need}`, Font.systemFont(12), SOFT); }
-    if (fam === 'large') for (const p of s.after.slice(0, 4)) { W.addSpacer(6); chip(W, p, false); }
+  if (lessonLike) {
+    const p = s.kind === 'lesson' ? s.cur : s.nextP;
+    const pct = s.kind === 'lesson' ? 1 - s.left / s.len : 0;
+    const mins2 = s.kind === 'lesson' ? s.left : s.inMin;
+    const sub = s.kind === 'lesson' ? 'דק׳' : 'בעוד';
+    if (small) {
+      const top = W.addStack(); top.layoutHorizontally(); top.addSpacer();
+      const im = top.addImage(ring(pct, String(mins2), sub, 30)); im.imageSize = new Size(52, 52);
+      W.addSpacer(6); text(W, p.title, F.title(15), INK, { lines: 2 });
+    } else {
+      const row = W.addStack(); row.layoutHorizontally(); row.centerAlignContent();
+      const col2 = row.addStack(); col2.layoutVertically();
+      row.addSpacer(14);
+      const im = row.addImage(ring(pct, String(mins2), sub, 34)); im.imageSize = new Size(64, 64);
+      if (s.kind === 'break') { text(col2, 'הפסקה · הבא בתור', F.label, GOLD); col2.addSpacer(2); text(col2, p.title, F.title(19), INK, { lines: 2 }); }
+      else lessonBlock(col2, p, 19);
+      const nxt = s.kind === 'lesson' ? s.nextP : null;
+      W.addSpacer(10);
+      if (nxt) { const r = W.addStack(); r.layoutHorizontally(); r.addSpacer(); const t2 = r.addText(`אחר כך · ${nxt.title}`); t2.font = F.body; t2.textColor = SOFT; t2.lineLimit = 1; t2.minimumScaleFactor = .8; }
+      const need = (s.kind === 'lesson' ? s.nextP : p) || {};
+      if (need.need) { W.addSpacer(4); iconRow(W, 'checklist', need.need, SOFT); }
+      if (large) restList(W, s.after, 5);
+    }
   } else if (s.kind === 'before') {
-    head(`יום ${s.day.name}`, small ? '' : `מתחילים ב־${s.nextP.start}`);
-    chip(W, s.nextP, true);
-    if ((s.day.print || []).length) { W.addSpacer(6); rtlRow(W, `🖨 להדפיס: ${s.day.print.length}`, Font.mediumSystemFont(12), INK); }
-    if (!small && (s.day.bring || []).length) { W.addSpacer(3); rtlRow(W, `🎒 להביא: ${s.day.bring.length}`, Font.mediumSystemFont(12), INK); }
+    if (small) { text(W, `מתחילים ב־${s.nextP.start}`, F.label, GOLD); W.addSpacer(3); text(W, s.nextP.title, F.title(16), INK, { lines: 3 }); }
+    else {
+      text(W, `השיעור הראשון · ${s.nextP.start}`, F.label, GOLD); W.addSpacer(2);
+      text(W, s.nextP.title, F.title(20), INK, { lines: 2 }); W.addSpacer(10);
+      if ((s.day.print || []).length) { iconRow(W, 'printer', `להדפיס · ${s.day.print.length}`); W.addSpacer(4); }
+      if ((s.day.bring || []).length) iconRow(W, 'bag', `להביא · ${s.day.bring.length}`);
+      if (large) restList(W, s.day.periods.slice(1), 6);
+    }
   } else {
-    head(s.kind === 'after' ? 'סיימת להיום 🎉' : 'יום חופשי 🌿');
     const nd = s.next;
+    text(W, s.kind === 'after' ? 'היום הסתיים' : 'יום חופשי', F.title(small ? 17 : 21), INK); W.addSpacer(6);
     if (nd && nd.periods.length) {
-      rtlRow(W, `${small ? '' : 'מחכה לך · '}יום ${nd.name} ${nd.date}`, Font.systemFont(12), SOFT);
-      W.addSpacer(5); chip(W, nd.periods[0], !small);
-      if (!small && (nd.print || []).length) { W.addSpacer(5); rtlRow(W, `🖨 בבוקר להדפיס: ${nd.print.length}`, Font.systemFont(12), SOFT); }
+      text(W, `מחר · יום ${nd.name}`, F.label, GOLD); W.addSpacer(2);
+      text(W, `${nd.periods[0].start} · ${nd.periods[0].title}`, F.body, INK, { lines: small ? 2 : 1 });
+      if (!small && (nd.print || []).length) { W.addSpacer(8); iconRow(W, 'printer', `בבוקר להדפיס · ${nd.print.length}`, SOFT); }
+      if (large) restList(W, nd.periods.slice(1), 6);
     }
   }
   W.addSpacer();
+  if (bd.length && !small) { hairline(W); W.addSpacer(7); iconRow(W, 'gift', `יום הולדת היום · ${bd.join(', ')}`, GOLD); }
   if (s.refresh) { const [h, m] = s.refresh.split(':').map(Number); const r = new Date(); r.setHours(h, m, 0, 0); W.refreshAfterDate = r; }
-  else W.refreshAfterDate = new Date(Date.now() + 30 * 60 * 1000);
+  else W.refreshAfterDate = new Date(Date.now() + 15 * 60 * 1000);
   return W;
 }
 
@@ -181,6 +237,6 @@ if (config.runsInWidget) {
   a.addCancelAction('סגירה');
   const c = await a.present();
   if (c === 0) await importFromClipboard();
-  if (c === 1) await build(loadWeek(), 'medium').presentMedium();
+  if (c === 1) { const pick = new Alert(); pick.title = 'איזה גודל?'; ['קטן', 'בינוני', 'גדול'].forEach(x => pick.addAction(x)); const z = await pick.present(); const fam = ['small', 'medium', 'large'][z] || 'medium'; const wd = build(loadWeek(), fam); if (fam === 'small') await wd.presentSmall(); else if (fam === 'large') await wd.presentLarge(); else await wd.presentMedium(); }
 }
 Script.complete();

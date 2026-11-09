@@ -371,9 +371,10 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 #end .row{top:600px}
 /* customer life */
 .ceyes{transform-box:fill-box;transform-origin:50% 50%;animation:blink 4.8s infinite;animation-delay:var(--b,0s)}
-.headg{transform-box:fill-box;transform-origin:50% 92%;animation:tilt 5.5s ease-in-out infinite;animation-delay:var(--d,0s)}
-@keyframes tilt{0%,100%{transform:rotate(0)}28%{transform:rotate(-3.5deg)}62%{transform:rotate(3deg)}}
-.walking .headg{animation:none}
+.headg{transform-box:fill-box;transform-origin:50% 95%;animation:tilt 3.6s ease-in-out infinite;animation-delay:var(--d,0s)}
+@keyframes tilt{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-3px) rotate(-7deg)}50%{transform:translateX(0) rotate(0)}75%{transform:translateX(3px) rotate(7deg)}}
+.walking .headg{animation:tiltw .46s ease-in-out infinite alternate}
+@keyframes tiltw{from{transform:rotate(-3deg)}to{transform:rotate(3deg)}}
 .talking .cm{transform-box:fill-box;transform-origin:50% 20%;animation:talkm .15s infinite alternate}
 .walker .fl{transition:transform .25s ease}
 .walker.goL .fl{transform:scaleX(-1) rotate(3deg)}
@@ -382,6 +383,15 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 @keyframes byew{from{transform:rotate(-155deg)}to{transform:rotate(-120deg)}}
 .tail{transform-box:fill-box;transform-origin:0% 100%;animation:wag .5s ease-in-out infinite alternate}
 @keyframes wag{from{transform:rotate(-10deg)}to{transform:rotate(12deg)}}
+.steam{position:absolute;left:0;top:0;width:100%;height:30%;pointer-events:none;opacity:0;transition:opacity .4s}
+.fume>.steam{opacity:1}
+.steam i{position:absolute;width:24px;height:24px;margin:-12px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(190,190,210,.55);animation:puff 1.3s ease-out infinite}
+.walker .steam i:nth-child(1){left:22%;top:20%}.walker .steam i:nth-child(2){left:78%;top:20%;animation-delay:.45s}.walker .steam i:nth-child(3){left:50%;top:6%;animation-delay:.9s}
+#cust .steam i:nth-child(1){left:20%;top:30%}#cust .steam i:nth-child(2){left:80%;top:30%;animation-delay:.45s}#cust .steam i:nth-child(3){left:50%;top:12%;animation-delay:.9s}
+@keyframes puff{0%{transform:translateY(14px) scale(.35);opacity:0}30%{opacity:.95}100%{transform:translateY(-46px) scale(1.3);opacity:0}}
+.fume2 .headg{animation:shakeh .32s ease-in-out infinite!important}
+@keyframes shakeh{0%,100%{transform:rotate(0)}25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}
+#cust.fume2>svg{animation:shake .5s ease-in-out infinite}
 </style>
 </head>
 <body>
@@ -620,7 +630,8 @@ const SND={
   tap(){tone(620,0,.07,{vol:.05,type:'triangle'})},
   beep(){tone(988,0,.07,{vol:.03,type:'square'});tone(1480,.08,.08,{vol:.025,type:'square'})},
   whoosh(){tone(620,0,.45,{vol:.025,glide:200})},
-  bell(){tone(1319,0,.6,{vol:.05});tone(1047,.18,.7,{vol:.05})}
+  bell(){tone(1319,0,.6,{vol:.05});tone(1047,.18,.7,{vol:.05})},
+  grr(){tone(220,0,.18,{vol:.05,type:'triangle',glide:180});tone(200,.2,.25,{vol:.05,type:'triangle',glide:150})}
 };
 function paintMute(){document.querySelectorAll('.muteBtn').forEach(b=>b.innerHTML=muted?ICON.sndOff:ICON.sndOn)}
 paintMute();
@@ -647,16 +658,18 @@ function eyesF(m,o){
   return m==='happy'?e:`<g class="ceyes">${e}</g>`;
 }
 function browsF(m,col,w){w=w||4;const y=m==='oops'?79:m==='happy'?83:85;
+  if(m==='angry')return `<path d="M73 80 L90 89 M127 80 L110 89" stroke="${col}" stroke-width="${w+1}" stroke-linecap="round"/>`;
   if(m==='meh')return `<path d="M74 83 L89 87 M126 83 L111 87" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>`;
   return `<path d="M75 ${y+1} Q82 ${y-3} 89 ${y+1} M111 ${y+1} Q118 ${y-3} 125 ${y+1}" stroke="${col}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`}
 function mouthF(m,y){y=y||124;let s;
   if(m==='happy')s=`<path d="M89 ${y-2} Q100 ${y+15} 111 ${y-2}Z" fill="#7A2E3B"/><path d="M94 ${y+6} Q100 ${y+3} 106 ${y+6} Q100 ${y+11} 94 ${y+6}Z" fill="#F28C96"/>`;
   else if(m==='oops')s=`<ellipse cx="100" cy="${y+3}" rx="4.5" ry="5.5" fill="#7A2E3B"/>`;
+  else if(m==='angry')s=`<path d="M91 ${y+5} Q100 ${y-3} 109 ${y+5}" stroke="${INK}" stroke-width="3.6" fill="none" stroke-linecap="round"/>`;
   else if(m==='meh')s=`<path d="M94 ${y+2} Q100 ${y} 106 ${y+2}" stroke="${INK}" stroke-width="3.2" fill="none" stroke-linecap="round"/>`;
   else s=`<path d="M92 ${y} Q100 ${y+7} 108 ${y}" stroke="${INK}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
   return `<g class="cm">${s}</g>`}
 function faceF(m,o){
-  return browsF(m,o.brow,o.bw)+eyesF(m,o)+(o.noNose?'':`<ellipse cx="100" cy="112" rx="4.8" ry="3.6" fill="${shd(o.skin,.84)}"/>`)+
+  return (m==='angry'?'<ellipse cx="100" cy="112" rx="44" ry="28" fill="#FF5A4A" opacity=".17"/>':'')+browsF(m,o.brow,o.bw)+eyesF(m,o)+(o.noNose?'':`<ellipse cx="100" cy="112" rx="4.8" ry="3.6" fill="${shd(o.skin,.84)}"/>`)+
     `<ellipse cx="71" cy="117" rx="9" ry="6" fill="#FF7F7F" opacity=".32"/><ellipse cx="129" cy="117" rx="9" ry="6" fill="#FF7F7F" opacity=".32"/>`+(o.noMouth?'':mouthF(m,o.my));
 }
 function headF(s,ears){return (ears===false?'':`<ellipse cx="49" cy="100" rx="8" ry="11" fill="${s}"/><ellipse cx="151" cy="100" rx="8" ry="11" fill="${s}"/><ellipse cx="50" cy="101" rx="3.5" ry="5.5" fill="${shd(s,.86)}"/><ellipse cx="150" cy="101" rx="3.5" ry="5.5" fill="${shd(s,.86)}"/>`)+
@@ -699,7 +712,7 @@ const CHARS=[
      <circle cx="82" cy="100" r="12.5" fill="#fff" fill-opacity=".18" stroke="#7A5BA8" stroke-width="2.6"/><circle cx="118" cy="100" r="12.5" fill="#fff" fill-opacity=".18" stroke="#7A5BA8" stroke-width="2.6"/><path d="M94.5 99 Q100 96 105.5 99" stroke="#7A5BA8" stroke-width="2.6" fill="none"/>
      <circle cx="49" cy="113" r="3.6" fill="#fff"/><circle cx="151" cy="113" r="3.6" fill="#fff"/>`})}},
  {id:'dog',hi:'הַב הַב!',skin:'#DDA46A',shirt:'#DDA46A',shoes:'#F8E6CF',hand:'#F8E6CF',animal:1,svg(m){const f=this.skin,e='#93582F',mz='#F8E6CF';
-   const mo=m==='happy'?`<path d="M90 127 Q100 144 110 127Z" fill="#7A2E3B"/><path d="M95 134 Q100 131 105 134 Q104 142 100 142 Q96 142 95 134Z" fill="#F28C96"/>`:m==='oops'?`<ellipse cx="100" cy="131" rx="4.5" ry="5.5" fill="#7A2E3B"/>`:m==='meh'?`<path d="M93 130 H107" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/>`:`<path d="M91 126 Q95.5 131 100 126 Q104.5 131 109 126" stroke="${INK}" stroke-width="3.2" fill="none" stroke-linecap="round"/>`;
+   const mo=m==='happy'?`<path d="M90 127 Q100 144 110 127Z" fill="#7A2E3B"/><path d="M95 134 Q100 131 105 134 Q104 142 100 142 Q96 142 95 134Z" fill="#F28C96"/>`:m==='oops'?`<ellipse cx="100" cy="131" rx="4.5" ry="5.5" fill="#7A2E3B"/>`:m==='angry'?`<path d="M91 132 Q100 124 109 132" stroke="${INK}" stroke-width="3.4" fill="none" stroke-linecap="round"/>`:m==='meh'?`<path d="M93 130 H107" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/>`:`<path d="M91 126 Q95.5 131 100 126 Q104.5 131 109 126" stroke="${INK}" stroke-width="3.2" fill="none" stroke-linecap="round"/>`;
    return bodyF(this,m,{
    back:`<g class="tail"><path d="M136 252 Q172 244 168 208" stroke="${f}" stroke-width="13" fill="none" stroke-linecap="round"/></g>`,
    torso:`<ellipse cx="100" cy="226" rx="28" ry="46" fill="${mz}"/><path d="M70 152 Q100 166 130 152 L131 162 Q100 176 69 162Z" fill="#FF7B6B"/><circle cx="100" cy="172" r="6.5" fill="#FFC94A"/>`,
@@ -717,7 +730,7 @@ const CHARS=[
      <rect x="70" y="91" width="24" height="18" rx="7" fill="#fff" fill-opacity=".18" stroke="${INK}" stroke-width="2.6"/><rect x="106" y="91" width="24" height="18" rx="7" fill="#fff" fill-opacity=".18" stroke="${INK}" stroke-width="2.6"/><path d="M94 98 H106" stroke="${INK}" stroke-width="2.6"/>
      <path d="M82 120 Q91 112 100 117 Q109 112 118 120 Q110 126 100 121 Q90 126 82 120Z" fill="#fff"/>`})}},
  {id:'cat',hi:'מְיָאוּ!',skin:'#B3AFC7',shirt:'#B3AFC7',shoes:'#F2F0F7',hand:'#F2F0F7',animal:1,svg(m){const f=this.skin,lt='#F2F0F7';
-   const mo=m==='happy'?`<path d="M91 124 Q100 140 109 124Z" fill="#7A2E3B"/><path d="M95 131 Q100 128 105 131 Q104 138 100 138 Q96 138 95 131Z" fill="#F28C96"/>`:m==='oops'?`<ellipse cx="100" cy="128" rx="4.5" ry="5.5" fill="#7A2E3B"/>`:m==='meh'?`<path d="M94 127 H106" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/>`:`<path d="M92 122 q4 5 8 0 q4 5 8 0" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+   const mo=m==='happy'?`<path d="M91 124 Q100 140 109 124Z" fill="#7A2E3B"/><path d="M95 131 Q100 128 105 131 Q104 138 100 138 Q96 138 95 131Z" fill="#F28C96"/>`:m==='oops'?`<ellipse cx="100" cy="128" rx="4.5" ry="5.5" fill="#7A2E3B"/>`:m==='angry'?`<path d="M92 129 Q100 121 108 129" stroke="${INK}" stroke-width="3.4" fill="none" stroke-linecap="round"/>`:m==='meh'?`<path d="M94 127 H106" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/>`:`<path d="M92 122 q4 5 8 0 q4 5 8 0" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
    return bodyF(this,m,{
    back:`<g class="tail"><path d="M138 262 C178 254 184 210 162 200" stroke="${f}" stroke-width="12" fill="none" stroke-linecap="round"/></g>`,
    torso:`<ellipse cx="100" cy="226" rx="27" ry="46" fill="${lt}"/>`,
@@ -933,7 +946,8 @@ function say(text,mood,hold){
   clearTimeout(sayT);
   if(hold)sayT=setTimeout(()=>{b.innerHTML=G.baseLine;setMood('calm')},hold);
 }
-function setMood(m){if(m==='calm'&&G.patRun&&G.pat<.3)m='meh';if(G.cust)$('#cust').innerHTML=charSVG(G.cust,m)}
+function moodNow(){return G.pat>.6?'calm':G.pat>.35?'meh':'angry'}
+function setMood(m){if(m==='calm'&&G.patRun)m=moodNow();if(G.cust)$('#cust').innerHTML=charSVG(G.cust,m)+'<div class="steam"><i></i><i></i><i></i></div>'}
 
 /* ---------------- stars ---------------- */
 function buildStars(){
@@ -1035,7 +1049,7 @@ const jarIcon=()=>`<svg viewBox="0 0 112 142">${jarSVG(STORE.tips||8)}</svg>`;
 /* ---------------- customers walking ---------------- */
 const FEET=700,CPOS=380,QPOS=[830,970,1110],ENTER=1440,EXIT=-220,SPEED=.42;
 function makeWalker(c){
-  const el=document.createElement('div');el.className='walker';el.innerHTML=`<div class="fl">${fullBody(c,'calm')}</div>`;
+  const el=document.createElement('div');el.className='walker';el.innerHTML=`<div class="fl">${fullBody(c,'calm')}</div><div class="steam"><i></i><i></i><i></i></div>`;
   el.style.setProperty('--d',(-Math.random()*5).toFixed(2)+'s');el.style.setProperty('--b',(-Math.random()*4).toFixed(2)+'s');
   $('#walkers').appendChild(el);const w={c,el,x:ENTER,mood:'calm'};placeW(w,ENTER,0);return w;
 }
@@ -1082,19 +1096,29 @@ function burst(x,y,layer,n){
 const PAT_SEC={1:150,2:110,3:90,4:65};
 function patFace(p){
   const col=p>.6?'#7CC46A':p>.3?'#FFC94A':'#FF9F5A';
-  const mo=p>.6?'<path d="M17 32 Q27 42 37 32" stroke="#3A2E4D" stroke-width="4" fill="none" stroke-linecap="round"/>':p>.3?'<path d="M18 35 H36" stroke="#3A2E4D" stroke-width="4" stroke-linecap="round"/>':'<path d="M18 38 Q27 31 36 38" stroke="#3A2E4D" stroke-width="4" fill="none" stroke-linecap="round"/>';
-  return `<svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="25" fill="${col}"/><circle cx="19" cy="22" r="3.6" fill="#3A2E4D"/><circle cx="35" cy="22" r="3.6" fill="#3A2E4D"/>${mo}</svg>`;
+  const angry=p<=.35;const mo=p>.6?'<path d="M17 32 Q27 42 37 32" stroke="#3A2E4D" stroke-width="4" fill="none" stroke-linecap="round"/>':p>.3?'<path d="M18 35 H36" stroke="#3A2E4D" stroke-width="4" stroke-linecap="round"/>':'<path d="M18 38 Q27 31 36 38" stroke="#3A2E4D" stroke-width="4" fill="none" stroke-linecap="round"/>';
+  return `<svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="25" fill="${col}"/>${angry?'<path d="M13 14 L23 18 M41 14 L31 18" stroke="#3A2E4D" stroke-width="3.5" stroke-linecap="round"/>':''}<circle cx="19" cy="22" r="3.6" fill="#3A2E4D"/><circle cx="35" cy="22" r="3.6" fill="#3A2E4D"/>${mo}</svg>`;
 }
 let lastBand=-1;
 function paintPat(){
   const p=G.pat;$('#patFill').style.width=(p*100)+'%';
-  $('#patFill').style.background=p>.6?'#7CC46A':p>.3?'#FFC94A':'#FF9F5A';
-  const band=p>.6?2:p>.3?1:0;
-  if(band!==lastBand){lastBand=band;$('#patFace').innerHTML=patFace(p);
-    if(G.front&&G.patRun&&G.front.mood!=='happy')setWMood(G.front,band===0?'meh':'calm');
-    if(G.view==='back'&&(G.phase==='pay'||G.phase==='question'||G.phase==='sort'))setMood('calm');}
-  const low=band===0&&G.patRun;$('#pat').classList.toggle('low',low);
-  if(G.front)G.front.el.classList.toggle('tap',low);
+  $('#patFill').style.background=p>.6?'#7CC46A':p>.35?'#FFC94A':'#FF9F5A';
+  const band=p>.6?3:p>.35?2:p>.12?1:0;
+  if(band!==lastBand){const prev=lastBand;lastBand=band;$('#patFace').innerHTML=patFace(p);
+    if(G.patRun){
+      if(G.front&&G.front.mood!=='happy')setWMood(G.front,moodNow());
+      if(G.view==='back'&&(G.phase==='pay'||G.phase==='question'||G.phase==='sort'))setMood('calm');
+      if(prev>band&&prev!==-1&&band<=1)grumble(band);
+    }}
+  const run=G.patRun;
+  if(G.front){const e=G.front.el;e.classList.toggle('tap',run&&band<=2);e.classList.toggle('fume',run&&band<=1);e.classList.toggle('fume2',run&&band===0)}
+  const cu=$('#cust');cu.classList.toggle('fume',run&&band<=1);cu.classList.toggle('fume2',run&&band===0);
+  $('#pat').classList.toggle('low',run&&band<=1);
+}
+function grumble(band){
+  const t=band===1?'נוּ...?':'אוּף!';SND.grr();
+  if(G.view!=='back'&&G.phase==='order'){fsay(t);setTimeout(()=>{if(G.phase==='order')fsay(G.orderLine)},1600)}
+  else if(G.view==='back'&&(G.phase==='pay'||G.phase==='question'||G.phase==='sort'))say(t,'angry',1600);
 }
 let lastT=performance.now();
 function tick(t){
@@ -1340,7 +1364,7 @@ async function submit(){
 }
 async function serve(tk){
   const w=G.front;const tip=G.pat>.6?3:G.pat>.3?2:1;const ffx=$('#ffx');
-  w.el.classList.remove('tap');setWMood(w,'happy');w.el.classList.remove('jump');void w.el.offsetWidth;w.el.classList.add('jump');
+  w.el.classList.remove('tap','fume','fume2');setWMood(w,'happy');w.el.classList.remove('jump');void w.el.offsetWidth;w.el.classList.add('jump');
   fsay('תּוֹדָה!','happy');SND.happy();$('#ticket').className='off';$('#pat').classList.add('off');
   paintBot('#fbot','happy');
   if(G.level>1){

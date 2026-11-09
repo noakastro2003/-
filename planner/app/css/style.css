@@ -1275,3 +1275,18 @@ body.onboarding .tabs, body.onboarding .minibar { display: none !important; }
   button:hover .ti, .hubgrid button:hover, .toolgrid button:hover { filter: brightness(1.03); }
   .card { transition: box-shadow .25s; }
 }
+
+/* ============================================================ colour language – one soft colour per kind of box */
+.hue-lav { --hc: #9783D4; } .hue-blue { --hc: #5E92CF; } .hue-sage { --hc: #6FA57E; } .hue-apr { --hc: #D9965A; } .hue-rose { --hc: #D07A99; } .hue-gold { --hc: #C29A55; }
+.card[class*=hue-] { background: color-mix(in srgb, var(--hc) 8%, var(--card)) !important; border-color: color-mix(in srgb, var(--hc) 26%, transparent) !important; }
+.card[class*=hue-] > .ch .chi, .card[class*=hue-] .pnh .ic, .card[class*=hue-] .nx-h .ic { color: var(--hc) !important; border-color: color-mix(in srgb, var(--hc) 55%, transparent) !important; background: color-mix(in srgb, var(--hc) 12%, transparent) !important; }
+.trow[class*=hue-] { background: color-mix(in srgb, var(--hc) 13%, var(--card)) !important; border-color: color-mix(in srgb, var(--hc) 30%, transparent) !important; }
+.trow[class*=hue-] .tri { color: var(--hc) !important; border-color: color-mix(in srgb, var(--hc) 45%, transparent) !important; background: color-mix(in srgb, var(--hc) 14%, var(--card)) !important; }
+.hubgrid button[class*=hue-] { background: color-mix(in srgb, var(--hc) 10%, var(--card)); border-color: color-mix(in srgb, var(--hc) 28%, transparent); }
+.hubgrid button[class*=hue-] .ti { background: color-mix(in srgb, var(--hc) 18%, transparent) !important; }
+.hubgrid button[class*=hue-] .ti .ic { color: var(--hc) !important; }
+.toolgrid[class*=hue-] button { background: color-mix(in srgb, var(--hc) 8%, var(--card)) !important; border-color: color-mix(in srgb, var(--hc) 24%, transparent) !important; }
+.toolgrid[class*=hue-] .ti { color: var(--hc) !important; border-color: color-mix(in srgb, var(--hc) 45%, transparent) !important; }
+.toolgrid[class*=hue-] .ti .ic { color: var(--hc) !important; }
+[data-theme=dark] .card[class*=hue-] { background: color-mix(in srgb, var(--hc) 14%, var(--card)) !important; }
+[data-theme=dark] .trow[class*=hue-] { background: color-mix(in srgb, var(--hc) 18%, var(--card)) !important; }

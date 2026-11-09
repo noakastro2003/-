@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 43; // keep in step with CACHE in sw.js
+const APP_V = 44; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -350,7 +350,7 @@ function viewNow(w) {
     h += top('סיימת את היום 🎉', line(), 'books');
     h += birthdayBanner() + teaser;
     const S = dayStats(w, day);
-    h += `<div class="card bravo"><div class="grow"><b>היום הסתיים</b><span>סיימת ${day.periods.length} שיעורים${S.total ? ` ו־${S.done} מתוך ${S.total} משימות` : ''}</span></div>${art('medal', 'wiggle')}</div>`;
+    h += `<div class="card bravo hue-gold"><div class="grow"><b>היום הסתיים</b><span>סיימת ${day.periods.length} שיעורים${S.total ? ` ו־${S.done} מתוך ${S.total} משימות` : ''}</span></div>${art('medal', 'wiggle')}</div>`;
     const ng = nextDayGlobal();
     if (ng) h += tomorrowCard(ng.w, ng.d);
     h += howWasCard(w, day);
@@ -366,7 +366,7 @@ function viewNow(w) {
     const ref = ph.next;
     const rest = ref ? day.periods.filter(p => mins(p.start) > mins(ref.start)) : [];
     if (rest.length) h += busy
-      ? `<div class="card fold1 ${state._restOpen ? 'open' : ''}"><button class="pnh" data-act="restopen"><b>${ic('calendar')} ובהמשך היום</b><span class="cnt">${rest.length}</span>${ic('chevD', 'chev')}</button>${state._restOpen ? rest.map(p => miniRow(w, day, p)).join('') : ''}</div>`
+      ? `<div class="card fold1 hue-lav ${state._restOpen ? 'open' : ''}"><button class="pnh" data-act="restopen"><b>${ic('calendar')} ובהמשך היום</b><span class="cnt">${rest.length}</span>${ic('chevD', 'chev')}</button>${state._restOpen ? rest.map(p => miniRow(w, day, p)).join('') : ''}</div>`
       : `<div class="card">${cardHead('calendar', 'ובהמשך היום')}${rest.map(p => miniRow(w, day, p)).join('')}</div>`;
   }
   h += todayList(busy) + (busy ? '' : planNotes(w));
@@ -412,7 +412,7 @@ function nowCard(w, day, p, ph) {
 }
 
 function nextCard(day, p, inMin, title = 'הבא בתור') {
-  return `<button class="card nextc" data-goto="${day.dow}|${esc(p.label)}">
+  return `<button class="card nextc hue-lav" data-goto="${day.dow}|${esc(p.label)}">
     <div class="nx-t"><div class="nx-h">${ic('ff')}<b>${title}</b></div>${pill(p)}<h3>${esc(p.title)}</h3><small>${ic('clock')}${inMin != null ? inMinTxt(inMin) : esc(p.start)}</small></div>
     ${art('books', 'nx-art')}
     <span class="circ">${ic('chevL')}</span>
@@ -434,20 +434,20 @@ function tomorrowCard(w, nd) {
   const links = nd.periods.flatMap(p => p.links).filter(l => l.url);
   const file = links.find(l => fileKind(l) === 'ppt') || links[0];
   const isTomorrow = sameDay(dayDate(w, nd), addDays(now(), 1));
-  const row = (icon, label, val, attrs) => `<button class="trow" ${attrs}><span class="tri">${icon}</span><span class="grow">${label} ${val}</span>${ic('chevL', 'chev')}</button>`;
-  return `<div class="card tmrw">
+  const row = (icon, label, val, attrs, hue) => `<button class="trow ${hue}" ${attrs}><span class="tri">${icon}</span><span class="grow">${label} ${val}</span>${ic('chevL', 'chev')}</button>`;
+  return `<div class="card tmrw hue-lav">
     ${cardHead('calendar', isTomorrow ? 'מחר מחכה לך' : `יום ${nd.name} מחכה לך`, spark())}
-    ${first ? row(ic('alarm'), `<span class="tpill">${esc(first.start)}</span>`, esc(first.title), `data-goto="${nd.dow}|${esc(first.label)}" data-gowk="${w.id}"`) : ''}
-    ${pr && pr.items.length ? row(ic('printer'), '<b>להדפיס בבוקר:</b>', `${pr.items.length} פריטים`, `data-pday="${nd.dow}" data-gowk="${w.id}"`) : ''}
-    ${br && br.items.length ? row(ic('backpack'), '<b>להביא:</b>', esc(br.items.slice(0, 2).map(i => i.text.split('–')[0].trim()).join(', ')) + (br.items.length > 2 ? ` ועוד ${br.items.length - 2}` : ''), `data-pday="${nd.dow}" data-gowk="${w.id}"`) : ''}
-    ${file ? `<a class="trow" href="${esc(file.url)}" target="_blank" rel="noopener"><span class="tri">${fileBadge(fileKind(file))}</span><span class="grow"><b>קובץ חשוב:</b> ${esc(file.text)}</span>${ic('chevL', 'chev')}</a>` : ''}
+    ${first ? row(ic('alarm'), `<span class="tpill">${esc(first.start)}</span>`, esc(first.title), `data-goto="${nd.dow}|${esc(first.label)}" data-gowk="${w.id}"`, 'hue-lav') : ''}
+    ${pr && pr.items.length ? row(ic('printer'), '<b>להדפיס בבוקר:</b>', `${pr.items.length} פריטים`, `data-pday="${nd.dow}" data-gowk="${w.id}"`, 'hue-blue') : ''}
+    ${br && br.items.length ? row(ic('backpack'), '<b>להביא:</b>', esc(br.items.slice(0, 2).map(i => i.text.split('–')[0].trim()).join(', ')) + (br.items.length > 2 ? ` ועוד ${br.items.length - 2}` : ''), `data-pday="${nd.dow}" data-gowk="${w.id}"`, 'hue-sage') : ''}
+    ${file ? `<a class="trow hue-apr" href="${esc(file.url)}" target="_blank" rel="noopener"><span class="tri">${fileBadge(fileKind(file))}</span><span class="grow"><b>קובץ חשוב:</b> ${esc(file.text)}</span>${ic('chevL', 'chev')}</a>` : ''}
     ${art('sunrise', 'sunrise')}
   </div>`;
 }
 
 function howWasCard(w, day) {
   const n = day.periods.filter(p => getLog(w, `${day.dow}:${p.label}`)).length;
-  return `<div class="card">${cardHead('flag', 'איך היה היום?', `<span class="cnt ${n === day.periods.length ? 'all' : ''}">${n}/${day.periods.length}</span>`)}
+  return `<div class="card hue-sage">${cardHead('flag', 'איך היה היום?', `<span class="cnt ${n === day.periods.length ? 'all' : ''}">${n}/${day.periods.length}</span>`)}
     ${day.periods.map(p => `<div class="logline"><span class="grow">${esc(p.title)}</span>${logRow(w, `${day.dow}:${p.label}`, true)}</div>`).join('')}
     <p class="hint">חלקית / לא הספקנו? פותחים את השיעור ב"השבוע" ומוסיפים מה נשאר.</p></div>`;
 }
@@ -555,6 +555,7 @@ function prepDay(w) {
   if (t && phase(t).kind === 'after') return nextSchoolDay(w, t.dow) || t;
   return t || upcomingDay(w) || w.days[0];
 }
+const SEC_HUE = t => /ערב|הדפסה/.test(t) ? 'hue-blue' : /להכין|להביא/.test(t) ? 'hue-sage' : /שיעורי בית/.test(t) ? 'hue-apr' : 'hue-gold';
 const SEC_LOOK = t => /ערב|הדפסה/.test(t) ? ['printer', 'להדפיס בבוקר'] : /להכין|להביא/.test(t) ? ['backpack', 'להכין / להביא'] : /שיעורי בית/.test(t) ? ['homework', 'שיעורי בית שניתנים'] : ['check', t];
 
 function prepSectionCard(w, day, s, si) {
@@ -569,7 +570,7 @@ function prepSectionCard(w, day, s, si) {
         ? chk(k, ck(w, k), `<button class="pfile" data-printitem="${day.dow}|${si}|${i}">${ic(/שכפול/.test(it.text) ? 'layers' : 'printer')}<span>${esc(it.text)}</span>${ic('chevL', 'chev')}</button>`, '')
         : chk(k, ck(w, k), `${esc(it.text)}${it.period ? ` <small class="tpill">שעה ${esc(it.period)}</small>` : ''}`, hwSec ? '' : miniArt(it.text));
   }).join('');
-  return `<div class="card prep">${cardHead(icon, title, `<span class="cnt">${s.items.length} ${hwSec ? 'פריטים' : 'משימות'}</span>`)}${items}
+  return `<div class="card prep ${SEC_HUE(s.title)}">${cardHead(icon, title, `<span class="cnt">${s.items.length} ${hwSec ? 'פריטים' : 'משימות'}</span>`)}${items}
     ${edit ? `<form class="addtodo" data-addprep="${day.dow}|${si}"><input name="t" placeholder="פריט חדש…" autocomplete="off"><button aria-label="הוספה">${ic('plus')}</button></form>` : ''}
   </div>`;
 }
@@ -1344,7 +1345,8 @@ function viewHub() {
   h += `<div class="hubcls">${multiCls() ? clsChips(state.curClass) : ''}<button class="linkbtn" data-act="classes">${ic('settings')} ${multiCls() ? 'ניהול כיתות' : 'יש לי עוד כיתות'}</button></div>`;
   const tiles = [['phone2', 'הודעה להורים', 'data-go="msgs"', ''], ['star', 'ציונים', 'data-go="grades"', state.grades.filter(g => !g.cls || g.cls === state.curClass).length || ''],
     ['pencil', 'יומן כיתה', 'data-go="journal"', openActions().length || ''], ['medal', 'ניקוד ורמזור', 'data-go="class"', ''], ['users', 'עריכת הרשימה', 'data-go="kids"', state.kids.length || ''], ['calendar', 'לוח אירועים', 'data-go="calendar"', '']];
-  h += `<div class="hubgrid">${tiles.map(([i, l, a, n]) => `<button ${a}><span class="ti">${ic(i)}</span><b>${l}</b>${n ? `<em>${n}</em>` : ''}</button>`).join('')}</div>`;
+  const HUES = ['hue-rose', 'hue-gold', 'hue-lav', 'hue-apr', 'hue-sage', 'hue-blue'];
+  h += `<div class="hubgrid">${tiles.map(([i, l, a, n], k) => `<button class="${HUES[k % 6]}" ${a}><span class="ti">${ic(i)}</span><b>${l}</b>${n ? `<em>${n}</em>` : ''}</button>`).join('')}</div>`;
   if (!state.kids.length) h += `<div class="card">${cardHead('users', 'עוד אין ילדים בכיתה')}<p class="dim">מדביקים רשימת שמות (ואם רוצים גם יום הולדת וטלפון של הורה) – ואז יש כרטיס לכל ילד, "מי עונה?", ימי הולדת והודעות אישיות.</p><button class="cta" data-go="kids">${ic('plus')} הוספת הילדים</button></div>`;
   else {
     const q = quietKids(7);
@@ -1737,7 +1739,7 @@ function viewMore(w) {
     ['תכנון', [['upload', 'תכנון חדש', 'data-act="upload"'], ['layers', 'השבוע הבא', w ? 'data-act="nextweek"' : 'disabled'], ['grid', 'מערכת', 'data-day="all"'], ['clock', 'לוח צלצולים', 'data-go="bells"'], ['book', 'מאגר שיעורים', 'data-go="bank"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`]]],
     ['חומרים ורעיונות', [['folder', 'קבצים', 'data-go="files"'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"']]],
     ['תזכורות ושיתוף', [['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"'], ['heart', 'מורות חברות', 'data-go="friends"']]],
-  ].map(([t, items]) => `<h4 class="sect msect">${t}</h4><div class="toolgrid">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
+  ].map(([t, items], k) => `<h4 class="sect msect">${t}</h4><div class="toolgrid ${['hue-lav', 'hue-apr', 'hue-rose'][k] || ''}">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
   <h4 class="sect msect">עזרה והגדרות</h4>
   <button class="card setlink" data-go="settings"><span class="chi">${ic('settings')}</span><span class="grow"><b>הגדרות</b><small>${sync.user ? g('☁️ מחוברת · ', '☁️ מחובר · ') : ''}חשבון, תצוגה, התראות, ווידג׳ט</small></span>${ic('chevL', 'chev')}</button>
   <div class="helprow"><button data-act="guide">${ic('book')} איך זה עובד</button><button data-act="report">${ic('warn')} משהו לא עובד?</button></div>
@@ -2662,7 +2664,7 @@ function viewJournal() {
 // "עכשיו": one tidy list – parents to call, children to follow up, my reminders – short, with a "more" link
 function todayList(folded) {
   const acts = openActions(), todos = state.todos.filter(t => todoDue(t) && !t.done);
-  if (folded && !state._tlOpen) { const n = acts.length + todos.length; return n ? `<div class="card fold1"><button class="pnh" data-act="tlopen"><b>${ic('pin')} לא לשכוח</b><span class="cnt">${n}</span>${ic('chevD', 'chev')}</button></div>` : ''; }
+  if (folded && !state._tlOpen) { const n = acts.length + todos.length; return n ? `<div class="card fold1 hue-rose"><button class="pnh" data-act="tlopen"><b>${ic('pin')} לא לשכוח</b><span class="cnt">${n}</span>${ic('chevD', 'chev')}</button></div>` : ''; }
   const rows = [
     ...acts.map(n => { const [e, t] = TAGS[n.tag] || TAGS.note; return `<div class="tlrow"><button class="tlchk" data-cdone="${n.id}" aria-label="טופל">${ic('check')}</button><span class="grow"><b>${e} ${esc(n.kids.join(', ') || t)}</b>${n.text ? ` <span>– ${esc(n.text)}</span>` : ''}</span></div>`; }),
     ...todos.map(t => `<div class="tlrow"><label class="tlchk"><input type="checkbox" data-todo="${t.id}"><span>${ic('check')}</span></label><span class="grow"><b>📌 ${esc(t.text)}</b>${t.date ? ` <small class="tpill">${esc(fmtDate(t.date))}</small>` : ''}</span></div>`),
@@ -2671,8 +2673,8 @@ function todayList(folded) {
   const add = state._addTodo
     ? `<form class="addtodo" data-addtodo><input name="t" placeholder="מה לא לשכוח?" autocomplete="off" autofocus><button aria-label="הוספה">${ic('plus')}</button></form>`
     : `<button class="tladd" data-act="addtodo">${ic('plus')} תזכורת</button>`;
-  if (!rows.length) return `<div class="card tlist empty">${cardHead('pin', 'לא לשכוח', add)}<p class="dim">אין כרגע משהו פתוח ✓</p>${state._addTodo ? '' : ''}</div>`;
-  return `<div class="card tlist">${cardHead('pin', 'לא לשכוח', `<span class="cnt">${rows.length}</span>`)}
+  if (!rows.length) return `<div class="card tlist empty hue-rose">${cardHead('pin', 'לא לשכוח', add)}<p class="dim">אין כרגע משהו פתוח ✓</p>${state._addTodo ? '' : ''}</div>`;
+  return `<div class="card tlist hue-rose">${cardHead('pin', 'לא לשכוח', `<span class="cnt">${rows.length}</span>`)}
     ${rows.slice(0, 5).join('')}
     ${more > 0 ? `<button class="linkbtn tlmore" data-go="todos">ועוד ${more} ←</button>` : ''}
     <div class="tlfoot">${add}${acts.length ? `<button class="linkbtn" data-go="journal">יומן כיתה</button>` : ''}</div>
@@ -2683,7 +2685,7 @@ function planNotes(w) {
   const ns = (w && w.notes || []).filter(n => n.text);
   if (!ns.length) return '';
   state.noteOpen = state.noteOpen || {};
-  return `<div class="card pnotes">${cardHead('book', 'מהתכנון השבועי')}${ns.map((n, i) => {
+  return `<div class="card pnotes hue-gold">${cardHead('book', 'מהתכנון השבועי')}${ns.map((n, i) => {
     const items = String(n.text).split(/\s·\s/).map(x => x.trim()).filter(Boolean), open = state.noteOpen[i];
     return `<div class="pn ${open ? 'open' : ''}"><button class="pnh" data-pnote="${i}"><b>${esc(n.label)}</b><span class="cnt">${items.length}</span>${ic('chevD', 'chev')}</button>${open ? `<ul>${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>`;
   }).join('')}</div>`;

@@ -434,6 +434,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .bi{display:inline-block;width:76px;height:34px;vertical-align:middle;margin:0 4px}
 .endline{position:absolute;top:470px;left:0;right:0;text-align:center;font-size:38px;color:var(--teal-d)}
 /* ===== round 4: profiles, teacher, specials, shop pay ===== */
+#musicBtn{left:calc(226px - var(--ex,0px))}
 #whoBtn{left:calc(124px - var(--ex,0px));overflow:hidden;background:#FFE9C7}
 #whoBtn svg{width:78px;height:78px}
 .avs{display:grid;grid-template-columns:repeat(4,150px);gap:22px}
@@ -549,6 +550,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
     <div class="awning"></div>
     <button class="roundbtn btn-l muteBtn" aria-label="sound"></button>
     <button class="roundbtn" id="whoBtn" aria-label="player"></button>
+    <button class="roundbtn" id="musicBtn" aria-label="music"></button>
     <div id="hbot" class="robot"></div>
     <div class="sign"><h1>הַקִּיּוֹסְק שֶׁל <b>בּוּלִי</b></h1></div>
     <div class="cards">
@@ -709,6 +711,8 @@ const SUB_WIN=`<svg viewBox="0 0 176 176"><use href="#coin10" x="96" y="52" widt
 const ADD_WIN=`<svg viewBox="0 0 176 176"><use href="#coin1" x="104" y="38" width="34" height="34"/><use href="#coin1" x="130" y="38" width="34" height="34"/><use href="#coin1" x="104" y="60" width="34" height="34"/><use href="#coin1" x="130" y="60" width="34" height="34"/><use href="#coin1" x="117" y="82" width="34" height="34"/><path d="M98 87 H76 M86 77 L76 87 L86 97" stroke="#16867A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><use href="#coin10" x="6" y="52" width="70" height="70"/></svg>`;
 const ICON_BRK='<svg class="bi" viewBox="0 0 152 68"><use href="#coin10" x="92" y="4" width="60" height="60"/><path d="M84 34 H62 M70 26 L62 34 L70 42" stroke="#16867A" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><use href="#coin1" x="0" y="6" width="30" height="30"/><use href="#coin1" x="24" y="6" width="30" height="30"/><use href="#coin1" x="0" y="32" width="30" height="30"/><use href="#coin1" x="24" y="32" width="30" height="30"/></svg>';
 const ICON={
+  musOn:'<svg viewBox="0 0 60 60"><path d="M24 42 V14 L46 9 V36" stroke="#7A5BA8" stroke-width="5" fill="none" stroke-linejoin="round"/><ellipse cx="19" cy="43" rx="7" ry="5.5" fill="#7A5BA8"/><ellipse cx="41" cy="37" rx="7" ry="5.5" fill="#7A5BA8"/></svg>',
+  musOff:'<svg viewBox="0 0 60 60"><path d="M24 42 V14 L46 9 V36" stroke="#C9BBAA" stroke-width="5" fill="none" stroke-linejoin="round"/><ellipse cx="19" cy="43" rx="7" ry="5.5" fill="#C9BBAA"/><ellipse cx="41" cy="37" rx="7" ry="5.5" fill="#C9BBAA"/><path d="M10 10 L50 50" stroke="#C9BBAA" stroke-width="5" stroke-linecap="round"/></svg>',
   home:'<svg viewBox="0 0 60 60"><path d="M8 28 L30 9 L52 28" stroke="#FF7B6B" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 26 V50 Q15 52 17 52 H43 Q45 52 45 50 V26" fill="#FFC94A" stroke="#E9A928" stroke-width="4" stroke-linejoin="round"/><rect x="25" y="36" width="10" height="16" rx="3" fill="#FF7B6B"/></svg>',
   sndOn:'<svg viewBox="0 0 60 60"><path d="M10 23 H20 L32 12 V48 L20 37 H10Z" fill="#23A99A" stroke="#16867A" stroke-width="3" stroke-linejoin="round"/><path d="M40 22 Q46 30 40 38" stroke="#23A99A" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M45 15 Q56 30 45 45" stroke="#23A99A" stroke-width="5" fill="none" stroke-linecap="round"/></svg>',
   sndOff:'<svg viewBox="0 0 60 60"><path d="M10 23 H20 L32 12 V48 L20 37 H10Z" fill="#C9BBAA" stroke="#A8998A" stroke-width="3" stroke-linejoin="round"/><path d="M40 23 L52 37 M52 23 L40 37" stroke="#C9BBAA" stroke-width="5" stroke-linecap="round"/></svg>',
@@ -758,9 +762,52 @@ const SND={
 function paintMute(){document.querySelectorAll('.muteBtn').forEach(b=>b.innerHTML=muted?ICON.sndOff:ICON.sndOn)}
 paintMute();
 document.querySelectorAll('.muteBtn').forEach(b=>b.addEventListener('click',()=>{
-  muted=!muted;try{localStorage.setItem('kioskB2muted',muted?'1':'0')}catch(e){}paintMute();if(!muted){ac();SND.tap()}
+  muted=!muted;try{localStorage.setItem('kioskB2muted',muted?'1':'0')}catch(e){}paintMute();if(!muted){ac();SND.tap();mStart()}else mStop()
 }));
-document.addEventListener('pointerdown',()=>ac(),{once:true});
+document.addEventListener('pointerdown',()=>{ac();mStart()},{once:true});
+/* ---------------- background music (composed in code, plays offline) ---------------- */
+let musicOn=true;try{musicOn=localStorage.getItem('kioskB2music')!=='0'}catch(e){}
+const MUS={gain:null,timer:null,next:0,step:0,noise:null,duck:0};
+const NF={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+const nf=n=>440*Math.pow(2,((+n[n.length-1]+1)*12+NF[n[0]]-69)/12);
+const MEL=[
+ 'E5 G5 A5 G5 E5 D5 C5 -','A4 C5 E5 D5 C5 - A4 -','A4 C5 D5 C5 A4 - G4 -','G4 A4 B4 D5 - D5 E5 D5',
+ 'E5 G5 C6 - G5 E5 D5 C5','E5 - D5 C5 A4 - C5 -','A4 C5 F5 E5 D5 - C5 -','D5 E5 D5 B4 C5 - - -',
+ 'A5 G5 E5 - C5 D5 E5 -','D5 - B4 D5 G5 - - -','G5 E5 - B4 - E5 G5 -','A5 - E5 - C5 - - -',
+ 'F5 E5 F5 A5 - G5 F5 -','G5 - D5 - B4 D5 G5 -','E5 D5 C5 D5 E5 - G5 -','C6 - G5 - C5 - - -'].map(b=>b.split(' '));
+const CH={C:['C4','E4','G4'],Am:['A3','C4','E4'],F:['F3','A3','C4'],G:['G3','B3','D4'],Em:['E3','G3','B3']};
+const ROOT={C:'C3',Am:'A2',F:'F2',G:'G2',Em:'E2'};
+const PROG=['C','Am','F','G','C','Am','F','G','F','G','Em','Am','F','G','C','C'];
+function mVoice(f,t,dur,type,vol){const a=AC,o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=f;
+  g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(vol,t+0.008);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g);g.connect(MUS.gain);o.start(t);o.stop(t+dur+0.03)}
+function mShaker(t,vol){const a=AC;if(!MUS.noise){const b=a.createBuffer(1,a.sampleRate*0.2,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;MUS.noise=b}
+  const s=a.createBufferSource();s.buffer=MUS.noise;const f=a.createBiquadFilter();f.type='bandpass';f.frequency.value=7000;f.Q.value=1.2;const g=a.createGain();
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.06);s.connect(f);f.connect(g);g.connect(MUS.gain);s.start(t);s.stop(t+0.08)}
+function mKick(t){const a=AC,o=a.createOscillator(),g=a.createGain();o.frequency.setValueAtTime(130,t);o.frequency.exponentialRampToValueAtTime(48,t+0.12);
+  g.gain.setValueAtTime(0.55,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.16);o.connect(g);g.connect(MUS.gain);o.start(t);o.stop(t+0.18)}
+function mStep(step,t){
+  const bar=Math.floor(step/8),e=step%8,ch=PROG[bar],n=MEL[bar][e],B=bar>=8;
+  if(n&&n!=='-'){const f=nf(n);if(B){mVoice(f,t,0.6,'sine',0.75);mVoice(f*2.76,t,0.12,'sine',0.12)}else{mVoice(f,t,0.42,'sine',0.85);mVoice(f*4,t,0.07,'sine',0.22)}}
+  if(e===0||e===4)mVoice(nf(ROOT[ch])*(e===4?1.5:1),t,0.36,'triangle',0.7);
+  if(e===2||e===6)CH[ch].forEach((x,i)=>mVoice(nf(x)*2,t+i*0.016,0.26,'triangle',0.2));
+  if(e===0||e===4)mKick(t);
+  mShaker(t,e%2?0.09:0.18);
+}
+function mTick(){const a=AC;if(!a)return;const spb=60/108/2;while(MUS.next<a.currentTime+0.15){mStep(MUS.step,MUS.next);MUS.step=(MUS.step+1)%128;MUS.next+=spb}}
+const M_VOL=0.04;
+function mStart(){
+  if(MUS.timer||!musicOn||muted||document.hidden)return;const a=ac();if(!a)return;
+  if(!MUS.gain){MUS.gain=a.createGain();MUS.gain.gain.value=0;const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3200;MUS.gain.connect(lp);lp.connect(a.destination)}
+  MUS.gain.gain.cancelScheduledValues(a.currentTime);MUS.gain.gain.setTargetAtTime(M_VOL,a.currentTime,0.8);
+  MUS.next=a.currentTime+0.1;MUS.timer=setInterval(mTick,25);
+}
+function mStop(){if(!MUS.timer)return;clearInterval(MUS.timer);MUS.timer=null;if(AC&&MUS.gain){MUS.gain.gain.cancelScheduledValues(AC.currentTime);MUS.gain.gain.setTargetAtTime(0,AC.currentTime,0.15)}}
+function mDuck(ms){if(!MUS.gain||!AC)return;const g=MUS.gain.gain,t=AC.currentTime;g.cancelScheduledValues(t);g.setTargetAtTime(M_VOL*0.25,t,0.1);g.setTargetAtTime(M_VOL,t+ms/1000,0.6)}
+function setMusic(on){musicOn=on;try{localStorage.setItem('kioskB2music',on?'1':'0')}catch(e){}paintMusic();if(on)mStart();else mStop()}
+function paintMusic(){const b=$('#musicBtn');if(b)b.innerHTML=musicOn?ICON.musOn:ICON.musOff}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)mStop();else mStart()});
+
 
 /* ---------------- characters ---------------- */
 const INK='#3A2E4D';
@@ -1749,6 +1796,7 @@ function removeGuide(){if(guideEl){guideEl.remove();guideEl=null}}
 
 /* ---------------- end ---------------- */
 function endGame(){
+  mDuck(3500);
   G.phase='idle';G.patRun=false;clearCoins();resetFront();show('end');SND.fanfare();
   $('#endTips').innerHTML=`${jarIcon()}<span>טִיפִּים הַיּוֹם: ${nis(G.tipsToday)}</span>`;
   const nb=G.breaksToday||0,ne=G.exchToday||0;$('#endLine').textContent=G.level===5?(ne===1?'הַיּוֹם הֶחְלַפְנוּ פַּעַם אַחַת!':ne>1?`הַיּוֹם הֶחְלַפְנוּ ${ne} פְּעָמִים!`:''):nb===1?'הַיּוֹם פָּרַטְנוּ פַּעַם אַחַת!':nb>1?`הַיּוֹם פָּרַטְנוּ ${nb} פְּעָמִים!`:'';
@@ -1810,10 +1858,12 @@ function renderTeacher(){
     <td>${st.cust||0}</td><td>${pct(st.first||0,st.cust||0)}</td><td>${st.breaks||0}</td><td>${st.extraBreak||0}</td><td>${st.eRegroup||0}</td><td>${st.eRev||0}</td><td>${st.eAdd||0}</td><td>${st.eCarry||0}</td><td>${st.exchanges||0}</td><td>${st.help||0}</td><td>${p.tips||0} ₪</td>
     <td><button class="rst" data-id="${id}">איפוס</button></td></tr>`}).join('');
   $('#tpanel').innerHTML=`<h3><span>מסך מורה</span><button class="close" id="tClose">✕</button></h3>
+  <div class="trow"><span>מוזיקה ברקע:</span><button class="tog${musicOn?' on':''}" id="tMusic">${musicOn?'פועלת':'כבויה'}</button></div>
   <div class="trow"><span>לחץ זמן (מד סבלנות וכעס של הקונים):</span><button class="tog${DB.settings.pressure?' on':''}" id="tPress">${DB.settings.pressure?'פועל':'כבוי'}</button></div>
   ${ids.length?`<table><tr><th>ילד/ה</th><th>רמות שהושלמו</th><th>קונים</th><th>נכון בניסיון ראשון</th><th>פריטות</th><th>פריטות מיותרות</th><th>שכחו שפרטו<br>(43−7→44)</th><th>הפכו עשרות<br>ויחידות</th><th>חיברו במקום<br>לחסר</th><th>שכחו את העשר<br>החדש (17+8→15)</th><th>החלפות<br>10→עשר</th><th>עזרת ספירה</th><th>טיפים</th><th></th></tr>${rows}</table>`:'<p>עוד אין שחקנים. כל ילד/ה בוחר/ת דמות במסך הבית.</p>'}
   <div class="note">הנתונים נשמרים בטאבלט הזה בלבד. "פריטות מיותרות" = פריטה כשאפשר היה לשלם בלעדיה. הקושי מתאים את עצמו: 3 הצלחות ברצף בניסיון ראשון מגדילות מספרים, 2 טעויות ברצף מקטינות ומקדימות רמזים.</div>`;
   $('#tClose').onclick=()=>$('#teach').classList.add('hidden');
+  $('#tMusic').onclick=()=>{setMusic(!musicOn);renderTeacher()};
   $('#tPress').onclick=()=>{DB.settings.pressure=!DB.settings.pressure;save();renderTeacher()};
   document.querySelectorAll('#teach .rst').forEach(b=>b.onclick=()=>{if(b.dataset.sure){const id=b.dataset.id;DB.profiles[id]=newProf();if(DB.cur===id)STORE=DB.profiles[id];save();renderTeacher();paintHome()}else{b.dataset.sure=1;b.textContent='בטוח?'}});
 }
@@ -1867,6 +1917,7 @@ async function pcBreak(c){
 $('#payClose').innerHTML=ICON.home.replace(/<svg[\s\S]*$/,'')+'<svg viewBox="0 0 60 60"><path d="M16 16 L44 44 M44 16 L16 44" stroke="#6A5C7D" stroke-width="7" stroke-linecap="round"/></svg>';
 $('#payClose').addEventListener('click',()=>{SND.tap();$('#payDlg').classList.add('hidden')});
 
+$('#musicBtn').addEventListener('click',()=>{ac();setMusic(!musicOn);SND.tap()});paintMusic();
 /* ---------------- navigation ---------------- */
 function goFull(){try{const d=document.documentElement;if(document.fullscreenElement||document.webkitFullscreenElement)return;
   const f=d.requestFullscreen||d.webkitRequestFullscreen;if(f){const r=f.call(d);if(r&&r.catch)r.catch(()=>{})}}catch(e){}}
@@ -1886,7 +1937,7 @@ paintBot('#hbot','happy',false,true);paintHome();
 if(DB.cur&&DB.profiles[DB.cur]){useProfile(DB.cur);paintHome()}
 if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 // test hook (no effect on play)
-window.__kiosk={G,startGame,submit:()=>submit(),setAnswer:a=>{answer=String(a);paintDisp()},goRegister:()=>goRegister(),exchange:()=>exchange(),get STORE(){return STORE},DB,useProfile,CHARS,fullBody};
+window.__kiosk={G,startGame,submit:()=>submit(),setAnswer:a=>{answer=String(a);paintDisp()},goRegister:()=>goRegister(),exchange:()=>exchange(),music:()=>({on:musicOn,running:!!MUS.timer,step:MUS.step}),get STORE(){return STORE},DB,useProfile,CHARS,fullBody};
 })();
 </script>
 </body>

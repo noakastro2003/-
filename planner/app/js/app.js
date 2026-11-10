@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 51; // keep in step with CACHE in sw.js
+const APP_V = 52; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -2721,10 +2721,13 @@ function viewJournal() {
   const byKid = {};
   for (const n of state.cnotes) for (const k of n.kids) { byKid[k] = byKid[k] || { star: 0, disrupt: 0 }; if (n.tag === 'star') byKid[k].star++; if (n.tag === 'disrupt') byKid[k].disrupt++; }
   const kidsRows = Object.entries(byKid).filter(([, v]) => v.star || v.disrupt).sort((a, b) => b[1].star - a[1].star);
+  const n = openActions().length;
+  const quick = Object.entries(TAGS).map(([k, [, t, c]]) => `<button class="jq" data-cnote="" data-tag="${k}" style="--tc:${c}"><span>${ic(TAG_IC[k])}</span>${t}</button>`).join('');
   return top('יומן כיתה', 'כל מה שרשמת בשיעורים – במקום אחד', 'notepad', { back: 'cls' }) + `
-  <button class="cta" data-cnote="" data-tag="note">${ic('plus')} הערה חדשה</button>
-  <div class="fchips">${[['', 'הכל'], ['open', `לטיפול (${openActions().length})`], ...Object.entries(TAGS).map(([k, [e, t]]) => [k, e + ' ' + t])].map(([k, t]) => `<button class="fc ${f === k ? 'on' : ''}" data-jf="${k}">${t}</button>`).join('')}</div>
-  <div class="card">${list.length ? list.map(n => noteRow(n, true)).join('') : '<p class="dim">עוד אין הערות. בכל שיעור יש כפתורים מהירים: 👤 📞 ⭐ ⚠️ 📝</p>'}</div>
+  <div class="card jquick">${cardHead('plus', 'רישום מהיר')}<div class="jqgrid">${quick}</div></div>
+  ${state.cnotes.length ? `<div class="fchips jf">${[['', 'הכל'], ['open', n ? `פתוחים · ${n}` : 'פתוחים'], ...Object.entries(TAGS).map(([k, [, t]]) => [k, `${ic(TAG_IC[k])}${t}`])].map(([k, t]) => `<button class="fc ${f === k ? 'on' : ''}" data-jf="${k}">${t}</button>`).join('')}</div>` : ''}
+  ${list.length ? `<div class="card">${list.map(n => noteRow(n, true)).join('')}</div>`
+    : `<div class="jempty">${ic('pencil')}<b>${state.cnotes.length ? 'אין כאן הערות' : 'היומן עוד ריק'}</b><span>רושמים מכאן, או ישר מתוך השיעור – בלחיצה אחת.</span></div>`}
   ${kidsRows.length ? `<div class="card">${cardHead('users', 'לפי ילד/ה')}${kidsRows.map(([k, v]) => `<div class="row"><span class="grow">${esc(k)}</span>${v.star ? `<span class="tpill">⭐ ${v.star}</span>` : ''}${v.disrupt ? `<span class="tpill warn">⚠️ ${v.disrupt}</span>` : ''}</div>`).join('')}</div>` : ''}`;
 }
 // "עכשיו": one tidy list – parents to call, children to follow up, my reminders – short, with a "more" link

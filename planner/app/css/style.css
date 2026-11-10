@@ -1384,3 +1384,18 @@ body.onboarding::after, body.incm::after { display: none; }
 .gn-max input { text-align: center; }
 .gnew .cta { margin-top: 18px; }
 [data-theme=dark] .kindseg input:checked + span { background: rgba(255, 255, 255, .1); }
+
+/* class journal v52 */
+.jqgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 4px; }
+.jq { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 2px; font-size: var(--fs-note); color: var(--ink); text-align: center; line-height: 1.25; border-radius: 16px; transition: transform .15s; }
+.jq:active { transform: scale(.92); }
+.jq span { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--tc) 38%, transparent); color: color-mix(in srgb, var(--tc) 45%, var(--ink)); }
+[data-theme=dark] .jq span { background: color-mix(in srgb, var(--tc) 22%, transparent); color: var(--tc); }
+.jq .ic { width: 22px; height: 22px; }
+.fchips.jf { margin: 4px -16px 6px; padding: 4px 16px 8px; }
+.fchips.jf .fc { display: inline-flex; align-items: center; gap: 5px; }
+.fchips.jf .fc .ic { width: 15px; height: 15px; }
+.jempty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 34px 20px; color: var(--soft); }
+.jempty > .ic { width: 40px; height: 40px; color: var(--gold, #C9A25F); margin-bottom: 6px; stroke-width: 1.3; }
+.jempty b { color: var(--ink); font-size: var(--fs-h3); font-weight: 400; }
+.jempty span { font-size: var(--fs-sm); max-width: 260px; }

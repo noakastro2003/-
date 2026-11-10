@@ -1347,3 +1347,32 @@ body.onboarding::after, body.incm::after { display: none; }
 .rep-m summary { font-size: var(--fs-note); color: var(--soft); cursor: pointer; }
 .rep-m pre { white-space: pre-wrap; font-size: var(--fs-note); color: var(--soft); margin: 6px 0; direction: ltr; text-align: left; }
 .rep-shot img { width: 100%; border-radius: 14px; margin-top: 8px; border: 1px solid var(--line); }
+
+/* lock screen v50: deep plum, gold, round keys */
+#lock { background: radial-gradient(420px 320px at 50% 22%, rgba(201, 162, 95, .22), transparent 70%), radial-gradient(500px 400px at 100% 100%, rgba(123, 79, 214, .25), transparent 70%), linear-gradient(165deg, #2B2138, #17131E 70%); color: #F4EEE6; }
+#lock .lk-in { width: min(300px, 86vw); }
+#lock .wlogo { width: 76px; height: 76px; box-shadow: 0 0 0 1px rgba(201, 162, 95, .35), 0 18px 50px -10px rgba(201, 162, 95, .45); border-radius: 22px; }
+#lock h2 { font-size: var(--fs-h2); font-weight: 300; margin: 22px 0 4px; color: #F4EEE6; letter-spacing: .2px; }
+#lock .lk-sub { font-size: var(--fs-sm); color: rgba(244, 238, 230, .6); margin: 0 0 26px; }
+#lock .lk-dots { gap: 18px; margin-bottom: 34px; }
+#lock .lk-dots i { width: 13px; height: 13px; border: 1.5px solid rgba(214, 180, 116, .75); transition: background .2s, transform .25s var(--spring), box-shadow .2s; }
+#lock .lk-dots i.on { background: #D6B474; border-color: #D6B474; transform: scale(1.15); box-shadow: 0 0 12px rgba(214, 180, 116, .6); }
+#lock .lk-pad { grid-template-columns: repeat(3, 76px); justify-content: space-between; row-gap: 16px; }
+#lock .lk-pad button { width: 76px; height: 76px; aspect-ratio: 1; border-radius: 50%; padding: 0; font-size: 30px; font-weight: 300; color: #F4EEE6;
+  background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .09); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: background .15s, transform .15s; font-variant-numeric: tabular-nums; }
+#lock .lk-pad button:active { background: rgba(214, 180, 116, .35); transform: scale(.94); }
+#lock .lk-pad button.lk-del { background: transparent; border: 0; box-shadow: none; display: grid; place-items: center; color: rgba(244, 238, 230, .75); }
+#lock .lk-pad button.lk-del svg { width: 28px; height: 28px; }
+#lock .linkbtn { margin-top: 28px; color: #D6B474; text-decoration: none; font-size: var(--fs-body); }
+#lock .hint { margin-top: 26px; color: rgba(244, 238, 230, .5); font-size: var(--fs-note); }
+#lock { overflow-y: auto; padding: max(20px, var(--safe-t, 0px)) 0 20px; }
+@media (max-height: 720px) {
+  #lock .wlogo { width: 60px; height: 60px; border-radius: 18px; }
+  #lock h2 { margin-top: 14px; font-size: var(--fs-h3); }
+  #lock .lk-sub { margin-bottom: 18px; }
+  #lock .lk-dots { margin-bottom: 22px; }
+  #lock .lk-pad { grid-template-columns: repeat(3, 68px); row-gap: 12px; }
+  #lock .lk-pad button { width: 68px; height: 68px; font-size: 27px; }
+  #lock .linkbtn { margin-top: 16px; }
+}

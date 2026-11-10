@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 49; // keep in step with CACHE in sw.js
+const APP_V = 50; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1657,8 +1657,9 @@ function showLock(mode = 'unlock') {
   let el = $('#lock'); if (!el) { el = document.createElement('div'); el.id = 'lock'; document.body.appendChild(el); }
   el.dataset.mode = mode; el.dataset.pin = '';
   const title = mode === 'set' ? 'בחירת קוד של 4 ספרות' : mode === 'confirm' ? 'שוב, לאישור' : 'הכיתה שלי נעולה';
-  el.innerHTML = `<div class="lk-in">${logo('wlogo')}<h2>${title}</h2><div class="lk-dots">${'<i></i>'.repeat(4)}</div>
-    <div class="lk-pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map(k => k === '' ? '<span></span>' : `<button data-lk="${k}">${k}</button>`).join('')}</div>
+  const sub = mode === 'set' ? 'הקוד שומר על המידע של הכיתה' : mode === 'confirm' ? 'מקישים את אותו הקוד' : 'מקישים את הקוד כדי להיכנס';
+  el.innerHTML = `<div class="lk-in">${logo('wlogo')}<h2>${title}</h2><p class="lk-sub">${sub}</p><div class="lk-dots">${'<i></i>'.repeat(4)}</div>
+    <div class="lk-pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map(k => k === '' ? '<span></span>' : k === '⌫' ? `<button class="lk-del" data-lk="⌫" aria-label="מחיקה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="M13 10l4 4M17 10l-4 4"/></svg></button>` : `<button data-lk="${k}">${k}</button>`).join('')}</div>
     ${mode !== 'unlock' ? '<button class="linkbtn" data-lk="cancel">ביטול</button>' : '<p class="hint">שכחת? אפשר להתחבר לחשבון ולשחזר – הקוד שמור רק בטלפון</p>'}</div>`;
   el.classList.add('show');
 }

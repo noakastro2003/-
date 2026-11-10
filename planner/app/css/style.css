@@ -1339,3 +1339,11 @@ body.onboarding::after, body.incm::after { display: none; }
 /* 8. small feedback */
 .ptn.bump { animation: pop .4s var(--spring); }
 .tlrow .tlchk:active, .iconbtn:active { transform: scale(.88); }
+
+/* problem reports (owner only) */
+.rep .rep-h { display: flex; align-items: baseline; gap: 8px; }
+.rep .rep-t { white-space: pre-wrap; margin: 8px 0; font-size: var(--fs-body); }
+.rep.done { opacity: .6; }
+.rep-m summary { font-size: var(--fs-note); color: var(--soft); cursor: pointer; }
+.rep-m pre { white-space: pre-wrap; font-size: var(--fs-note); color: var(--soft); margin: 6px 0; direction: ltr; text-align: left; }
+.rep-shot img { width: 100%; border-radius: 14px; margin-top: 8px; border: 1px solid var(--line); }

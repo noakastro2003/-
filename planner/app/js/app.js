@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 48; // keep in step with CACHE in sw.js
+const APP_V = 49; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1224,13 +1224,50 @@ async function tryImportWeek(file) {
 }
 
 // ================================================================ HELP: report a problem, short guide, local backups
+// problem reports: sent to the server; the app owner gets a push and reads them in "דיווחים"
+const repo = { admin: false, open: 0, items: null };
+async function repApi(op, body, q = '') {
+  try { await ID.refreshSession(); } catch { /* fine */ }
+  const r = await fetch(`/api/report?op=${op}${q}`, { method: body ? 'POST' : 'GET', credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || 'http ' + r.status), { code: j.error, status: r.status });
+  return j;
+}
+async function repMe() { if (!sync.user) return; try { const j = await repApi('me'); const ch = j.admin !== repo.admin || j.open !== repo.open; Object.assign(repo, j); if (ch && ['more', 'reports'].includes(state.tab)) rerender(); } catch { /* offline */ } }
+async function repLoad() { try { repo.items = (await repApi('list')).items; repo.open = repo.items.filter(r => !r.done).length; } catch { repo.items = repo.items || []; toast('לא הצלחתי לטעון את הדיווחים'); } if (state.tab === 'reports') rerender(); }
+function viewReports() {
+  let h = top('דיווחים', 'מה משתמשות דיווחו שלא עובד', 'star', { back: 'more' });
+  if (!repo.admin) return h + `<div class="card"><p class="dim">המסך הזה פתוח רק למנהלת האפליקציה.</p></div>`;
+  if (!repo.items) { repLoad(); return h + `<div class="card"><p class="dim">טוען…</p></div>`; }
+  if (!repo.items.length) return h + `<div class="tlempty">${ic('check')}<span class="grow">אין דיווחים. הכל עובד 🎉</span></div>`;
+  const fmt = iso => { const d = new Date(iso); return `${d.getDate()}.${d.getMonth() + 1} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  return h + repo.items.map(r => `<div class="card rep ${r.done ? 'done' : ''}">
+    <div class="rep-h"><b class="grow">${esc(r.name || r.email || 'משתמשת')}</b><small class="dim">${fmt(r.at)}</small></div>
+    ${r.name && r.email ? `<small class="dim">${esc(r.email)}</small>` : ''}
+    <p class="rep-t">${esc(r.text)}</p>
+    <details class="rep-m"><summary>פרטי מכשיר</summary><pre>${esc(r.meta)}</pre></details>
+    <div class="rep-shot" id="shot-${esc(r.id)}"></div>
+    <div class="btnrow">${r.shot ? `<button class="cta soft" data-repshot="${esc(r.id)}">${ic('screen')} צילום מסך</button>` : ''}
+      <button class="cta ${r.done ? 'soft' : ''}" data-repdone="${esc(r.id)}">${r.done ? 'פתיחה מחדש' : `${ic('check')} טופל`}</button>
+      <button class="iconbtn" data-repdel="${esc(r.id)}" aria-label="מחיקה">${ic('trash')}</button></div>
+  </div>`).join('');
+}
+async function shrinkImage(file, max = 1280) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
+    const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', .72);
+  } catch { return null; } finally { URL.revokeObjectURL(url); }
+}
 function reportSheet() {
   openOverlay(`<form class="ov sheet" data-report>
     <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
     <div class="ovh">${ic('warn')}<h2>משהו לא עובד?</h2></div>
     <label class="field">מה קרה?<textarea name="what" rows="4" placeholder="לחצתי על… ואז…" required></textarea></label>
     <label class="filepick">${ic('upload')} <span id="shotName">צירוף צילום מסך (לא חובה)</span><input type="file" name="shot" accept="image/*" hidden></label>
-    <p class="hint">יחד עם התיאור נשלחים גרסה ${APP_V}, סוג המכשיר והמסך שהיית בו – בלי שום מידע על התלמידים.</p>
+    <p class="hint">יחד עם התיאור נשלחים גרסה ${APP_V}, סוג המכשיר והמסך שהיית בו – בלי שום מידע על התלמידים.${sync.user ? ' הדיווח מגיע ישר לצוות האפליקציה.' : ''}</p>
     <button class="cta">${ic('upload')} שליחה</button>
   </form>`);
 }
@@ -1741,6 +1778,7 @@ function viewMore(w) {
   ].map(([t, items], k) => `<h4 class="sect msect">${t}</h4><div class="toolgrid ${['hue-lav', 'hue-apr', 'hue-rose'][k] || ''}">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
   <h4 class="sect msect">עזרה והגדרות</h4>
   <button class="card setlink" data-go="settings"><span class="chi">${ic('settings')}</span><span class="grow"><b>הגדרות</b><small>${sync.user ? g('☁️ מחוברת · ', '☁️ מחובר · ') : ''}חשבון, תצוגה, התראות, ווידג׳ט</small></span>${ic('chevL', 'chev')}</button>
+  ${repo.admin ? `<button class="card setlink" data-go="reports"><span class="chi">${ic('warn')}</span><span class="grow"><b>דיווחים</b><small>${repo.open ? `${repo.open} פתוחים` : 'אין דיווחים פתוחים'}</small></span>${repo.open ? `<span class="cnt">${repo.open}</span>` : ''}${ic('chevL', 'chev')}</button>` : ''}
   <div class="helprow"><button data-act="guide">${ic('book')} איך זה עובד</button><button data-act="report">${ic('warn')} משהו לא עובד?</button></div>
   <div class="card">
     ${cardHead('upload', 'התכנונים שלי')}
@@ -2584,6 +2622,7 @@ async function initAuth() {
     if (cb && cb.type === 'confirmation') toast(g('המייל אושר – את מחוברת 💜', 'המייל אושר – אתה מחובר 💜'));
   } catch (e) { toast('הקישור לא תקין או שפג תוקפו 😕'); }
   try { sync.user = await ID.getUser(); } catch { sync.user = null; }
+  repMe();
   sync.ready = true;
   pushState().then(() => { if (state.tab === 'autos') rerender(); });
   if (sync.user) { await pull(true); rerender(); } else if (state.tab === 'settings') rerender();
@@ -2965,8 +3004,8 @@ function readyMoment(day) {
 
 // ================================================================ render
 const TABS = ['now', 'day', 'prep', 'cls', 'more'];
-const SUB = { files: 'more', friends: 'more', bells: 'more', kids: 'cls', grades: 'cls', journal: 'cls', class: 'cls', msgs: 'cls', calendar: 'cls', todos: 'more', summary: 'more', settings: 'more',  lists: 'more', autos: 'more', tools: 'more',   bank: 'more',  };
-const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, cls: viewHub, friends: viewFriends, bells: viewBells, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar };
+const SUB = { files: 'more', friends: 'more', bells: 'more', kids: 'cls', grades: 'cls', journal: 'cls', class: 'cls', msgs: 'cls', calendar: 'cls', todos: 'more', reports: 'more', summary: 'more', settings: 'more',  lists: 'more', autos: 'more', tools: 'more',   bank: 'more',  };
+const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, cls: viewHub, friends: viewFriends, bells: viewBells, reports: viewReports, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar };
 let lastTab = null;
 function render(animate) {
   let w = pickWeek();
@@ -2981,7 +3020,7 @@ function render(animate) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   moveTabInd();
   const v = $('#view');
-  const needWeek = !['more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells'].includes(state.tab);
+  const needWeek = !['more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells', 'reports'].includes(state.tab);
   document.body.classList.toggle('onboarding', !state.onboarded);
   let html = !state.onboarded ? viewOnboard() : !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
   const busyNow = (() => { const w0 = realWeek(), d0 = w0 && todayInWeek(w0), ph0 = d0 && phase(d0); return ph0 && (ph0.kind === 'lesson' || ph0.kind === 'break'); })();
@@ -3248,6 +3287,9 @@ document.addEventListener('click', async e => {
     state.absent = { d: todayKey(), names: ab }; state._absOpen = true; state._teams = null; save(); pickerScreen(); return;
   }
   if (D.size) { state.prefs.size = +D.size; save(); applyPrefs(); rerender(); return; }
+  if (D.repshot) { const box = document.getElementById('shot-' + D.repshot); if (box.innerHTML) { box.innerHTML = ''; return; } box.textContent = 'טוען…'; repApi('shot', null, '&id=' + encodeURIComponent(D.repshot)).then(j => { box.innerHTML = j.shot ? `<img src="${j.shot}" alt="צילום מסך">` : 'לא נמצא'; }).catch(() => { box.textContent = 'לא הצלחתי לטעון'; }); return; }
+  if (D.repdone) { repApi('done', { id: D.repdone }).then(repLoad); return; }
+  if (D.repdel) { ask('למחוק את הדיווח?', { ok: 'מחיקה' }).then(y => { if (y) repApi('del', { id: D.repdel }).then(repLoad); }); return; }
   if (D.pal) { state.prefs.palette = D.pal; save(); applyPrefs(); rerender(); return; }
   if (D.act === 'mypalreset') { delete state.prefs.myPal; save(); applyPrefs(); rerender(); return; }
   if (D.skin) { state.prefs.skin = D.skin; save(); applyPrefs(); rerender(); return; }
@@ -3476,6 +3518,17 @@ document.addEventListener('submit', e => {
     e.preventDefault();
     const txt = `דיווח מ"הכיתה שלי" · גרסה ${APP_V}\nמסך: ${state.tab} · ${innerWidth}×${innerHeight} · ${standalone() ? 'מסך הבית' : 'דפדפן'}\n${navigator.userAgent}\n\nמה קרה:\n${f.what.value.trim()}`;
     const shot = f.shot.files && f.shot.files[0];
+    if (sync.user) {
+      const btn = f.querySelector('.cta'); btn.disabled = true; btn.textContent = 'שולחת…';
+      (async () => {
+        const meta = txt.split('\n\nמה קרה:')[0];
+        try { await repApi('send', { text: f.what.value.trim(), meta, shot: shot ? await shrinkImage(shot) : null }); closeOverlay(); toast('הדיווח נשלח ✓ תודה!', 2600); return; }
+        catch (x) { if (x.code === 'too-many') { toast('נשלחו היום הרבה דיווחים – אפשר לנסות שוב מחר'); btn.disabled = false; return; } }
+        btn.disabled = false; btn.textContent = 'שליחה';
+        if (navigator.share) navigator.share({ text: txt }).then(() => closeOverlay()).catch(() => {}); else navigator.clipboard.writeText(txt).then(() => toast('לא הצלחתי לשלוח – הדיווח הועתק 📋'));
+      })();
+      return;
+    }
     if (navigator.share) navigator.share(shot && navigator.canShare && navigator.canShare({ files: [shot] }) ? { text: txt, files: [shot] } : { text: txt }).then(() => closeOverlay()).catch(() => {});
     else navigator.clipboard.writeText(txt).then(() => toast('הדיווח הועתק – אפשר להדביק לי בצ׳אט 📋'));
     return;
@@ -3491,7 +3544,7 @@ document.addEventListener('submit', e => {
     (mode === 'signup' ? ID.signup(em, pw, { full_name: state.name }) : ID.login(em, pw))
       .then(async u => {
         if (mode === 'signup' && !u.confirmedAt) { err.textContent = ''; toast('שלחתי לך מייל אישור 📧 לוחצים על הקישור – ואת בפנים', 5000); f.classList.remove('busy'); return; }
-        sync.user = u; toast('התחברת 💜 מסנכרנת…'); await pull(true); rerender(); confetti();
+        sync.user = u; repMe(); toast('התחברת 💜 מסנכרנת…'); await pull(true); rerender(); confetti();
       })
       .catch(x => { err.textContent = authError(x); f.classList.remove('busy'); });
     return;

@@ -213,7 +213,7 @@
 [data-skin=luxe] .field input, [data-skin=luxe] .field select, [data-skin=luxe] textarea, [data-skin=luxe] .addtodo input, [data-skin=luxe] .erow input, [data-skin=luxe] .litem, [data-skin=luxe] .actl select, [data-skin=luxe] .actl input {
   background: rgba(255, 255, 255, .5); border: 1px solid var(--line); border-style: solid;
 }
-[data-skin=luxe][data-theme=dark] .field input, [data-skin=luxe][data-theme=dark] textarea, [data-skin=luxe][data-theme=dark] .addtodo input { background: rgba(255, 255, 255, .04); }
+[data-skin=luxe][data-theme=dark] .field input, [data-skin=luxe][data-theme=dark] .field select, [data-skin=luxe][data-theme=dark] textarea, [data-skin=luxe][data-theme=dark] .addtodo input, [data-skin=luxe][data-theme=dark] .erow input, [data-skin=luxe][data-theme=dark] .litem, [data-skin=luxe][data-theme=dark] .actl select, [data-skin=luxe][data-theme=dark] .actl input { background-color: rgba(255, 255, 255, .04); color: var(--ink); }
 [data-skin=luxe] .addtodo button, [data-skin=luxe] .back { background: transparent; border: 1px solid var(--line); color: var(--gold); box-shadow: none; }
 [data-skin=luxe] .team { background: var(--card); border: 1px solid var(--line); border-top: 2px solid var(--c); }
 [data-skin=luxe] .pname { font-family: var(--serif); font-weight: 400; font-size: 52px; }

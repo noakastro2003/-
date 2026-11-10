@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 50; // keep in step with CACHE in sw.js
+const APP_V = 51; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1116,7 +1116,11 @@ function viewGrades() {
     return h;
   }
   h += `<div class="card">${cardHead('plus', 'מבדק / הכתבה חדשה')}
-    <form data-gnew class="gnew"><input name="title" placeholder="למשל: הכתבה ח.ב.ר" required><div class="an-grid"><label class="field">סוג<select name="kind"><option>הכתבה</option><option>מבדק</option><option>משימה</option></select></label><label class="field">ציון מקסימלי<input name="max" type="number" value="100"></label></div><button class="cta">${ic('plus')} יצירה והזנת ציונים</button></form></div>`;
+    <form data-gnew class="gnew">
+      <div class="seg kindseg">${[['הכתבה', 'text'], ['מבדק', 'target'], ['משימה', 'check']].map(([k, i], n) => `<label><input type="radio" name="kind" value="${k}" ${n ? '' : 'checked'}><span>${ic(i)}${k}</span></label>`).join('')}</div>
+      <div class="gn-row"><label class="field">שם<input name="title" placeholder="למשל: הכתבה ח.ב.ר" required autocomplete="off"></label><label class="field gn-max">מתוך<input name="max" type="number" inputmode="numeric" value="100"></label></div>
+      <button class="cta">${ic('plus')} יצירה והזנת ציונים</button></form></div>`;
+  if (!state.grades.length) h += `<div class="tlempty">${ic('chart')}<span class="grow">אחרי שיוצרים מבדק, מזינים ציון לכל ילד ורואים ממוצע ומי צריך חיזוק.</span></div>`;
   if (state.grades.length) h += `<div class="card">${cardHead('chart', 'כל המבדקים', `<span class="cnt">${state.grades.length}</span>`)}${state.grades.slice().reverse().map(g => { const v = Object.values(g.scores).filter(x => x !== '' && x != null).map(Number); return `<button class="pmhist" data-gopen="${g.id}"><span class="tpill">${esc(g.kind)}</span><span class="grow"><b>${esc(g.title)}</b><small>${v.length ? `ממוצע ${Math.round(v.reduce((a, b) => a + b, 0) / v.length)} · ${v.length} ציונים` : 'עוד לא הוזנו ציונים'}</small></span>${ic('chevL', 'chev')}</button>`; }).join('')}</div>`;
   const strug = state.kids.map(k => ({ k, gs: kidGrades(k.name) })).filter(x => x.gs.length).map(x => ({ ...x, a: Math.round(x.gs.reduce((s, y) => s + pct(y.v, y.g.max), 0) / x.gs.length) })).filter(x => x.a < 70).sort((a, b) => a.a - b.a);
   if (strug.length) h += `<div class="card">${cardHead('users', 'כדאי לחזק', `<span class="cnt">${strug.length}</span>`)}<p class="dim">ממוצע מתחת ל־70% – מתאים לקבוצת פרטני</p>${strug.map(x => `<button class="pmhist" data-kid="${esc(x.k.name)}"><span class="grow"><b>${esc(x.k.name)}</b></span><b class="low">${x.a}%</b></button>`).join('')}</div>`;

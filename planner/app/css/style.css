@@ -1039,7 +1039,7 @@ body.incm { overflow: hidden; }
 .grow-row input { width: 84px; text-align: center; padding: 9px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--tint2); }
 .lowbox { margin-top: 12px; padding: 12px 14px; border-radius: 16px; background: color-mix(in srgb, #C2456B 8%, transparent); font-size: var(--fs-sm); line-height: 1.6; }
 .danger-l { color: #C2456B !important; display: block; margin: 14px auto 0; }
-.gnew input[name=title] { width: 100%; box-sizing: border-box; padding: 13px 14px; border-radius: var(--r-btn); border: 1.5px solid var(--line); background: var(--tint2); }
+
 .quiet { border-color: color-mix(in srgb, #C9A25F 40%, transparent); }
 
 /* calendar */
@@ -1376,3 +1376,11 @@ body.onboarding::after, body.incm::after { display: none; }
   #lock .lk-pad button { width: 68px; height: 68px; font-size: 27px; }
   #lock .linkbtn { margin-top: 16px; }
 }
+
+/* grades: new-test form */
+.gnew .kindseg { margin: 6px 0 4px; }
+.gn-row { display: grid; grid-template-columns: 1fr 92px; gap: 12px; align-items: end; }
+.gn-row .field { margin: 10px 0 0; }
+.gn-max input { text-align: center; }
+.gnew .cta { margin-top: 18px; }
+[data-theme=dark] .kindseg input:checked + span { background: rgba(255, 255, 255, .1); }

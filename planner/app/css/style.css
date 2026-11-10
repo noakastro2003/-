@@ -1399,3 +1399,15 @@ body.onboarding::after, body.incm::after { display: none; }
 .jempty > .ic { width: 40px; height: 40px; color: var(--gold, #C9A25F); margin-bottom: 6px; stroke-width: 1.3; }
 .jempty b { color: var(--ink); font-size: var(--fs-h3); font-weight: 400; }
 .jempty span { font-size: var(--fs-sm); max-width: 260px; }
+
+/* grade types */
+.gn-lbl { margin: 4px 0 6px; font-size: var(--fs-sm); color: var(--soft); }
+.gkinds { display: flex; flex-wrap: wrap; gap: 8px; }
+.gkinds label { position: relative; }
+.gkinds input { position: absolute; opacity: 0; pointer-events: none; }
+.gkinds span { display: inline-block; padding: 8px 16px; border-radius: 99px; border: 1px solid var(--line); font-size: var(--fs-sm); color: var(--soft); transition: all .2s; cursor: pointer; }
+.gkinds input:checked + span { background: var(--ink); border-color: var(--ink); color: var(--card); font-weight: 500; }
+[data-theme=dark] .gkinds input:checked + span { background: #D6B474; border-color: #D6B474; color: #1C1924; }
+.gkinds input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gn-other { display: none; }
+.gnew:has(input[name=kind][value=אחר]:checked) .gn-other { display: flex; }

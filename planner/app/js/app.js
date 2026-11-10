@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 52; // keep in step with CACHE in sw.js
+const APP_V = 53; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1100,14 +1100,15 @@ function kidSheet(name) {
     ${ms.length ? `<h4>הודעות להורים</h4>${ms.slice(0, 6).map(m => `<div class="row"><span class="tpill">${new Date(m.at).getDate()}.${new Date(m.at).getMonth() + 1}</span><span class="grow">${esc(m.text.split('\n').find(l => l.trim() && !/^היי|טובים/.test(l)) || '')}</span></div>`).join('')}` : ''}
   </div>`);
 }
+const GKINDS = ['מבחן', 'בוחן', 'הכתבה', 'מבדק', 'עבודה', 'פרויקט', 'משימה', 'אחר'];
 function viewGrades() {
-  let h = top('ציונים', 'הכתבות ומבדקים – מזינים מהר, רואים מי צריך עזרה', 'star', { back: 'cls' });
+  let h = top('ציונים', 'מבחנים, בחנים, הכתבות ועבודות – מזינים מהר, רואים מי צריך עזרה', 'star', { back: 'cls' });
   const open = state.grades.find(g => g.id === state.gOpen);
   if (open) {
     const vals = state.kids.map(k => open.scores[k.name]).filter(v => v !== '' && v != null).map(Number);
     const avg = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
     const low = state.kids.filter(k => open.scores[k.name] != null && open.scores[k.name] !== '' && pct(+open.scores[k.name], open.max) < 60);
-    h += `<div class="card">${cardHead('target', esc(open.title), `<button class="linkbtn" data-gopen="">כל המבדקים</button>`)}
+    h += `<div class="card">${cardHead('target', esc(open.title), `<button class="linkbtn" data-gopen="">הכל</button>`)}
       <p class="dim">${esc(open.kind)}${open.date ? ' · ' + esc(open.date.split('-').reverse().slice(0, 2).join('.')) : ''} · מתוך ${open.max || 100}${avg != null ? ` · ממוצע <b>${avg}</b>` : ''} · הוזנו ${vals.length}/${state.kids.length}</p>
       ${state.kids.length ? state.kids.map(k => `<label class="grow-row"><span class="grow">${esc(k.name)}</span><input type="number" inputmode="numeric" min="0" max="${open.max || 100}" data-score="${esc(k.name)}" value="${esc(open.scores[k.name] ?? '')}"></label>`).join('') : '<p class="hint">צריך רשימת ילדים (עוד ← הכיתה שלי).</p>'}
       ${low.length ? `<div class="lowbox"><b>צריכים חיזוק (מתחת ל־60%):</b> ${low.map(k => `<button class="linkbtn" data-kid="${esc(k.name)}">${esc(k.name)}</button>`).join(', ')}</div>` : ''}
@@ -1115,13 +1116,15 @@ function viewGrades() {
     </div>`;
     return h;
   }
-  h += `<div class="card">${cardHead('plus', 'מבדק / הכתבה חדשה')}
+  h += `<div class="card">${cardHead('plus', 'ציון חדש')}
     <form data-gnew class="gnew">
-      <div class="seg kindseg">${[['הכתבה', 'text'], ['מבדק', 'target'], ['משימה', 'check']].map(([k, i], n) => `<label><input type="radio" name="kind" value="${k}" ${n ? '' : 'checked'}><span>${ic(i)}${k}</span></label>`).join('')}</div>
+      <p class="gn-lbl">סוג</p>
+      <div class="gkinds">${GKINDS.map((k, n) => `<label><input type="radio" name="kind" value="${k}" ${n ? '' : 'checked'}><span>${k}</span></label>`).join('')}</div>
+      <label class="field gn-other">איזה סוג?<input name="kindOther" placeholder="למשל: הצגה בעל פה" autocomplete="off"></label>
       <div class="gn-row"><label class="field">שם<input name="title" placeholder="למשל: הכתבה ח.ב.ר" required autocomplete="off"></label><label class="field gn-max">מתוך<input name="max" type="number" inputmode="numeric" value="100"></label></div>
       <button class="cta">${ic('plus')} יצירה והזנת ציונים</button></form></div>`;
-  if (!state.grades.length) h += `<div class="tlempty">${ic('chart')}<span class="grow">אחרי שיוצרים מבדק, מזינים ציון לכל ילד ורואים ממוצע ומי צריך חיזוק.</span></div>`;
-  if (state.grades.length) h += `<div class="card">${cardHead('chart', 'כל המבדקים', `<span class="cnt">${state.grades.length}</span>`)}${state.grades.slice().reverse().map(g => { const v = Object.values(g.scores).filter(x => x !== '' && x != null).map(Number); return `<button class="pmhist" data-gopen="${g.id}"><span class="tpill">${esc(g.kind)}</span><span class="grow"><b>${esc(g.title)}</b><small>${v.length ? `ממוצע ${Math.round(v.reduce((a, b) => a + b, 0) / v.length)} · ${v.length} ציונים` : 'עוד לא הוזנו ציונים'}</small></span>${ic('chevL', 'chev')}</button>`; }).join('')}</div>`;
+  if (!state.grades.length) h += `<div class="tlempty">${ic('chart')}<span class="grow">אחרי שיוצרים מבחן או הכתבה, מזינים ציון לכל ילד ורואים ממוצע ומי צריך חיזוק.</span></div>`;
+  if (state.grades.length) h += `<div class="card">${cardHead('chart', 'כל הציונים', `<span class="cnt">${state.grades.length}</span>`)}${state.grades.slice().reverse().map(g => { const v = Object.values(g.scores).filter(x => x !== '' && x != null).map(Number); return `<button class="pmhist" data-gopen="${g.id}"><span class="tpill">${esc(g.kind)}</span><span class="grow"><b>${esc(g.title)}</b><small>${v.length ? `ממוצע ${Math.round(v.reduce((a, b) => a + b, 0) / v.length)} · ${v.length} ציונים` : 'עוד לא הוזנו ציונים'}</small></span>${ic('chevL', 'chev')}</button>`; }).join('')}</div>`;
   const strug = state.kids.map(k => ({ k, gs: kidGrades(k.name) })).filter(x => x.gs.length).map(x => ({ ...x, a: Math.round(x.gs.reduce((s, y) => s + pct(y.v, y.g.max), 0) / x.gs.length) })).filter(x => x.a < 70).sort((a, b) => a.a - b.a);
   if (strug.length) h += `<div class="card">${cardHead('users', 'כדאי לחזק', `<span class="cnt">${strug.length}</span>`)}<p class="dim">ממוצע מתחת ל־70% – מתאים לקבוצת פרטני</p>${strug.map(x => `<button class="pmhist" data-kid="${esc(x.k.name)}"><span class="grow"><b>${esc(x.k.name)}</b></span><b class="low">${x.a}%</b></button>`).join('')}</div>`;
   return h;
@@ -3520,7 +3523,7 @@ document.addEventListener('submit', e => {
   if (f.matches('[data-friendadd]')) { e.preventDefault(); const c = f.code.value.trim(); if (!c) return; socApi('add', { code: c }).then(r => { if (r.pending) toast(`נשלחה בקשה ל${r.friend.name || 'חברה'} – כשהיא תאשר, תהיו חברות`, 4000); else { toast(`${r.friend.name || 'החברה'} נוספה ✓`); confetti(); } f.code.value = ''; socLoad(true); }).catch(x => toast(x.code === 'no-such-code' ? 'לא מצאתי את הקוד – כדאי לבדוק שוב' : x.code === 'self' ? 'זה הקוד שלך 🙂' : 'לא הצלחתי להוסיף 😕')); return; }
   if (f.matches('[data-profile]')) { e.preventDefault(); socApi('profile', { name: f.name.value, school: f.school.value, subjects: f.subjects.value }).then(() => { toast('נשמר ✓'); socLoad(true); }); return; }
   if (f.matches('[data-ptnew]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; state.points.push({ name: t, pts: 0 }); save(); rerender(); return; }
-  if (f.matches('[data-gnew]')) { e.preventDefault(); const id = uid(); state.grades.push({ id, title: f.title.value.trim(), kind: f.kind.value, max: +f.max.value || 100, date: isoDay(now()), scores: {} }); state.gOpen = id; save(); rerender(); return; }
+  if (f.matches('[data-gnew]')) { e.preventDefault(); const id = uid(); state.grades.push({ id, title: f.title.value.trim(), kind: f.kind.value === 'אחר' ? (f.kindOther.value.trim() || 'אחר') : f.kind.value, max: +f.max.value || 100, date: isoDay(now()), scores: {} }); state.gOpen = id; save(); rerender(); return; }
   if (f.matches('[data-evnew]')) { e.preventDefault(); state.events.push({ text: f.text.value.trim(), date: f.date.value, icon: '⭐' }); save(); rerender(); toast('נוסף ללוח ✓'); return; }
   if (f.matches('[data-report]')) {
     e.preventDefault();

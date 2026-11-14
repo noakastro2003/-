@@ -1062,8 +1062,8 @@ body.incm { overflow: hidden; }
 
 /* ============================================================ reorganisation: hub, classes, onboarding, friends */
 body.onboarding .tabs, body.onboarding .minibar { display: none !important; }
-.quick.q4 { display: grid; grid-template-columns: repeat(4, 1fr); }
-.quick.q4 button { font-size: var(--fs-note); padding-inline: 2px; }
+.quick.q4 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.quick.q4 button { font-size: 12px; padding: 9px 2px; flex-direction: column; gap: 4px; line-height: 1.2; text-align: center; }
 .hubcls { display: flex; flex-direction: column; gap: 4px; margin: 10px 0 4px; }
 .hubcls .linkbtn { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; }
 .hubcls .linkbtn .ic { width: 16px; height: 16px; }

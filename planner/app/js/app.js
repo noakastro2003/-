@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 62; // keep in step with CACHE in sw.js
+const APP_V = 63; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -378,6 +378,7 @@ function viewNow(w) {
 function quickTools() {
   return `<div class="quick q4">
     <button data-act="classmode">${ic('screen')}מצב בכיתה</button>
+    <button data-act="cast" class="${cast.on ? 'on' : ''}">${ic('link')}${cast.on ? 'מסך הכיתה ✓' : 'מסך הכיתה'}</button>
     <button data-act="timer">${ic('timer')}טיימר</button>
     <button data-act="picker">${ic('dice')}מי עונה?</button>
     <button data-act="wake" class="${wantAwake ? 'on' : ''}">${ic('sun')}${wantAwake ? 'מסך דלוק ✓' : 'מסך דלוק'}</button>
@@ -1699,6 +1700,7 @@ function viewHub() {
     ['pencil', 'יומן כיתה', 'data-go="journal"', openActions().length || ''], ['medal', 'ניקוד ורמזור', 'data-go="class"', ''], ['users', 'עריכת הרשימה', 'data-go="kids"', state.kids.length || ''], ['calendar', 'לוח אירועים', 'data-go="calendar"', '']];
   const HUES = ['hue-rose', 'hue-gold', 'hue-lav', 'hue-apr', 'hue-sage', 'hue-blue'];
   h += attLine();
+  h += `<button class="attline ${cast.on ? '' : 'todo'}" data-act="cast">${ic('screen')}<span class="grow"><b>מסך הכיתה</b> · ${cast.on ? 'מחובר – לחיצה לשליטה' : 'להקרין מהטלפון למחשב בכיתה'}</span>${ic('chevL', 'chev')}</button>`;
   h += `<div class="hubgrid">${tiles.map(([i, l, a, n], k) => `<button class="${HUES[k % 6]}" ${a}><span class="ti">${ic(i)}</span><b>${l}</b>${n ? `<em>${n}</em>` : ''}</button>`).join('')}</div>`;
   if (!state.kids.length) h += `<div class="card">${cardHead('users', 'עוד אין ילדים בכיתה')}<p class="dim">מדביקים רשימת שמות (ואם רוצים גם יום הולדת וטלפון של הורה) – ואז יש כרטיס לכל ילד, "מי עונה?", ימי הולדת והודעות אישיות.</p><button class="cta" data-go="kids">${ic('plus')} הוספת הילדים</button></div>`;
   else {
@@ -2091,7 +2093,7 @@ function viewMore(w) {
   return top('עוד', streak() > 1 ? `🔥 ${streak()} ימים ברצף שהכל מוכן` : 'כלים, הגדרות ותכנונים', 'star') + `
   ${[
     ['תכנון', [['upload', 'תכנון חדש', 'data-act="upload"'], ['layers', 'השבוע הבא', w ? 'data-act="nextweek"' : 'disabled'], ['grid', 'מערכת', 'data-day="all"'], ['clock', 'לוח צלצולים', 'data-go="bells"'], ['book', 'מאגר שיעורים', 'data-go="bank"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`]]],
-    ['חומרים ורעיונות', [['folder', 'קבצים', 'data-go="files"'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"'], ['pencil', 'נקדן', 'data-act="nakdan"']]],
+    ['חומרים ורעיונות', [['screen', 'מסך הכיתה', 'data-act="cast"'], ['folder', 'קבצים', 'data-go="files"'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"'], ['pencil', 'נקדן', 'data-act="nakdan"']]],
     ['תזכורות ושיתוף', [['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"'], ['heart', 'מורות חברות', 'data-go="friends"']]],
   ].map(([t, items], k) => `<h4 class="sect msect">${t}</h4><div class="toolgrid ${['hue-lav', 'hue-apr', 'hue-rose'][k] || ''}">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
   <h4 class="sect msect">עזרה והגדרות</h4>

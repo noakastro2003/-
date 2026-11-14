@@ -1,6 +1,6 @@
 import { api } from './api.js';
 import { h, mount } from './ui.js';
-import { homePage, authPage, dashboardPage, editorPage, topbar } from './teacher.js';
+import { homePage, authPage, forgotPage, resetPage, dashboardPage, editorPage, topbar } from './teacher.js';
 import { generatorPage } from './generator.js';
 import { billingPage } from './plan.js';
 import { studentPage, joinCodePage } from './student.js';
@@ -29,6 +29,8 @@ const routes = [
   [/^#?\/?$/, () => (session.teacher ? go('#/dashboard') : homePage(app))],
   [/^#\/login$/, () => authPage(app, 'login')],
   [/^#\/register$/, () => authPage(app, 'register')],
+  [/^#\/forgot$/, () => forgotPage(app)],
+  [/^#\/reset\/([0-9a-f]{64})$/, (m) => resetPage(app, m[1])],
   [/^#\/join$/, () => joinCodePage(app)],
   [/^#\/s\/([A-Za-z0-9]+)$/, (m) => studentPage(app, m[1].toUpperCase())],
   [/^#\/dashboard$/, () => needTeacher(() => dashboardPage(app))],

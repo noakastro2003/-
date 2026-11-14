@@ -88,9 +88,57 @@ export function authPage(app, mode) {
       field('אימייל', email),
       field('סיסמה', pw, isReg ? 'לפחות 8 תווים' : null),
       error, submit,
+      !isReg && h('p', { class: 'center small' }, h('a', { href: '#/forgot' }, 'שכחתי סיסמה')),
       h('p', { class: 'muted center' },
         isReg ? 'כבר יש לך חשבון? ' : 'עוד אין לך חשבון? ',
         h('a', { href: isReg ? '#/login' : '#/register' }, isReg ? 'כניסה' : 'הרשמה')))));
+}
+
+export function forgotPage(app) {
+  const email = h('input', { type: 'email', required: true, autocomplete: 'email', dir: 'ltr' });
+  const submit = h('button', { class: 'btn primary block', type: 'submit' }, 'שליחת קישור לאיפוס');
+  const form = h('form', {
+    class: 'card narrow',
+    onsubmit: (e) => {
+      e.preventDefault();
+      busy(submit, api('POST', '/api/auth/forgot', { email: email.value })
+        .then(() => mount(form,
+          h('h1', {}, 'בדקו את תיבת הדואר 📬'),
+          h('p', {}, `אם קיים חשבון עם הכתובת ${email.value}, שלחנו אליה קישור לבחירת סיסמה חדשה. הקישור תקף לשעה.`),
+          h('p', { class: 'muted small' }, 'לא הגיע? בדקו בתיקיית הספאם, או פנו למנהל/ת המערכת.'),
+          h('a', { class: 'btn block', href: '#/login' }, 'חזרה לכניסה')))
+        .catch((err) => toast(err.message, 'error')));
+    },
+  },
+    h('h1', {}, 'שכחתי סיסמה'),
+    h('p', { class: 'muted' }, 'כתבו את האימייל שאיתו נרשמתם, ונשלח קישור לבחירת סיסמה חדשה.'),
+    field('אימייל', email), submit,
+    h('p', { class: 'muted center' }, h('a', { href: '#/login' }, 'חזרה לכניסה')));
+  mount(app, topbar(), h('main', { class: 'center-page' }, form));
+  email.focus();
+}
+
+export function resetPage(app, token) {
+  const pw = h('input', { type: 'password', required: true, minlength: 8, autocomplete: 'new-password', dir: 'ltr' });
+  const pw2 = h('input', { type: 'password', required: true, minlength: 8, autocomplete: 'new-password', dir: 'ltr' });
+  const error = h('p', { class: 'error', role: 'alert' });
+  const submit = h('button', { class: 'btn primary block', type: 'submit' }, 'שמירת הסיסמה החדשה');
+  mount(app, topbar(), h('main', { class: 'center-page' }, h('form', {
+    class: 'card narrow',
+    onsubmit: (e) => {
+      e.preventDefault();
+      error.textContent = '';
+      if (pw.value !== pw2.value) { error.textContent = 'הסיסמאות לא זהות'; return; }
+      busy(submit, api('POST', '/api/auth/reset', { token, password: pw.value })
+        .then(() => { toast('הסיסמה עודכנה', 'ok'); session.loaded = false; go('#/dashboard'); })
+        .catch((err) => { error.textContent = err.message; }));
+    },
+  },
+    h('h1', {}, 'בחירת סיסמה חדשה'),
+    field('סיסמה חדשה', pw, 'לפחות 8 תווים'),
+    field('שוב, לאימות', pw2),
+    error, submit)));
+  pw.focus();
 }
 
 // ---------- dashboard ----------

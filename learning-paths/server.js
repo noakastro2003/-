@@ -12,6 +12,7 @@ import {
   studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS,
 } from './logic.js';
 import * as billing from './billing.js';
+import { createMailer } from './mailer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -75,6 +76,14 @@ function checkPassword(pw, stored) {
 }
 
 const DUMMY_HASH = hashPassword('timing-equalizer');
+
+// The address links in emails point to. Set APP_URL in production: the Host header
+// alone could be spoofed into a reset email.
+function appUrl(req) {
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, '');
+  const proto = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+  return `${proto}://${req.headers.host}`;
+}
 
 function randomCode(len = 6) {
   const bytes = crypto.randomBytes(len);
@@ -140,12 +149,14 @@ function rateLimiter(limit, windowMs) {
 
 // ai: { enabled, generatePath } – injectable so tests don't call the real API.
 // billingCfg: see billingConfig().
-export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
+// mailer: { send({to, subject, text}) } – injectable for tests.
+export function createApp(db, { ai, billingCfg = billingConfig(), mailer = createMailer() } = {}) {
   const loginLimit = rateLimiter(10, 15 * 60 * 1000);
   const joinLimit = rateLimiter(60, 15 * 60 * 1000);
   const aiLimit = rateLimiter(20, 60 * 60 * 1000);
   const pinLimit = rateLimiter(8, 10 * 60 * 1000); // per student: stops guessing the 4-digit code
   const secretLimit = rateLimiter(8, 10 * 60 * 1000); // per student: stops guessing a classmate's secret
+  const forgotLimit = rateLimiter(5, 60 * 60 * 1000);
   let generatePath = ai?.generatePath;
   const aiEnabled = ai ? ai.enabled !== false : aiConfigured();
 
@@ -160,6 +171,11 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
                          WHERE s.token = ? AND s.expires_at > ?`),
     insertSession: db.prepare('INSERT INTO sessions (token, teacher_id, expires_at) VALUES (?, ?, ?)'),
     deleteSession: db.prepare('DELETE FROM sessions WHERE token = ?'),
+    deleteTeacherSessions: db.prepare('DELETE FROM sessions WHERE teacher_id = ?'),
+    insertReset: db.prepare('INSERT INTO password_resets (token_hash, teacher_id, expires_at) VALUES (?, ?, ?)'),
+    resetByHash: db.prepare('SELECT * FROM password_resets WHERE token_hash = ?'),
+    useReset: db.prepare('UPDATE password_resets SET used = 1 WHERE token_hash = ?'),
+    setPassword: db.prepare('UPDATE teachers SET password_hash = ? WHERE id = ?'),
     purgeSessions: db.prepare('DELETE FROM sessions WHERE expires_at <= ?'),
 
     listPaths: db.prepare(`SELECT p.*, (SELECT COUNT(*) FROM tasks WHERE path_id = p.id) AS task_count,
@@ -290,6 +306,14 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
       if (!q.codeExists.get(code)) return code;
     }
     throw new Error('could not allocate path code');
+  }
+
+  // A one-hour, one-use link. Only the token's hash is stored.
+  function createResetLink(teacherId, origin) {
+    const token = crypto.randomBytes(32).toString('hex');
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    q.insertReset.run(hash, teacherId, Date.now() + 60 * 60 * 1000);
+    return `${origin}/#/reset/${token}`;
   }
 
   const insertPath = (teacherId, title, description, code, theme) =>
@@ -426,6 +450,44 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     const ok = checkPassword(pw, t ? t.password_hash : DUMMY_HASH) && t;
     if (!ok) throw new HttpError(401, 'אימייל או סיסמה שגויים');
     return [200, { teacher: { id: t.id, name: t.name, email: t.email, credits: availableCredits(t.id) } }, { 'Set-Cookie': startSession(ctx.req, t.id) }];
+  });
+
+  // Always answers the same way, so it does not reveal which emails have accounts.
+  route('POST', '/api/auth/forgot', async (ctx) => {
+    const mail = v.email(ctx.body.email);
+    forgotLimit(mail);
+    forgotLimit(`ip:${ctx.ip}`);
+    const t = q.teacherByEmail.get(mail);
+    if (t) {
+      const link = createResetLink(t.id, appUrl(ctx.req));
+      try {
+        await mailer.send({
+          to: t.email,
+          subject: 'איפוס סיסמה – מסלולי למידה',
+          text: `שלום ${t.name},\n\nכדי לבחור סיסמה חדשה, פתחו את הקישור (תקף לשעה אחת):\n${link}\n\nאם לא ביקשתם לאפס סיסמה, אפשר להתעלם מההודעה.`,
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    return { ok: true };
+  });
+
+  route('POST', '/api/auth/reset', (ctx) => {
+    const token = typeof ctx.body.token === 'string' ? ctx.body.token : '';
+    const pw = v.password(ctx.body.password);
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    const r = q.resetByHash.get(hash);
+    if (!r || r.used || r.expires_at < Date.now()) {
+      throw new HttpError(400, 'הקישור לא תקף או שפג תוקפו. בקשו קישור חדש.');
+    }
+    tx(db, () => {
+      q.useReset.run(hash);
+      q.setPassword.run(hashPassword(pw), r.teacher_id);
+      q.deleteTeacherSessions.run(r.teacher_id); // signs out every other device
+    });
+    const t = q.teacherById.get(r.teacher_id);
+    return [200, { teacher: { id: t.id, name: t.name, email: t.email } }, { 'Set-Cookie': startSession(ctx.req, t.id) }];
   });
 
   route('POST', '/api/auth/logout', (ctx) => {

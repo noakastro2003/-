@@ -4,6 +4,8 @@
 //   npm run admin -- grant <email> <credits>        add one-off credits (negative to remove)
 //   npm run admin -- subscribe <email> [months]     start or extend a subscription (default 1 month)
 //   npm run admin -- cancel <email>                 stop renewal; usable until the period ends
+//   npm run admin -- reset-link <email>             a one-hour password reset link (when email isn't set up)
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, tx } from './db.js';
@@ -16,7 +18,7 @@ const cfg = billingConfig();
 const [cmd, email, arg] = process.argv.slice(2);
 
 const fail = (msg) => { console.error(msg); process.exit(1); };
-const usage = 'שימוש: show <email> | grant <email> <credits> | subscribe <email> [months] | cancel <email>';
+const usage = 'שימוש: show <email> | grant <email> <credits> | subscribe <email> [months] | cancel <email> | reset-link <email>';
 if (!cmd || !email) fail(usage);
 
 const row = db.prepare('SELECT * FROM teachers WHERE email = ?').get(email.toLowerCase());
@@ -45,6 +47,12 @@ if (cmd === 'grant') {
   billing.activate(acc, { ...cfg, periodDays: cfg.periodDays * months, monthlyCredits: cfg.monthlyCredits * months }, start);
   acc.subCreditsLeft += carry;
   save(cfg.monthlyCredits * months, 'subscribe', `admin, ${months} חודשים`);
+} else if (cmd === 'reset-link') {
+  const token = crypto.randomBytes(32).toString('hex');
+  const hash = crypto.createHash('sha256').update(token).digest('hex');
+  db.prepare('INSERT INTO password_resets (token_hash, teacher_id, expires_at) VALUES (?, ?, ?)').run(hash, row.id, Date.now() + 60 * 60 * 1000);
+  const origin = (process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+  console.log(`קישור לאיפוס סיסמה (תקף לשעה, לשימוש אחד):\n${origin}/#/reset/${token}\n`);
 } else if (cmd === 'cancel') {
   billing.cancel(acc);
   save(0, 'cancel', 'admin');

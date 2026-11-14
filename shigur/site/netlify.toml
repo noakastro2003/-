@@ -1,0 +1,4 @@
+# הגדרות לנטליפיי – אין צורך לגעת
+[build]
+  publish = "public"
+  functions = "netlify/functions"

@@ -6,17 +6,14 @@
 /* =====================================================================
    הגדרות – זה החלק היחיד שהמורה ממלאת
    ---------------------------------------------------------------------
-   firebase   : מעתיקים מתוך Firebase (הגדרות הפרויקט ← "האפליקציות שלך" ← Config).
-                אם משאירים ריק – המשחק עובד מול בולי ובאותו טלפון,
-                ובמצב "חברים" מופיעה הודעה עדינה שהמשחק עם חברים עוד לא מוכן.
-   classCode  : קוד כיתה שהמורה בוחרת (אותיות באנגלית, ספרות ומקף), למשל "tavenkin-b2".
-                רק ילדים עם אותו קוד רואים זה את זה ויכולים להזמין זה את זה.
+   classCode    : קוד כיתה שהמורה בוחרת (אותיות באנגלית, ספרות ומקף), למשל "tavenkin-b2".
+                  רק ילדים עם אותו קוד רואים זה את זה ויכולים להזמין זה את זה.
    studentNames : רשימת שמות פרטיים של תלמידי הכיתה, בתוך מירכאות ומופרדים בפסיקים.
-                למשל: ["נועה", "איתי", "מאיה"]
-                אם הרשימה ריקה – כל ילד כותב שם פרטי בעצמו (עד 10 אותיות).
+                  למשל: ["נועה", "איתי", "מאיה"]
+                  אם הרשימה ריקה – כל ילד כותב שם פרטי בעצמו (עד 10 אותיות).
+   המשחק עם חברים עובד דרך האתר עצמו (Netlify) – אין צורך בשום הגדרה נוספת.
    ===================================================================== */
 const CONFIG = {
-  firebase: { apiKey:"", authDomain:"", databaseURL:"", projectId:"", appId:"" },
   classCode: "",      // קוד כיתה שהמורה בוחרת, למשל "tavenkin-b2"
   studentNames: []    // רשימת שמות פרטיים של תלמידי הכיתה, המורה ממלאת
 };
@@ -859,7 +856,6 @@ const S = {
   urlRoom: ''
 };
 if (!LEVELS[S.level]) S.level = 1;
-const fbConfigured = () => !!(CONFIG.firebase && CONFIG.firebase.apiKey && CONFIG.firebase.databaseURL);
 
 /* ---------- ניווט בין מסכים ---------- */
 let curScreen = 'open';
@@ -1536,7 +1532,7 @@ $('#btnPlay').addEventListener('click', () => {
 });
 function afterProfile(){
   if (S.urlRoom){ const code = S.urlRoom; S.urlRoom = ''; goFriends(() => Online.joinRoom(code)); return; }
-  if (fbConfigured() && store.get('room')){ goFriends(() => Online.resume(), true); return; }
+  if (onlineCapable() && store.get('room')){ goFriends(() => Online.resume()); return; }
   show('mode');
 }
 
@@ -1564,7 +1560,7 @@ BACK.who = () => show(S.profile.name && S.profile.rocket ? 'mode' : 'open');
 /* ---- מצב ---- */
 ENTER.mode = () => {
   $('#profileBtn').innerHTML = `<img src="${rocketSrc(S.profile.rocket)}" alt=""><span>${esc(S.profile.name)}</span>`;
-  if (fbConfigured()) Online.init().catch(() => {});        // כדי לקבל הזמנות מחברים
+  if (onlineCapable()) Online.init().catch(() => {});        // כדי לקבל הזמנות מחברים
 };
 $('#profileBtn').addEventListener('click', () => { whoFrom = 'mode'; show('who'); });
 $('#mBolli').addEventListener('click', () => { S.mode = 'solo'; show('level'); });
@@ -1656,84 +1652,84 @@ document.addEventListener('gesturestart', e => e.preventDefault());
 <script>
 'use strict';
 /* =====================================================================
-   משחק עם חברים – Firebase (Realtime Database + Anonymous Auth)
-   מבנה הנתונים:
-     classes/{classCode}/presence/{uid}      – מי מחובר (שם פרטי + צבע טיל בלבד)
-     classes/{classCode}/invites/{to}/{room} – הזמנות (פגות אחרי 60 שניות)
-     rooms/{code}                            – חדר: חברים, מצב משחק, תגובות
-     roomIndex/{code}                        – זמן יצירה, לניקוי חדרים ישנים
+   משחק עם חברים – דרך השרת של האתר עצמו (פונקציה /api ב-Netlify).
+   אין צורך בהגדרה: מה שעולה לנטליפיי – עובד.
+   כל טלפון שואל את השרת כל שנייה בערך "מה חדש?" (מי מחובר, הזמנות, החדר).
    ===================================================================== */
-const FB_VER = '10.12.2';
 const CODE_ABC = 'ACDEFGHJKMNPQRTUVWXY2345679';     // בלי O/0, I/1, L, B/8, S/5, Z
 const HELP_BACK = 'חֲזָרָה';
+const API = '/api';
+const onlineCapable = () => /^https?:$/.test(location.protocol);
+const jclone = x => JSON.parse(JSON.stringify(x));
+function randTok(){
+  const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const a = new Uint32Array(32);
+  try { crypto.getRandomValues(a); } catch(e){ for (let i = 0; i < 32; i++) a[i] = Math.floor(Math.random() * 4294967295); }
+  return Array.from(a, n => abc[n % abc.length]).join('');
+}
+function noBackend(){ const e = new Error('nobackend'); e.code = 'nobackend'; return e; }
 
 const Online = {
-  ready:false, initP:null, F:null, db:null, auth:null, uid:null, offset:0, cls:'', connected:false,
-  room:null, roomData:null, roomUnsub:null, presence:{}, selected:new Set(), invShown:new Set(), invQueue:[],
+  ready:false, initP:null, uid:null, tok:null, offset:0, cls:'', connected:false,
+  room:null, roomData:null, roomJSON:'', presence:{}, selected:new Set(), invShown:new Set(), invQueue:[],
   lastReacts:null, bubbles:{}, discOpen:null, discSnooze:{}, voted:false, reclaiming:false, invited:[],
+  pollTimer:null, polling:false, pending:null,
 
   now(){ return Date.now() + this.offset; },
-  R(p){ return this.F.ref(this.db, p); },
-  ST(){ return this.F.serverTimestamp(); },
+
+  async call(op, data={}){
+    const body = Object.assign({ op, tok:this.tok, cls:this.cls, name:S.profile.name || '', rocket:S.profile.rocket || 'moon' }, data);
+    const ctrl = window.AbortController ? new AbortController() : null;
+    const tm = setTimeout(() => ctrl && ctrl.abort(), 12000);
+    try {
+      const res = await fetch(API, { method:'POST', headers:{ 'content-type':'application/json' }, body:JSON.stringify(body), cache:'no-store', signal: ctrl ? ctrl.signal : undefined });
+      const type = res.headers.get('content-type') || '';
+      if (!type.includes('json')) throw noBackend();
+      return await res.json();
+    } finally { clearTimeout(tm); }
+  },
 
   init(){
-    if (!fbConfigured()) return Promise.reject(new Error('nofb'));
     if (this.initP) return this.initP;
     this.initP = (async () => {
-      const base = `https://www.gstatic.com/firebasejs/${FB_VER}/`;
-      const [A, Au, D] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-database.js')]);
-      this.F = Object.assign({}, A, Au, D);
-      const app = A.getApps().find(x => x.name === 'shigur') || A.initializeApp(CONFIG.firebase, 'shigur');   // גם בניסיון חוזר
-      this.auth = Au.getAuth(app);
-      this.db = D.getDatabase(app);
-      if (window.__SHIGUR_EMU && !this.emu){ this.emu = true;             // לבדיקות מקומיות בלבד (Firebase Emulator); לא פעיל באתר האמיתי
-        Au.connectAuthEmulator(this.auth, 'http://127.0.0.1:9099', { disableWarnings:true });
-        D.connectDatabaseEmulator(this.db, '127.0.0.1', 9000);
-      }
-      if (this.auth.authStateReady) await this.auth.authStateReady();
-      if (!this.auth.currentUser) await Au.signInAnonymously(this.auth);
-      this.uid = this.auth.currentUser.uid;
-      this.cls = String(CONFIG.classCode || '').trim().replace(/[.#$\[\]\/\s]/g, '_') || 'class';
-      D.onValue(this.R('.info/serverTimeOffset'), s => { this.offset = s.val() || 0; });
-      D.onValue(this.R('.info/connected'), s => { this.connected = s.val() === true; if (this.connected) this.onConnect(); });
-      D.onValue(this.R(`classes/${this.cls}/presence`), s => { this.presence = s.val() || {}; this.renderFriends(); }, e => console.warn(e));
-      D.onValue(this.R(`classes/${this.cls}/invites/${this.uid}`), s => this.onInvites(s.val() || {}), e => console.warn(e));
-      setInterval(() => this.heartbeat(), 15000);
-      setInterval(() => { this.checkDisconnects(); this.renderFriends(); }, 3000);
-      this.cleanup();
+      if (!onlineCapable()) throw noBackend();
+      let tok = store.get('tok');
+      if (!tok || !/^[A-Za-z0-9]{24,64}$/.test(tok)){ tok = randTok(); store.set('tok', tok); }
+      this.tok = tok;
+      this.cls = String(CONFIG.classCode || '').trim().replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 40) || 'class';
+      await this.poll(true);
+      if (!this.uid) throw new Error('init');
       this.ready = true;
+      this.schedule();
+      setInterval(() => { this.checkDisconnects(); this.renderFriends(); }, 3000);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) this.schedule(0); });
     })().catch(e => { this.initP = null; throw e; });
     return this.initP;
   },
 
-  /* ---------- נוכחות ---------- */
-  presRef(){ return this.R(`classes/${this.cls}/presence/${this.uid}`); },
-  presData(){ return { name:S.profile.name, rocket:S.profile.rocket || 'moon', ts:this.ST(), busy:!!this.room }; },
-  onConnect(){
-    if (S.profile.name){ this.F.onDisconnect(this.presRef()).remove(); this.F.set(this.presRef(), this.presData()).catch(() => {}); }
-    if (this.room){
-      const mr = this.R(`rooms/${this.room}/members/${this.uid}`);
-      this.F.onDisconnect(mr).update({ on:false, seen:this.ST() });
-      this.F.update(mr, { on:true, seen:this.ST() }).catch(() => {});
-    }
-  },
-  updatePresence(){ if (this.ready && this.connected && S.profile.name){ this.F.onDisconnect(this.presRef()).remove(); this.F.set(this.presRef(), this.presData()).catch(() => {}); } },
-  heartbeat(){
-    if (!this.ready || !this.connected) return;
-    if (S.profile.name) this.F.update(this.presRef(), { ts:this.ST(), busy:!!this.room }).catch(() => {});
-    if (this.room) this.F.update(this.R(`rooms/${this.room}/members/${this.uid}`), { on:true, seen:this.ST() }).catch(() => {});
-  },
-  // ניקוי: כל לקוח מוחק בהפעלה חדרים בני יותר מ-24 שעות
-  async cleanup(){
+  /* ---------- "מה חדש?" ---------- */
+  async poll(first){
+    if (this.polling) return;
+    this.polling = true;
+    const code = this.room || '';
     try {
-      const cutoff = this.now() - 86400000;
-      const snap = await this.F.get(this.F.query(this.R('roomIndex'), this.F.orderByValue(), this.F.endAt(cutoff)));
-      snap.forEach(ch => {
-        const code = ch.key;
-        this.F.remove(this.R('rooms/' + code)).catch(() => {}).finally(() => this.F.remove(this.R('roomIndex/' + code)).catch(() => {}));
-      });
-    } catch(e){ console.warn('cleanup', e); }
+      const r = await this.call('poll', { busy:!!this.room, code });
+      if (r.error){ if (first) throw new Error(r.error); return; }
+      this.uid = r.me; this.offset = r.now - Date.now(); this.connected = true;
+      this.presence = r.presence || {};
+      this.renderFriends();
+      this.onInvites(r.invites || {});
+      if (code && code === this.room) this.applyRoom(r.room);
+    } catch(e){ this.connected = false; if (first) throw e; }
+    finally { this.polling = false; }
   },
+  schedule(ms){
+    clearTimeout(this.pollTimer);
+    if (!this.ready) return;
+    const d = ms != null ? ms : (document.hidden ? 15000 : this.room ? 1200 : (curScreen === 'friends' ? 2500 : 5000));
+    this.pollTimer = setTimeout(async () => { await this.poll(); this.schedule(); }, d);
+  },
+  updatePresence(){ if (this.ready) this.schedule(0); },
 
   /* ---------- מסך "מי מחובר עכשיו?" ---------- */
   friendsList(){
@@ -1757,8 +1753,7 @@ const Online = {
     const to = [...this.selected].slice(0, 2), level = S.fLevel;
     const code = await this.createRoom(level);
     this.invited = to;
-    await Promise.all(to.map(u => this.F.set(this.R(`classes/${this.cls}/invites/${u}/${code}`),
-      { from:this.uid, name:S.profile.name, rocket:S.profile.rocket, level, room:code, ts:this.ST() }).catch(e => console.warn(e))));
+    await this.call('invite', { code, to, level }).catch(e => console.warn(e));
     this.selected.clear();
     this.enterRoom(code);
   },
@@ -1767,9 +1762,7 @@ const Online = {
   onInvites(v){
     for (const code of Object.keys(v)){
       const inv = v[code] || {}, age = this.now() - (inv.ts || 0);
-      const ref = this.R(`classes/${this.cls}/invites/${this.uid}/${code}`);
-      if (age > 60000 || this.room === code){ this.F.remove(ref).catch(() => {}); continue; }
-      if (this.room || this.invShown.has(code)) continue;
+      if (age > 60000 || this.room === code || this.room || this.invShown.has(code)) continue;
       this.invShown.add(code); this.invQueue.push({ code, inv });
     }
     this.nextInvite();
@@ -1785,92 +1778,79 @@ const Online = {
       <div class="row"><h2 class="grow">${text}</h2>${spkBtn(text)}</div>
       <div class="yn"><button class="btn" id="ivYes">${TX.inviteYes}</button><button class="btn coral" id="ivNo">${TX.inviteNo}</button></div></div>`);
     Snd.invite();
-    const ref = this.R(`classes/${this.cls}/invites/${this.uid}/${code}`);
-    const tm = setTimeout(() => { closeOv('inviteOv'); this.F.remove(ref).catch(() => {}); this.nextInvite(); }, left);
+    const tm = setTimeout(() => { closeOv('inviteOv'); this.nextInvite(); }, left);       // הזמנה שלא נענתה פגה אחרי 60 שניות
     $('#ivYes', o).onclick = async () => {
-      clearTimeout(tm); closeOv('inviteOv'); closeOv('howtoOv'); closeModal(); this.F.remove(ref).catch(() => {});
+      clearTimeout(tm); closeOv('inviteOv'); closeOv('howtoOv'); closeModal();
       resetGameState(); show('friends');
       try { await this.joinRoom(code); } catch(e){ console.warn(e); netError(); }
     };
     $('#ivNo', o).onclick = () => {
-      clearTimeout(tm); closeOv('inviteOv'); this.F.remove(ref).catch(() => {});
-      this.F.set(this.R(`rooms/${code}/declined/${this.uid}`), String(S.profile.name).slice(0, 14)).catch(() => {});
+      clearTimeout(tm); closeOv('inviteOv');
+      this.call('decline', { code }).catch(() => {});
       this.nextInvite();
     };
   },
 
   /* ---------- חדרים ---------- */
   genCode(){ let c = ''; for (let i = 0; i < 4; i++) c += CODE_ABC[rnd(CODE_ABC.length)]; return c; },
-  memberData(){ return { name:S.profile.name, rocket:S.profile.rocket || 'moon', on:true, seen:this.ST(), j:this.ST() }; },
   async createRoom(level){
-    for (let k = 0; k < 8; k++){
-      const code = this.genCode();
-      const snap = await this.F.get(this.R('rooms/' + code));
-      if (snap.exists()) continue;
-      await this.F.set(this.R('rooms/' + code), { host:this.uid, cls:this.cls, level, created:this.ST(), status:'wait', members:{ [this.uid]:this.memberData() } });
-      await this.F.set(this.R('roomIndex/' + code), this.ST());
-      return code;
-    }
-    throw new Error('no-code');
+    const r = await this.call('create', { level });
+    if (r.error || !r.code) throw new Error(r.error || 'create');
+    this.pending = { code:r.code, room:r.room };
+    return r.code;
   },
   async joinRoom(code){
     code = String(code || '').toUpperCase();
-    const snap = await this.F.get(this.R('rooms/' + code));
-    const d = snap.val();
-    if (!d) return infoModal(TX.roomNone);
-    if (d.cls !== this.cls) return infoModal(TX.roomOther);
-    const members = d.members || {};
-    if (!members[this.uid]){
-      if (d.status !== 'wait') return infoModal(TX.roomStarted);
-      if (Object.keys(members).length >= 3) return infoModal(TX.roomFull);
-      await this.F.set(this.R(`rooms/${code}/members/${this.uid}`), this.memberData());
+    const r = await this.call('join', { code });
+    if (r.error){
+      const m = { none:TX.roomNone, other:TX.roomOther, started:TX.roomStarted, full:TX.roomFull }[r.error];
+      if (m) return infoModal(m);
+      throw new Error(r.error);
     }
-    this.F.remove(this.R(`classes/${this.cls}/invites/${this.uid}/${code}`)).catch(() => {});
-    this.enterRoom(code);
+    this.enterRoom(code, r.room);
     return true;
   },
   async resume(){
-    const code = store.get('room'); if (!code){ return; }
+    const code = store.get('room'); if (!code) return;
     try {
-      const d = (await this.F.get(this.R('rooms/' + code))).val();
-      if (!d || !d.members || !d.members[this.uid]){ store.del('room'); return; }
-      this.enterRoom(code);
+      const r = await this.call('poll', { code, busy:true });
+      if (!r.room){ store.del('room'); return; }
+      this.enterRoom(code, r.room);
     } catch(e){ store.del('room'); }
   },
-  enterRoom(code){
-    if (this.roomUnsub){ this.roomUnsub(); this.roomUnsub = null; }
+  enterRoom(code, room){
+    if (!room && this.pending && this.pending.code === code) room = this.pending.room;
+    this.pending = null;
     this.room = code; store.set('room', code);
-    this.lastReacts = null; this.voted = false; this.roomData = null; this.bubbles = {};
+    this.lastReacts = null; this.voted = false; this.roomData = null; this.roomJSON = ''; this.bubbles = {};
     S.mode = 'online';
-    const mr = this.R(`rooms/${code}/members/${this.uid}`);
-    this.F.onDisconnect(mr).update({ on:false, seen:this.ST() });
-    this.F.update(mr, { on:true, seen:this.ST() }).catch(() => {});
-    this.updatePresence();
-    this.roomUnsub = this.F.onValue(this.R('rooms/' + code), s => this.onRoom(s.val()), e => { console.warn(e); this.clearRoomLocal(); resetGameState(); show('friends'); });
+    if (room) this.applyRoom(room);
+    this.schedule(0);
   },
   clearRoomLocal(){
-    if (this.roomUnsub){ this.roomUnsub(); this.roomUnsub = null; }
-    this.room = null; this.roomData = null; store.del('room'); this.voted = false;
+    this.room = null; this.roomData = null; this.roomJSON = ''; store.del('room'); this.voted = false;
     if (this.discOpen){ closeModal(); this.discOpen = null; }
   },
   async leaveRoom(){
     const code = this.room; if (!code) return;
     this.clearRoomLocal();
     try {
-      const mr = this.R(`rooms/${code}/members/${this.uid}`);
-      await this.F.onDisconnect(mr).cancel();
-      const m = (await this.F.get(this.R(`rooms/${code}/members`))).val() || {};
-      const others = Object.keys(m).filter(u => u !== this.uid);
-      if (!others.length){ await this.F.remove(this.R('rooms/' + code)); await this.F.remove(this.R('roomIndex/' + code)); }   // החדר נמחק בסיום
-      else await this.F.remove(mr);
-      for (const u of this.invited) this.F.remove(this.R(`classes/${this.cls}/invites/${u}/${code}`)).catch(() => {});
+      await this.call('leave', { code });                                   // האחרון שיוצא – החדר נמחק
+      for (const u of this.invited) this.call('uninvite', { code, to:u }).catch(() => {});
     } catch(e){ console.warn(e); }
     this.invited = [];
-    this.updatePresence();
+    this.schedule(0);
   },
   sortedMembers(d){
     return Object.entries((d && d.members) || {}).map(([uid, m]) => Object.assign({ uid }, m))
       .filter(m => m.name).sort((a, b) => (a.j || 0) - (b.j || 0) || (a.uid < b.uid ? -1 : 1));
+  },
+  applyRoom(r){
+    if (r && this.roomData && (r.v || 0) < (this.roomData.v || 0)) return;       // תשובה ישנה – מתעלמים
+    const s = JSON.stringify(r);
+    if (s === this.roomJSON) return;
+    this.roomJSON = s;
+    this.onRoom(r ? jclone(r) : null);
   },
 
   /* ---------- כל שינוי בחדר ---------- */
@@ -1886,10 +1866,10 @@ const Online = {
     this.roomData = d;
     this.handleReactions(d);
     if (d.status === 'play' && d.game){
-      const g = Engine.normalize(JSON.parse(JSON.stringify(d.game)));
+      const g = Engine.normalize(jclone(d.game));
       if (!g) return;
       const fresh = !S.game || S.game.gid !== g.gid;
-      if (fresh){ resetGameState(); this.voted = false; closeModal(); }
+      if (fresh){ resetGameState(); this.voted = false; if (!this.discOpen) closeModal(); }
       S.mode = 'online';
       S.myIdx = g.players.findIndex(p => p.uid === this.uid);
       if (curScreen !== 'game') show('game');
@@ -1925,24 +1905,33 @@ const Online = {
     const d = this.roomData; if (!d || d.host !== this.uid) return;
     const mem = this.sortedMembers(d).slice(0, 3); if (mem.length < 2) return;
     const g = Engine.newGame(d.level || 1, 'online', mem.map(m => ({ name:String(m.name).slice(0, 14), rocket:m.rocket, uid:m.uid })));
-    await this.F.update(this.R('rooms/' + this.room), { status:'play', game:JSON.parse(JSON.stringify(g)), again:null });
-    for (const u of this.invited) this.F.remove(this.R(`classes/${this.cls}/invites/${u}/${this.room}`)).catch(() => {});
+    const code = this.room;
+    const r = await this.call('start', { code, game:jclone(g) });
+    if (r.room && this.room === code) this.applyRoom(r.room);
+    for (const u of this.invited) this.call('uninvite', { code, to:u }).catch(() => {});
   },
 
-  /* ---------- מהלכים: רק מי שבתור כותב, בטרנזקציה ---------- */
-  act(a, isBot){
-    if (!this.room || !this.ready) return Promise.resolve();
-    if (!isBot){ if (S.pending) return Promise.resolve(); S.pending = true; if (curScreen === 'game' && S.game && !S.busy) renderPanel(S.game); }
+  /* ---------- מהלכים: רק מי שבתור כותב; השרת שומר רק אם המשחק לא השתנה באמצע ---------- */
+  async act(a, isBot){
+    if (!this.room || !this.ready) return;
+    if (!isBot){ if (S.pending) return; S.pending = true; if (curScreen === 'game' && S.game && !S.busy) renderPanel(S.game); }
     const code = this.room;
-    return this.F.runTransaction(this.R(`rooms/${code}/game`), cur => {
-      if (!cur) return;                                   // מבטל – ננסה שוב עם הנתונים האמיתיים
-      const ns = Engine.reduce(Engine.normalize(cur), a);
-      if (!ns) return;                                    // מהלך לא חוקי / כבר בוצע
-      return JSON.parse(JSON.stringify(ns));
-    }, { applyLocally:false })
-      .then(res => { if (!res || !res.committed){ S.dropDone = false; } })
-      .catch(e => { console.warn(e); S.dropDone = false; toast(TX.netErr); })
-      .finally(() => { if (!isBot) S.pending = false; if (curScreen === 'game' && S.game && !S.busy) renderGame(); });
+    try {
+      for (let attempt = 0; attempt < 3; attempt++){
+        const cur = this.roomData && this.roomData.game ? Engine.normalize(jclone(this.roomData.game)) : null;
+        if (!cur){ S.dropDone = false; break; }
+        const ns = Engine.reduce(cur, a);
+        if (!ns){ S.dropDone = false; break; }                       // מהלך לא חוקי / כבר בוצע
+        const r = await this.call('act', { code, gid:cur.gid, expectSeq:cur.seq, game:jclone(ns) });
+        if (r.room && this.room === code) this.applyRoom(r.room);
+        if (!r.error) break;
+        if (r.error !== 'conflict'){ S.dropDone = false; break; }
+      }
+    } catch(e){ console.warn(e); S.dropDone = false; toast(TX.netErr); }
+    finally {
+      if (!isBot) S.pending = false;
+      if (curScreen === 'game' && S.game && !S.busy) renderGame();
+    }
   },
 
   /* ---------- מי מריץ את בולי (כשמישהו התנתק) ---------- */
@@ -1950,8 +1939,8 @@ const Online = {
     if (uid === this.uid) return !this.connected;
     const m = ((this.roomData && this.roomData.members) || {})[uid];
     if (!m) return true;
-    const age = this.now() - (m.seen || 0);
-    return (m.on === false && age > 45000) || age > 80000;
+    const p = this.presence[uid];
+    return !p || this.now() - (p.ts || 0) > 54000;      // 45 שניות + עד 9 שניות בין עדכוני נוכחות
   },
   amDriver(){
     const g = S.game; if (!g || !this.roomData) return false;
@@ -1980,7 +1969,7 @@ const Online = {
   /* ---------- תגובות מוכנות (אין צ'אט) ---------- */
   react(i){
     if (!this.room || !(i >= 0 && i < TX.reactions.length)) return;
-    this.F.set(this.R(`rooms/${this.room}/reactions/${this.uid}`), { r:i, ts:this.ST() }).catch(() => {});
+    this.call('react', { code:this.room, r:i }).then(() => this.schedule(0)).catch(() => {});
   },
   handleReactions(d){
     const r = d.reactions || {};
@@ -2001,14 +1990,19 @@ const Online = {
 
   /* ---------- משחקים שוב (כל אחד מאשר) ---------- */
   myVote(){ return this.voted; },
-  voteAgain(){ if (!this.room) return; this.voted = true; this.F.set(this.R(`rooms/${this.room}/again/${this.uid}`), true).catch(() => {}); },
+  voteAgain(){
+    if (!this.room) return;
+    this.voted = true; const code = this.room;
+    this.call('vote', { code }).then(r => { if (r.room && this.room === code) this.applyRoom(r.room); }).catch(() => {});
+  },
   maybeRestart(d){
     const g = S.game; if (!g || g.phase !== 'end') return;
     const mem = this.sortedMembers(d), again = d.again || {};
     if (mem.length < 2 || !mem.every(m => again[m.uid])) return;
     if (mem.map(m => m.uid).sort()[0] !== this.uid) return;          // רק אחד מתחיל מחדש
     const ng = Engine.newGame(g.level, 'online', mem.slice(0, 3).map(m => ({ name:String(m.name).slice(0, 14), rocket:m.rocket, uid:m.uid })));
-    this.F.update(this.R('rooms/' + this.room), { game:JSON.parse(JSON.stringify(ng)), again:null, status:'play' }).catch(() => {});
+    const code = this.room;
+    this.call('restart', { code, game:jclone(ng) }).then(r => { if (r.room && this.room === code) this.applyRoom(r.room); }).catch(() => {});
   }
 };
 
@@ -2031,14 +2025,13 @@ function netError(retry){
   $('#neBack', o).onclick = () => { closeModal(); show('mode'); };
 }
 async function goFriends(then){
-  if (!fbConfigured()){ show('nofb'); return; }
   if (!Online.ready) modal(`<img src="images/bolli_astro.png" alt="" style="height:100px;align-self:center"><h2>${TX.connecting}</h2>`);
   try {
     await Online.init();
     closeModal();
     if (!Online.room) show('friends');
     if (then) await then();
-  } catch(e){ console.warn(e); closeModal(); netError(() => goFriends(then)); }
+  } catch(e){ console.warn(e); closeModal(); if (e && e.code === 'nobackend'){ show('nofb'); return; } netError(() => goFriends(then)); }
 }
 
 /* ---------- מסך החברים ---------- */
@@ -2134,7 +2127,7 @@ BACK.wait = () => { Online.leaveRoom(); resetGameState(); show('friends'); };
     if (r.length === 4){ S.urlRoom = r; history.replaceState(null, '', location.pathname); }
   } catch(e){}
   show('open');
-  if (fbConfigured() && S.profile.name) Online.init().catch(e => console.warn(e));   // כדי לקבל הזמנות כבר במסך הפתיחה
+  if (onlineCapable() && S.profile.name) Online.init().catch(e => console.warn(e));   // כדי לקבל הזמנות כבר במסך הפתיחה
 })();
 </script>
 </body>

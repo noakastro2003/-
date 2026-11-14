@@ -36,6 +36,8 @@ python3 tools/compare_glyphs.py WORKDIR font/NoaBubble-Regular.otf samples/bubbl
 
 ## 3, 2, 1… שיגור! – משחק חיסור עם המרה לכיתה ב'
 
-- `shigur/site/` – המשחק (קובץ `index.html` אחד + תיקיית `images/`). גוררים את התיקייה הזו ל-app.netlify.com/drop.
-- `shigur/database.rules.json` – חוקי האבטחה ל-Firebase Realtime Database.
-- `shigur/SETUP-he.md` – מדריך הקמה למורה, צעד אחר צעד.
+באוויר: https://shigur-321.netlify.app
+
+- `shigur/site/public/` – המשחק (`index.html` + `images/`).
+- `shigur/site/netlify/functions/api.mjs` – השרת של "משחקים עם חברים" (Netlify Functions + Netlify Blobs), בלי Firebase.
+- `shigur/SETUP-he.md` – מדריך למורה.

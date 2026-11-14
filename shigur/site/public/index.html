@@ -269,6 +269,18 @@ body.no-tts .spk{display:none!important}
 .panel:empty{display:none}
 .yn{display:flex;gap:12px}
 .yn .btn{flex:1;font-size:26px}
+.qcard{background:#fff;border:3px solid var(--lvl);border-radius:22px;padding:10px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow);animation:pop .3s ease}
+.qhead{display:flex;align-items:center;justify-content:center;gap:8px;text-align:center}
+.qhead .q{font-size:24px;line-height:1.3}
+.qhead.qsmall .q{font-size:20px}
+.qcard .eq,.qcard .ask{box-shadow:none;background:#F7F4EC}
+.rolled{display:flex;align-items:center;justify-content:center;gap:10px;font-size:20px}
+.miniDie svg{width:52px;height:52px;display:block}
+.pointDown{display:inline-flex;align-items:center;gap:6px;color:var(--tqd)}
+.downArr{width:24px;height:24px;animation:nudge 1.2s ease-in-out infinite}
+@keyframes nudge{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+#s-game.compact .qcard{padding:6px 8px;gap:6px}
+#s-game.compact .qhead .q{font-size:20px}
 .hint{display:flex;align-items:center;gap:8px;background:#F4EFFD;border-radius:18px;padding:8px 10px;animation:pop .35s ease}
 .hint img{height:52px;flex:none}
 .hint .htx{font-size:18px;line-height:1.4;flex:1}
@@ -624,6 +636,7 @@ const TX = {
   writeName: 'כִּתְבוּ שֵׁם פְּרָטִי',
   chooseName: 'בַּחֲרוּ שֵׁם',
   player: 'שַׂחְקָן',
+  answerBelow:'עוֹנִים לְמַטָּה', rolled:'יָצָא',
   timeUp:'הַזְּמַן נִגְמַר – בּוֹלִי עוֹזֵר לְסַיֵּם אֶת הַתּוֹר.',
   register:'נִרְשָׁמִים', login:'נִכְנָסִים',
   myCode:'הַקּוֹד שֶׁלִּי', secret:'הַקּוֹד הַסּוֹדִי',
@@ -1057,6 +1070,7 @@ function instrInfo(s){
     case 'result': main = S.resReady === s.seq ? resultLines(s)[0] : (S.resPartial || TX.checking); break;
     case 'launch': case 'end': head = ''; main = fill(TX.launched, { name:esc(p.name) }); break;
   }
+  if (!b && canAct(s) && ['tradeQ','predict','write','peer'].includes(s.phase)){ main = `<span class="pointDown">${TX.answerBelow} ${ICON_DOWN}</span>`; sub = ''; }
   return { head, main, sub, b, img: b ? 'images/bolli_astro.png' : rocketSrc(p.rocket) };
 }
 /* ---------- שעון: דקה וחצי לכל תור ---------- */
@@ -1145,35 +1159,41 @@ const kpShown = () => (S.kp === '' ? '__' : S.kp);
 function reactsHTML(){
   return `<div class="reacts">${TX.reactions.map((r, i) => `<button class="${i > 3 ? 'txt' : ''}" data-react="${i}">${r}</button>`).join('')}</div>`;
 }
+function qCard(question, body, noTitle){
+  return `<div class="qcard">${noTitle ? '' : `<div class="qhead"><div class="q">${question}</div>${spkBtn(question)}</div>`}${noTitle ? `<div class="qhead qsmall"><div class="q">${TX.howMany}</div>${spkBtn(TX.howMany + ' ' + question)}</div>` : ''}${body}</div>`;
+}
+const ICON_DOWN = '<svg class="downArr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15M5 12l7 7 7-7"/></svg>';
 function renderPanel(s){
   const el = $('#panel'), t = s.t, p = s.players[s.turn], L = LEVELS[s.level], b = isBolliTurn(s);
   const actor = Engine.actor(s), me = canAct(s);
   let h = '';
   switch (s.phase){
-    case 'tradeQ':
-      if (me) h += `<div class="yn"><button class="btn${t.tq >= 2 && t.need ? ' glow' : ''}" data-act="yes">${TX.yes}</button><button class="btn coral${t.tq >= 2 && !t.need ? ' glow' : ''}" data-act="no">${TX.no}</button></div>`;
+    case 'tradeQ': {
+      let hint = '';
       if (!b && t.tq >= 1){
         const line = fill(TX.hint1, { u:N(p.ones), d:N(t.d) }) + (t.tq >= 2 ? '<br>' + (t.need ? TX.hint2yes : TX.hint2no) : '');
-        h += `<div class="hint"><img src="images/bolli_think.png" alt=""><div class="htx">${line}</div>${spkBtn(line)}</div>`;
+        hint = `<div class="hint"><img src="images/bolli_think.png" alt=""><div class="htx">${line}</div>${spkBtn(line)}</div>`;
       }
+      if (me) h += qCard(TX.needQ, `<div class="rolled"><span>${TX.rolled}</span><span class="miniDie">${dieSVG(t.d)}</span></div><div class="yn"><button class="btn${t.tq >= 2 && t.need ? ' glow' : ''}" data-act="yes">${TX.yes}</button><button class="btn coral${t.tq >= 2 && !t.need ? ' glow' : ''}" data-act="no">${TX.no}</button></div>` + hint);
+      else h += hint;
       break;
+    }
     case 'predict':
-      if (me) h += `<div class="ask"><span class="ansBox ltr">${kpShown()}</span></div>` + keypadHTML();
+      if (me) h += qCard(TX.predict, `<div class="ask"><span class="ansBox ltr">${kpShown()}</span></div>` + keypadHTML());
       break;
     case 'write':
       if (me){
-        h += L.eq ? `<div class="eq ltr">${t.n} − ${t.d} = <span class="ans">${kpShown()}</span></div>`
-                  : `<div class="ask"><span>${TX.howMany}</span><span class="ansBox ltr">${kpShown()}</span></div>`;
-        h += keypadHTML();
+        h += L.eq ? qCard(eqHTML(t.n, t.d, '__'), `<div class="eq ltr">${t.n} − ${t.d} = <span class="ans">${kpShown()}</span></div>` + keypadHTML(), true)
+                  : qCard(TX.howMany, `<div class="ask"><span class="ansBox ltr">${kpShown()}</span></div>` + keypadHTML());
       }
       break;
     case 'peer': {
       const c = s.players[t.checker];
-      h += `<div class="eq">${eqHTML(t.n, t.d, t.ans)}</div>`;
+      const eq = `<div class="eq">${eqHTML(t.n, t.d, t.ans)}</div>`;
       if (me){
-        if (S.mode !== 'online' && c) h += `<div class="row" style="justify-content:center"><img src="images/magnifier.png" alt="" style="height:40px"><span>${esc(c.name)}</span></div>`;
-        h += `<div class="yn"><button class="btn" data-act="right">${TX.right}</button><button class="btn coral" data-act="wrong">${TX.wrong}</button></div>`;
-      }
+        const who = (S.mode !== 'online' && c) ? `<div class="row" style="justify-content:center"><img src="images/magnifier.png" alt="" style="height:36px"><span>${esc(c.name)}</span></div>` : '';
+        h += qCard(fill(TX.peerQ, { name:esc(p.name) }), who + eq + `<div class="yn"><button class="btn" data-act="right">${TX.right}</button><button class="btn coral" data-act="wrong">${TX.wrong}</button></div>`);
+      } else h += eq;
       break;
     }
     case 'result':
@@ -1194,7 +1214,7 @@ function renderPanel(s){
 function updateKpDisplay(){ const a = $('#panel .ans') || $('#panel .ansBox'); if (a) a.textContent = kpShown(); }
 
 function renderDock(s){
-  const me = canAct(s), kpOn = me && (s.phase === 'write' || s.phase === 'predict');
+  const me = canAct(s), kpOn = me && (s.phase === 'write' || s.phase === 'predict' || s.phase === 'tradeQ');   // בשאלת ההמרה הקובייה מוצגת בתוך כרטיס השאלה
   const dock = $('#dock'); dock.classList.toggle('hide', kpOn || ['launch','end','peer','result'].includes(s.phase));
   const die = $('#die');
   if (!die.classList.contains('rolling')) die.innerHTML = dieSVG(s.phase === 'roll' ? 0 : s.t.d);
@@ -1208,7 +1228,7 @@ function renderGame(){
   if (s.phase !== 'trade') S.selBlock = false;
   document.documentElement.style.setProperty('--lvl', LEVELS[s.level].color);
   const kpOn = canAct(s) && (s.phase === 'write' || s.phase === 'predict');
-  $('#s-game').classList.toggle('compact', kpOn || ['peer','result'].includes(s.phase));
+  $('#s-game').classList.toggle('compact', kpOn || ['peer','result'].includes(s.phase) || (canAct(s) && s.phase === 'tradeQ'));
   $('#tracks').innerHTML = tracksHTML(s);
   renderInstr(s); renderBoard(s); renderPanel(s); renderDock(s); renderBigDie(s);
   $('#tracks').classList.toggle('many', s.players.length >= 3);

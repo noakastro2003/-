@@ -701,3 +701,10 @@ tr.sel td { background: #eef2ff; }
 .journey details { margin-top: 10px; }
 .journey summary { cursor: pointer; font-weight: 700; }
 .journey details ul { margin: 4px 0; padding-inline-start: 20px; }
+/* "chars": highlighting the characters in a story */
+.txt.hlable .cw { cursor: pointer; border-radius: 6px; padding: 0 2px; transition: background .15s, box-shadow .15s; }
+.txt.hlable .cw:hover { background: rgba(255, 230, 80, .25); }
+.cw.on { background: linear-gradient(transparent 12%, #ffe45c 12%, #ffe45c 88%, transparent 88%); box-shadow: 0 0 0 1px rgba(230, 180, 0, .35); }
+.cw.bad { background: #ffd2d2; box-shadow: 0 0 0 2px #e05555; }
+.chars-count { font-weight: 600; margin: 6px 0 10px; line-height: 2; }
+.chars-count .cw { padding: 1px 6px; }

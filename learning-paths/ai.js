@@ -3,7 +3,7 @@ import zlib from 'node:zlib';
 import Anthropic from '@anthropic-ai/sdk';
 import { HttpError } from './validate.js';
 import { docxToText } from './docx.js';
-import { SYSTEM_PROMPT, AI_TASK_TYPES, ICONS, COLORS, buildRequestText } from './ai-prompt.js';
+import { SYSTEM_PROMPT, AI_TASK_TYPES, ICONS, COLORS, buildRequestText, NIKUD_SYSTEM, improvePrompt } from './ai-prompt.js';
 
 export { GRADES, AI_TASK_TYPES, SYSTEM_PROMPT, buildRequestText } from './ai-prompt.js';
 
@@ -115,52 +115,94 @@ export function aiConfigured() {
   return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_PROFILE);
 }
 
-// Returns generatePath(input) -> raw path object (validated later by the caller).
-export function createGenerator(client = new Anthropic({ timeout: 10 * 60 * 1000 })) {
-  return async function generatePath(input) {
-    const { blocks, names } = await fileBlocks(input.files);
-    let message;
-    try {
-      const stream = client.beta.messages.stream({
-        model: MODEL,
+const ERRORS = {
+  generate: { refusal: 'המחולל לא יכול ליצור מסלול לבקשה הזו. נסו לנסח את הנושא אחרת.', long: 'המסלול יצא ארוך מדי. נסו פחות משימות או קבצים קצרים יותר.' },
+  nikud: { refusal: 'לא הצלחנו לנקד את הטקסט הזה.', long: 'הטקסט ארוך מדי לניקוד בבת אחת. נסו חלק קצר יותר.' },
+  improve: { refusal: 'לא הצלחנו לשפר את המשימה לפי הבקשה הזו. נסו לנסח אחרת.', long: 'המשימה יצאה ארוכה מדי. נסו בקשה אחרת.' },
+};
+
+// One streamed call to Claude with the app's error handling. Returns the reply text.
+async function callClaude(client, params, kind) {
+  let message;
+  try {
+    const stream = client.beta.messages.stream({
+      model: MODEL,
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      ...params,
+    });
+    message = await stream.finalMessage();
+  } catch (err) {
+    if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
+      throw new HttpError(503, 'הבינה המלאכותית לא מוגדרת כראוי (מפתח API שגוי). פנו למנהל/ת המערכת.');
+    }
+    if (err instanceof Anthropic.RateLimitError) throw new HttpError(429, 'השירות עמוס כרגע. נסו שוב בעוד דקה.');
+    if (err instanceof Anthropic.BadRequestError) {
+      console.error('AI bad request:', err.message);
+      throw new HttpError(400, 'לא הצלחנו לעבד את הבקשה. אם צירפתם קבצים, נסו קבצים קטנים יותר.');
+    }
+    if (err instanceof Anthropic.APIError) {
+      console.error('AI API error:', err.status, err.message);
+      throw new HttpError(502, 'השירות לא זמין כרגע. נסו שוב בעוד כמה דקות.');
+    }
+    throw err;
+  }
+  if (message.stop_reason === 'refusal') throw new HttpError(422, ERRORS[kind].refusal);
+  if (message.stop_reason === 'max_tokens') throw new HttpError(422, ERRORS[kind].long);
+  return message.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+}
+
+const parseJson = (text) => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new HttpError(502, 'התקבלה תשובה לא תקינה. נסו שוב.');
+  }
+};
+
+// The schema of one task type, for "improve this task".
+export function taskSchema(type) {
+  return pathSchema([type]).properties.tasks.items.anyOf[0];
+}
+
+// Returns { generatePath, nikud, improveTask }, each validated by the caller.
+export function createAiTools(client = new Anthropic({ timeout: 10 * 60 * 1000 })) {
+  return {
+    async generatePath(input) {
+      const { blocks, names } = await fileBlocks(input.files);
+      const text = await callClaude(client, {
         max_tokens: 32000,
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
         output_config: { effort: 'high', format: { type: 'json_schema', schema: pathSchema(input.types) } },
         system: SYSTEM_PROMPT,
         messages: [{
           role: 'user',
           content: [...blocks, { type: 'text', text: buildRequestText({ ...input, fileNames: names }) }],
         }],
-      });
-      message = await stream.finalMessage();
-    } catch (err) {
-      if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
-        throw new HttpError(503, 'מחולל המסלולים לא מוגדר כראוי (מפתח API שגוי). פנו למנהל/ת המערכת.');
-      }
-      if (err instanceof Anthropic.RateLimitError) throw new HttpError(429, 'המחולל עמוס כרגע. נסו שוב בעוד דקה.');
-      if (err instanceof Anthropic.BadRequestError) {
-        console.error('AI bad request:', err.message);
-        throw new HttpError(400, 'המחולל לא הצליח לעבד את הבקשה. אם צירפתם קבצים, נסו קבצים קטנים יותר.');
-      }
-      if (err instanceof Anthropic.APIError) {
-        console.error('AI API error:', err.status, err.message);
-        throw new HttpError(502, 'המחולל לא זמין כרגע. נסו שוב בעוד כמה דקות.');
-      }
-      throw err;
-    }
+      }, 'generate');
+      return parseJson(text);
+    },
 
-    if (message.stop_reason === 'refusal') {
-      throw new HttpError(422, 'המחולל לא יכול ליצור מסלול לבקשה הזו. נסו לנסח את הנושא אחרת.');
-    }
-    if (message.stop_reason === 'max_tokens') {
-      throw new HttpError(422, 'המסלול יצא ארוך מדי. נסו פחות משימות או קבצים קצרים יותר.');
-    }
-    const text = message.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
-    try {
-      return JSON.parse(text);
-    } catch {
-      throw new HttpError(502, 'המחולל החזיר תשובה לא תקינה. נסו שוב.');
-    }
+    async nikud(text) {
+      return (await callClaude(client, {
+        max_tokens: 16000,
+        system: NIKUD_SYSTEM,
+        messages: [{ role: 'user', content: text }],
+      }, 'nikud')).trim();
+    },
+
+    async improveTask(task, request) {
+      const text = await callClaude(client, {
+        max_tokens: 16000,
+        output_config: { format: { type: 'json_schema', schema: taskSchema(task.type) } },
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: improvePrompt(task, request) }],
+      }, 'improve');
+      return parseJson(text);
+    },
   };
+}
+
+// Kept for callers and tests that only need the path generator.
+export function createGenerator(client) {
+  return createAiTools(client).generatePath;
 }

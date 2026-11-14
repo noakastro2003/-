@@ -3,8 +3,8 @@
 import * as v from '../validate.js';
 import { HttpError } from '../validate.js';
 import { TEMPLATES } from '../templates.js';
-import { studentContent, gradeAnswer, parseAiInput, pathFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS } from '../logic.js';
-import { SYSTEM_PROMPT, GRADES, AI_TASK_TYPES, buildRequestText, jsonFormatInstructions } from '../ai-prompt.js';
+import { studentContent, gradeAnswer, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS } from '../logic.js';
+import { SYSTEM_PROMPT, GRADES, AI_TASK_TYPES, buildRequestText, jsonFormatInstructions, NIKUD_SYSTEM, improvePrompt } from '../ai-prompt.js';
 import { docxToText } from '../docx.js';
 import * as billing from '../billing.js';
 import { openStore } from './store.js';
@@ -394,7 +394,18 @@ route('GET', '/api/paths/:id/progress', ({ params }) => {
       done: Object.fromEntries(Object.entries(p.progress[s.id] || {}).map(([k, d]) => [k, { ...d, approved: d.approved !== false }])),
     })).sort((a, b) => a.name.localeCompare(b.name, 'he')),
     help: p.help.filter((h) => !h.resolved).map(({ id, studentId, taskId, createdAt }) => ({ id, studentId, taskId, createdAt })),
+    wrong: Object.fromEntries(Object.entries(p.attempts || {}).map(([sid, byTask]) => [sid,
+      Object.fromEntries(Object.entries(byTask).filter(([, a]) => a.wrong).map(([tid, a]) => [tid, a.wrong]))])),
   };
+});
+
+route('POST', '/api/s/:code/tasks/:taskId/open', ({ params, headers }) => {
+  const p = byCode(params.code);
+  const s = student(p, headers);
+  const t = studentTask(p, params.taskId);
+  ((p.attempts ||= {})[s.id] ||= {})[t.id] ||= { openedAt: Date.now(), wrong: 0 };
+  save(p, { touch: false });
+  return { ok: true };
 });
 
 route('POST', '/api/students/:id/reset-secret', ({ params }) => {
@@ -432,7 +443,77 @@ route('POST', '/api/help/:id/resolve', ({ params }) => {
   throw new HttpError(404, 'הבקשה לא נמצאה');
 });
 
-route('GET', '/api/ai/status', async () => ({ enabled: Boolean(await getSample()), grades: GRADES, types: AI_TASK_TYPES }));
+route('GET', '/api/ai/status', async () => ({ enabled: Boolean(await getSample()), grades: GRADES, types: AI_TASK_TYPES, costs: BILLING.costs }));
+
+// A paid AI action through the viewer's own Claude account: credits back if it fails.
+async function withCredits(action, note, fn) {
+  const sample = await getSample();
+  if (!sample) throw new HttpError(503, 'הבינה המלאכותית זמינה כשפותחים את ההדגמה ב-claude.ai כשאת מחוברת לחשבון.');
+  const taken = charge(action, note);
+  try {
+    return await fn(sample);
+  } catch (err) {
+    billing.refund(meta.account, taken);
+    record(taken.cost, 'refund', note);
+    if (err instanceof HttpError) throw err;
+    const [status, message] = SAMPLE_ERRORS[err?.code] || [502, 'השירות לא זמין כרגע. נסי שוב בעוד כמה דקות.'];
+    throw new HttpError(status, message);
+  }
+}
+
+route('POST', '/api/ai/nikud', async ({ body }) => {
+  const text = v.str(body.text, { max: 3000, required: true, field: 'טקסט' });
+  const out = await withCredits('aiNikud', text.slice(0, 40), async (sample) =>
+    (await sample(`${NIKUD_SYSTEM}\n\nThe text:\n${text}`, { modelTier: 'complex', cache: false })).text.trim());
+  const letters = (x) => v.stripNikud(x).replace(/\s+/g, '');
+  return { text: out, changed: letters(out) !== letters(text), credits: credits() };
+});
+
+route('POST', '/api/ai/improve-task', async ({ body }) => {
+  const original = v.task(body.task || {});
+  const kind = String(body.kind || '');
+  const custom = v.str(body.custom, { max: 300, field: 'הבקשה' });
+  if (!['simpler', 'shorter', 'nikud', 'more', 'easier', 'harder', 'custom'].includes(kind) || (kind === 'custom' && !custom)) {
+    throw new HttpError(400, 'בחרו מה לשפר');
+  }
+  const improved = await withCredits('aiImprove', original.title, async (sample) => {
+    const raw = await sample.json([
+      SYSTEM_PROMPT, jsonFormatInstructions([original.type]).replace('Reply with only one JSON object, no other text, in this shape:', 'For reference, a whole path looks like this:'),
+      improvePrompt(original, { kind, custom }), 'Reply with only the one task as a JSON object.',
+    ].join('\n\n'), { modelTier: 'complex', cache: false });
+    const t = taskFromAi(raw);
+    if (t.type !== original.type) throw new HttpError(502, 'התקבלה משימה מסוג אחר. נסי שוב.');
+    return t;
+  });
+  if (original.content.image) improved.content.image = original.content.image;
+  if (original.content.audio) improved.content.audio = original.content.audio;
+  improved.needsApproval = original.needsApproval;
+  return { task: improved, credits: credits() };
+});
+
+// Uploads go to the artifact's own file store; the demo has no server to keep them.
+let assetsPromise;
+route('POST', '/api/media', async ({ body }) => {
+  const assets = await (assetsPromise ||= (window.claude?.use ? window.claude.use('assets') : Promise.resolve(null)).catch(() => null));
+  if (!assets) throw new HttpError(503, 'העלאת קבצים זמינה כשפותחים את ההדגמה ב-claude.ai.');
+  const bytes = Uint8Array.from(atob(String(body.data || '')), (c) => c.charCodeAt(0));
+  if (!bytes.length) throw new HttpError(400, 'הקובץ ריק');
+  if (bytes.length > 5 * 1024 * 1024) throw new HttpError(413, 'הקובץ גדול מדי (עד 5MB)');
+  // The artifact store takes images and WebM (a browser recording); it needs the exact type.
+  const head = String.fromCharCode(...bytes.slice(0, 12));
+  const type = bytes[0] === 0x89 && head.slice(1, 4) === 'PNG' ? 'image/png'
+    : bytes[0] === 0xff && bytes[1] === 0xd8 ? 'image/jpeg'
+      : head.startsWith('GIF8') ? 'image/gif'
+        : head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP' ? 'image/webp'
+          : bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3 ? 'video/webm' : null;
+  if (!type) throw new HttpError(400, 'בגרסת ההדגמה אפשר להעלות תמונות (PNG, JPG, GIF, WebP) והקלטות WebM.');
+  try {
+    const up = await assets.upload(new Blob([bytes], { type }), { type });
+    return { url: `/_blob/${up.id}`, mime: up.contentType };
+  } catch (err) {
+    throw new HttpError(400, err?.message || 'ההעלאה נכשלה');
+  }
+});
 route('POST', '/api/ai/generate', ({ body }) => generate(body));
 
 // --- student side ---
@@ -493,14 +574,17 @@ route('POST', '/api/s/:code/tasks/:taskId/complete', ({ params, body, headers })
   const s = student(p, headers);
   const t = studentTask(p, params.taskId);
   const { correct, answer, explanation, wrong } = gradeAnswer(t.type, t.content, body);
+  const tries = ((p.attempts ||= {})[s.id] ||= {})[t.id] ||= { openedAt: Date.now(), wrong: 0 };
   if (!correct) {
+    tries.wrong++;
     save(p, { touch: false });
     return { correct: false, wrong: wrong || [] };
   }
   const before = p.progress[s.id]?.[t.id];
   // Redoing an approved task keeps it approved.
   const approved = !t.needsApproval || Boolean(before && before.approved !== false);
-  (p.progress[s.id] ||= {})[t.id] = { answer: answer ?? null, completedAt: now(), approved };
+  const durationSec = before?.durationSec ?? Math.min(3 * 3600, Math.round((Date.now() - tries.openedAt) / 1000));
+  (p.progress[s.id] ||= {})[t.id] = { answer: answer ?? null, completedAt: now(), approved, durationSec };
   for (const h of p.help) if (h.studentId === s.id && h.taskId === t.id) h.resolved = true;
   save(p, { touch: false });
   return { correct: true, explanation: explanation || '', ...studentState(p, s) };

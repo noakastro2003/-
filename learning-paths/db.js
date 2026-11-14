@@ -68,6 +68,21 @@ CREATE TABLE IF NOT EXISTS password_resets (
   expires_at INTEGER NOT NULL,
   used INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS media (
+  id TEXT PRIMARY KEY,
+  teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  data BLOB NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS task_attempts (
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  opened_at INTEGER NOT NULL,
+  wrong INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (student_id, task_id)
+);
 CREATE TABLE IF NOT EXISTS help_requests (
   id INTEGER PRIMARY KEY,
   student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -103,6 +118,8 @@ function migrate(db) {
   const has = (table, col) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
   if (!has('tasks', 'needs_approval')) db.exec('ALTER TABLE tasks ADD COLUMN needs_approval INTEGER NOT NULL DEFAULT 0');
   if (!has('progress', 'approved')) db.exec('ALTER TABLE progress ADD COLUMN approved INTEGER NOT NULL DEFAULT 1');
+  // How long a task took the student (from first opening it to finishing it).
+  if (!has('progress', 'duration_sec')) db.exec('ALTER TABLE progress ADD COLUMN duration_sec INTEGER');
   // Student secret password (hash) and avatar.
   if (!has('students', 'secret_hash')) db.exec('ALTER TABLE students ADD COLUMN secret_hash TEXT');
   if (!has('students', 'avatar')) db.exec("ALTER TABLE students ADD COLUMN avatar TEXT NOT NULL DEFAULT ''");

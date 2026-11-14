@@ -10,6 +10,7 @@ import { celebrate } from './student.js';
 // Theme values a preset swatch needs that presets don't set themselves.
 const THEME_FALLBACK = { color: '#6c5ce7', background: 'plain', font: 'rounded', mode: 'light' };
 import { nikudBar } from './nikud.js';
+import { imageField, audioField } from './media.js';
 import { DEMO } from './env.js';
 import { creditBadge, creditWord, cost, setCredits, showError } from './credits.js';
 
@@ -513,24 +514,23 @@ const TEXT_PLACEHOLDER = {
   choice: 'השאלה', question: 'השאלה שהתלמיד/ה יענה/תענה עליה',
 };
 
-function taskForm(state, type, existing, onDone) {
+// existing: the saved task being edited (or null for a new one). draft: values to show
+// instead of the saved ones, e.g. the AI's suggested version, not yet saved.
+function taskForm(state, type, existing, onDone, draft = null) {
   const meta = TASK_TYPES[type];
-  const c = existing?.content || {};
-  const title = h('input', { type: 'text', required: true, maxlength: 120, value: existing?.title || '', placeholder: 'שם קצר וברור למשימה' });
+  const src = draft || existing;
+  const c = src?.content || {};
+  const title = h('input', { type: 'text', required: true, maxlength: 120, value: src?.title || '', placeholder: 'שם קצר וברור למשימה' });
   const text = h('textarea', {
-    rows: 3, maxlength: 5000, value: existing ? c.text || '' : DEFAULT_TEXT[type] || '',
+    rows: 3, maxlength: 5000, value: src ? c.text || '' : DEFAULT_TEXT[type] || '',
     placeholder: TEXT_PLACEHOLDER[type] || 'הוראות קצרות ופשוטות',
   });
-  const est = h('input', { type: 'number', min: 1, max: 120, value: existing?.estMinutes ?? (type === 'timer' ? 10 : 5) });
-  const emoji = emojiPicker(existing?.emoji ?? meta.icon, TASK_EMOJIS.includes(meta.icon) ? TASK_EMOJIS : [meta.icon, ...TASK_EMOJIS]);
+  const est = h('input', { type: 'number', min: 1, max: 120, value: src?.estMinutes ?? (type === 'timer' ? 10 : 5) });
+  const emoji = emojiPicker(src?.emoji ?? meta.icon, TASK_EMOJIS.includes(meta.icon) ? TASK_EMOJIS : [meta.icon, ...TASK_EMOJIS]);
 
   const extra = [];
   let collect = () => ({});
-  if (type === 'read') {
-    const img = h('input', { type: 'url', dir: 'ltr', value: c.imageUrl || '', placeholder: 'https://…' });
-    extra.push(field('קישור לתמונה (לא חובה)', img));
-    collect = () => ({ imageUrl: img.value });
-  } else if (type === 'link') {
+  if (type === 'link') {
     const url = h('input', { type: 'url', dir: 'ltr', required: true, value: c.url || '', placeholder: 'https://www.youtube.com/watch?v=…' });
     extra.push(field('קישור', url, 'סרטוני יוטיוב יוטמעו ישירות במסך המשימה'));
     collect = () => ({ url: url.value });
@@ -577,17 +577,24 @@ function taskForm(state, type, existing, onDone) {
     collect = () => ({ statements: statements.values() });
   }
 
-  const approval = h('input', { type: 'checkbox', checked: Boolean(existing?.needsApproval) });
+  const approval = h('input', { type: 'checkbox', checked: Boolean(src?.needsApproval) });
+  const imageF = imageField(c.image || c.imageUrl || '');
+  const audioF = audioField(c.audio || '');
   const submit = h('button', { class: 'btn primary', type: 'submit' }, existing ? 'שמירה' : 'הוספה');
+  const payloadNow = () => ({
+    type, title: title.value, emoji: emoji.getValue(), estMinutes: Number(est.value),
+    needsApproval: approval.checked,
+    content: { text: text.value, image: imageF.getValue(), audio: audioF.getValue(), ...collect() },
+  });
+  const improveBtn = h('button', {
+    type: 'button', class: 'btn small secondary',
+    onclick: () => improveMenu(payloadNow(), (improved) => { m.close(); taskForm(state, type, existing, onDone, improved); }),
+  }, '✨ שיפור עם AI');
   const form = h('form', {
     class: 'task-form',
     onsubmit: (e) => {
       e.preventDefault();
-      const payload = {
-        type, title: title.value, emoji: emoji.getValue(), estMinutes: Number(est.value),
-        needsApproval: approval.checked,
-        content: { text: text.value, ...collect() },
-      };
+      const payload = payloadNow();
       const req = existing
         ? api('PUT', `/api/tasks/${existing.id}`, payload)
         : api('POST', `/api/paths/${state.path.id}/tasks`, payload);
@@ -602,6 +609,9 @@ function taskForm(state, type, existing, onDone) {
   },
     field('כותרת', title),
     field(TEXT_LABEL[type] || 'הוראות', text),
+    h('div', { class: 'media-row' },
+      field('תמונה (לא חובה)', imageF),
+      field('ההוראות בקול שלך (לא חובה)', audioF, 'התלמידים ישמעו אותך במקום הקראה ממוחשבת')),
     extra,
     h('div', { class: 'row wrap' }, field('זמן משוער (דקות)', est)),
     h('label', { class: 'toggle approval-toggle' }, approval, h('span', { class: 'toggle-ui', 'aria-hidden': 'true' }),
@@ -609,8 +619,46 @@ function taskForm(state, type, existing, onDone) {
         h('span', { class: 'muted small block' }, 'בסוף המשימה התלמיד/ה ממתין/ה עד שתקלידי את קוד האישור שלך על המסך שלו/ה (או תאשרי מטבלת ההתקדמות).'))),
     field('סמל', emoji),
     h('div', { class: 'row end' }, h('button', { type: 'button', class: 'btn ghost', onclick: () => m.close() }, 'ביטול'), submit));
-  form.prepend(nikudBar(form));
+  form.prepend(h('div', { class: 'form-tools' }, nikudBar(form), improveBtn));
+  if (draft) form.prepend(h('div', { class: 'notice ai-draft' }, '✨ זו הגרסה שהציעה הבינה המלאכותית. עברו עליה ושמרו, או סגרו כדי לוותר.'));
   const m = modal(`${meta.icon} ${existing ? 'עריכת' : 'הוספת'} משימה: ${meta.name}`, form, { wide: true });
+}
+
+// "Improve with AI": pick what to change; the suggested version opens in the form, unsaved.
+const IMPROVE_OPTIONS = [
+  ['simpler', '🧒 שפה פשוטה יותר'],
+  ['shorter', '✂️ קצר וברור יותר'],
+  ['nikud', 'אָ להוסיף ניקוד'],
+  ['more', '➕ עוד פריטים'],
+  ['easier', '🌱 קל יותר'],
+  ['harder', '🚀 מאתגר יותר'],
+];
+
+function improveMenu(task, onImproved) {
+  const price = cost('aiImprove');
+  const custom = h('input', { type: 'text', maxlength: 300, placeholder: 'או כתבו בקשה משלכם, למשל: "להתאים לתלמיד שאוהב כדורגל"' });
+  const run = async (kind, btn) => {
+    for (const b of m.el.querySelectorAll('button')) b.disabled = true;
+    btn.textContent = 'רגע…';
+    try {
+      const r = await api('POST', '/api/ai/improve-task', { task, kind, custom: kind === 'custom' ? custom.value : '' });
+      setCredits(r.credits);
+      m.close();
+      onImproved(r.task);
+    } catch (err) {
+      m.close();
+      showError(err);
+    }
+  };
+  const m = modal('✨ שיפור המשימה עם AI', [
+    h('p', { class: 'muted' }, `מה לשפר? ${price ? `כל שיפור עולה ${creditWord(price)}. ` : ''}התוצאה תיפתח לעריכה, ותישמר רק אם תאשרו.`),
+    h('div', { class: 'improve-grid' }, IMPROVE_OPTIONS.map(([kind, label]) => h('button', {
+      type: 'button', class: 'btn', onclick: (e) => run(kind, e.currentTarget),
+    }, label))),
+    h('div', { class: 'row' }, custom, h('button', {
+      type: 'button', class: 'btn primary', onclick: (e) => { if (custom.value.trim()) run('custom', e.currentTarget); else custom.focus(); },
+    }, 'שיפור')),
+  ]);
 }
 
 // ----- design tab -----
@@ -820,7 +868,30 @@ function progressTab(body, state) {
   const timer = setInterval(() => (body.isConnected ? load() : clearInterval(timer)), 20000);
 }
 
-function renderProgress(el, { tasks, students, help }, reload, state) {
+// Tasks where students struggle: many wrong attempts, or much longer than planned.
+function stuckTasks(tasks, students, wrong) {
+  const out = [];
+  for (const t of tasks) {
+    const tries = students.map((s) => wrong[s.id]?.[t.id] || 0).filter((n) => n > 0);
+    const times = students.map((s) => s.done[t.id]?.durationSec).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+    const median = times.length ? times[Math.floor(times.length / 2)] : null;
+    const reasons = [];
+    const avg = tries.length ? tries.reduce((a, b) => a + b, 0) / tries.length : 0;
+    if (avg >= 2) {
+      const n = Number.isInteger(avg) ? avg : avg.toFixed(1);
+      reasons.push(`בממוצע ${n} ניסיונות שגויים (אצל ${tries.length} ${tries.length === 1 ? 'מהתלמידים' : 'תלמידים'})`);
+    }
+    if (median !== null && times.length >= 2 && median > t.estMinutes * 60 * 2) {
+      reasons.push(`לוקח בערך ${Math.round(median / 60)} דק׳ במקום ${t.estMinutes}`);
+    }
+    if (reasons.length) out.push({ t, reasons });
+  }
+  return out;
+}
+
+const minutesLabel = (sec) => (sec < 60 ? 'פחות מדקה' : `${Math.round(sec / 60)} דק׳`);
+
+function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state) {
   if (!students.length) {
     return mount(el, h('div', { class: 'empty card' },
       h('div', { class: 'empty-icon', 'aria-hidden': 'true' }, '👋'),
@@ -852,8 +923,14 @@ function renderProgress(el, { tasks, students, help }, reload, state) {
 
   const done = (s) => tasks.filter((t) => s.done[t.id] && s.done[t.id].approved !== false).length;
   const pending = students.flatMap((s) => tasks.filter((t) => s.done[t.id]?.approved === false).map((t) => ({ s, t })));
+  const stuck = stuckTasks(tasks, students, wrong);
   mount(el,
     tasks.some((t) => t.needsApproval) && state && pinCard(state, { compact: true }),
+    stuck.length > 0 && h('div', { class: 'help-box stuck-box' },
+      h('h3', {}, '🔎 איפה נתקעים'),
+      h('ul', {}, stuck.map(({ t, reasons }) => h('li', {},
+        h('span', {}, h('strong', {}, `${t.emoji || ''} ${t.title}`), ' · ', reasons.join(' · ')),
+        h('span', { class: 'muted small' }, 'אולי כדאי לפשט אותה, לפרק לשתיים או להוסיף הקלטה'))))),
     pending.length > 0 && h('div', { class: 'help-box approval-box' },
       h('h3', {}, `🧑‍🏫 ממתינים לאישור (${pending.length})`),
       h('ul', {}, pending.map(({ s, t }) => h('li', {},
@@ -888,6 +965,8 @@ function renderProgress(el, { tasks, students, help }, reload, state) {
             tasks.map((t) => {
               const d = s.done[t.id];
               const needsHelp = helpByCell.has(`${s.id}:${t.id}`);
+              const misses = wrong[s.id]?.[t.id] || 0;
+              const missBadge = misses > 0 && h('span', { class: `miss-badge${misses >= 3 ? ' many' : ''}`, title: `${misses} ניסיונות שגויים`, dir: 'ltr' }, `✗${misses}`);
               if (d && d.approved === false) {
                 return h('td', { class: 'cell pending' }, h('button', {
                   class: 'cell-btn', title: 'מחכה לאישור שלך', 'aria-label': `${t.title}: מחכה לאישור`, onclick: () => showAnswer(s, t),
@@ -895,11 +974,12 @@ function renderProgress(el, { tasks, students, help }, reload, state) {
               }
               if (d) {
                 const hasAnswer = t.type === 'question' || t.type === 'choice';
+                const time = Number.isFinite(d.durationSec) ? ` · ${minutesLabel(d.durationSec)}` : '';
                 return h('td', { class: 'cell done' }, h('button', {
-                  class: 'cell-btn', title: hasAnswer ? 'הצגת התשובה' : 'הושלם', 'aria-label': `${t.title}: הושלם`, onclick: () => showAnswer(s, t),
-                }, hasAnswer ? '💬' : '✓'));
+                  class: 'cell-btn', title: `${hasAnswer ? 'הצגת התשובה' : 'הושלם'}${time}`, 'aria-label': `${t.title}: הושלם${time}`, onclick: () => showAnswer(s, t),
+                }, hasAnswer ? '💬' : '✓'), missBadge);
               }
-              return h('td', { class: `cell${needsHelp ? ' help' : ''}`, title: needsHelp ? 'מבקש/ת עזרה' : 'עוד לא' }, needsHelp ? '✋' : '');
+              return h('td', { class: `cell${needsHelp ? ' help' : ''}`, title: needsHelp ? 'מבקש/ת עזרה' : 'עוד לא' }, needsHelp ? '✋' : '', missBadge);
             }),
             h('td', { class: 'small muted' }, formatDate(s.lastActive)),
             h('td', { class: 'row-actions' }, h('button', {
@@ -915,5 +995,5 @@ function renderProgress(el, { tasks, students, help }, reload, state) {
               },
             }, '🗑️')));
         })))),
-    h('p', { class: 'muted small' }, '✓ הושלם · 💬 יש תשובה (לחצי לצפייה) · ⏳ מחכה לאישור שלך · ✋ ביקש/ה עזרה'));
+    h('p', { class: 'muted small' }, '✓ הושלם · 💬 יש תשובה (לחצי לצפייה) · ⏳ מחכה לאישור שלך · ✋ ביקש/ה עזרה · ✗ מספר ניסיונות שגויים'));
 }

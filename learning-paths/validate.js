@@ -32,6 +32,15 @@ function url(value, field) {
   return s;
 }
 
+// A file the teacher uploaded (served by the app itself), or for images also a web address.
+const MEDIA_PATH = /^\/(api\/media|_blob)\/[A-Za-z0-9_-]{8,80}$/;
+function mediaRef(value, field, { web = false } = {}) {
+  const s = str(value, { max: 1000, field });
+  if (!s || MEDIA_PATH.test(s)) return s;
+  if (web && /^https?:\/\//i.test(s)) return s;
+  throw bad(`${field}: קובץ לא תקין`);
+}
+
 function strList(value, { field, min = 0, maxItems = 20, maxLen = 200 }) {
   if (!Array.isArray(value)) value = [];
   const items = value.map((v) => str(v, { max: maxLen, field })).filter(Boolean);
@@ -158,10 +167,20 @@ function pairList(value, { min, max }) {
 
 function taskContent(type, c = {}) {
   if (typeof c !== 'object' || c === null) c = {};
+  // Every task may have a picture and the teacher's recorded instructions.
+  const media = {};
+  const image = mediaRef(c.image || c.imageUrl, 'תמונה', { web: true });
+  const audio = mediaRef(c.audio, 'הקלטה');
+  if (image) media.image = image;
+  if (audio) media.audio = audio;
+  return { ...typeContent(type, c), ...media };
+}
+
+function typeContent(type, c) {
   const text = str(c.text, { max: 5000, field: 'הוראות' });
   switch (type) {
     case 'read':
-      return { text, imageUrl: url(c.imageUrl, 'תמונה') };
+      return { text };
     case 'link': {
       const u = url(c.url, 'קישור');
       if (!u) throw bad('קישור: שדה חובה');

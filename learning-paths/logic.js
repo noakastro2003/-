@@ -45,6 +45,13 @@ export function shuffleChanged(list) {
 
 // Turns a task's content into what a student may see: answers stay on the server.
 export function studentContent(type, c) {
+  const media = {};
+  if (c.image) media.image = c.image;
+  if (c.audio) media.audio = c.audio;
+  return { ...studentTypeContent(type, c), ...media };
+}
+
+function studentTypeContent(type, c) {
   switch (type) {
     case 'choice': {
       const { correct, explanation, ...rest } = c;
@@ -129,7 +136,7 @@ export function parseAiInput(b) {
 }
 
 // Model output is untrusted: each task goes through the same validation as a teacher's edits.
-function aiTask(t) {
+export function taskFromAi(t) {
   if (typeof t !== 'object' || t === null) throw new HttpError(400, 'משימה לא תקינה');
   const { type, title, emoji, estMinutes, ...content } = t;
   const clamp = (n, lo, hi, def) => (Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : def);
@@ -150,7 +157,7 @@ export function pathFromAi(raw, input) {
   for (const t of Array.isArray(raw?.tasks) ? raw.tasks : []) {
     try {
       if (!input.types.includes(t?.type)) throw new Error('type');
-      tasks.push(aiTask(t));
+      tasks.push(taskFromAi(t));
     } catch {
       skipped++;
     }

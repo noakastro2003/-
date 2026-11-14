@@ -258,6 +258,20 @@ function showMap(s) {
 
 // ----- task screen -----
 
+// Plays the teacher's own recording of the instructions; a second tap stops it.
+function teacherVoiceButton(src) {
+  const audio = new Audio(src);
+  const btn = h('button', { class: 'icon-btn read-btn teacher-voice', 'aria-label': 'ההוראות בקול של המורה', title: 'ההוראות בקול של המורה' }, '🔊');
+  audio.onended = audio.onpause = () => btn.classList.remove('playing');
+  btn.onclick = () => {
+    if (!audio.paused) return audio.pause();
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    audio.currentTime = 0;
+    audio.play().then(() => btn.classList.add('playing')).catch(() => toast('לא הצלחנו להשמיע את ההקלטה', 'error'));
+  };
+  return btn;
+}
+
 function speak(text) {
   if (!('speechSynthesis' in window)) return toast('ההקראה לא נתמכת בדפדפן הזה', 'error');
   speechSynthesis.cancel();
@@ -269,6 +283,8 @@ function speak(text) {
 
 function showTask(s, i) {
   window.scrollTo(0, 0);
+  // Tells the teacher's "where students get stuck" how long this took.
+  if (!s.preview && !isDone(s, s.tasks[i])) api('POST', `/api/s/${s.code}/tasks/${s.tasks[i].id}/open`, {}, auth(s)).catch(() => {});
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   const t = s.tasks[i];
   const c = t.content;
@@ -282,8 +298,8 @@ function showTask(s, i) {
   const parts = [];
   if (c.text) parts.push(h('p', { class: 'task-text path-font' }, c.text));
 
-  if (t.type === 'read' && c.imageUrl) {
-    parts.push(h('img', { class: 'task-image', src: c.imageUrl, alt: '', referrerpolicy: 'no-referrer' }));
+  if (c.image || c.imageUrl) {
+    parts.push(h('img', { class: 'task-image', src: c.image || c.imageUrl, alt: '', referrerpolicy: 'no-referrer' }));
   }
   if (t.type === 'link') {
     const embed = youtubeEmbed(c.url);
@@ -411,7 +427,9 @@ function showTask(s, i) {
             h('h1', { class: 'path-font' }, t.title),
             h('span', { class: 'chip' }, `⏳ בערך ${t.estMinutes} דקות`),
             t.needsApproval && h('span', { class: 'chip chip-approval' }, '🧑‍🏫 בסוף המורה מאשרת')),
-          s.theme.readAloud && h('button', { class: 'icon-btn read-btn', 'aria-label': 'הקראה', title: 'הקראה בקול', onclick: () => speak(readText) }, '🔊')),
+          c.audio
+            ? teacherVoiceButton(c.audio)
+            : s.theme.readAloud && h('button', { class: 'icon-btn read-btn', 'aria-label': 'הקראה', title: 'הקראה בקול', onclick: () => speak(readText) }, '🔊')),
         parts,
         feedback,
         h('div', { class: 'task-buttons' }, finishBtn, helpBtn))));

@@ -86,3 +86,36 @@ export function jsonFormatInstructions(types) {
     ...lines,
   ].join('\n');
 }
+
+// ---------- automatic nikud ----------
+
+export const NIKUD_SYSTEM = `You add nikud (Hebrew vowel points) to Hebrew text for an Israeli teacher's materials for children.
+Rules:
+- Add full, grammatically correct nikud to every Hebrew word, including dagesh and the shin/sin dot, as in children's books.
+- Change nothing else: keep every letter, word, space, line break, punctuation mark, number, emoji, English word and symbol exactly as it is, in the same order. Keep square brackets such as [מילה] exactly where they are.
+- If a word already has nikud, keep it unless it is wrong.
+- Reply with the text only: no explanations, no quotes, no Markdown.`;
+
+// ---------- improve one task ----------
+
+export const IMPROVE_REQUESTS = {
+  simpler: 'Rewrite all student-facing text in simpler, shorter Hebrew that a younger student or a weak reader understands. Keep the same content and the same correct answers.',
+  shorter: 'Make the instructions shorter and clearer: one action, as few words as possible. Keep the content and the correct answers.',
+  nikud: 'Add full, correct nikud to all student-facing Hebrew text (wordsearch words stay without nikud). Change nothing else.',
+  more: 'Add more items (options, pairs, steps, statements, words or blanks, as fits the task type) on the same topic, staying within the limits for this task type.',
+  easier: 'Make the task easier for students who are struggling, while keeping the same learning goal.',
+  harder: 'Make the task more challenging for students who finish quickly, while keeping the same learning goal.',
+};
+
+// The task in the shape the model returns it, plus what to change.
+export function improvePrompt(task, request) {
+  const { image, audio, imageUrl, ...content } = task.content || {};
+  const flat = { type: task.type, title: task.title, emoji: task.emoji, estMinutes: task.estMinutes, ...content };
+  const ask = IMPROVE_REQUESTS[request.kind] || `The teacher asks (in her own words): ${request.custom}`;
+  return [
+    'Here is one task from a learning path, as JSON:',
+    JSON.stringify(flat),
+    `Change it as follows: ${ask}`,
+    'Return the whole task as JSON in the same shape and with the same type. Keep anything the request does not ask to change.',
+  ].join('\n\n');
+}

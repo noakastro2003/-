@@ -7,9 +7,10 @@ import { openDb, tx } from './db.js';
 import * as v from './validate.js';
 import { HttpError } from './validate.js';
 import { TEMPLATES } from './templates.js';
-import { createGenerator, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
+import { createAiTools, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
+import { stripNikud } from './validate.js';
 import {
-  studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS,
+  studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS,
 } from './logic.js';
 import * as billing from './billing.js';
 import { createMailer } from './mailer.js';
@@ -31,6 +32,8 @@ export function billingConfig(env = process.env) {
     costs: {
       createPath: num(env.COST_CREATE_PATH, d.costs.createPath),
       aiGenerate: num(env.COST_AI_GENERATE, d.costs.aiGenerate),
+      aiImprove: num(env.COST_AI_IMPROVE, d.costs.aiImprove),
+      aiNikud: num(env.COST_AI_NIKUD, d.costs.aiNikud),
     },
     // 'test': the subscribe button activates a subscription without charging anyone.
     // Unset: online payment is off (subscriptions can still be granted with admin.js).
@@ -84,6 +87,25 @@ function appUrl(req) {
   const proto = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
   return `${proto}://${req.headers.host}`;
 }
+
+// What an uploaded file really is, from its first bytes (the browser's claim is not trusted).
+export function sniffMedia(buf) {
+  const ascii = (a, b) => buf.toString('latin1', a, b);
+  if (buf.length < 12) return null;
+  if (buf[0] === 0x89 && ascii(1, 4) === 'PNG') return 'image/png';
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (ascii(0, 4) === 'GIF8') return 'image/gif';
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp';
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WAVE') return 'audio/wav';
+  if (buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return 'audio/webm';
+  if (ascii(0, 4) === 'OggS') return 'audio/ogg';
+  if (ascii(4, 8) === 'ftyp') return 'audio/mp4';
+  if (ascii(0, 3) === 'ID3' || (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0)) return 'audio/mpeg';
+  return null;
+}
+
+const MEDIA_MAX_BYTES = 5 * 1024 * 1024;
+const MEDIA_QUOTA_BYTES = 200 * 1024 * 1024; // per teacher
 
 function randomCode(len = 6) {
   const bytes = crypto.randomBytes(len);
@@ -157,7 +179,9 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
   const pinLimit = rateLimiter(8, 10 * 60 * 1000); // per student: stops guessing the 4-digit code
   const secretLimit = rateLimiter(8, 10 * 60 * 1000); // per student: stops guessing a classmate's secret
   const forgotLimit = rateLimiter(5, 60 * 60 * 1000);
-  let generatePath = ai?.generatePath;
+  // Tests pass their own tools; otherwise the real ones are made on first use.
+  let tools = ai && (ai.generatePath || ai.nikud || ai.improveTask) ? ai : null;
+  const aiTools = () => (tools ||= createAiTools());
   const aiEnabled = ai ? ai.enabled !== false : aiConfigured();
 
   const q = {
@@ -172,6 +196,9 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     insertSession: db.prepare('INSERT INTO sessions (token, teacher_id, expires_at) VALUES (?, ?, ?)'),
     deleteSession: db.prepare('DELETE FROM sessions WHERE token = ?'),
     deleteTeacherSessions: db.prepare('DELETE FROM sessions WHERE teacher_id = ?'),
+    insertMedia: db.prepare('INSERT INTO media (id, teacher_id, mime, size, data) VALUES (?, ?, ?, ?, ?)'),
+    mediaById: db.prepare('SELECT mime, data FROM media WHERE id = ?'),
+    mediaUsage: db.prepare('SELECT COALESCE(SUM(size), 0) AS total FROM media WHERE teacher_id = ?'),
     insertReset: db.prepare('INSERT INTO password_resets (token_hash, teacher_id, expires_at) VALUES (?, ?, ?)'),
     resetByHash: db.prepare('SELECT * FROM password_resets WHERE token_hash = ?'),
     useReset: db.prepare('UPDATE password_resets SET used = 1 WHERE token_hash = ?'),
@@ -217,12 +244,19 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
                                 FROM students WHERE path_id = ? ORDER BY name`),
 
     progressOfStudent: db.prepare('SELECT task_id, answer, completed_at, approved FROM progress WHERE student_id = ?'),
-    progressOfPath: db.prepare(`SELECT p.student_id, p.task_id, p.answer, p.completed_at, p.approved FROM progress p
+    progressOfPath: db.prepare(`SELECT p.student_id, p.task_id, p.answer, p.completed_at, p.approved, p.duration_sec FROM progress p
                                 JOIN students s ON s.id = p.student_id WHERE s.path_id = ?`),
     // Redoing an approved task keeps it approved.
     upsertProgress: db.prepare(`INSERT INTO progress (student_id, task_id, answer, approved) VALUES (?, ?, ?, ?)
                                 ON CONFLICT (student_id, task_id) DO UPDATE SET answer = excluded.answer,
                                 completed_at = datetime('now'), approved = max(progress.approved, excluded.approved)`),
+    openTask: db.prepare('INSERT OR IGNORE INTO task_attempts (student_id, task_id, opened_at) VALUES (?, ?, ?)'),
+    wrongAttempt: db.prepare(`INSERT INTO task_attempts (student_id, task_id, opened_at, wrong) VALUES (?, ?, ?, 1)
+                              ON CONFLICT (student_id, task_id) DO UPDATE SET wrong = wrong + 1`),
+    attempt: db.prepare('SELECT * FROM task_attempts WHERE student_id = ? AND task_id = ?'),
+    attemptsOfPath: db.prepare(`SELECT a.student_id, a.task_id, a.wrong FROM task_attempts a
+                                JOIN students s ON s.id = a.student_id WHERE s.path_id = ?`),
+    setDuration: db.prepare('UPDATE progress SET duration_sec = ? WHERE student_id = ? AND task_id = ? AND duration_sec IS NULL'),
     approveProgress: db.prepare('UPDATE progress SET approved = 1 WHERE student_id = ? AND task_id = ? AND approved = 0'),
     progressRow: db.prepare('SELECT * FROM progress WHERE student_id = ? AND task_id = ?'),
     deleteProgress: db.prepare('DELETE FROM progress WHERE student_id = ? AND task_id = ?'),
@@ -597,11 +631,70 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     return [201, { task: taskOut(row) }];
   });
 
+  // Runs a paid AI action: takes the credits first, gives them back if it fails.
+  async function withCredits(teacherId, action, note, fn) {
+    if (!aiEnabled) throw new HttpError(503, 'הבינה המלאכותית עוד לא הופעלה בשרת הזה (חסר מפתח API).');
+    aiLimit(teacherId);
+    const taken = tx(db, () => charge(teacherId, action, note));
+    try {
+      return await fn();
+    } catch (err) {
+      refundCharge(teacherId, taken, note);
+      throw err;
+    }
+  }
+
+  route('POST', '/api/ai/nikud', async (ctx) => {
+    const teacher = requireTeacher(ctx);
+    const text = v.str(ctx.body.text, { max: 3000, required: true, field: 'טקסט' });
+    const out = await withCredits(teacher.id, 'aiNikud', text.slice(0, 40), () => aiTools().nikud(text));
+    // Nikud only adds marks; if the letters changed, tell the teacher to check.
+    const letters = (s) => stripNikud(s).replace(/\s+/g, '');
+    return { text: out, changed: letters(out) !== letters(text), credits: availableCredits(teacher.id) };
+  });
+
+  route('POST', '/api/ai/improve-task', async (ctx) => {
+    const teacher = requireTeacher(ctx);
+    const original = v.task(ctx.body.task || {});
+    const kind = typeof ctx.body.kind === 'string' ? ctx.body.kind : '';
+    const custom = v.str(ctx.body.custom, { max: 300, field: 'הבקשה' });
+    if (!['simpler', 'shorter', 'nikud', 'more', 'easier', 'harder', 'custom'].includes(kind) || (kind === 'custom' && !custom)) {
+      throw new HttpError(400, 'בחרו מה לשפר');
+    }
+    const improved = await withCredits(teacher.id, 'aiImprove', original.title, async () => {
+      const t = taskFromAi(await aiTools().improveTask(original, { kind, custom }));
+      if (t.type !== original.type) throw new HttpError(502, 'התקבלה משימה מסוג אחר. נסו שוב.');
+      return t;
+    });
+    // The picture, the recording and the approval stop belong to the teacher, not the model.
+    if (original.content.image) improved.content.image = original.content.image;
+    if (original.content.audio) improved.content.audio = original.content.audio;
+    improved.needsApproval = original.needsApproval;
+    return { task: improved, credits: availableCredits(teacher.id) };
+  });
+
+  // --- uploaded pictures and recordings ---
+
+  route('POST', '/api/media', (ctx) => {
+    const teacher = requireTeacher(ctx);
+    const buf = Buffer.from(typeof ctx.body.data === 'string' ? ctx.body.data : '', 'base64');
+    if (!buf.length) throw new HttpError(400, 'הקובץ ריק');
+    if (buf.length > MEDIA_MAX_BYTES) throw new HttpError(413, 'הקובץ גדול מדי (עד 5MB)');
+    const mime = sniffMedia(buf);
+    if (!mime) throw new HttpError(400, 'אפשר להעלות תמונה (PNG, JPG, GIF, WebP) או הקלטה (WebM, OGG, MP3, M4A, WAV)');
+    if (q.mediaUsage.get(teacher.id).total + buf.length > MEDIA_QUOTA_BYTES) {
+      throw new HttpError(413, 'נגמר המקום לקבצים בחשבון (200MB)');
+    }
+    const id = crypto.randomBytes(16).toString('hex');
+    q.insertMedia.run(id, teacher.id, mime, buf.length, buf);
+    return [201, { url: `/api/media/${id}`, mime }];
+  }, { maxBody: 8 * 1024 * 1024 });
+
   // --- AI generator ---
 
   route('GET', '/api/ai/status', (ctx) => {
     requireTeacher(ctx);
-    return { enabled: aiEnabled, grades: GRADES, types: AI_TASK_TYPES };
+    return { enabled: aiEnabled, grades: GRADES, types: AI_TASK_TYPES, costs: billingCfg.costs };
   });
 
   route('POST', '/api/ai/generate', async (ctx) => {
@@ -615,8 +708,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     const taken = tx(db, () => charge(teacher.id, 'aiGenerate', input.topic));
     let result;
     try {
-      generatePath ||= createGenerator();
-      result = pathFromAi(await generatePath(input), input);
+      result = pathFromAi(await aiTools().generatePath(input), input);
     } catch (err) {
       refundCharge(teacher.id, taken, input.topic);
       throw err;
@@ -668,12 +760,16 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     for (const r of q.progressOfPath.all(p.id)) {
       byId.get(r.student_id).done[r.task_id] = {
         answer: r.answer == null ? null : JSON.parse(r.answer), completedAt: r.completed_at, approved: Boolean(r.approved),
+        durationSec: r.duration_sec,
       };
     }
+    // Wrong attempts per student and task, finished or not: where students get stuck.
+    const wrong = {};
+    for (const a of q.attemptsOfPath.all(p.id)) if (a.wrong) (wrong[a.student_id] ||= {})[a.task_id] = a.wrong;
     const help = q.helpOfPath.all(p.id).map((h) => ({
       id: h.id, studentId: h.student_id, taskId: h.task_id, createdAt: h.created_at,
     }));
-    return { tasks: q.tasks.all(p.id).map((t) => taskOut(t)), students, help };
+    return { tasks: q.tasks.all(p.id).map((t) => taskOut(t)), students, help, wrong };
   });
 
   // Approving from the progress table, without the student's screen.
@@ -785,10 +881,23 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     const t = studentTask(p, ctx.params.taskId);
     const { correct, answer, explanation, wrong } = gradeAnswer(t, ctx.body);
     q.touchStudent.run(s.id);
-    if (!correct) return { correct: false, wrong: wrong || [] };
+    if (!correct) {
+      q.wrongAttempt.run(s.id, t.id, Date.now());
+      return { correct: false, wrong: wrong || [] };
+    }
     q.upsertProgress.run(s.id, t.id, answer == null ? null : JSON.stringify(answer), t.needs_approval ? 0 : 1);
+    const opened = q.attempt.get(s.id, t.id);
+    // Time on task, from first opening it; capped so a tab left open overnight doesn't count.
+    if (opened) q.setDuration.run(Math.min(3 * 3600, Math.round((Date.now() - opened.opened_at) / 1000)), s.id, t.id);
     q.resolveHelpForTask.run(s.id, t.id);
     return { correct: true, explanation: explanation || '', ...studentState(s) };
+  });
+
+  route('POST', '/api/s/:code/tasks/:taskId/open', (ctx) => {
+    const p = publicPath(ctx, ctx.params.code);
+    const s = currentStudent(ctx.req, p);
+    q.openTask.run(s.id, studentTask(p, ctx.params.taskId).id, Date.now());
+    return { ok: true };
   });
 
   // The teacher types the path's approval code on the student's screen.
@@ -852,6 +961,18 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
       if (!pathname.startsWith('/api/')) {
         if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'שיטה לא נתמכת');
         return serveStatic(req, res, pathname);
+      }
+      const media = /^\/api\/media\/([0-9a-f]{32})$/.exec(pathname);
+      if (media && req.method === 'GET') {
+        const m = q.mediaById.get(media[1]);
+        if (!m) throw new HttpError(404, 'הקובץ לא נמצא');
+        res.writeHead(200, {
+          'Content-Type': m.mime,
+          'Content-Length': m.data.length,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'Content-Disposition': 'inline',
+        });
+        return res.end(Buffer.from(m.data));
       }
       for (const r of routes) {
         if (r.method !== req.method) continue;

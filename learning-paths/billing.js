@@ -17,6 +17,8 @@ export const BILLING_DEFAULTS = Object.freeze({
   costs: Object.freeze({
     createPath: 1, // a new path built by hand, from the example, or as a copy
     aiGenerate: 5, // a path built by the AI generator
+    aiImprove: 2,  // "improve this task" with AI
+    aiNikud: 1,    // automatic nikud for one text field
   }),
 });
 
@@ -24,6 +26,8 @@ export const ACTION_LABELS = {
   signup: 'קרדיטים חינמיים בהרשמה',
   createPath: 'מסלול חדש',
   aiGenerate: 'מסלול מהמחולל',
+  aiImprove: 'שיפור משימה עם AI',
+  aiNikud: 'ניקוד אוטומטי',
   refund: 'החזר (הפעולה לא הושלמה)',
   grant: 'קרדיטים שנוספו ידנית',
   subscribe: 'הצטרפות למנוי',

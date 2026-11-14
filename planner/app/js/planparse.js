@@ -17,7 +17,8 @@ export async function parsePlanPdf(pdfjsLib, data, onProgress) {
     const page = await doc.getPage(pn);
     const { items, width, height } = await pageItems(page);
     const links = await pageLinks(page);
-    const lines = linesFrom(items).filter(l => l.size > 6);
+    // drop tiny footer text, but keep file lines (📎/🔗), which newer plans set at 6pt
+    const lines = linesFrom(items).filter(l => l.size > 6 || (l.size >= 5 && /^(🔗|📎)/u.test(l.text.trim())));
     const first = (lines[0] && lines[0].text) || '';
     const head = lines.slice(0, 3).map(l => l.text).join(' ');
     const dayHead = first.match(/^יום\s+(ראשון|שני|שלישי|רביעי|חמישי|שישי)/);
@@ -192,7 +193,8 @@ const TIME_ONE = /^(\d{1,2}:\d{2})\s*[–-]?$/;
 const SEC_LABEL = /^([^\s–:·☐📎🔗][^–:·☐]{0,28}?)\s+[–:]\s+(.+)$/;
 function parseDayPage(lines, links, day, width = 595) {
   const sideX = width * 0.84;
-  const body = lines.filter(l => l.size > 6);
+  // tiny text is usually footers – but file lines (📎/🔗) may be set as small as 6pt
+  const body = lines.filter(l => l.size > 6 || (l.size >= 5 && /^(🔗|📎)/u.test(l.text.trim())));
   // right edge of the lesson cards: measured only on lines inside a lesson (not the day header)
   const firstSide = body.findIndex(l => l.parts.some(p => p.x0 >= sideX && SIDE_LABEL.test(p.text.trim())));
   const inCards = day.periods.length ? body : body.slice(Math.max(0, firstSide));

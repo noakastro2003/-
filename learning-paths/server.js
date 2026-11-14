@@ -8,7 +8,9 @@ import * as v from './validate.js';
 import { HttpError } from './validate.js';
 import { TEMPLATES } from './templates.js';
 import { createGenerator, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
-import { studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, randomPin } from './logic.js';
+import {
+  studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS,
+} from './logic.js';
 import * as billing from './billing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -143,6 +145,7 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
   const joinLimit = rateLimiter(60, 15 * 60 * 1000);
   const aiLimit = rateLimiter(20, 60 * 60 * 1000);
   const pinLimit = rateLimiter(8, 10 * 60 * 1000); // per student: stops guessing the 4-digit code
+  const secretLimit = rateLimiter(8, 10 * 60 * 1000); // per student: stops guessing a classmate's secret
   let generatePath = ai?.generatePath;
   const aiEnabled = ai ? ai.enabled !== false : aiConfigured();
 
@@ -189,10 +192,13 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
     studentByToken: db.prepare('SELECT * FROM students WHERE token = ?'),
     studentByName: db.prepare('SELECT * FROM students WHERE path_id = ? AND name = ?'),
     studentById: db.prepare('SELECT * FROM students WHERE id = ?'),
-    insertStudent: db.prepare('INSERT INTO students (path_id, name, token) VALUES (?, ?, ?)'),
+    insertStudent: db.prepare('INSERT INTO students (path_id, name, token, secret_hash, avatar) VALUES (?, ?, ?, ?, ?)'),
+    setSecret: db.prepare('UPDATE students SET secret_hash = ? WHERE id = ?'),
+    setAvatar: db.prepare('UPDATE students SET avatar = ? WHERE id = ?'),
     touchStudent: db.prepare("UPDATE students SET last_active = datetime('now') WHERE id = ?"),
     deleteStudent: db.prepare('DELETE FROM students WHERE id = ?'),
-    studentsOfPath: db.prepare('SELECT id, name, created_at, last_active FROM students WHERE path_id = ? ORDER BY name'),
+    studentsOfPath: db.prepare(`SELECT id, name, avatar, secret_hash IS NOT NULL AS has_secret, created_at, last_active
+                                FROM students WHERE path_id = ? ORDER BY name`),
 
     progressOfStudent: db.prepare('SELECT task_id, answer, completed_at, approved FROM progress WHERE student_id = ?'),
     progressOfPath: db.prepare(`SELECT p.student_id, p.task_id, p.answer, p.completed_at, p.approved FROM progress p
@@ -373,7 +379,7 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
       done[r.task_id] = { answer: r.answer == null ? null : JSON.parse(r.answer), completedAt: r.completed_at };
     }
     const help = q.openHelpForStudent.all(s.id).map((r) => r.task_id);
-    return { student: { id: s.id, name: s.name }, done, pending, help };
+    return { student: { id: s.id, name: s.name, avatar: s.avatar || '' }, done, pending, help };
   }
 
   // The teacher's decision on a pending task: approve, or send it back to redo.
@@ -593,7 +599,8 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
   route('GET', '/api/paths/:id/progress', (ctx) => {
     const p = ownPath(ctx, ctx.params.id);
     const students = q.studentsOfPath.all(p.id).map((s) => ({
-      id: s.id, name: s.name, joinedAt: s.created_at, lastActive: s.last_active, done: {},
+      id: s.id, name: s.name, avatar: s.avatar, hasSecret: Boolean(s.has_secret),
+      joinedAt: s.created_at, lastActive: s.last_active, done: {},
     }));
     const byId = new Map(students.map((s) => [s.id, s]));
     for (const r of q.progressOfPath.all(p.id)) {
@@ -650,20 +657,50 @@ export function createApp(db, { ai, billingCfg = billingConfig() } = {}) {
       path: { title: out.title, description: out.description, code: out.code, theme: out.theme, published: out.published },
       tasks: q.tasks.all(p.id).map((t) => taskOut(t, { forStudent: true })),
       preview: !p.published || ctx.teacher?.id === p.teacher_id,
+      join: { secretEmojis: SECRET_EMOJIS, avatars: AVATARS },
     };
   });
 
+  // Step 1 of joining: is this name new (pick a secret) or returning (enter it)?
+  route('POST', '/api/s/:code/name', (ctx) => {
+    const p = publicPath(ctx, ctx.params.code);
+    joinLimit(ctx.ip);
+    const name = v.str(ctx.body.name, { max: 40, required: true, field: 'שם' });
+    const s = q.studentByName.get(p.id, name);
+    return { exists: Boolean(s), hasSecret: Boolean(s?.secret_hash) };
+  });
+
+  // Step 2: a new student (or one whose secret the teacher reset) sets a secret;
+  // a returning student must give the same one.
   route('POST', '/api/s/:code/join', (ctx) => {
     const p = publicPath(ctx, ctx.params.code);
     joinLimit(ctx.ip);
     const name = v.str(ctx.body.name, { max: 40, required: true, field: 'שם' });
+    const secret = secretString(ctx.body.secret);
+    const avatar = AVATARS.includes(ctx.body.avatar) ? ctx.body.avatar : '';
     let s = q.studentByName.get(p.id, name);
     if (!s) {
-      q.insertStudent.run(p.id, name, crypto.randomBytes(24).toString('hex'));
+      q.insertStudent.run(p.id, name, crypto.randomBytes(24).toString('hex'), hashPassword(secret), avatar);
       s = q.studentByName.get(p.id, name);
+    } else if (!s.secret_hash) {
+      q.setSecret.run(hashPassword(secret), s.id);
+      if (avatar) q.setAvatar.run(avatar, s.id);
+    } else {
+      secretLimit(`${p.id}:${s.id}`);
+      if (!checkPassword(secret, s.secret_hash)) {
+        throw Object.assign(new HttpError(403, 'הסיסמה הסודית לא נכונה. נסו שוב, או בקשו מהמורה לאפס אותה.'), { code: 'wrong_secret' });
+      }
     }
     q.touchStudent.run(s.id);
-    return { token: s.token, ...studentState(s) };
+    return { token: s.token, ...studentState(q.studentById.get(s.id)) };
+  });
+
+  route('POST', '/api/students/:id/reset-secret', (ctx) => {
+    const s = q.studentById.get(Number(ctx.params.id));
+    if (!s) throw new HttpError(404, 'התלמיד/ה לא נמצא/ה');
+    ownPath(ctx, s.path_id);
+    q.setSecret.run(null, s.id);
+    return { ok: true };
   });
 
   route('GET', '/api/s/:code/me', (ctx) => {

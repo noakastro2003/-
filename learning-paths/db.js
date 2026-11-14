@@ -97,6 +97,9 @@ function migrate(db) {
   const has = (table, col) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
   if (!has('tasks', 'needs_approval')) db.exec('ALTER TABLE tasks ADD COLUMN needs_approval INTEGER NOT NULL DEFAULT 0');
   if (!has('progress', 'approved')) db.exec('ALTER TABLE progress ADD COLUMN approved INTEGER NOT NULL DEFAULT 1');
+  // Student secret password (hash) and avatar.
+  if (!has('students', 'secret_hash')) db.exec('ALTER TABLE students ADD COLUMN secret_hash TEXT');
+  if (!has('students', 'avatar')) db.exec("ALTER TABLE students ADD COLUMN avatar TEXT NOT NULL DEFAULT ''");
   if (!has('paths', 'approval_pin')) {
     db.exec('ALTER TABLE paths ADD COLUMN approval_pin TEXT');
     const set = db.prepare('UPDATE paths SET approval_pin = ? WHERE id = ?');

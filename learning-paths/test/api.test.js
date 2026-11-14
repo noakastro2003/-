@@ -4,6 +4,8 @@ import http from 'node:http';
 import { openDb } from '../db.js';
 import { createApp } from '../server.js';
 
+const SECRET = ['🍎', '🐶', '🚗'];
+
 let server;
 let base;
 
@@ -113,7 +115,7 @@ test('student flow: join, complete, help, teacher progress', async () => {
   const choice = view.body.tasks.find((x) => x.type === 'choice');
   assert.equal(choice.content.correct, undefined, 'correct answer must not leak to students');
 
-  const join = await kid('POST', `/api/s/${path.code}/join`, { name: 'יואב' });
+  const join = await kid('POST', `/api/s/${path.code}/join`, { name: 'יואב', secret: SECRET });
   const auth = { 'X-Student-Token': join.body.token };
   const [checklist, read, , , question] = view.body.tasks;
 
@@ -129,8 +131,13 @@ test('student flow: join, complete, help, teacher progress', async () => {
   assert.match(right.body.explanation, /צב/);
   assert.equal((await kid('POST', `/api/s/${path.code}/tasks/${question.id}/complete`, { answer: '  ' }, auth)).status, 400);
 
-  // Re-joining with the same name resumes the same student.
-  const again = await client()('POST', `/api/s/${path.code}/join`, { name: 'יואב' });
+  // Re-joining with the same name and secret resumes the same student; anyone else is refused.
+  const stranger = client();
+  assert.deepEqual((await stranger('POST', `/api/s/${path.code}/name`, { name: 'יואב' })).body, { exists: true, hasSecret: true });
+  assert.equal((await stranger('POST', `/api/s/${path.code}/join`, { name: 'יואב' })).status, 400, 'a secret is required');
+  const wrongSecret = await stranger('POST', `/api/s/${path.code}/join`, { name: 'יואב', secret: ['⭐', '⭐', '⭐'] });
+  assert.deepEqual([wrongSecret.status, wrongSecret.body.code], [403, 'wrong_secret']);
+  const again = await stranger('POST', `/api/s/${path.code}/join`, { name: 'יואב', secret: SECRET });
   assert.equal(again.body.token, join.body.token);
   assert.equal(Object.keys(again.body.done).length, 2);
 
@@ -200,7 +207,7 @@ test('game task types: validation, hidden answers and grading', async () => {
   assert.deepEqual([...seen.blanks.bank].sort(), ['ישן', 'רָץ', 'שִׂחֵק'].sort());
   assert.deepEqual(seen.truefalse.statements, ['השמש חמה', 'דגים עפים']);
 
-  const { body: { token } } = await kid('POST', `/api/s/${path.code}/join`, { name: 'רוני' });
+  const { body: { token } } = await kid('POST', `/api/s/${path.code}/join`, { name: 'רוני', secret: SECRET });
   const send = (type, answer) => kid('POST', `/api/s/${path.code}/tasks/${tasks[type].id}/complete`, { answer }, { 'X-Student-Token': token });
 
   let r = await send('matching', ['חתול', 'שמש', 'כלב']);
@@ -237,7 +244,7 @@ test('teacher approval: the student waits until the teacher types the code', asy
   const kid = client();
   const view = await kid('GET', `/api/s/${path.code}`);
   assert.equal(view.body.path.approvalPin, undefined, 'the code is never sent to students');
-  const { body: { token } } = await kid('POST', `/api/s/${path.code}/join`, { name: 'שיר' });
+  const { body: { token } } = await kid('POST', `/api/s/${path.code}/join`, { name: 'שיר', secret: SECRET });
   const auth = { 'X-Student-Token': token };
   const done = await kid('POST', `/api/s/${path.code}/tasks/${a.id}/complete`, {}, auth);
   assert.deepEqual(done.body.pending, [a.id]);
@@ -276,7 +283,7 @@ test('teacher approval from the progress table, and changing the code', async ()
   const a = (await t('POST', `/api/paths/${path.id}/tasks`, { type: 'read', title: 'x', needsApproval: true })).body.task;
   await t('PUT', `/api/paths/${path.id}`, { published: true });
   const kid = client();
-  const { body: { token, student } } = await kid('POST', `/api/s/${path.code}/join`, { name: 'עומר' });
+  const { body: { token, student } } = await kid('POST', `/api/s/${path.code}/join`, { name: 'עומר', secret: SECRET });
   await kid('POST', `/api/s/${path.code}/tasks/${a.id}/complete`, {}, { 'X-Student-Token': token });
 
   const other = await teacher();
@@ -288,4 +295,29 @@ test('teacher approval from the progress table, and changing the code', async ()
   assert.equal((await t('PUT', `/api/paths/${path.id}/pin`, { pin: '12' })).status, 400);
   assert.equal((await t('PUT', `/api/paths/${path.id}/pin`, { pin: '2468' })).body.path.approvalPin, '2468');
   assert.match((await t('PUT', `/api/paths/${path.id}/pin`, {})).body.path.approvalPin, /^\d{4}$/);
+});
+
+test('student secret: guessing is limited, the teacher can reset it, avatars are kept', async () => {
+  const t = await teacher();
+  const { body: { path } } = await t('POST', '/api/paths', { title: 'סודות', template: 'sample' });
+  await t('PUT', `/api/paths/${path.id}`, { published: true });
+  const kid = client();
+  const view = (await kid('GET', `/api/s/${path.code}`)).body;
+  assert.equal(view.join.secretEmojis.length, 12);
+  assert.equal((await kid('POST', `/api/s/${path.code}/join`, { name: 'מאיה', secret: ['🍎', 'x', '🚗'] })).status, 400);
+  const first = await kid('POST', `/api/s/${path.code}/join`, { name: 'מאיה', secret: SECRET, avatar: '🦊' });
+  assert.equal(first.body.student.avatar, '🦊');
+
+  const guesser = client();
+  let last;
+  for (let i = 0; i < 9; i++) last = await guesser('POST', `/api/s/${path.code}/join`, { name: 'מאיה', secret: ['🌈', '🌈', '🌈'] });
+  assert.equal(last.status, 429);
+
+  const prog = (await t('GET', `/api/paths/${path.id}/progress`)).body;
+  assert.deepEqual([prog.students[0].avatar, prog.students[0].hasSecret], ['🦊', true]);
+  assert.equal((await t('POST', `/api/students/${prog.students[0].id}/reset-secret`)).status, 200);
+  assert.deepEqual((await kid('POST', `/api/s/${path.code}/name`, { name: 'מאיה' })).body, { exists: true, hasSecret: false });
+  // After a reset the student sets a new secret and keeps their progress and identity.
+  const back = await kid('POST', `/api/s/${path.code}/join`, { name: 'מאיה', secret: ['⚽', '⚽', '🎈'] });
+  assert.equal(back.body.token, first.body.token);
 });

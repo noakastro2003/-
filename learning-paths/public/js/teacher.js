@@ -835,7 +835,7 @@ function renderProgress(el, { tasks, students, help }, reload, state) {
         h('tbody', {}, students.map((s) => {
           const pct = tasks.length ? Math.round((done(s) / tasks.length) * 100) : 0;
           return h('tr', {},
-            h('th', { class: 'sticky', scope: 'row' }, s.name),
+            h('th', { class: 'sticky', scope: 'row' }, s.avatar && h('span', { class: 'row-avatar', 'aria-hidden': 'true' }, s.avatar), s.name),
             h('td', {}, h('div', { class: 'mini-progress', title: `${pct}%` }, h('span', { style: { width: `${pct}%` } })), h('span', { class: 'small muted' }, `${done(s)}/${tasks.length}`)),
             tasks.map((t) => {
               const d = s.done[t.id];
@@ -854,7 +854,13 @@ function renderProgress(el, { tasks, students, help }, reload, state) {
               return h('td', { class: `cell${needsHelp ? ' help' : ''}`, title: needsHelp ? 'מבקש/ת עזרה' : 'עוד לא' }, needsHelp ? '✋' : '');
             }),
             h('td', { class: 'small muted' }, formatDate(s.lastActive)),
-            h('td', {}, h('button', {
+            h('td', { class: 'row-actions' }, h('button', {
+              class: 'icon-btn', 'aria-label': `איפוס הסיסמה הסודית של ${s.name}`, title: 'איפוס הסיסמה הסודית', disabled: !s.hasSecret,
+              onclick: async () => {
+                if (!(await confirmDialog(`לאפס את הסיסמה הסודית של ${s.name}? בכניסה הבאה הוא/היא יבחר/תבחר סיסמה חדשה. ההתקדמות נשמרת.`, { okText: 'איפוס' }))) return;
+                api('POST', `/api/students/${s.id}/reset-secret`).then(() => { toast('הסיסמה אופסה', 'ok'); reload(); }).catch((err) => toast(err.message, 'error'));
+              },
+            }, '🔑'), h('button', {
               class: 'icon-btn', 'aria-label': `הסרת ${s.name}`, title: 'הסרה מהמסלול', onclick: async () => {
                 if (!(await confirmDialog(`להסיר את ${s.name} מהמסלול? ההתקדמות שלו/ה תימחק.`, { okText: 'הסרה', danger: true }))) return;
                 api('DELETE', `/api/students/${s.id}`).then(reload).catch((err) => toast(err.message, 'error'));

@@ -710,3 +710,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .card-bold .map-cards .station-label, .card-glass .map-cards .station-label {
   border: 0; box-shadow: none; background: none; -webkit-backdrop-filter: none; backdrop-filter: none;
 }
+
+/* ===== student secret & avatar ===== */
+.secret-card .field-label { margin: .8rem 0 .4rem; }
+.avatar-grid, .secret-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+.avatar-btn, .secret-btn { aspect-ratio: 1; border-radius: 16px; border: 2.5px solid var(--k-line); background: var(--k-surface); font-size: 2rem; cursor: pointer; transition: transform .1s, border-color .15s; }
+.avatar-btn:hover, .secret-btn:hover { border-color: var(--accent); }
+.secret-btn:active { transform: scale(.94); }
+.avatar-btn.selected { border-color: var(--accent); background: var(--accent-soft); transform: scale(1.06); }
+.secret-slots { display: flex; justify-content: center; gap: .6rem; margin: .4rem 0; }
+.secret-slot { width: 58px; height: 58px; border-radius: 16px; border: 2.5px dashed var(--k-line); display: grid; place-items: center; font-size: 2rem; }
+.secret-slot.on { border-style: solid; border-color: var(--accent); background: var(--accent-soft); }
+.secret-card .row { margin: .6rem 0; }
+.row-avatar { margin-inline-end: .35rem; } .row-actions { white-space: nowrap; }
+.avatar-grid { grid-template-columns: repeat(6, 1fr); gap: .4rem; } .avatar-btn { font-size: 1.6rem; border-radius: 12px; }

@@ -9,6 +9,20 @@ function randomInt(n) {
   return crypto.getRandomValues(new Uint32Array(1))[0] % n;
 }
 
+// A student's "secret password": 3 picks (repeats allowed) from these pictures. Easy for
+// young children and weak readers; the server rate-limits guessing.
+export const SECRET_EMOJIS = ['🍎', '🐶', '🚗', '⭐', '🌈', '🐱', '🍕', '⚽', '🎈', '🌻', '🐠', '🚀'];
+export const AVATARS = ['🦁', '🐯', '🐼', '🐨', '🦊', '🐸', '🐵', '🦄', '🐙', '🐧', '🦖', '🐢'];
+export const SECRET_LENGTH = 3;
+
+// Validates a picked secret; returns it as one string, or throws.
+export function secretString(picks) {
+  if (!Array.isArray(picks) || picks.length !== SECRET_LENGTH || !picks.every((x) => SECRET_EMOJIS.includes(x))) {
+    throw new HttpError(400, `בחרו ${SECRET_LENGTH} תמונות לסיסמה הסודית`);
+  }
+  return picks.join('|');
+}
+
 // The 4-digit code a teacher types on a student's screen to approve their work.
 export const randomPin = () => String(randomInt(10000)).padStart(4, '0');
 

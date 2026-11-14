@@ -63,6 +63,8 @@ export async function studentPage(app, code) {
     help: [],
     pending: [],
     sinceBreak: 0,
+    join: data.join || { secretEmojis: [], avatars: [] },
+    avatar: '',
   };
 
   if (s.preview) {
@@ -86,6 +88,7 @@ const auth = (s) => ({ 'X-Student-Token': s.token });
 
 function applyState(s, st) {
   s.name = st.student.name;
+  s.avatar = st.student.avatar || '';
   s.done = st.done;
   s.help = st.help;
   s.pending = st.pending || [];
@@ -100,18 +103,15 @@ function frame(s, ...children) {
 
 function showJoin(s) {
   const name = h('input', { type: 'text', maxlength: 40, required: true, autocomplete: 'given-name', 'aria-label': 'השם שלי', placeholder: 'השם שלי' });
-  const submit = h('button', { class: 'btn primary big block', type: 'submit' }, 'יוצאים לדרך! 🚀');
+  const submit = h('button', { class: 'btn primary big block', type: 'submit' }, 'המשך ←');
   frame(s, h('main', { class: 'center-page kid' },
     h('form', {
       class: 'card narrow center join-card', onsubmit: async (e) => {
         e.preventDefault();
         submit.disabled = true;
         try {
-          const r = await api('POST', `/api/s/${s.code}/join`, { name: name.value });
-          s.token = r.token;
-          storage(tokenKey(s.code), r.token);
-          applyState(s, r);
-          showMap(s);
+          const r = await api('POST', `/api/s/${s.code}/name`, { name: name.value });
+          showSecret(s, name.value.trim(), r.hasSecret ? 'enter' : 'create');
         } catch (err) {
           toast(err.message, 'error');
           submit.disabled = false;
@@ -119,14 +119,70 @@ function showJoin(s) {
       },
     },
       h('div', { class: 'big-emoji', 'aria-hidden': 'true' }, s.theme.icon),
-      s.theme.buddy && buddySays(s, 'היי! אני אלווה אותך לאורך כל המסלול 👋'),
+      s.theme.buddy && buddySays(s, 'היי! אני אלווה אתכם לאורך כל המסלול 👋'),
       h('h1', { class: 'path-font' }, s.path.title),
       s.path.description && h('p', { class: 'path-font desc' }, s.path.description),
-      h('p', {}, `${s.tasks.length} משימות קטנות מחכות לך`),
-      h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'איך קוראים לך?'), name),
-      submit,
-      h('p', { class: 'muted small' }, 'כבר התחלת? כתבו את אותו שם בדיוק כדי להמשיך מאיפה שעצרתם.'))));
+      h('p', {}, `${s.tasks.length} משימות קטנות מחכות לכם`),
+      h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'איך קוראים לכם?'), name),
+      submit)));
   name.focus();
+}
+
+// Step 2 of joining. New students pick an animal and a secret of three pictures;
+// returning students tap their secret to continue where they stopped.
+function showSecret(s, name, mode) {
+  const { secretEmojis, avatars } = s.join;
+  const create = mode === 'create';
+  let picks = [];
+  let avatar = '';
+  const slots = h('div', { class: 'secret-slots', 'aria-live': 'polite' });
+  const message = h('p', { class: 'pin-message', role: 'status' });
+  const submit = h('button', { class: 'btn primary big block', disabled: true }, create ? 'יוצאים לדרך! 🚀' : 'כניסה ←');
+  const avatarRow = create && h('div', { class: 'avatar-grid', role: 'radiogroup', 'aria-label': 'הדמות שלי' });
+  const drawAvatars = () => avatarRow && mount(avatarRow, avatars.map((a) => h('button', {
+    type: 'button', class: `avatar-btn${a === avatar ? ' selected' : ''}`, role: 'radio', 'aria-checked': String(a === avatar),
+    onclick: () => { avatar = a; drawAvatars(); draw(); },
+  }, a)));
+  const draw = () => {
+    mount(slots, Array.from({ length: 3 }, (_, k) => h('span', { class: `secret-slot${picks[k] ? ' on' : ''}` }, picks[k] || '')));
+    slots.setAttribute('aria-label', `נבחרו ${picks.length} מתוך 3`);
+    submit.disabled = picks.length < 3 || (create && !avatar);
+  };
+  const grid = h('div', { class: 'secret-grid' }, secretEmojis.map((em) => h('button', {
+    type: 'button', class: 'secret-btn', 'aria-label': em,
+    onclick: () => { if (picks.length < 3) { picks.push(em); message.textContent = ''; draw(); } },
+  }, em)));
+
+  submit.onclick = async () => {
+    submit.disabled = true;
+    try {
+      const r = await api('POST', `/api/s/${s.code}/join`, { name, secret: picks, avatar });
+      s.token = r.token;
+      storage(tokenKey(s.code), r.token);
+      applyState(s, r);
+      showMap(s);
+    } catch (err) {
+      picks = [];
+      draw();
+      message.className = 'pin-message wrong';
+      message.textContent = err.message;
+    }
+  };
+
+  frame(s, h('main', { class: 'center-page kid' },
+    h('div', { class: 'card narrow center join-card secret-card' },
+      h('h1', { class: 'path-font' }, create ? `נעים מאוד, ${name}!` : `שמחים שחזרתם, ${name}!`),
+      create && [h('p', { class: 'field-label' }, '1. בחרו דמות'), avatarRow],
+      h('p', { class: 'field-label' }, create ? '2. בחרו סיסמה סודית: 3 תמונות' : 'מה הסיסמה הסודית שלכם?'),
+      create && h('p', { class: 'muted small' }, 'תזכרו אותן! בפעם הבאה תלחצו על אותן 3 תמונות כדי להמשיך.'),
+      slots, message, grid,
+      h('div', { class: 'row center' },
+        h('button', { type: 'button', class: 'btn ghost small', onclick: () => { picks.pop(); draw(); } }, '⌫ מחיקה'),
+        h('button', { type: 'button', class: 'btn ghost small', onclick: () => showJoin(s) }, 'זה לא השם שלי')),
+      submit,
+      !create && h('p', { class: 'muted small' }, 'שכחתם? בקשו מהמורה לאפס את הסיסמה.'))));
+  drawAvatars();
+  draw();
 }
 
 // ----- helpers about progress -----
@@ -149,7 +205,7 @@ function progressBar(s) {
 
 function kidHeader(s, extra) {
   return h('header', { class: 'kid-header' },
-    h('div', { class: 'kid-hello path-font' }, `${s.theme.icon} היי ${s.name}!`),
+    h('div', { class: 'kid-hello path-font' }, `${s.avatar || s.theme.icon} היי ${s.name}!`),
     h('div', { class: 'stars', 'aria-label': `${doneCount(s)} כוכבים` }, '⭐ ', doneCount(s)),
     extra);
 }

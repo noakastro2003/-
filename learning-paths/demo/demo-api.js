@@ -3,7 +3,7 @@
 import * as v from '../validate.js';
 import { HttpError } from '../validate.js';
 import { TEMPLATES } from '../templates.js';
-import { studentContent, gradeAnswer, parseAiInput, pathFromAi, randomPin } from '../logic.js';
+import { studentContent, gradeAnswer, parseAiInput, pathFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS } from '../logic.js';
 import { SYSTEM_PROMPT, GRADES, AI_TASK_TYPES, buildRequestText, jsonFormatInstructions } from '../ai-prompt.js';
 import { docxToText } from '../docx.js';
 import * as billing from '../billing.js';
@@ -154,7 +154,7 @@ function studentState(p, s) {
     if (d.approved === false) pending.push(Number(taskId));
     else done[taskId] = { answer: d.answer, completedAt: d.completedAt };
   }
-  return { student: { id: s.id, name: s.name }, done, pending, help: p.help.filter((h) => h.studentId === s.id && !h.resolved).map((h) => h.taskId) };
+  return { student: { id: s.id, name: s.name, avatar: s.avatar || '' }, done, pending, help: p.help.filter((h) => h.studentId === s.id && !h.resolved).map((h) => h.taskId) };
 }
 
 // The teacher's decision on a pending task: approve, or send it back to redo.
@@ -390,11 +390,22 @@ route('GET', '/api/paths/:id/progress', ({ params }) => {
   return {
     tasks: p.tasks.map((t) => taskOut(t)),
     students: p.students.map((s) => ({
-      id: s.id, name: s.name, joinedAt: s.createdAt, lastActive: s.lastActive,
+      id: s.id, name: s.name, avatar: s.avatar || '', hasSecret: Boolean(s.secret), joinedAt: s.createdAt, lastActive: s.lastActive,
       done: Object.fromEntries(Object.entries(p.progress[s.id] || {}).map(([k, d]) => [k, { ...d, approved: d.approved !== false }])),
     })).sort((a, b) => a.name.localeCompare(b.name, 'he')),
     help: p.help.filter((h) => !h.resolved).map(({ id, studentId, taskId, createdAt }) => ({ id, studentId, taskId, createdAt })),
   };
+});
+
+route('POST', '/api/students/:id/reset-secret', ({ params }) => {
+  for (const p of paths.values()) {
+    const s = p.students.find((x) => x.id === Number(params.id));
+    if (!s) continue;
+    s.secret = null;
+    save(p, { touch: false });
+    return { ok: true };
+  }
+  throw new HttpError(404, 'התלמיד/ה לא נמצא/ה');
 });
 
 route('DELETE', '/api/students/:id', ({ params }) => {
@@ -433,16 +444,33 @@ route('GET', '/api/s/:code', ({ params }) => {
     tasks: p.tasks.map((t) => taskOut(t, true)),
     // The demo's teacher plays the student on published paths; drafts open as a preview.
     preview: !p.published,
+    join: { secretEmojis: SECRET_EMOJIS, avatars: AVATARS },
   };
 });
 
+const findStudent = (p, name) => p.students.find((x) => x.name.toLowerCase() === name.toLowerCase());
+
+route('POST', '/api/s/:code/name', ({ params, body }) => {
+  const p = byCode(params.code);
+  const s = findStudent(p, v.str(body.name, { max: 40, required: true, field: 'שם' }));
+  return { exists: Boolean(s), hasSecret: Boolean(s?.secret) };
+});
+
+// The demo keeps the secret as-is: it lives only in the viewer's own private data.
 route('POST', '/api/s/:code/join', ({ params, body }) => {
   const p = byCode(params.code);
   const name = v.str(body.name, { max: 40, required: true, field: 'שם' });
-  let s = p.students.find((x) => x.name.toLowerCase() === name.toLowerCase());
+  const secret = secretString(body.secret);
+  const avatar = AVATARS.includes(body.avatar) ? body.avatar : '';
+  let s = findStudent(p, name);
   if (!s) {
-    s = { id: newId(), name, token: token(), createdAt: now(), lastActive: now() };
+    s = { id: newId(), name, token: token(), createdAt: now(), lastActive: now(), secret, avatar };
     p.students.push(s);
+  } else if (!s.secret) {
+    s.secret = secret;
+    if (avatar) s.avatar = avatar;
+  } else if (s.secret !== secret) {
+    throw Object.assign(new HttpError(403, 'הסיסמה הסודית לא נכונה. נסו שוב, או בקשו מהמורה לאפס אותה.'), { code: 'wrong_secret' });
   }
   s.lastActive = now();
   save(p, { touch: false });

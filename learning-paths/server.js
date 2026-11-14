@@ -10,7 +10,7 @@ import { TEMPLATES } from './templates.js';
 import { createAiTools, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
 import { stripNikud } from './validate.js';
 import {
-  studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS,
+  studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS, GRADED_TYPES,
 } from './logic.js';
 import * as billing from './billing.js';
 import { createMailer } from './mailer.js';
@@ -254,6 +254,11 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     wrongAttempt: db.prepare(`INSERT INTO task_attempts (student_id, task_id, opened_at, wrong) VALUES (?, ?, ?, 1)
                               ON CONFLICT (student_id, task_id) DO UPDATE SET wrong = wrong + 1`),
     attempt: db.prepare('SELECT * FROM task_attempts WHERE student_id = ? AND task_id = ?'),
+    // Graded tasks the student finished without a single wrong answer.
+    firstTry: db.prepare(`SELECT COUNT(*) AS n FROM progress p JOIN tasks t ON t.id = p.task_id
+                          LEFT JOIN task_attempts a ON a.student_id = p.student_id AND a.task_id = p.task_id
+                          WHERE p.student_id = ? AND p.approved = 1 AND COALESCE(a.wrong, 0) = 0
+                          AND t.type IN (${GRADED_TYPES.map((t) => `'${t}'`).join(', ')})`),
     attemptsOfPath: db.prepare(`SELECT a.student_id, a.task_id, a.wrong FROM task_attempts a
                                 JOIN students s ON s.id = a.student_id WHERE s.path_id = ?`),
     setDuration: db.prepare('UPDATE progress SET duration_sec = ? WHERE student_id = ? AND task_id = ? AND duration_sec IS NULL'),
@@ -437,7 +442,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
       done[r.task_id] = { answer: r.answer == null ? null : JSON.parse(r.answer), completedAt: r.completed_at };
     }
     const help = q.openHelpForStudent.all(s.id).map((r) => r.task_id);
-    return { student: { id: s.id, name: s.name, avatar: s.avatar || '' }, done, pending, help };
+    return { student: { id: s.id, name: s.name, avatar: s.avatar || '' }, done, pending, help, firstTry: q.firstTry.get(s.id).n };
   }
 
   // The teacher's decision on a pending task: approve, or send it back to redo.

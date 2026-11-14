@@ -4,6 +4,7 @@ import { go } from './app.js';
 import { TASK_TYPES, BREAK_IDEAS, applyTheme, youtubeEmbed } from './themes.js';
 import { GAMES, gameSpeech } from './games.js';
 import { DEMO } from './env.js';
+import { play, setPathSound, muted, setMuted } from './sound.js';
 
 // ---------- code entry ----------
 
@@ -51,6 +52,7 @@ export async function studentPage(app, code) {
 
   applyTheme(app, data.path.theme);
   document.body.classList.toggle('student-dark', data.path.theme.mode === 'dark');
+  setPathSound(data.path.theme.sound);
   const s = {
     app, code,
     path: data.path,
@@ -64,6 +66,8 @@ export async function studentPage(app, code) {
     pending: [],
     sinceBreak: 0,
     join: data.join || { secretEmojis: [], avatars: [] },
+    firstTry: 0,
+    badgesShown: null, // badges already celebrated, so each pops up only once
     avatar: '',
   };
 
@@ -92,6 +96,36 @@ function applyState(s, st) {
   s.done = st.done;
   s.help = st.help;
   s.pending = st.pending || [];
+  s.firstTry = st.firstTry || 0;
+  s.badgesShown ||= new Set(earnedBadges(s)); // a returning student isn't re-congratulated
+}
+
+// ----- badges -----
+
+const BADGES = [
+  { id: 'first', icon: '🌱', name: 'צעד ראשון', test: (s) => doneCount(s) >= 1 },
+  { id: 'three', icon: '🔥', name: 'שלוש משימות', test: (s) => doneCount(s) >= 3 },
+  { id: 'half', icon: '⭐', name: 'חצי דרך', test: (s) => s.tasks.length >= 4 && doneCount(s) >= Math.ceil(s.tasks.length / 2) },
+  { id: 'target', icon: '🎯', name: 'בול בפעם הראשונה', test: (s) => s.firstTry >= 3 },
+  { id: 'finish', icon: '🏆', name: 'סיימתי את המסלול', test: (s) => s.tasks.length > 0 && doneCount(s) === s.tasks.length },
+];
+
+const earnedBadges = (s) => BADGES.filter((b) => b.test(s)).map((b) => b.id);
+
+// Badges earned since the last celebration; marks them as shown.
+function newBadges(s) {
+  s.badgesShown ||= new Set();
+  const fresh = BADGES.filter((b) => b.test(s) && !s.badgesShown.has(b.id));
+  for (const b of fresh) s.badgesShown.add(b.id);
+  return fresh;
+}
+
+function badgeRow(s) {
+  return h('ul', { class: 'badge-row', 'aria-label': 'התגים שלי' }, BADGES.map((b) => {
+    const on = b.test(s);
+    return h('li', { class: `badge${on ? ' on' : ''}`, title: on ? b.name : `${b.name} (עוד לא)` },
+      h('span', { 'aria-hidden': 'true' }, b.icon), h('span', { class: 'badge-name' }, b.name));
+  }));
 }
 
 function frame(s, ...children) {
@@ -206,7 +240,12 @@ function progressBar(s) {
 function kidHeader(s, extra) {
   return h('header', { class: 'kid-header' },
     h('div', { class: 'kid-hello path-font' }, `${s.avatar || s.theme.icon} היי ${s.name}!`),
-    h('div', { class: 'stars', 'aria-label': `${doneCount(s)} כוכבים` }, '⭐ ', doneCount(s)),
+    h('div', { class: 'row' },
+      s.theme.sound !== false && h('button', {
+        class: 'icon-btn mute-btn', 'aria-label': muted() ? 'הפעלת צלילים' : 'השתקת צלילים', title: muted() ? 'הפעלת צלילים' : 'השתקה',
+        onclick: (e) => { setMuted(!muted()); e.currentTarget.textContent = muted() ? '🔇' : '🔊'; },
+      }, muted() ? '🔇' : '🔊'),
+      h('div', { class: 'stars', 'aria-label': `${doneCount(s)} כוכבים` }, '⭐ ', doneCount(s))),
     extra);
 }
 
@@ -246,6 +285,7 @@ function showMap(s) {
     h('main', { class: 'kid-main' },
       h('h1', { class: 'path-title path-font' }, s.path.title),
       progressBar(s),
+      !s.preview && badgeRow(s),
       allDone
         ? h('div', { class: 'card center finish-mini' }, h('span', { class: 'big-emoji' }, '🏆'), h('p', {}, 'סיימת את כל המסלול! איזה כיף!'))
         : h('button', { class: 'btn primary big go-btn', onclick: () => openTask(s, next) },
@@ -397,6 +437,7 @@ function showTask(s, i) {
       }
       if (!r.correct) {
         feedback.className = 'feedback try-again';
+        play('wrong');
         feedback.textContent = r.wrong?.length ? 'כמעט! תקנו את מה שמסומן באדום 🙂' : 'כמעט! נסו תשובה אחרת 🙂';
         onWrong?.(r.wrong || []);
         finishBtn.disabled = false;
@@ -474,7 +515,7 @@ function focusTimer(minutes) {
     interval = setInterval(() => {
       if (!wrap.isConnected) return stop();
       left = Math.max(0, left - 1);
-      if (left === 0) { stop(); chime(); }
+      if (left === 0) { stop(); play('chime'); }
       draw();
     }, 1000);
     draw();
@@ -484,22 +525,6 @@ function focusTimer(minutes) {
   return wrap;
 }
 
-function chime() {
-  try {
-    const ctx = new AudioContext();
-    [660, 880, 990].forEach((f, i) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, ctx.currentTime + i * 0.18);
-      g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + i * 0.18 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.18 + 0.4);
-      o.connect(g).connect(ctx.destination);
-      o.start(ctx.currentTime + i * 0.18);
-      o.stop(ctx.currentTime + i * 0.18 + 0.45);
-    });
-  } catch { /* audio unavailable */ }
-}
 
 // ----- teacher approval -----
 
@@ -653,6 +678,7 @@ function showWellDone(s, i, explanation) {
   const breakDue = s.theme.breakEvery > 0 && s.sinceBreak >= s.theme.breakEvery;
   const goNext = () => (breakDue ? showBreak(s, next) : openTask(s, next));
   const nextBtn = h('button', { class: 'btn primary big', onclick: goNext }, breakDue ? 'זמן להפסקה קטנה 🙆' : 'למשימה הבאה ←');
+  const fresh = s.preview ? [] : newBadges(s);
 
   frame(s,
     kidHeader(s),
@@ -663,8 +689,12 @@ function showWellDone(s, i, explanation) {
         h('p', {}, 'סיימת את ', h('strong', {}, t.title)),
         explanation && h('p', { class: 'explanation path-font' }, explanation),
         s.theme.buddy && buddySays(s, CHEERS[Math.floor(Math.random() * CHEERS.length)]),
+        fresh.length > 0 && h('div', { class: 'new-badge pop' },
+          h('span', { class: 'new-badge-icon', 'aria-hidden': 'true' }, fresh.map((b) => b.icon).join(' ')),
+          h('span', {}, h('strong', {}, fresh.length > 1 ? 'תגים חדשים!' : 'תג חדש!'), ' ', fresh.map((b) => b.name).join(', '))),
         progressBar(s),
         h('div', { class: 'stack' }, nextBtn, h('button', { class: 'btn ghost', onclick: () => showMap(s) }, 'למפה')))));
+  play(fresh.length ? 'badge' : 'success');
   if (s.theme.celebrate) celebrate(s.app, s.theme.celebration);
   nextBtn.focus();
 }
@@ -679,7 +709,7 @@ function showBreak(s, next) {
     if (!label.isConnected) return clearInterval(timer);
     left = Math.max(0, left - 1);
     draw();
-    if (left === 0) { clearInterval(timer); chime(); label.textContent = 'נגמרה ההפסקה!'; }
+    if (left === 0) { clearInterval(timer); play('chime'); label.textContent = 'נגמרה ההפסקה!'; }
   }, 1000);
   draw();
   frame(s, h('main', { class: 'center-page kid' },
@@ -688,7 +718,7 @@ function showBreak(s, next) {
       h('div', { class: 'big-emoji breathe', 'aria-hidden': 'true' }, idea.icon),
       s.theme.buddy ? buddySays(s, idea.text) : h('p', { class: 'break-idea path-font' }, idea.text),
       label,
-      h('button', { class: 'btn primary big', onclick: () => { clearInterval(timer); openTask(s, next); } }, 'מוכנ/ה להמשיך ←'))));
+      h('button', { class: 'btn primary big', onclick: () => { clearInterval(timer); openTask(s, next); } }, 'מוכנים להמשיך ←'))));
 }
 
 function showFinish(s) {
@@ -700,7 +730,10 @@ function showFinish(s) {
         h('h1', { class: 'path-font' }, `סיימת את כל המסלול, ${s.name}!`),
         h('p', {}, `השלמת ${s.tasks.length} משימות וצברת ${doneCount(s)} כוכבים.`),
         h('p', { class: 'big-stars', 'aria-hidden': 'true' }, '⭐'.repeat(Math.min(doneCount(s), 12))),
+        !s.preview && badgeRow(s),
         h('button', { class: 'btn primary', onclick: () => showMap(s) }, 'לראות את המפה'))));
+  if (!s.preview) newBadges(s);
+  play('fanfare');
   celebrate(s.app, s.theme.celebrate ? s.theme.celebration : 'confetti');
   setTimeout(() => s.app.isConnected && celebrate(s.app, 'confetti'), 1200);
 }

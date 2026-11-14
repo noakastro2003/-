@@ -79,6 +79,7 @@ export const THEME_DEFAULTS = Object.freeze({
   breakMinutes: 2,
   celebrate: true,
   readAloud: true,
+  sound: true,
   mode: 'light',          // 'dark' = night mode for the student screens
   stations: 'circle',     // shape of the stations on the map
   card: 'soft',           // style of the task cards
@@ -114,7 +115,7 @@ export function theme(input = {}, base = THEME_DEFAULTS) {
   if (input.buddy !== undefined) t.buddy = str(input.buddy, { max: 16, field: 'דמות מלווה' });
   if (input.breakEvery !== undefined) t.breakEvery = int(input.breakEvery, { min: 0, max: 20, def: t.breakEvery });
   if (input.breakMinutes !== undefined) t.breakMinutes = int(input.breakMinutes, { min: 1, max: 15, def: t.breakMinutes });
-  for (const key of ['celebrate', 'readAloud']) {
+  for (const key of ['celebrate', 'readAloud', 'sound']) {
     if (input[key] !== undefined) t[key] = Boolean(input[key]);
   }
   return t;

@@ -746,7 +746,8 @@ function designTab(body, state) {
           toggle('celebrate', 'חגיגה בסיום משימה', 'אנימציה קצרה וכוכב על כל משימה שהושלמה'),
           h('fieldset', { disabled: !theme.celebrate },
             swatches('celebration', CELEBRATIONS, (o) => [h('span', { class: 'swatch-emoji' }, o.icon), h('span', { class: 'small' }, o.name)])),
-          toggle('readAloud', 'כפתור הקראה', 'התלמיד/ה יכול/ה לשמוע את ההוראות בקול'))));
+          toggle('readAloud', 'כפתור הקראה', 'התלמיד/ה יכול/ה לשמוע את ההוראות בקול'),
+          toggle('sound', 'צלילים', 'צליל קצר בהצלחה, בטעות, בתג חדש ובסיום. כל תלמיד/ה יכול/ה להשתיק במכשיר שלו/ה.'))));
   };
 
   const renderPreview = () => {

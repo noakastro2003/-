@@ -9,6 +9,9 @@ function randomInt(n) {
   return crypto.getRandomValues(new Uint32Array(1))[0] % n;
 }
 
+// Task types with right and wrong answers: a "first try" badge counts these.
+export const GRADED_TYPES = ['choice', 'matching', 'order', 'blanks', 'truefalse'];
+
 // A student's "secret password": 3 picks (repeats allowed) from these pictures. Easy for
 // young children and weak readers; the server rate-limits guessing.
 export const SECRET_EMOJIS = ['🍎', '🐶', '🚗', '⭐', '🌈', '🐱', '🍕', '⚽', '🎈', '🌻', '🐠', '🚀'];

@@ -3,7 +3,7 @@
 import * as v from '../validate.js';
 import { HttpError } from '../validate.js';
 import { TEMPLATES } from '../templates.js';
-import { studentContent, gradeAnswer, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS } from '../logic.js';
+import { studentContent, gradeAnswer, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS, GRADED_TYPES } from '../logic.js';
 import { SYSTEM_PROMPT, GRADES, AI_TASK_TYPES, buildRequestText, jsonFormatInstructions, NIKUD_SYSTEM, improvePrompt } from '../ai-prompt.js';
 import { docxToText } from '../docx.js';
 import * as billing from '../billing.js';
@@ -154,7 +154,8 @@ function studentState(p, s) {
     if (d.approved === false) pending.push(Number(taskId));
     else done[taskId] = { answer: d.answer, completedAt: d.completedAt };
   }
-  return { student: { id: s.id, name: s.name, avatar: s.avatar || '' }, done, pending, help: p.help.filter((h) => h.studentId === s.id && !h.resolved).map((h) => h.taskId) };
+  const firstTry = p.tasks.filter((t) => GRADED_TYPES.includes(t.type) && done[t.id] && !p.attempts?.[s.id]?.[t.id]?.wrong).length;
+  return { student: { id: s.id, name: s.name, avatar: s.avatar || '' }, done, pending, firstTry, help: p.help.filter((h) => h.studentId === s.id && !h.resolved).map((h) => h.taskId) };
 }
 
 // The teacher's decision on a pending task: approve, or send it back to redo.

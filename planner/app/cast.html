@@ -48,6 +48,10 @@ body { font-family: Heebo, system-ui, sans-serif; color: var(--ink); overflow: h
 .lesson h1 { font-size: 9vh; font-weight: 400; margin: 0 0 3vh; }
 .lesson .sec { font-size: 4.4vh; color: var(--gold); margin-bottom: 2vh; }
 .lesson p { font-size: 5vh; line-height: 1.5; max-width: 80vw; white-space: pre-wrap; margin: 0 auto; }
+.light { display: flex; flex-direction: column; gap: 4vh; padding: 5vh 4vh; border-radius: 8vh; background: #0E0C12; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .06), 0 4vh 10vh -4vh rgba(0, 0, 0, .6); }
+.light i { width: 22vh; height: 22vh; border-radius: 50%; opacity: .14; transition: opacity .25s, box-shadow .25s; }
+.light .r { background: #F05A5A; color: #F05A5A; } .light .y { background: #F6C445; color: #F6C445; } .light .g { background: #46C46E; color: #46C46E; }
+.light[data-l=r] .r, .light[data-l=y] .y, .light[data-l=g] .g { opacity: 1; box-shadow: 0 0 9vh currentColor; }
 iframe { position: fixed; inset: 0; width: 100vw; height: 100vh; border: 0; background: #000; }
 #status { position: fixed; bottom: 2vh; left: 2vw; font-size: 1.8vh; color: var(--soft); direction: rtl; }
 #status i { display: inline-block; width: 1vh; height: 1vh; border-radius: 50%; background: #E8B45A; margin-inline-end: .8vh; }
@@ -71,6 +75,8 @@ document.addEventListener('fullscreenchange', () => { $('#fs').style.display = d
 let timerT = 0, clockT = 0;
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
 function show(m) {
+  // the noise light changes often: only switch the lamp, don't redraw the screen
+  const lt = $('#light'); if (m && m.kind === 'noise' && lt) { lt.dataset.l = m.data || 'g'; return; }
   clearInterval(timerT); clearInterval(clockT);
   const st = $('#stage'); let h = '';
   const k = m && m.kind, d = m && m.data;
@@ -86,6 +92,7 @@ function show(m) {
     h = `<div class="timer" id="tm">${fmt(Math.round(d.left))}</div><div class="bar"><i id="tb" style="width:${Math.round(100 * d.left / total)}%"></i></div>${d.label ? `<div class="sub">${esc(d.label)}</div>` : ''}`;
     if (d.running) timerT = setInterval(() => { const l = Math.max(0, Math.round((end - Date.now()) / 1000)); const t = $('#tm'); if (!t) return; t.textContent = fmt(l); $('#tb').style.width = Math.round(100 * l / total) + '%'; if (!l) { t.classList.add('done'); clearInterval(timerT); } }, 250);
   }
+  else if (k === 'noise') h = `<div class="light" id="light" data-l="${esc(d || 'g')}"><i class="r"></i><i class="y"></i><i class="g"></i></div>`;
   else if (k === 'blank') h = '';
   else { h = `<div class="clock" id="ck"></div><div class="sub" id="dt"></div>`; }
   st.innerHTML = `<div class="fade">${h}</div>`;

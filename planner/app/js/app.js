@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 56; // keep in step with CACHE in sw.js
+const APP_V = 57; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1004,6 +1004,7 @@ function castSheet() {
       ${b('timer', 'timer', 'טיימר')}
       ${b('picker', 'dice', 'מי עונה?')}
       ${state.points.length ? b('points', 'medal', 'ניקוד') : ''}
+      ${b('noise', 'sparkle', 'רמזור רעש')}
       ${b('blank', 'moon', 'מסך ריק')}
     </div>
     ${secs.length ? `<h4>שלב בשיעור</h4><div class="fchips wrap">${secs.map((x, i) => `<button class="fc" data-castsec="${i}">${esc(x.label || 'שלב ' + (i + 1))}</button>`).join('')}</div>` : ''}
@@ -1019,6 +1020,7 @@ function castDo(kind, arg) {
   else if (kind === 'timer') { if (T.running || T.left) castTimer(); else { timerSetup(state.lastMin || 5, 1); return; } }
   else if (kind === 'picker') { pickerScreen(); return; }
   else if (kind === 'points') castSend('points', castData('points'));
+  else if (kind === 'noise') { castSend('noise', noise.level || 'g'); noiseProject().then(() => { if ($('#overlay.show .castsheet')) castSheet(); }); return; }
   else if (kind === 'file' && c) { const l = c.p.links.filter(x => x.url && driveId(x.url))[arg]; if (l) castSend('file', { url: l.url, text: l.text }); }
   else castSend(kind);
   if (navigator.vibrate) navigator.vibrate(8);
@@ -1064,13 +1066,14 @@ function closeClassMode() { const el = $('#classmode'); if (el) el.classList.rem
 
 // projector: huge, simple, dark – for the classroom screen
 function projector(kind, data) {
-  if (cast.on) { castSend(kind === 'timer' ? 'timer' : kind, kind === 'timer' ? timerMsg() : castData(kind, data)); toast('מוצג במסך הכיתה 📺', 1500); return; }
+  if (cast.on) { castSend(kind, kind === 'timer' ? timerMsg() : kind === 'noise' ? (noise.level || 'g') : castData(kind, data)); toast('מוצג במסך הכיתה 📺', 1500); return; }
   let el = $('#proj'); if (!el) { el = document.createElement('div'); el.id = 'proj'; document.body.appendChild(el); }
   let body = '';
   if (kind === 'text') body = `<div class="pj-text" contenteditable="true" spellcheck="false">${esc(data || state.projText || 'המשימה עכשיו:')}</div><p class="pj-hint">אפשר לכתוב ישר על המסך</p>`;
   if (kind === 'dict') body = `<ol class="pj-list">${(data || []).map(x => `<li>${esc(x)}</li>`).join('')}</ol>`;
   if (kind === 'groups') body = `<div class="pj-groups">${(data || []).map((g, i) => `<div><b>קבוצה ${i + 1}</b>${g.map(n => `<span>${esc(n)}</span>`).join('')}</div>`).join('')}</div>`;
   if (kind === 'points') body = `<div class="pj-points">${state.points.map(t => `<div><b>${esc(t.name)}</b><span>${t.pts}</span></div>`).join('')}</div>`;
+  if (kind === 'noise') body = `<div class="nl pj-nl" id="pjNoise" data-l="${noise.level || 'g'}"><i class="r"></i><i class="y"></i><i class="g"></i></div><p class="pj-hint">הטלפון מקשיב – שום דבר לא מוקלט</p>`;
   if (kind === 'timer') body = `<div class="pj-timer" id="pjTimer">${fmtT(T.running ? Math.max(0, Math.round((T.endAt - Date.now()) / 1000)) : T.left || T.total)}</div>`;
   el.innerHTML = `<button class="pj-x" data-act="projclose" aria-label="סגירה">${ic('x')}</button>${body}
     <div class="pj-bar">${[['text', 'טקסט'], ['timer', 'טיימר'], ['groups', 'קבוצות'], ['points', 'ניקוד'], ['dict', 'הכתבה']].map(([k, l]) => `<button class="${k === kind ? 'on' : ''}" data-projmode="${k}">${l}</button>`).join('')}</div>`;
@@ -1096,7 +1099,7 @@ function viewClass() {
     <form class="addtodo" data-ptnew><input name="t" placeholder="${state.points.length ? 'עוד קבוצה' : 'שולחן 1 / הכחולים'}" autocomplete="off"><button aria-label="הוספה">${ic('plus')}</button></form>
     ${state.points.length ? `<div class="btnrow"><button class="cta soft" data-act="ptzero">איפוס הנקודות</button><button class="cta soft" data-act="ptclear">מחיקת הקבוצות</button></div>` : ''}
   </div>`;
-  h += `<div class="card noise">${cardHead('sparkle', 'רמזור רעש')}
+  h += `<div class="card noise">${cardHead('sparkle', 'רמזור רעש', `<button class="linkbtn" data-act="noiseproj">${ic('screen')} ${cast.on ? 'למסך הכיתה' : 'הקרנה'}</button>`)}
     <div class="nl ${noise.on ? 'live' : ''}" id="noiseLight"><i class="r"></i><i class="y"></i><i class="g"></i></div>
     <label class="field">רגישות<input type="range" min="1" max="10" value="${noise.sens}" data-noisesens></label>
     <button class="cta ${noise.on ? 'soft' : ''}" data-act="noise">${noise.on ? 'עצירה' : 'הפעלה'}</button>
@@ -1110,20 +1113,43 @@ function viewClass() {
   return h;
 }
 function weekKey() { const t = now(); const s = addDays(new Date(t.getFullYear(), t.getMonth(), t.getDate()), -t.getDay()); return isoDay(s); }
+// show the light: on the phone, on the local projector, and on the classroom screen
+function noiseShow() {
+  const l = noise.level || 'g';
+  const pj = $('#pjNoise'); if (pj) pj.dataset.l = l;
+  if (cast.on && cast.last && cast.last.kind === 'noise') {
+    clearTimeout(noise.ct);
+    const gap = cast.relay ? 2000 : 0, since = performance.now() - (noise.sent || 0);
+    const send = () => { noise.sent = performance.now(); castSend('noise', noise.level || 'g'); };
+    if (since >= gap) send(); else noise.ct = setTimeout(send, gap - since);
+  }
+}
+async function noiseProject() {
+  if (!noise.on) await noiseToggle();
+  if (!noise.on) return;
+  if (cast.on) { castSend('noise', noise.level || 'g'); toast('הרמזור מוצג במסך הכיתה 🚦', 1600); if ($('#overlay.show .castsheet')) castSheet(); return; }
+  projector('noise');
+}
 async function noiseToggle() {
-  if (noise.on) { noise.on = false; cancelAnimationFrame(noise.raf); try { noise.stream.getTracks().forEach(t => t.stop()); noise.ctx.close(); } catch { /* fine */ } rerender(); return; }
+  if (noise.on) { noise.on = false; cancelAnimationFrame(noise.raf); try { noise.stream.getTracks().forEach(t => t.stop()); noise.ctx.close(); } catch { /* fine */ } if (cast.on && cast.last && cast.last.kind === 'noise') castSend('idle'); if ($('#proj.show[data-kind=noise]')) closeProjector(); rerender(); return; }
   try {
     noise.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     noise.ctx = new (window.AudioContext || window.webkitAudioContext)();
     const an = noise.ctx.createAnalyser(); an.fftSize = 512;
     noise.ctx.createMediaStreamSource(noise.stream).connect(an);
-    const buf = new Uint8Array(an.fftSize); noise.on = true; rerender();
+    const buf = new Uint8Array(an.fftSize); noise.on = true; noise.level = 'g'; noise.want = 'g'; rerender();
+    if (!wantAwake) { wantAwake = true; wakeOn(); }
     const tick = () => {
       if (!noise.on) return;
       an.getByteTimeDomainData(buf);
       let sum = 0; for (const v of buf) sum += (v - 128) * (v - 128);
       const rms = Math.sqrt(sum / buf.length) * noise.sens / 5;
-      const el = $('#noiseLight'); if (el) el.dataset.l = rms > 22 ? 'r' : rms > 10 ? 'y' : 'g';
+      // steady the light: a new colour must last a moment, and red stays up a little
+      const want = rms > 22 ? 'r' : rms > 10 ? 'y' : 'g', tnow = performance.now();
+      if (want !== noise.want) { noise.want = want; noise.since = tnow; }
+      const hold = noise.level === 'r' ? 1500 : 350;
+      if (want !== noise.level && tnow - noise.since > (want === 'r' ? 250 : hold)) { noise.level = want; noiseShow(); }
+      const el = $('#noiseLight'); if (el) el.dataset.l = noise.level || 'g';
       noise.raf = requestAnimationFrame(tick);
     };
     tick();
@@ -3536,6 +3562,7 @@ document.addEventListener('click', async e => {
     case 'ptzero': state.points.forEach(p => { p.pts = 0; }); save(); rerender(); break;
     case 'ptclear': withUndo(['points'], 'הקבוצות נמחקו', () => { state.points = []; }); break;
     case 'noise': noiseToggle(); break;
+    case 'noiseproj': noiseProject(); break;
     case 'nextweek': {
       const cur = pickWeek(); if (!cur) break;
       const { wk, carried } = nextWeekFrom(cur);

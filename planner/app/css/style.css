@@ -1462,3 +1462,9 @@ body.onboarding::after, body.incm::after { display: none; }
 .nksheet textarea { font-size: var(--fs-h3) !important; line-height: 1.9; }
 .nkout { font-family: 'Heebo', 'Arial Hebrew', Arial, sans-serif; }
 .nksheet .cta { margin-top: 6px; }
+
+/* noise light on the projector */
+.pj-nl { flex-direction: column; gap: 4vh; padding: 5vh 4vh; border-radius: 8vh; background: #121016; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .06); margin: 0 auto; width: max-content; }
+.pj-nl i { width: 22vh; height: 22vh; }
+.pj-nl[data-l] i { transition: opacity .25s, box-shadow .25s; }
+.pj-nl[data-l=r] .r, .pj-nl[data-l=y] .y, .pj-nl[data-l=g] .g { box-shadow: none; filter: drop-shadow(0 0 5vh currentColor); }

@@ -276,6 +276,12 @@ body.no-tts .spk{display:none!important}
 .qcard .eq,.qcard .ask{box-shadow:none;background:#F7F4EC}
 .rolled{display:flex;align-items:center;justify-content:center;gap:10px;font-size:20px}
 .miniDie svg{width:52px;height:52px;display:block}
+.die .pair{display:flex;gap:6%;width:100%;height:100%;align-items:center;justify-content:center}
+.die .pair svg{width:47%;height:auto}
+.die.two{width:150px}
+.die.big.two{width:min(86vw,360px);height:min(44vw,175px)}
+.sumLine{font-size:30px;color:var(--lild);min-height:0}
+.sumTxt{font-size:22px;color:var(--lild)}
 .pointDown{display:inline-flex;align-items:center;gap:6px;color:var(--tqd)}
 .downArr{width:24px;height:24px;animation:nudge 1.2s ease-in-out infinite}
 @keyframes nudge{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
@@ -636,7 +642,13 @@ const TX = {
   writeName: 'כִּתְבוּ שֵׁם פְּרָטִי',
   chooseName: 'בַּחֲרוּ שֵׁם',
   player: 'שַׂחְקָן',
-  answerBelow:'עוֹנִים לְמַטָּה', rolled:'יָצָא',
+  answerBelow:'עוֹנִים לְמַטָּה',
+  roll2:'לַחֲצוּ עַל קֻבִּיּוֹת הַמִּשְׂחָק',
+  hintBig:'{d} = בְּלוֹק אֶחָד וְ־{o} קֻבִּיּוֹת. יֵשׁ {u} קֻבִּיּוֹת, וְצָרִיךְ לְהוֹצִיא {o}.',
+  removeBig:'לַחֲצוּ עַל בְּלוֹק אֶחָד וְעַל {o} קֻבִּיּוֹת כְּדֵי לְהוֹצִיא אוֹתָם.',
+  removeTen:'לַחֲצוּ עַל בְּלוֹק אֶחָד כְּדֵי לְהוֹצִיא אוֹתוֹ.',
+  b_remove2:'מוֹצִיא בְּלוֹק אֶחָד וְ־{o} קֻבִּיּוֹת.',
+  twoDiceNote:'עִם 3 שַׂחְקָנִים וְיוֹתֵר: 2 קֻבִּיּוֹת מִשְׂחָק', rolled:'יָצָא',
   timeUp:'הַזְּמַן נִגְמַר – בּוֹלִי עוֹזֵר לְסַיֵּם אֶת הַתּוֹר.',
   register:'נִרְשָׁמִים', login:'נִכְנָסִים',
   myCode:'הַקּוֹד שֶׁלִּי', secret:'הַקּוֹד הַסּוֹדִי',
@@ -746,12 +758,13 @@ const Engine = (() => {
   const val = p => p.tens * 10 + p.ones;
   const TURN_MS = 90000;                 // דקה וחצי לכל ילד בכל תור
   const freshTurn = () => ({ d:0, n:0, need:false, tq:0, guess:-1, removed:0, ans:-1, tries:0,
-    fixing:false, checker:-1, verdict:'', outcome:'', mistake:'', over:'', traded:false, deadline:0, auto:false });
+    fixing:false, checker:-1, verdict:'', outcome:'', mistake:'', over:'', traded:false, deadline:0, auto:false, d1:0, d2:0, rt:0 });
 
   function newGame(level, mode, players, at){
     const L = LEVELS[level];
     return {
       v:1, gid: Math.random().toString(36).slice(2, 10), level, mode, seq:0, turn:0, phase:'roll',
+      dice: (level === 3 && players.length >= 3) ? 2 : 1,        // שלב 3 עם 3+ שחקנים: שתי קוביות משחק (2–12)
       players: players.map(p => ({ name:p.name, rocket:p.rocket, uid:p.uid || '', bolli:!!p.bolli, bot:!!p.bolli,
         tens: Math.floor(L.start / 10), ones: L.start % 10, launched:false })),
       t: Object.assign(freshTurn(), { deadline: at ? at + TURN_MS : 0 }), log: [], launchOrder: [], lastLaunch: -1, ev: { k:'start', seq:0 }
@@ -768,6 +781,7 @@ const Engine = (() => {
     s.t = Object.assign(freshTurn(), s.t || {});
     s.ev = s.ev || { k:'none', seq: s.seq || 0 };
     if (s.lastLaunch == null) s.lastLaunch = -1;
+    if (!s.dice) s.dice = 1;
     if (s.seq == null) s.seq = 0;
     return s;
   }
@@ -816,11 +830,16 @@ const Engine = (() => {
     let ev;
     switch (a.type){
       case 'ROLL': {
-        if (s.phase !== 'roll' || !(a.d >= 1 && a.d <= 6)) return null;
+        const nd = s.dice || 1;
+        if (s.phase !== 'roll' || !(a.d >= nd && a.d <= 6 * nd)) return null;
+        if (nd === 2){
+          if (!Array.isArray(a.dd) || a.dd.length !== 2 || a.dd[0] + a.dd[1] !== a.d || a.dd.some(x => !(x >= 1 && x <= 6))) return null;
+          t.d1 = a.dd[0]; t.d2 = a.dd[1];
+        }
         t.d = a.d; t.n = val(p);
         if (a.d > t.n){ t.over = L.exact ? 'wait' : 'launch'; s.phase = 'over'; }
-        else { t.need = p.ones < a.d; s.phase = 'tradeQ'; }
-        ev = { k:'roll', d:a.d }; break;
+        else { t.need = p.ones < a.d % 10; s.phase = 'tradeQ'; }      // המרה: האם יש מספיק קוביות ליחידות
+        ev = { k:'roll', d:a.d, dd: nd === 2 ? [t.d1, t.d2] : null }; break;
       }
       case 'TRADE_ANS': {
         if (s.phase !== 'tradeQ') return null;
@@ -837,9 +856,16 @@ const Engine = (() => {
         p.tens--; p.ones += 10; t.traded = true; s.phase = 'remove'; ev = { k:'trade', slot:p.tens, from:p.ones - 10 }; break;
       }
       case 'REMOVE': {
-        if (s.phase !== 'remove' || p.ones < 1 || t.removed >= t.d) return null;
-        p.ones--; t.removed++; ev = { k:'remove', cell:p.ones };
-        if (t.removed === t.d) s.phase = 'write';
+        if (s.phase !== 'remove') return null;
+        const dT = Math.floor(t.d / 10), dO = t.d % 10;        // 10–12: בלוק אחד + קוביות
+        if (a.what === 'block'){
+          if (t.rt >= dT || p.tens < 1) return null;
+          p.tens--; t.rt++; ev = { k:'remove', block:p.tens };
+        } else {
+          if (t.removed >= dO || p.ones < 1) return null;
+          p.ones--; t.removed++; ev = { k:'remove', cell:p.ones };
+        }
+        if (t.rt === dT && t.removed === dO) s.phase = 'write';
         break;
       }
       case 'WRITE': {
@@ -851,7 +877,7 @@ const Engine = (() => {
         break;
       }
       case 'BOT_MISTAKE': {          // רק בולי, רק כשצריך המרה – טעות מכוונת כדי שיהיה מה לתפוס
-        if (s.phase !== 'tradeQ' || !p.bolli || !t.need) return null;
+        if (s.phase !== 'tradeQ' || !p.bolli || !t.need || t.d >= 10) return null;
         const kind = (a.kind === 'a' && p.ones > 0) ? 'a' : 'b';
         t.mistake = kind;
         let count = 0;
@@ -911,13 +937,14 @@ const Engine = (() => {
   function botAction(s, opts={}){
     const p = s.players[s.turn], t = s.t;
     switch (s.phase){
-      case 'roll':   return { type:'ROLL', d: opts.roll ? opts.roll(s) : 1 + rnd(6) };
+      case 'roll':   if ((s.dice || 1) === 2){ const x = 1 + rnd(6), y = 1 + rnd(6); return { type:'ROLL', d:x + y, dd:[x, y] }; }
+                     return { type:'ROLL', d: opts.roll ? opts.roll(s) : 1 + rnd(6) };
       case 'over':   return { type:'NEXT' };
       case 'tradeQ': if (opts.mistake && t.need && opts.mistake(s)) return { type:'BOT_MISTAKE', kind: rnd(2) ? 'a' : 'b' };
                      return { type:'TRADE_ANS', yes:t.need };
       case 'predict':return { type:'PREDICT', g:t.n - t.d };
       case 'trade':  return { type:'TRADE' };
-      case 'remove': return { type:'REMOVE' };
+      case 'remove': return { type:'REMOVE', what: t.rt < Math.floor(t.d / 10) ? 'block' : 'cube' };
       case 'write':  return { type:'WRITE', r: val(p) };
       case 'peer':   return { type:'VERDICT', says: turnCorrect(s) ? 'right' : 'wrong' };
       case 'result': return { type:'NEXT' };
@@ -985,6 +1012,8 @@ function dieSVG(v){
     <rect x="16" y="10" width="34" height="6" rx="3" fill="#fff"/>${pips}${q}</svg>`;
 }
 
+function diceHTML(n, a, b){ return n === 2 ? `<span class="pair">${dieSVG(a)}${dieSVG(b)}</span>` : dieSVG(a); }
+function rollDice(s){ if ((s.dice || 1) === 2){ const x = 1 + rnd(6), y = 1 + rnd(6); return { d:x + y, dd:[x, y] }; } return { d:1 + rnd(6) }; }
 function blockHTML(i, sel){
   let sq = ''; for (let k = 0; k < 10; k++) sq += '<i></i>';
   return `<div class="block${sel ? ' sel' : ''}" data-i="${i}" style="${colStyle(i)}">${sq}</div>`;
@@ -1050,14 +1079,15 @@ function instrInfo(s){
   let head = (t.auto && !isBolliTurn(s)) ? TX.timeUp : (b ? TX.bolliTurn : fill(TX.turnOf, { name:esc(p.name) })), main = '', sub = '';
   const think = fill(TX.b_think, { u:N(t.n % 10), d:N(t.d) });
   switch (s.phase){
-    case 'roll':   main = b ? TX.b_roll : TX.roll; break;
+    case 'roll':   main = b ? TX.b_roll : ((s.dice || 1) === 2 ? TX.roll2 : TX.roll); break;
     case 'over':   main = t.over === 'launch' ? TX.overLaunch : TX.overWait; break;
     case 'tradeQ': main = b ? think : TX.needQ; break;
     case 'predict':main = b ? think + ' ' + (t.need ? TX.b_yes : TX.b_no) : TX.predict; break;
     case 'trade':  main = b ? (t.fixing ? TX.b_fix + ' ' + TX.b_trade : think + ' ' + TX.b_yes + ' ' + TX.b_trade) : TX.trade; break;
     case 'remove':
-      if (b) main = (!t.traded && t.removed === 0) ? think + ' ' + TX.b_no : fill(TX.b_remove, { d:N(t.d) });
-      else { main = fill(TX.remove, { d:N(t.d) }); sub = fill(TX.removed, { k:N(t.removed), d:N(t.d) }); }
+      { const dT = Math.floor(t.d / 10), dO = t.d % 10;
+        if (b) main = (!t.traded && t.removed === 0 && t.rt === 0) ? think + ' ' + TX.b_no : (dT ? fill(TX.b_remove2, { o:N(dO) }) : fill(TX.b_remove, { d:N(t.d) }));
+        else { main = dT ? (dO ? fill(TX.removeBig, { o:N(dO) }) : TX.removeTen) : fill(TX.remove, { d:N(t.d) }); sub = fill(TX.removed, { k:N(t.rt * 10 + t.removed), d:N(t.d) }); } }
       break;
     case 'write':  main = b || (L.eq && !canAct(s)) ? eqHTML(t.n, t.d, '__') : TX.howMany; break;
     case 'peer': {
@@ -1096,9 +1126,9 @@ function renderBigDie(s){
   el.classList.toggle('hide', !on); if (!on) return;
   const p = s.players[s.turn], isB = isBolliTurn(s), helper = isB || s.t.auto, me = canAct(s);
   const head = (s.t.auto && !isB) ? TX.timeUp : (isB ? TX.bolliTurn : fill(TX.turnOf, { name:esc(p.name) }));
-  const text = helper ? TX.b_roll : TX.roll;
+  const text = helper ? TX.b_roll : ((s.dice || 1) === 2 ? TX.roll2 : TX.roll);
   $('#bdCard').innerHTML = `<div class="row" style="justify-content:center"><img src="${helper ? 'images/bolli_astro.png' : rocketSrc(p.rocket)}" alt="" style="height:52px"><div class="lbl2">${head}</div>${clockHTML(s)}</div>
-    <button class="die big${me ? ' ready' : ''}" id="dieBig" aria-label="קֻבִּיַּת הַמִּשְׂחָק">${dieSVG(0)}</button>
+    <button class="die big${me ? ' ready' : ''}${(s.dice || 1) === 2 ? ' two' : ''}" id="dieBig" aria-label="קֻבִּיַּת הַמִּשְׂחָק">${diceHTML(s.dice, 0, 0)}</button><div class="sumLine" id="sumLine"></div>
     <div class="row" style="justify-content:center"><div class="lbl2">${text}</div>${spkBtn(head + '. ' + text)}</div>`;
 }
 function renderInstr(s){
@@ -1134,10 +1164,10 @@ function boardOpts(s, idx){
     sel: focus && s.phase === 'trade' && S.selBlock,
     blink: focus && s.phase === 'tradeQ' && t.tq >= 1,
     locked: !(me && (s.phase === 'trade' || s.phase === 'remove')),
-    tensHint: me && s.phase === 'trade',
-    onesHint: me && s.phase === 'remove',
+    tensHint: me && (s.phase === 'trade' || (s.phase === 'remove' && t.rt < Math.floor(t.d / 10))),
+    onesHint: me && s.phase === 'remove' && t.removed < t.d % 10,
     noNum: kpOn,
-    hideNum: focus && ((s.phase === 'remove' && t.removed > 0) || s.phase === 'write' || s.phase === 'peer' ||
+    hideNum: focus && ((s.phase === 'remove' && (t.removed > 0 || t.rt > 0)) || s.phase === 'write' || s.phase === 'peer' ||
       (s.phase === 'result' && (S.resReady !== s.seq || t.outcome === 'caught')))
   };
 }
@@ -1171,10 +1201,10 @@ function renderPanel(s){
     case 'tradeQ': {
       let hint = '';
       if (!b && t.tq >= 1){
-        const line = fill(TX.hint1, { u:N(p.ones), d:N(t.d) }) + (t.tq >= 2 ? '<br>' + (t.need ? TX.hint2yes : TX.hint2no) : '');
+        const line = (t.d >= 10 ? fill(TX.hintBig, { d:N(t.d), o:N(t.d % 10), u:N(p.ones) }) : fill(TX.hint1, { u:N(p.ones), d:N(t.d) })) + (t.tq >= 2 ? '<br>' + (t.need ? TX.hint2yes : TX.hint2no) : '');
         hint = `<div class="hint"><img src="images/bolli_think.png" alt=""><div class="htx">${line}</div>${spkBtn(line)}</div>`;
       }
-      if (me) h += qCard(TX.needQ, `<div class="rolled"><span>${TX.rolled}</span><span class="miniDie">${dieSVG(t.d)}</span></div><div class="yn"><button class="btn${t.tq >= 2 && t.need ? ' glow' : ''}" data-act="yes">${TX.yes}</button><button class="btn coral${t.tq >= 2 && !t.need ? ' glow' : ''}" data-act="no">${TX.no}</button></div>` + hint);
+      if (me) h += qCard(TX.needQ, `<div class="rolled"><span>${TX.rolled}</span>${(s.dice || 1) === 2 ? `<span class="miniDie">${dieSVG(t.d1)}</span><span class="miniDie">${dieSVG(t.d2)}</span><bdi class="ltr sumTxt">${t.d1} + ${t.d2} = ${t.d}</bdi>` : `<span class="miniDie">${dieSVG(t.d)}</span>`}</div><div class="yn"><button class="btn${t.tq >= 2 && t.need ? ' glow' : ''}" data-act="yes">${TX.yes}</button><button class="btn coral${t.tq >= 2 && !t.need ? ' glow' : ''}" data-act="no">${TX.no}</button></div>` + hint);
       else h += hint;
       break;
     }
@@ -1217,7 +1247,8 @@ function renderDock(s){
   const me = canAct(s), kpOn = me && (s.phase === 'write' || s.phase === 'predict' || s.phase === 'tradeQ');   // בשאלת ההמרה הקובייה מוצגת בתוך כרטיס השאלה
   const dock = $('#dock'); dock.classList.toggle('hide', kpOn || ['launch','end','peer','result'].includes(s.phase));
   const die = $('#die');
-  if (!die.classList.contains('rolling')) die.innerHTML = dieSVG(s.phase === 'roll' ? 0 : s.t.d);
+  const two = (s.dice || 1) === 2; die.classList.toggle('two', two);
+  if (!die.classList.contains('rolling')) die.innerHTML = s.phase === 'roll' ? diceHTML(s.dice, 0, 0) : diceHTML(s.dice, two ? s.t.d1 : s.t.d, s.t.d2);
   die.classList.toggle('ready', me && s.phase === 'roll');
   $('#station').classList.toggle('target', me && s.phase === 'trade');
 }
@@ -1266,15 +1297,18 @@ async function cubesFromStation(from, count){
   }
   await Promise.all(jobs);
 }
-async function animRoll(d){
+async function animRoll(d, dd, n){
+  n = n || 1;
   const big = !$('#bigDie').classList.contains('hide') && $('#dieBig');
   const die = big || $('#die'); Snd.roll();
   die.classList.remove('ready'); die.classList.add('rolling');
-  for (let k = 0; k < 8; k++){ die.innerHTML = dieSVG(1 + rnd(6)); await sleep(T_(85)); }
-  die.innerHTML = dieSVG(d); die.classList.remove('rolling');
+  for (let k = 0; k < 8; k++){ die.innerHTML = diceHTML(n, 1 + rnd(6), 1 + rnd(6)); await sleep(T_(85)); }
+  const fin = n === 2 ? diceHTML(2, dd[0], dd[1]) : dieSVG(d);
+  die.innerHTML = fin; die.classList.remove('rolling');
   if (big){
-    await sleep(T_(650));                                     // רואים בגדול מה יצא
-    const target = $('#die'); target.innerHTML = dieSVG(d);
+    const sl = $('#sumLine'); if (sl && n === 2) sl.innerHTML = `<bdi class="ltr">${dd[0]} + ${dd[1]} = ${d}</bdi>`;
+    await sleep(T_(n === 2 ? 1400 : 650));                    // רואים בגדול מה יצא
+    const target = $('#die'); target.innerHTML = fin;
     const a = centerOf(big), b2 = centerOf(target);
     const c = big.cloneNode(true); c.classList.add('flyer'); c.removeAttribute('id');
     Object.assign(c.style, { left:a.r.left + 'px', top:a.r.top + 'px', width:a.r.width + 'px', height:a.r.height + 'px' });
@@ -1337,12 +1371,12 @@ async function runQ(){
 async function animPre(old, ns){
   const ev = ns.ev || {};
   switch (ev.k){
-    case 'roll': await animRoll(ev.d); break;
+    case 'roll': await animRoll(ev.d, ev.dd, ns.dice || 1); break;
     case 'trade':
       if (S.dropDone) S.dropDone = false;
       else await flyToStation($(`#boardWrap .block[data-i="${ev.slot}"]`), 600);
       stationHop(); Snd.trade(); break;
-    case 'remove': Snd.pop(); await flyToStation($(`#boardWrap .cube[data-i="${ev.cell}"]`), 320); break;
+    case 'remove': Snd.pop(); await flyToStation(ev.block != null ? $(`#boardWrap .block[data-i="${ev.block}"]`) : $(`#boardWrap .cube[data-i="${ev.cell}"]`), ev.block != null ? 450 : 320); break;
     case 'mistake':
       if (ev.kind === 'a') for (let i = ev.count - 1; i >= 0; i--){ Snd.pop(); await flyToStation($(`#boardWrap .cube[data-i="${i}"]`), 300); }
       break;
@@ -1527,7 +1561,8 @@ $('#boardWrap').addEventListener('pointerdown', e => {
   if (!inTens && !inOnes) return;
   if (!canAct(s) || focusIdx(s) !== s.turn){ return; }
   if (s.phase === 'trade' && inTens){ const b = lastBlockEl(); if (b){ e.preventDefault(); startDrag(e, b); } return; }
-  if (s.phase === 'remove' && inOnes){ e.preventDefault(); humanAct({ type:'REMOVE' }); return; }
+  if (s.phase === 'remove' && inTens && s.t.rt < Math.floor(s.t.d / 10)){ e.preventDefault(); humanAct({ type:'REMOVE', what:'block' }); return; }
+  if (s.phase === 'remove' && inOnes && s.t.removed < s.t.d % 10){ e.preventDefault(); humanAct({ type:'REMOVE', what:'cube' }); return; }
   // החלקים נעולים עד שעונים על השאלה
   Snd.soft(); shakeEl(e.target.closest('.block,.cube') || inTens || inOnes);
   if (s.phase === 'tradeQ' || s.phase === 'predict') shakeEl($('#panel'));
@@ -1568,7 +1603,7 @@ $('#bigDie').addEventListener('click', e => { if (e.target.closest('#dieBig')) $
 $('#die').addEventListener('click', () => {
   const s = S.game; Snd.unlock();
   if (!s || !canAct(s)) return;
-  if (s.phase === 'roll') humanAct({ type:'ROLL', d: 1 + rnd(6) });
+  if (s.phase === 'roll') humanAct(Object.assign({ type:'ROLL' }, rollDice(s)));
   else shakeEl($('#die'));
 });
 function kpPress(k){
@@ -1828,7 +1863,7 @@ BACK.players = () => show('mode');
 function levelCard(l){
   const L = LEVELS[l];
   return `<button class="lvl" data-l="${l}" style="--lc:${L.color}"><div class="pics"><img class="pl" src="images/${L.planet}.png" alt=""><img class="rk" src="${rocketSrc(S.profile.rocket || L.planet)}" alt=""></div>
-    <div><div class="lvlT">שָׁלָב ${N(l)} · ${L.title}</div><div class="lvlS">מַתְחִילִים עִם ${N(L.start)}</div><div class="lvlX">(${N(Math.floor(L.start/10))} בְּלוֹקִים, ${N(L.start % 10)} קֻבִּיּוֹת)</div></div></button>`;
+    <div><div class="lvlT">שָׁלָב ${N(l)} · ${L.title}</div><div class="lvlS">מַתְחִילִים עִם ${N(L.start)}</div><div class="lvlX">(${N(Math.floor(L.start/10))} בְּלוֹקִים, ${N(L.start % 10)} קֻבִּיּוֹת)</div>${l === 3 ? `<div class="lvlX">${TX.twoDiceNote}</div>` : ''}</div></button>`;
 }
 ENTER.level = () => { $('#lvlList').innerHTML = [1,2,3].map(levelCard).join(''); };
 $('#lvlList').addEventListener('click', e => {

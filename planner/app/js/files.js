@@ -121,6 +121,7 @@ export function matchLessons(name, text, weeks, activeId) {
 export const fmtSize = n => n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`;
 export function kindOf(name, type) {
   const ext = (name.split('.').pop() || '').toLowerCase();
+  if (/^html?$/.test(ext) || type === 'text/html') return 'html';
   if (/pptx?|key|odp/.test(ext)) return 'ppt';
   if (ext === 'pdf' || type === 'application/pdf') return 'pdf';
   if (/xlsx?|csv|numbers/.test(ext)) return 'sheet';

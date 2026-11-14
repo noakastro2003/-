@@ -140,7 +140,7 @@ export function miniArt(text) {
 // file-type badges for the files screen
 export function fileBadge(kind) {
   const B = {
-    ppt: ['#F28B4B', 'P'], img: ['#35A99F', 'IMG'], pdf: ['#E9574F', 'PDF'], doc: ['#4F8EF0', ''], sheet: ['#3FAF6C', ''], folder: ['#A67AF3', ''], slides: ['#F6C14B', ''],
+    ppt: ['#F28B4B', 'P'], img: ['#35A99F', 'IMG'], pdf: ['#E9574F', 'PDF'], doc: ['#4F8EF0', ''], sheet: ['#3FAF6C', ''], folder: ['#A67AF3', ''], slides: ['#F6C14B', ''], html: ['#8E5BD6', '</>'],
   };
   const [c, t] = B[kind] || B.doc;
   const inner = kind === 'folder'

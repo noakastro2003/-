@@ -4,7 +4,7 @@ import { ic, art, spark, squiggle, miniArt, fileBadge, logo } from './icons.js';
 import * as ID from '../vendor/identity.mjs';
 import { putBlob, getBlob, delBlob, extractText, matchLessons, fmtSize, kindOf } from './files.js';
 import { readAnyPlan } from './genparse.js';
-import { cast, castConnect, castSend, castEnd } from './cast.js';
+import { cast, castConnect, castSend, castEnd, castStyle } from './cast.js';
 import { QUOTES, BANK, CATS, EV } from './toolkit.js';
 import { weekPrintHtml } from './printweek.js';
 import { PM_TYPES, buildToday, buildWeek as buildWeekMsg, buildDict, buildGear, buildTest, buildBday, buildAll, autoTests, autoEvents, weekBdays, buildPersonal, buildForms, formPersonal, buildChange, buildHoliday, nextHoliday, HOLIDAY_NAMES, OPENERS, CLOSERS, stripEmoji, waHtml } from './parentmsg.js';
@@ -13,8 +13,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 57; // keep in step with CACHE in sw.js
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att'];
+const APP_V = 58; // keep in step with CACHE in sw.js
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
 const state = Object.assign({
@@ -979,7 +979,27 @@ function castData(kind, data) {
   return data;
 }
 cast.onChange = () => { if ($('#overlay.show .castsheet')) castSheet(); toast(cast.on ? (cast.relay ? 'מחובר למסך הכיתה (דרך השרת)' : 'מחובר למסך הכיתה 📺') : 'החיבור למסך הכיתה נותק', 2200); };
+// an HTML page the teacher uploaded: shown in a sealed frame (it can't reach the app or its data)
+function htmlViewer(f, html) {
+  let el = $('#htmlv'); if (!el) { el = document.createElement('div'); el.id = 'htmlv'; document.body.appendChild(el); }
+  state._html = { name: f.name, html };
+  el.innerHTML = `<div class="hv-bar"><button class="ovx" data-act="hvclose" aria-label="סגירה">${ic('x')}</button><b class="grow">${esc(f.name.replace(/\.[^.]+$/, ''))}</b>
+    <button class="hv-btn" data-act="hvcast">${ic('screen')} ${cast.on ? 'למסך הכיתה' : 'למחשב בכיתה'}</button><button class="hv-btn" data-act="hvfull">${ic('layers')} מסך מלא</button></div>
+    <iframe sandbox="allow-scripts allow-forms allow-modals allow-popups" title="${esc(f.name)}"></iframe>`;
+  el.querySelector('iframe').srcdoc = html;
+  el.classList.add('show'); document.body.classList.add('noscroll');
+}
+function castHtml() {
+  const h = state._html; if (!h) return;
+  if (!cast.on) { castSheet(); return; }
+  const r = castSend('html', h.html);
+  toast(r === 'too-big' ? 'הקובץ גדול מדי לחיבור דרך השרת – נסו רשת אחרת' : 'מוצג במסך הכיתה 📺', 2400);
+}
+const CAST_THEMES = [['night', 'לילה', '#2B2138'], ['cream', 'שמנת', '#F6EEE2'], ['board', 'לוח ירוק', '#24493A'], ['sky', 'שמיים', '#D7EAFB'], ['black', 'שחור', '#000'], ['white', 'לבן', '#fff']];
+const castLook = () => ({ theme: 'night', size: 1, font: 'plain', ...(state.prefs.castStyle || {}) });
+const canvaEmbed = raw => { const m = String(raw || '').match(/canva\.com\/design\/([\w-]+)(?:\/([\w-]+))?/); return m ? `https://www.canva.com/design/${m[1]}/${m[2] ? m[2] + '/' : ''}view?embed` : ''; };
 function castSheet() {
+  cast.style = castLook();
   if (!cast.on) {
     openOverlay(`<form class="ov sheet castsheet" data-castform>
       <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
@@ -993,7 +1013,7 @@ function castSheet() {
   }
   const c = curLesson(), last = cast.last && cast.last.kind;
   const secs = c ? c.p.sections.filter(x => x.text || x.label) : [];
-  const files = c ? c.p.links.filter(l => l.url && driveId(l.url)) : [];
+  const files = c ? c.p.links.filter(l => l.url && (driveId(l.url) || canvaEmbed(l.url))) : [];
   const b = (kind, icon, label, attrs = '') => `<button class="${last === kind ? 'on' : ''}" ${attrs || `data-cast="${kind}"`}>${ic(icon)}<span>${label}</span></button>`;
   openOverlay(`<div class="ov sheet castsheet">
     <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
@@ -1009,6 +1029,15 @@ function castSheet() {
     </div>
     ${secs.length ? `<h4>שלב בשיעור</h4><div class="fchips wrap">${secs.map((x, i) => `<button class="fc" data-castsec="${i}">${esc(x.label || 'שלב ' + (i + 1))}</button>`).join('')}</div>` : ''}
     ${files.length ? `<h4>קובץ מהשיעור</h4>${files.map((l, i) => `<button class="castfile" data-castfile="${i}">${fileBadge(fileKind(l))}<span class="grow">${esc(l.text)}</span>${ic('chevL', 'chev')}</button>`).join('')}<p class="hint">קבצים מדרייב מוצגים אם הם משותפים "לכל מי שיש לו קישור"</p>` : ''}
+    ${(() => { const hs = state.files.filter(f => kindOf(f.name, f.type) === 'html'); return hs.length ? `<h4>דפי HTML שלי</h4>${hs.slice(-6).reverse().map(f => `<button class="castfile" data-casthtml="${f.id}">${fileBadge('html')}<span class="grow">${esc(f.name.replace(/\.[^.]+$/, ''))}</span>${ic('chevL', 'chev')}</button>`).join('')}` : ''; })()}
+    <h4>מצגת מקנבה</h4>
+    <form class="addtodo" data-castcanva><input name="u" placeholder="מדביקים קישור לצפייה מקנבה" autocomplete="off" dir="ltr"><button aria-label="הצגה">${ic('screen')}</button></form>
+    ${(state.canva || []).length ? `<div class="fchips wrap">${state.canva.slice(0, 5).map((c, i) => `<button class="fc" data-castcv="${i}">${esc(c.t)}</button>`).join('')}</div>` : ''}
+    <p class="hint">בקנבה: שיתוף ← "קישור לצפייה" (כל מי שיש לו את הקישור). מעבירים שקופיות בלחיצה על המסך במחשב.</p>
+    <h4>עיצוב המסך</h4>
+    <div class="ctheme">${CAST_THEMES.map(([k, l, c]) => `<button class="${castLook().theme === k ? 'on' : ''}" data-ctheme="${k}"><i style="background:${c}"></i>${l}</button>`).join('')}</div>
+    <div class="setrow"><span>גודל טקסט</span><div class="seg">${[[.8, 'קטן'], [1, 'רגיל'], [1.3, 'גדול'], [1.6, 'ענק']].map(([v, l]) => `<button class="${castLook().size === v ? 'on' : ''}" data-csize="${v}">${l}</button>`).join('')}</div></div>
+    <div class="setrow"><span>גופן</span><div class="seg">${[['plain', 'רגיל'], ['hand', 'כתב יד']].map(([v, l]) => `<button class="${castLook().font === v ? 'on' : ''}" data-cfont="${v}">${l}</button>`).join('')}</div></div>
     <h4>כתיבה על הלוח</h4>
     <form class="addtodo" data-casttext><input name="t" placeholder="המשימה עכשיו…" autocomplete="off" value="${esc(state.projText || '')}"><button aria-label="הצגה">${ic('screen')}</button></form>
     <button class="linkbtn danger-l" data-act="castend">ניתוק</button>
@@ -1021,7 +1050,7 @@ function castDo(kind, arg) {
   else if (kind === 'picker') { pickerScreen(); return; }
   else if (kind === 'points') castSend('points', castData('points'));
   else if (kind === 'noise') { castSend('noise', noise.level || 'g'); noiseProject().then(() => { if ($('#overlay.show .castsheet')) castSheet(); }); return; }
-  else if (kind === 'file' && c) { const l = c.p.links.filter(x => x.url && driveId(x.url))[arg]; if (l) castSend('file', { url: l.url, text: l.text }); }
+  else if (kind === 'file' && c) { const l = c.p.links.filter(x => x.url && (driveId(x.url) || canvaEmbed(x.url)))[arg]; if (l) { if (canvaEmbed(l.url)) castSend('canva', canvaEmbed(l.url)); else castSend('file', { url: l.url, text: l.text }); } }
   else castSend(kind);
   if (navigator.vibrate) navigator.vibrate(8);
   castSheet();
@@ -1077,7 +1106,8 @@ function projector(kind, data) {
   if (kind === 'timer') body = `<div class="pj-timer" id="pjTimer">${fmtT(T.running ? Math.max(0, Math.round((T.endAt - Date.now()) / 1000)) : T.left || T.total)}</div>`;
   el.innerHTML = `<button class="pj-x" data-act="projclose" aria-label="סגירה">${ic('x')}</button>${body}
     <div class="pj-bar">${[['text', 'טקסט'], ['timer', 'טיימר'], ['groups', 'קבוצות'], ['points', 'ניקוד'], ['dict', 'הכתבה']].map(([k, l]) => `<button class="${k === kind ? 'on' : ''}" data-projmode="${k}">${l}</button>`).join('')}</div>`;
-  el.dataset.kind = kind; el.classList.add('show');
+  if (kind === 'noise') el.insertAdjacentHTML('beforeend', `<div class="pj-shh" id="pjShh">${SHH_SVG}<div class="bub">ששששש…</div></div>`);
+  el.dataset.kind = kind; el.classList.add('show'); applyProjLook();
   try { (el.requestFullscreen || el.webkitRequestFullscreen || (() => {})).call(el); } catch { /* iPhone: stays as a full-page overlay */ }
   if (kind === 'timer') { clearInterval(projector.t); projector.t = setInterval(() => { const t = $('#pjTimer'); if (!t) return clearInterval(projector.t); t.textContent = fmtT(T.running ? Math.max(0, Math.round((T.endAt - Date.now()) / 1000)) : T.left); }, 500); }
 }
@@ -1113,10 +1143,18 @@ function viewClass() {
   return h;
 }
 function weekKey() { const t = now(); const s = addDays(new Date(t.getFullYear(), t.getMonth(), t.getDate()), -t.getDay()); return isoDay(s); }
+const SHH_SVG = `<svg viewBox="0 0 200 230" aria-hidden="true"><ellipse cx="100" cy="222" rx="62" ry="7" fill="rgba(0,0,0,.18)"/><circle cx="100" cy="112" r="86" fill="#F4D88E"/><ellipse cx="72" cy="66" rx="26" ry="16" fill="#FFF3CF" opacity=".7" transform="rotate(-25 72 66)"/><path d="M58 100q13 11 26 0M116 100q13 11 26 0" fill="none" stroke="#4A3B5C" stroke-width="6" stroke-linecap="round"/><ellipse cx="56" cy="130" rx="14" ry="8" fill="#F2A7B5" opacity=".75"/><ellipse cx="144" cy="130" rx="14" ry="8" fill="#F2A7B5" opacity=".75"/><ellipse cx="100" cy="146" rx="10" ry="8" fill="#4A3B5C"/><circle cx="106" cy="182" r="20" fill="#F7C9A0" stroke="#E2A06E" stroke-width="3"/><rect x="93" y="118" width="15" height="58" rx="7.5" fill="#F7C9A0" stroke="#E2A06E" stroke-width="3"/></svg>`;
+function applyProjLook() { const el = $('#proj'); if (!el) return; const st = castLook(); el.dataset.look = st.theme; el.dataset.font = st.font; el.style.setProperty('--tsize', st.size); }
+// red for 3 seconds in a row -> the shushing friend comes up on the phone's projector view
+function localHush(l) {
+  const el = $('#pjShh'); if (!el) return;
+  if (l === 'r') { if (!noise.redSince) noise.redSince = Date.now(); clearTimeout(noise.ht); noise.ht = setTimeout(() => { const e = $('#pjShh'); if (e) e.classList.add('show'); }, Math.max(0, 3000 - (Date.now() - noise.redSince))); }
+  else { noise.redSince = 0; clearTimeout(noise.ht); if (el.classList.contains('show')) noise.ht = setTimeout(() => { const e = $('#pjShh'); if (e) e.classList.remove('show'); }, 1500); }
+}
 // show the light: on the phone, on the local projector, and on the classroom screen
 function noiseShow() {
   const l = noise.level || 'g';
-  const pj = $('#pjNoise'); if (pj) pj.dataset.l = l;
+  const pj = $('#pjNoise'); if (pj) { pj.dataset.l = l; localHush(l); }
   if (cast.on && cast.last && cast.last.kind === 'noise') {
     clearTimeout(noise.ct);
     const gap = cast.relay ? 2000 : 0, since = performance.now() - (noise.sent || 0);
@@ -2511,7 +2549,19 @@ function lessonOptions(selected, extraWeekIds = []) {
 }
 async function handleUploads(list) {
   const w = pickWeek();
-  if (!w) { toast('קודם מעלים תכנון שבועי 🙂'); return; }
+  // HTML pages (and any file before there's a plan) are kept as general files – no lesson to match
+  const direct = !w || list.every(f => kindOf(f.name, f.type) === 'html');
+  if (direct) {
+    for (const file of list) {
+      const id = (uid() + uid()).slice(0, 14);
+      await putBlob(id, file);
+      state.files.push({ id, name: file.name, type: file.type, size: file.size, added: new Date().toISOString(), ref: null, linkIdx: -1, cloud: false });
+    }
+    attachTo = null; save(); rerender(); state.files.filter(f => !f.cloud).forEach(f => uploadCloud(f));
+    if (list.length === 1 && kindOf(list[0].name, list[0].type) === 'html') { htmlViewer(state.files[state.files.length - 1], await list[0].text()); return; }
+    toast(list.length > 1 ? `${list.length} קבצים נשמרו 📎` : 'הקובץ נשמר 📎');
+    return;
+  }
   toast(`קוראת ${list.length > 1 ? list.length + ' קבצים' : 'את הקובץ'}… ✨`, 0);
   const pending = [];
   for (const file of list) {
@@ -2570,6 +2620,7 @@ async function openFile(id) {
   if (!blob && f.cloud && sync.user) { toast('מורידה מהענן… ☁️', 0); blob = await downloadCloud(f).catch(() => null); if (blob) await putBlob(id, blob); }
   if (!blob) { toast(sync.user ? 'לא הצלחתי להוריד את הקובץ 😕' : 'הקובץ נמצא במכשיר אחר – התחברי כדי להוריד אותו ☁️', 3500); return; }
   $('#toast').classList.remove('show');
+  if (kindOf(f.name, f.type) === 'html') { htmlViewer(f, await blob.text()); return; }
   const url = URL.createObjectURL(new File([blob], f.name, { type: f.type || blob.type }));
   const a = document.createElement('a'); a.href = url; a.rel = 'noopener';
   if (/pdf|img/.test(kindOf(f.name, f.type))) a.target = '_blank'; else a.download = f.name;
@@ -3498,6 +3549,9 @@ document.addEventListener('click', async e => {
   if (D.cast) { castDo(D.cast); return; }
   if (D.castsec) { castDo('lesson', +D.castsec); return; }
   if (D.castfile) { castDo('file', +D.castfile); return; }
+  if (D.casthtml) { const f = state.files.find(x => x.id === D.casthtml); const b = f && await getBlob(f.id).catch(() => null); if (b) { state._html = { name: f.name, html: await b.text() }; castHtml(); } else toast('הקובץ לא נמצא בטלפון'); return; }
+  if (D.castcv != null) { const c = (state.canva || [])[+D.castcv]; if (c) { castSend('canva', c.u); toast('מוצג במסך הכיתה 📺', 1400); } return; }
+  if (D.ctheme || D.csize || D.cfont) { const st = castLook(); if (D.ctheme) st.theme = D.ctheme; if (D.csize) st.size = +D.csize; if (D.cfont) st.font = D.cfont; state.prefs.castStyle = st; save(); castStyle(st); applyProjLook(); castSheet(); return; }
   if (D.pal) { state.prefs.palette = D.pal; save(); applyPrefs(); rerender(); return; }
   if (D.act === 'mypalreset') { delete state.prefs.myPal; save(); applyPrefs(); rerender(); return; }
   if (D.skin) { state.prefs.skin = D.skin; save(); applyPrefs(); rerender(); return; }
@@ -3577,6 +3631,9 @@ document.addEventListener('click', async e => {
     case 'nkproj': { const o = $('#nkOut'); if (o) { closeOverlay(); projector('text', o.value); } break; }
     case 'cast': castSheet(); break;
     case 'castend': castEnd(); closeOverlay(); break;
+    case 'hvclose': { const el = $('#htmlv'); if (el) { el.classList.remove('show'); el.innerHTML = ''; } document.body.classList.remove('noscroll'); try { if (document.fullscreenElement) document.exitFullscreen(); } catch { /* fine */ } break; }
+    case 'hvcast': castHtml(); break;
+    case 'hvfull': { const el = $('#htmlv'); try { (el.requestFullscreen || el.webkitRequestFullscreen).call(el); } catch { toast('באייפון: מסובבים את הטלפון לרוחב'); } break; }
     case 'att': attSheet(); break;
     case 'attsave': { const k = attKey(); state.att = state.att || {}; state.att[k] = state.att[k] || {}; save(); closeOverlay(); rerender(); toast('הנוכחות נשמרה ✓', 1500); break; }
     case 'diagreport': { const t2 = `קובץ תכנון שלא נקרא · גרסה ${APP_V}\n${diagText(state._review && state._review.diag)}\n${navigator.userAgent}`; if (navigator.share) navigator.share({ text: t2 }).catch(() => {}); else navigator.clipboard.writeText(t2).then(() => toast('הפרטים הועתקו 📋')); break; }
@@ -3750,6 +3807,13 @@ document.addEventListener('submit', e => {
     e.preventDefault(); const btn = f.querySelector('.cta'); btn.disabled = true; btn.textContent = 'מתחברת…';
     castConnect(f.code.value).then(() => castSheet()).catch(x => { btn.disabled = false; btn.innerHTML = `${ic('link')} התחברות`; toast(x.code === 'no-such-code' ? 'לא מצאתי את הקוד – כדאי לבדוק שוב (או לרענן את המסך במחשב)' : x.code === 'bad-code' ? 'הקוד הוא 5 תווים' : 'לא הצלחתי להתחבר 😕', 3500); });
     return;
+  }
+  if (f.matches('[data-castcanva]')) {
+    e.preventDefault(); const u = canvaEmbed(f.u.value.trim());
+    if (!u) { toast('זה לא נראה כמו קישור של קנבה (canva.com/design/…)', 3000); return; }
+    const t = prompt('שם קצר למצגת (כדי למצוא אותה בפעם הבאה):', 'מצגת') || 'מצגת';
+    state.canva = [{ u, t: t.slice(0, 30) }, ...(state.canva || []).filter(c => c.u !== u)].slice(0, 12); save();
+    castSend('canva', u); toast('מוצג במסך הכיתה 📺', 1400); castSheet(); return;
   }
   if (f.matches('[data-casttext]')) { e.preventDefault(); state.projText = f.t.value.trim(); save(); castSend('text', state.projText); toast('מוצג במסך הכיתה 📺', 1400); return; }
   if (f.matches('[data-report]')) {

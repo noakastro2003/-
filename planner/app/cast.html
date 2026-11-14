@@ -9,6 +9,8 @@
 @font-face { font-family: 'Heebo'; font-weight: 300; src: url(fonts/heebo-hebrew-300-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
 @font-face { font-family: 'Heebo'; font-weight: 400; src: url(fonts/heebo-hebrew-400-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
 @font-face { font-family: 'Heebo'; font-weight: 500; src: url(fonts/heebo-hebrew-500-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Playpen'; font-weight: 400; src: url(fonts/playpen-sans-hebrew-hebrew-400-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Playpen'; font-weight: 400; src: url(fonts/playpen-sans-hebrew-latin-400-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
 @font-face { font-family: 'Heebo'; font-weight: 300; src: url(fonts/heebo-latin-300-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
 @font-face { font-family: 'Heebo'; font-weight: 400; src: url(fonts/heebo-latin-400-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
 @font-face { font-family: 'Heebo'; font-weight: 500; src: url(fonts/heebo-latin-500-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
@@ -52,6 +54,31 @@ body { font-family: Heebo, system-ui, sans-serif; color: var(--ink); overflow: h
 .light i { width: 22vh; height: 22vh; border-radius: 50%; opacity: .14; transition: opacity .25s, box-shadow .25s; }
 .light .r { background: #F05A5A; color: #F05A5A; } .light .y { background: #F6C445; color: #F6C445; } .light .g { background: #46C46E; color: #46C46E; }
 .light[data-l=r] .r, .light[data-l=y] .y, .light[data-l=g] .g { opacity: 1; box-shadow: 0 0 9vh currentColor; }
+/* screen designs, chosen from the phone */
+body { --tsize: 1; transition: background .5s, color .5s; }
+body.f-hand, body.f-hand .big, body.f-hand .lesson { font-family: Playpen, Heebo, sans-serif; }
+body.t-cream { --ink: #3B3142; --soft: rgba(59, 49, 66, .6); --gold: #A27A35; background: radial-gradient(900px 600px at 50% 0%, #FFFFFF, transparent 70%), linear-gradient(165deg, #FBF6EE, #F1E7D8); }
+body.t-board { --ink: #F3F1E6; --soft: rgba(243, 241, 230, .6); --gold: #F2D98A; background: radial-gradient(1000px 700px at 50% 30%, #2F5B47, transparent 75%), #1F3E31; }
+body.t-sky { --ink: #1F3550; --soft: rgba(31, 53, 80, .6); --gold: #E08A2E; background: linear-gradient(180deg, #CFE6FB, #F4F9FF); }
+body.t-black { --ink: #FFFFFF; --soft: rgba(255, 255, 255, .6); --gold: #FFD27A; background: #000; }
+body.t-white { --ink: #111; --soft: rgba(0, 0, 0, .55); --gold: #8A5A12; background: #fff; }
+body .big { font-size: calc(9vh * var(--tsize)); }
+body .lesson p { font-size: calc(5vh * var(--tsize)); }
+body .list { font-size: calc(7vh * var(--tsize)); }
+body.t-cream .pts div, body.t-sky .pts div, body.t-white .pts div, body.t-cream .groups div, body.t-sky .groups div, body.t-white .groups div { background: rgba(0, 0, 0, .04); border-color: rgba(0, 0, 0, .08); }
+body.t-cream #fs, body.t-sky #fs, body.t-white #fs { color: var(--ink); background: rgba(0, 0, 0, .05); border-color: rgba(0, 0, 0, .1); }
+.bar { background: color-mix(in srgb, var(--ink) 12%, transparent); }
+/* the shushing friend: comes up when the light stays red */
+#shh { position: fixed; inset: auto 0 0 0; display: flex; justify-content: flex-start; padding-inline-start: 6vw; align-items: flex-end; gap: 3vw; pointer-events: none; transform: translateY(110%); transition: transform .7s cubic-bezier(.2, 1.4, .4, 1); z-index: 5; }
+#shh.show { transform: none; }
+#shh svg { width: 34vh; height: auto; filter: drop-shadow(0 3vh 5vh rgba(0, 0, 0, .35)); }
+#shh.show svg { animation: sway 2.4s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes sway { 50% { transform: rotate(-4deg) translateY(-1vh); } }
+#shh .bub { margin-bottom: 24vh; background: #fff; color: #3B3142; font-size: 8vh; padding: 2vh 5vh; border-radius: 6vh; box-shadow: 0 2vh 5vh rgba(0, 0, 0, .25); position: relative; font-family: Heebo, sans-serif; font-weight: 500; letter-spacing: .6vh; }
+#shh .bub::after { content: ''; position: absolute; right: -2vh; bottom: 3vh; border: 2vh solid transparent; border-left-color: #fff; border-right: 0; }
+#shh { flex-direction: row; }
+#shh.show .bub { animation: hush 1.6s ease-in-out infinite; }
+@keyframes hush { 50% { transform: scale(1.06); opacity: .85; } }
 iframe { position: fixed; inset: 0; width: 100vw; height: 100vh; border: 0; background: #000; }
 #status { position: fixed; bottom: 2vh; left: 2vw; font-size: 1.8vh; color: var(--soft); direction: rtl; }
 #status i { display: inline-block; width: 1vh; height: 1vh; border-radius: 50%; background: #E8B45A; margin-inline-end: .8vh; }
@@ -61,6 +88,17 @@ iframe { position: fixed; inset: 0; width: 100vw; height: 100vh; border: 0; back
 </head>
 <body>
 <div id="stage"></div>
+<div id="shh" aria-hidden="true">
+  <svg viewBox="0 0 200 230"><ellipse cx="100" cy="222" rx="62" ry="7" fill="rgba(0,0,0,.18)"/>
+    <circle cx="100" cy="112" r="86" fill="#F4D88E"/><ellipse cx="72" cy="66" rx="26" ry="16" fill="#FFF3CF" opacity=".7" transform="rotate(-25 72 66)"/>
+    <path d="M58 100q13 11 26 0M116 100q13 11 26 0" fill="none" stroke="#4A3B5C" stroke-width="6" stroke-linecap="round"/>
+    <ellipse cx="56" cy="130" rx="14" ry="8" fill="#F2A7B5" opacity=".75"/><ellipse cx="144" cy="130" rx="14" ry="8" fill="#F2A7B5" opacity=".75"/>
+    <ellipse cx="100" cy="146" rx="10" ry="8" fill="#4A3B5C"/>
+    <circle cx="106" cy="182" r="20" fill="#F7C9A0" stroke="#E2A06E" stroke-width="3"/>
+    <rect x="93" y="118" width="15" height="58" rx="7.5" fill="#F7C9A0" stroke="#E2A06E" stroke-width="3"/>
+  </svg>
+  <div class="bub">ששששש…</div>
+</div>
 <button id="fs" type="button">מסך מלא</button>
 <div id="status"><i></i><span>מתחבר…</span></div>
 <script type="module">
@@ -74,9 +112,32 @@ document.addEventListener('fullscreenchange', () => { $('#fs').style.display = d
 
 let timerT = 0, clockT = 0;
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
+const pieces = {};
+function applyStyle(st) {
+  if (!st) return;
+  document.body.className = `t-${st.theme || 'night'} f-${st.font || 'plain'}`;
+  document.body.style.setProperty('--tsize', st.size || 1);
+  try { localStorage.setItem('cast-style', JSON.stringify(st)); } catch {}
+}
+try { applyStyle(JSON.parse(localStorage.getItem('cast-style'))); } catch {}
+// red for a few seconds in a row -> the shushing friend comes up; it goes once it's calm again
+let redSince = 0, shhT = 0;
+function hush(l) {
+  const el = $('#shh');
+  if (l === 'r') { if (!redSince) redSince = Date.now(); clearTimeout(shhT); shhT = setTimeout(() => el.classList.add('show'), Math.max(0, 3000 - (Date.now() - redSince))); }
+  else { redSince = 0; clearTimeout(shhT); if (el.classList.contains('show')) shhT = setTimeout(() => el.classList.remove('show'), 1500); }
+}
 function show(m) {
+  if (m && m.kind === 'piece') {
+    const p = m.data, b = pieces[p.id] = pieces[p.id] || [];
+    b[p.i] = p.s; if (b.filter(x => x != null).length === p.n) { delete pieces[p.id]; try { show(JSON.parse(b.join(''))); } catch {} }
+    return;
+  }
+  if (m && m.style) applyStyle(m.style);
+  if (m && m.kind === 'style') return;
+  if (!m || m.kind !== 'noise') hush('g');
   // the noise light changes often: only switch the lamp, don't redraw the screen
-  const lt = $('#light'); if (m && m.kind === 'noise' && lt) { lt.dataset.l = m.data || 'g'; return; }
+  const lt = $('#light'); if (m && m.kind === 'noise' && lt) { lt.dataset.l = m.data || 'g'; hush(m.data); return; }
   clearInterval(timerT); clearInterval(clockT);
   const st = $('#stage'); let h = '';
   const k = m && m.kind, d = m && m.data;
@@ -92,10 +153,13 @@ function show(m) {
     h = `<div class="timer" id="tm">${fmt(Math.round(d.left))}</div><div class="bar"><i id="tb" style="width:${Math.round(100 * d.left / total)}%"></i></div>${d.label ? `<div class="sub">${esc(d.label)}</div>` : ''}`;
     if (d.running) timerT = setInterval(() => { const l = Math.max(0, Math.round((end - Date.now()) / 1000)); const t = $('#tm'); if (!t) return; t.textContent = fmt(l); $('#tb').style.width = Math.round(100 * l / total) + '%'; if (!l) { t.classList.add('done'); clearInterval(timerT); } }, 250);
   }
-  else if (k === 'noise') h = `<div class="light" id="light" data-l="${esc(d || 'g')}"><i class="r"></i><i class="y"></i><i class="g"></i></div>`;
+  else if (k === 'noise') { h = `<div class="light" id="light" data-l="${esc(d || 'g')}"><i class="r"></i><i class="y"></i><i class="g"></i></div>`; hush(d); }
+  else if (k === 'html') h = `<iframe sandbox="allow-scripts allow-forms allow-modals allow-popups" srcdoc="${esc(d)}"></iframe>`;
+  else if (k === 'canva') { const u = String(d || ''); h = /^https:\/\/(www\.)?canva\.com\/design\//.test(u) ? `<iframe src="${esc(u)}" allow="fullscreen" allowfullscreen></iframe>` : ''; }
   else if (k === 'blank') h = '';
   else { h = `<div class="clock" id="ck"></div><div class="sub" id="dt"></div>`; }
-  st.innerHTML = `<div class="fade">${h}</div>`;
+  // full-screen frames can't sit inside the fade-in (a moving parent would trap them in a small box)
+  st.innerHTML = /^(html|file|canva)$/.test(k) ? h : `<div class="fade">${h}</div>`;
   if (!k || k === 'idle') { const tick = () => { const n = new Date(); $('#ck').textContent = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; $('#dt').textContent = n.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }); }; tick(); clockT = setInterval(tick, 5000); }
 }
 function showCode(code) {

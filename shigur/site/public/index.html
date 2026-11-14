@@ -141,15 +141,27 @@ body.no-tts .spk{display:none!important}
 .fcard img{height:62px}
 .fcard.sel{border-color:var(--orange);background:#FFF3E6}
 .fcard.sel::after{content:"✓";position:absolute;top:4px;left:8px;color:var(--oranged);font-size:20px}
+.tabs{display:flex;gap:6px;background:#fff;border-radius:24px;padding:4px;box-shadow:var(--shadow2)}
+.tabs button{flex:1;min-height:48px;border:none;border-radius:20px;background:none;font-size:16px;cursor:pointer;padding:4px 6px;line-height:1.2}
+.tabs button.sel{background:var(--tq);color:#fff}
+.nameInput.pin,.nameInput.codeIn{letter-spacing:8px;font-size:28px}
+.myCode{text-align:center;font-size:19px}
+.myCode bdi{font-size:24px;letter-spacing:4px;color:var(--lild)}
+.fcard.off{opacity:.45}
+.fcard .st{font-size:15px;color:var(--muted)}
+.fcard .st.on{color:#2E9E6A}
+.fcard .add{min-height:40px;border:none;border-radius:16px;background:#FFF0DD;color:var(--oranged);font-size:16px;padding:2px 12px;cursor:pointer}
+.fcard .add:disabled{background:#F1F1F1;color:var(--muted)}
+.bigCode2{font-size:44px;letter-spacing:8px;color:var(--lild)}
 .empty{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;font-size:19px}
 .empty img{height:120px}
 .codeBoxes{display:flex;gap:8px;justify-content:center;direction:ltr}
 .codeBoxes span{width:56px;height:64px;border-radius:16px;background:#fff;box-shadow:var(--shadow2);display:grid;place-items:center;font-size:32px;border:3px solid #EDE6D6}
 .codeBoxes span.cur{border-color:var(--tq)}
-.ckeys{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;direction:ltr}
+.ckeys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;direction:ltr}
 .ckeys button{min-height:50px;border-radius:14px;border:none;background:#fff;box-shadow:0 3px 0 #E3DCCB;font-size:22px;cursor:pointer;padding:0}
 .ckeys button:active{transform:translateY(2px);box-shadow:0 1px 0 #E3DCCB}
-.ckeys .wide{grid-column:span 2;font-size:18px}
+.ckeys .delk{font-size:18px;background:#FFF0EE}
 .bigCode{font-size:46px;letter-spacing:10px;text-align:center;color:var(--lild)}
 .members{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;min-height:120px;align-items:flex-end}
 .member{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:18px;animation:pop .4s ease}
@@ -223,6 +235,16 @@ body.no-tts .spk{display:none!important}
 #s-game.compact{gap:6px}
 #s-game.compact .side .lbl{min-height:1.2em;font-size:15px}
 #s-game.compact .onesSide .lbl{white-space:nowrap}
+.clock{display:inline-flex;align-items:center;gap:4px;background:#E8F7F9;color:var(--tqd);border-radius:16px;padding:4px 10px;font-size:18px;flex:none}
+.clock svg{width:20px;height:20px}
+.clock.low{background:#FFE9DA;color:var(--oranged);animation:pulse 1s ease-in-out infinite}
+.bigDie{position:fixed;inset:0;z-index:55;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(255,248,236,.72)}
+.bdCard{background:#fff;border-radius:28px;box-shadow:0 10px 30px rgba(46,58,89,.18);padding:16px 18px;display:flex;flex-direction:column;align-items:center;gap:12px;max-width:420px;width:100%;animation:pop .35s ease}
+.die.big{width:min(58vw,230px);height:min(58vw,230px)}
+.tracks.many .trk{min-height:32px}
+.tracks.many .trkLine{height:28px}
+.tracks.many .trkLine .rk{height:26px}
+.tracks.many .trkLine .planet{height:24px}
 .miniWrap{display:flex;align-items:center;gap:8px;background:#fff;border-radius:18px;padding:6px 10px;box-shadow:var(--shadow2);align-self:center}
 .miniWrap .mlbl{font-size:16px;color:var(--muted)}
 .mini{--u:9px;--b:6px}
@@ -343,18 +365,34 @@ body.no-tts .spk{display:none!important}
     <button class="btn big" id="btnPlay">שַׂחֲקוּ</button>
   </section>
 
-  <!-- 2. מי אתם -->
+  <!-- 2. מי אתם – הרשמה / כניסה -->
   <section class="screen" id="s-who">
     <div class="topbar"><button class="back" data-back>→</button><h2>מִי אַתֶּם?</h2></div>
-    <div class="card col">
-      <div class="row" style="justify-content:center"><div class="lbl2" data-say>בַּחֲרוּ שֵׁם</div><button class="spk" data-say-prev></button></div>
-      <div id="whoNames"></div>
+    <div class="tabs" id="whoTabs"><button data-tab="new" class="sel">אֲנִי חָדָשׁ/ה</button><button data-tab="old">כְּבָר נִרְשַׁמְתִּי</button></div>
+    <div class="col" id="whoNew">
+      <div class="card col">
+        <div class="row" style="justify-content:center"><div class="lbl2" data-say>בַּחֲרוּ שֵׁם</div><button class="spk" data-say-prev></button></div>
+        <div id="whoNames"></div>
+      </div>
+      <div class="card col">
+        <div class="row" style="justify-content:center"><div class="lbl2">בַּחֲרוּ טִיל</div><button class="spk" data-say-prev></button></div>
+        <div class="rockets" id="whoRockets"></div>
+      </div>
+      <div class="card col" id="whoPinCard">
+        <div class="row" style="justify-content:center"><div class="lbl2">בַּחֲרוּ קוֹד סוֹדִי – 4 סְפָרוֹת</div><button class="spk" data-say-prev></button></div>
+        <input class="nameInput pin ltr" id="whoPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="••••">
+      </div>
+      <button class="btn" id="whoOk">נִרְשָׁמִים</button>
     </div>
-    <div class="card col">
-      <div class="row" style="justify-content:center"><div class="lbl2">בַּחֲרוּ טִיל</div><button class="spk" data-say-prev></button></div>
-      <div class="rockets" id="whoRockets"></div>
+    <div class="col hide" id="whoOld">
+      <div class="card col">
+        <div class="row" style="justify-content:center"><div class="lbl2">הַקּוֹד שֶׁלִּי</div><button class="spk" data-say-prev></button></div>
+        <input class="nameInput codeIn ltr" id="logCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" autocomplete="off" spellcheck="false" placeholder="12345">
+        <div class="row" style="justify-content:center"><div class="lbl2">הַקּוֹד הַסּוֹדִי</div><button class="spk" data-say-prev></button></div>
+        <input class="nameInput pin ltr" id="logPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password" placeholder="••••">
+      </div>
+      <button class="btn" id="loginOk">נִכְנָסִים</button>
     </div>
-    <button class="btn" id="whoOk">הַמְשֵׁךְ</button>
   </section>
 
   <!-- 3. בחירת מצב -->
@@ -371,6 +409,7 @@ body.no-tts .spk{display:none!important}
     <div class="row" style="justify-content:center">
       <button class="chip" data-n="2"><span class="ltr">2</span></button>
       <button class="chip" data-n="3"><span class="ltr">3</span></button>
+      <button class="chip" data-n="4"><span class="ltr">4</span></button>
     </div>
     <div class="col" id="plRows"></div>
     <button class="btn" id="plOk">הַמְשֵׁךְ</button>
@@ -392,16 +431,23 @@ body.no-tts .spk{display:none!important}
     </div>
   </section>
 
-  <!-- מי מחובר -->
+  <!-- חברים -->
   <section class="screen" id="s-friends">
-    <div class="topbar"><button class="back" data-back>→</button><h2>מִי מְחֻבָּר עַכְשָׁו?</h2></div>
+    <div class="topbar"><button class="back" data-back>→</button><h2>מְשַׂחֲקִים עִם חֲבֵרִים</h2></div>
+    <div class="myCode">הַקּוֹד שֶׁלִּי: <bdi class="ltr" id="fMyCode"></bdi></div>
     <div class="lvlChips" id="fLevels"></div>
-    <div class="row" style="justify-content:center" id="fPickNote"><div class="note" data-say>בַּחֲרוּ חָבֵר אוֹ שְׁנַיִם</div><button class="spk" data-say-prev></button></div>
+    <div class="tabs" id="fTabs"><button data-tab="mine">הַחֲבֵרִים שֶׁלִּי</button><button data-tab="online">מִי מְחֻבָּר עַכְשָׁו?</button><button data-tab="add">הוֹסָפַת חָבֵר</button></div>
+    <div class="row" style="justify-content:center" id="fPickNote"><div class="note" data-say>בַּחֲרוּ עַד 3 חֲבֵרִים</div><button class="spk" data-say-prev></button></div>
     <div class="friends" id="fList"></div>
     <div class="card empty hide" id="fEmpty">
       <img src="images/bolli_astro.png" alt="">
-      <div class="row"><div data-say>אַף אֶחָד לֹא מְחֻבָּר כָּרֶגַע – אֶפְשָׁר לְשַׂחֵק מוּל בּוֹלִי!</div><button class="spk" data-say-prev></button></div>
+      <div class="row"><div data-say id="fEmptyText"></div><button class="spk" data-say-prev></button></div>
       <button class="btn lil" id="fBolli">מְשַׂחֲקִים מוּל בּוֹלִי</button>
+    </div>
+    <div class="card col hide" id="fAdd">
+      <div class="row" style="justify-content:center"><div class="lbl2">הַקּוֹד שֶׁל הַחָבֵר</div><button class="spk" data-say-prev></button></div>
+      <input class="nameInput codeIn ltr" id="fAddCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" autocomplete="off" spellcheck="false" placeholder="12345">
+      <button class="btn orange" id="fAddOk" disabled>שׁוֹלְחִים בַּקָּשָׁה</button>
     </div>
     <div class="grow"></div>
     <button class="btn orange" id="fInvite" disabled>מַזְמִינִים!</button>
@@ -450,6 +496,7 @@ body.no-tts .spk{display:none!important}
     <div class="boardWrap" id="boardWrap"></div>
     <div id="mini"></div>
     <div class="panel" id="panel"></div>
+    <div class="bigDie hide" id="bigDie"><div class="bdCard" id="bdCard"></div></div>
     <div class="dock" id="dock">
       <button class="die" id="die" aria-label="קֻבִּיַּת הַמִּשְׂחָק"></button>
       <div class="station" id="station"><img src="images/bolli_station.png" alt=""><div class="stLbl">תַּחֲנַת הַדֶּלֶק שֶׁל בּוֹלִי</div><div class="stTip" id="stTip"></div></div>
@@ -570,6 +617,22 @@ const TX = {
   writeName: 'כִּתְבוּ שֵׁם פְּרָטִי',
   chooseName: 'בַּחֲרוּ שֵׁם',
   player: 'שַׂחְקָן',
+  timeUp:'הַזְּמַן נִגְמַר – בּוֹלִי עוֹזֵר לְסַיֵּם אֶת הַתּוֹר.',
+  register:'נִרְשָׁמִים', login:'נִכְנָסִים',
+  myCode:'הַקּוֹד שֶׁלִּי', secret:'הַקּוֹד הַסּוֹדִי',
+  writeDown:'כִּתְבוּ אֶת הַקּוֹדִים בַּמַּחְבֶּרֶת, כְּדֵי לְהִכָּנֵס גַּם מִטֶּלֶפוֹן אַחֵר.',
+  loginBad:'הַקּוֹד אוֹ הַקּוֹד הַסּוֹדִי לֹא נְכוֹנִים',
+  locked:'יוֹתֵר מִדַּי נִסְיוֹנוֹת – נְנַסֶּה שׁוּב בְּעוֹד כַּמָּה דַּקּוֹת.',
+  editProfile:'שִׁנּוּי שֵׁם וְטִיל', logout:'יְצִיאָה מֵהַחֶשְׁבּוֹן',
+  noFriends:'עוֹד אֵין חֲבֵרִים – אֶפְשָׁר לְהוֹסִיף מִי שֶׁמְּחֻבָּר עַכְשָׁו אוֹ לְפִי קוֹד.',
+  noOnline:'אַף אֶחָד לֹא מְחֻבָּר כָּרֶגַע – אֶפְשָׁר לְשַׂחֵק מוּל בּוֹלִי!',
+  addFriend:'+ חָבֵר', reqSent:'נִשְׁלַח', isFriend:'חָבֵר',
+  online:'מְחֻבָּר', offline:'לֹא מְחֻבָּר', playing:'מְשַׂחֵק/ת עַכְשָׁו',
+  reqDone:'הַבַּקָּשָׁה נִשְׁלְחָה!',
+  noUser:'לֹא נִמְצָא מִשְׁתַּמֵּשׁ עִם הַקּוֹד הַזֶּה', selfCode:'זֶה הַקּוֹד שֶׁלְּךָ!',
+  friendReq:'{name} מְבַקֵּשׁ/ת לִהְיוֹת חָבֵר/ה שֶׁלְּךָ', yesFriend:'כֵּן!',
+  nowFriends:'{name} וְאַתֶּם חֲבֵרִים עַכְשָׁו!',
+  tooMany:'יֵשׁ כְּבָר הַרְבֵּה חֲבֵרִים וּבַקָּשׁוֹת',
   reactions: ['👏','🚀','⭐','😄','כָּל הַכָּבוֹד!','יֹפִי שֶׁל תּוֹר!','בְּהַצְלָחָה!']
 };
 
@@ -661,16 +724,17 @@ const spkBtn = text => `<button class="spk" data-say="${esc(text)}" aria-label="
    ===================================================================== */
 const Engine = (() => {
   const val = p => p.tens * 10 + p.ones;
+  const TURN_MS = 90000;                 // דקה וחצי לכל ילד בכל תור
   const freshTurn = () => ({ d:0, n:0, need:false, tq:0, guess:-1, removed:0, ans:-1, tries:0,
-    fixing:false, checker:-1, verdict:'', outcome:'', mistake:'', over:'', traded:false });
+    fixing:false, checker:-1, verdict:'', outcome:'', mistake:'', over:'', traded:false, deadline:0, auto:false });
 
-  function newGame(level, mode, players){
+  function newGame(level, mode, players, at){
     const L = LEVELS[level];
     return {
       v:1, gid: Math.random().toString(36).slice(2, 10), level, mode, seq:0, turn:0, phase:'roll',
       players: players.map(p => ({ name:p.name, rocket:p.rocket, uid:p.uid || '', bolli:!!p.bolli, bot:!!p.bolli,
         tens: Math.floor(L.start / 10), ones: L.start % 10, launched:false })),
-      t: freshTurn(), log: [], launchOrder: [], lastLaunch: -1, ev: { k:'start', seq:0 }
+      t: Object.assign(freshTurn(), { deadline: at ? at + TURN_MS : 0 }), log: [], launchOrder: [], lastLaunch: -1, ev: { k:'start', seq:0 }
     };
   }
 
@@ -706,11 +770,11 @@ const Engine = (() => {
 
   const turnCorrect = s => { const t = s.t, p = s.players[s.turn]; return t.ans === t.n - t.d && val(p) === t.n - t.d; };
 
-  function advance(s){
+  function advance(s, at){
     const P = s.players, n = P.length;
     for (let k = 1; k <= n; k++){
       const i = (s.turn + k) % n;
-      if (!P[i].launched){ s.turn = i; s.t = freshTurn(); s.phase = 'roll'; return true; }
+      if (!P[i].launched){ s.turn = i; s.t = freshTurn(); if (at) s.t.deadline = at + TURN_MS; s.phase = 'roll'; return true; }
     }
     s.phase = 'end'; return false;
   }
@@ -727,7 +791,7 @@ const Engine = (() => {
     if (!s0 || !a) return null;
     const s = JSON.parse(JSON.stringify(s0));
     const L = LEVELS[s.level], P = s.players, p = P[s.turn], t = s.t;
-    const act = actor(s), anyone = a.type === 'TAKEOVER' || a.type === 'RECLAIM';
+    const act = actor(s), anyone = a.type === 'TAKEOVER' || a.type === 'RECLAIM' || a.type === 'TIMEOUT';
     if (!anyone && act !== -2 && a.by !== act) return null;
     let ev;
     switch (a.type){
@@ -761,7 +825,7 @@ const Engine = (() => {
       case 'WRITE': {
         if (s.phase !== 'write' || !(a.r >= 0)) return null;
         t.ans = a.r; t.tries++;
-        const ch = t.fixing ? -1 : pickChecker(s);
+        const ch = (t.fixing || t.auto) ? -1 : pickChecker(s);
         if (ch >= 0){ t.checker = ch; s.phase = 'peer'; ev = { k:'peer' }; }
         else { t.outcome = turnCorrect(s) ? 'correct' : 'wrong'; s.phase = 'result'; ev = { k:'result' }; }
         break;
@@ -788,14 +852,14 @@ const Engine = (() => {
         if (s.phase === 'over'){
           s.log.push({ p:s.turn, n:t.n, d:t.d, r:(t.over === 'launch' ? 0 : -1), trade:false, kind:t.over });
           if (t.over === 'launch'){ doLaunch(s); ev = { k:'launch', who:s.lastLaunch }; }
-          else { advance(s); ev = { k:'turn' }; }
+          else { advance(s, a.at); ev = { k:'turn' }; }
           break;
         }
         if (s.phase !== 'result') return null;
         if (t.outcome === 'correct' || t.outcome === 'falseAlarm'){
           s.log.push({ p:s.turn, n:t.n, d:t.d, r:t.n - t.d, trade:t.traded, kind:'ok' });
           if (val(p) === 0){ doLaunch(s); ev = { k:'launch', who:s.lastLaunch }; }
-          else { advance(s); ev = { k:'turn' }; }
+          else { advance(s, a.at); ev = { k:'turn' }; }
         } else {
           t.fixing = true; t.outcome = ''; t.verdict = '';
           if (t.mistake){ t.mistake = ''; s.phase = 'trade'; }      // בולי מתקן מול העיניים: המרה והוצאה נכונה
@@ -804,8 +868,16 @@ const Engine = (() => {
         }
         break;
       }
-      case 'CONTINUE': { if (s.phase !== 'launch') return null; advance(s); ev = { k:'turn' }; break; }
+      case 'CONTINUE': { if (s.phase !== 'launch') return null; advance(s, a.at); ev = { k:'turn' }; break; }
       case 'FINISH':   { if (s.phase !== 'launch') return null; s.phase = 'end'; ev = { k:'end' }; break; }
+      case 'TIMEOUT': {        // נגמר הזמן – בולי עוזר לסיים את התור (בלי "הפסדת")
+        if (['launch','end'].includes(s.phase) || t.auto || !t.deadline || P[s.turn].bot || !(a.at >= t.deadline)) return null;
+        t.auto = true; ev = { k:'timeout' }; break;
+      }
+      case 'CLOCK': {          // באותו טלפון: השעון מתחיל אחרי שהטלפון עבר לילד
+        if (s.phase !== 'roll' || t.d) return null;
+        t.deadline = (a.at || 0) + TURN_MS; ev = { k:'clock' }; break;
+      }
       case 'TAKEOVER': { const q = P[a.idx]; if (!q || q.bot) return null; q.bot = true; ev = { k:'takeover', idx:a.idx }; break; }
       case 'RECLAIM':  { const q = P[a.idx]; if (!q || q.bolli || !q.bot) return null; q.bot = false; ev = { k:'reclaim', idx:a.idx }; break; }
       default: return null;
@@ -833,7 +905,7 @@ const Engine = (() => {
     return null;
   }
 
-  return { val, newGame, normalize, actor, reduce, botAction, turnCorrect, freshTurn };
+  return { val, newGame, normalize, actor, reduce, botAction, turnCorrect, freshTurn, TURN_MS };
 })();
 </script>
 
@@ -843,7 +915,8 @@ const Engine = (() => {
    מצב האפליקציה
    ===================================================================== */
 const S = {
-  profile: { name: store.get('name') || '', rocket: store.get('rocket') || '' },
+  profile: { name: store.get('name') || '', rocket: store.get('rocket') || '', code: store.get('code') || '' },
+  localOnly: false,
   mode: null,              // 'solo' | 'local' | 'online'
   level: +(store.get('level') || 1) || 1,
   game: null, myIdx: -1,
@@ -953,8 +1026,8 @@ function resultLines(s){
   return [''];
 }
 function instrInfo(s){
-  const fi = focusIdx(s), p = s.players[fi], t = s.t, L = LEVELS[s.level], b = isBolliTurn(s);
-  let head = b ? TX.bolliTurn : fill(TX.turnOf, { name:esc(p.name) }), main = '', sub = '';
+  const fi = focusIdx(s), p = s.players[fi], t = s.t, L = LEVELS[s.level], b = isBolliTurn(s) || (t.auto && !['launch','end'].includes(s.phase));
+  let head = (t.auto && !isBolliTurn(s)) ? TX.timeUp : (b ? TX.bolliTurn : fill(TX.turnOf, { name:esc(p.name) })), main = '', sub = '';
   const think = fill(TX.b_think, { u:N(t.n % 10), d:N(t.d) });
   switch (s.phase){
     case 'roll':   main = b ? TX.b_roll : TX.roll; break;
@@ -979,24 +1052,55 @@ function instrInfo(s){
   }
   return { head, main, sub, b, img: b ? 'images/bolli_astro.png' : rocketSrc(p.rocket) };
 }
+/* ---------- שעון: דקה וחצי לכל תור ---------- */
+const ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="13" r="8" fill="#fff"/><path d="M12 9v4l3 2M9 2h6"/></svg>';
+function clockShown(s){ const p = s.players[s.turn]; return !!(s.t.deadline && p && !p.bot && !s.t.auto && !['launch','end'].includes(s.phase)); }
+function clockHTML(s){ return clockShown(s) ? `<span class="clock" data-clock>${ICON_CLOCK}<bdi class="ltr">${fmtClock(s.t.deadline - nowMs())}</bdi></span>` : ''; }
+function fmtClock(ms){ const sec = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
+function tickClock(){
+  const s = S.game; if (!s || curScreen !== 'game') return;
+  const left = s.t.deadline - nowMs();
+  $$('[data-clock]').forEach(el => { const t = $('bdi', el); const txt = fmtClock(left); if (t.textContent !== txt) t.textContent = txt; el.classList.toggle('low', left < 15000); });
+  if (!clockShown(s) || left > 0 || S.busy || S.pending || S.timeoutSeq === s.seq) return;
+  if (S.mode === 'online' && !Online.amDriver()) return;
+  S.timeoutSeq = s.seq;
+  dispatch({ type:'TIMEOUT', by:-1, at:nowMs() });
+}
+setInterval(tickClock, 250);
+
+/* ---------- קוביית משחק גדולה בתחילת כל תור ---------- */
+function renderBigDie(s){
+  const el = $('#bigDie');
+  const on = curScreen === 'game' && s.phase === 'roll';
+  el.classList.toggle('hide', !on); if (!on) return;
+  const p = s.players[s.turn], isB = isBolliTurn(s), helper = isB || s.t.auto, me = canAct(s);
+  const head = (s.t.auto && !isB) ? TX.timeUp : (isB ? TX.bolliTurn : fill(TX.turnOf, { name:esc(p.name) }));
+  const text = helper ? TX.b_roll : TX.roll;
+  $('#bdCard').innerHTML = `<div class="row" style="justify-content:center"><img src="${helper ? 'images/bolli_astro.png' : rocketSrc(p.rocket)}" alt="" style="height:52px"><div class="lbl2">${head}</div>${clockHTML(s)}</div>
+    <button class="die big${me ? ' ready' : ''}" id="dieBig" aria-label="קֻבִּיַּת הַמִּשְׂחָק">${dieSVG(0)}</button>
+    <div class="row" style="justify-content:center"><div class="lbl2">${text}</div>${spkBtn(head + '. ' + text)}</div>`;
+}
 function renderInstr(s){
   const i = instrInfo(s), el = $('#instr');
   el.classList.toggle('bolli', i.b);
-  el.innerHTML = `<img class="who" src="${i.img}" alt=""><div class="itx">${i.head ? `<div class="ihead">${i.head}</div>` : ''}<div class="imain">${i.main}</div>${i.sub ? `<div class="ihead">${i.sub}</div>` : ''}</div>${spkBtn(i.main + (i.sub ? '. ' + i.sub : ''))}`;
+  el.innerHTML = `<img class="who" src="${i.img}" alt=""><div class="itx">${i.head ? `<div class="ihead">${i.head}</div>` : ''}<div class="imain">${i.main}</div>${i.sub ? `<div class="ihead">${i.sub}</div>` : ''}</div>${clockHTML(s)}${spkBtn((i.head ? i.head + '. ' : '') + i.main + (i.sub ? '. ' + i.sub : ''))}`;
 }
 
 /* ---------- מי רשאי לפעול ---------- */
 function canDo(s, idx){
   if (idx === -2) return true;
   if (idx < 0 || !s.players[idx] || s.players[idx].bot) return false;
+  if (s.t && s.t.auto && (idx === s.turn || s.phase === 'peer')) return false;    // בולי מסיים את התור
   if (S.mode === 'online') return idx === S.myIdx;
   return true;
 }
 function canAct(s){ return !!s && !S.busy && !S.pending && canDo(s, Engine.actor(s)); }
+const nowMs = () => (S.mode === 'online' && Online.ready) ? Online.now() : Date.now();
 function humanAct(a){
   const s = S.game; if (!canAct(s)) return;
   const act = Engine.actor(s);
   a.by = act === -2 ? (S.mode === 'online' ? S.myIdx : -2) : act;
+  a.at = nowMs();
   dispatch(a);
 }
 
@@ -1099,7 +1203,8 @@ function renderGame(){
   const kpOn = canAct(s) && (s.phase === 'write' || s.phase === 'predict');
   $('#s-game').classList.toggle('compact', kpOn || ['peer','result'].includes(s.phase));
   $('#tracks').innerHTML = tracksHTML(s);
-  renderInstr(s); renderBoard(s); renderPanel(s); renderDock(s);
+  renderInstr(s); renderBoard(s); renderPanel(s); renderDock(s); renderBigDie(s);
+  $('#tracks').classList.toggle('many', s.players.length >= 3);
   if (!['launch','end'].includes(s.phase)) closeOv('launchOv');
   paintBubbles();
 }
@@ -1135,11 +1240,21 @@ async function cubesFromStation(from, count){
   await Promise.all(jobs);
 }
 async function animRoll(d){
-  const die = $('#die'); Snd.roll();
+  const big = !$('#bigDie').classList.contains('hide') && $('#dieBig');
+  const die = big || $('#die'); Snd.roll();
   die.classList.remove('ready'); die.classList.add('rolling');
-  for (let k = 0; k < 7; k++){ die.innerHTML = dieSVG(1 + rnd(6)); await sleep(T_(80)); }
+  for (let k = 0; k < 8; k++){ die.innerHTML = dieSVG(1 + rnd(6)); await sleep(T_(85)); }
   die.innerHTML = dieSVG(d); die.classList.remove('rolling');
-  await sleep(T_(150));
+  if (big){
+    await sleep(T_(650));                                     // רואים בגדול מה יצא
+    const target = $('#die'); target.innerHTML = dieSVG(d);
+    const a = centerOf(big), b2 = centerOf(target);
+    const c = big.cloneNode(true); c.classList.add('flyer'); c.removeAttribute('id');
+    Object.assign(c.style, { left:a.r.left + 'px', top:a.r.top + 'px', width:a.r.width + 'px', height:a.r.height + 'px' });
+    document.body.appendChild(c); $('#bigDie').classList.add('hide');
+    await anim(c, [{ transform:'none' }, { transform:`translate(${b2.x - a.x}px,${b2.y - a.y}px) scale(${b2.r.width / a.r.width})` }], { duration:T_(450), easing:'cubic-bezier(.5,0,.4,1)' });
+    c.remove();
+  } else await sleep(T_(150));
 }
 async function magnify(){
   const w = $('#boardWrap'); const img = document.createElement('img');
@@ -1246,6 +1361,7 @@ async function onTurnStart(ns){
       <h2>${fill(TX.phoneTo, { name:esc(p.name) })}</h2><button class="btn big" id="hoOk">${TX.cont}</button></div>`);
     Snd.beep();
     await waitClick($('#hoOk', o)); closeOv('handoffOv'); Snd.unlock();
+    dispatch({ type:'CLOCK', by:ns.turn, at:Date.now() });
   } else if (S.mode === 'online' && ns.turn === S.myIdx){ Snd.beep(); }
 }
 
@@ -1323,7 +1439,7 @@ $('#launchOv').addEventListener('click', e => {
    בולי – המוח של הבוט
    ===================================================================== */
 function botOpts(s){
-  if (s.mode !== 'solo') return {};
+  if (s.mode !== 'solo' || !s.players[s.turn] || !s.players[s.turn].bolli) return {};   // טעויות מכוונות – רק בתור של בולי עצמו
   return {
     roll(st){
       S.bmTurns++;
@@ -1357,11 +1473,13 @@ function scheduleBot(){
   clearTimeout(S.botTimer); S.botTimer = null;
   const s = S.game; if (!s || S.busy || curScreen !== 'game') return;
   const a = Engine.actor(s); if (a < 0) return;
-  const P = s.players[a]; if (!P || !P.bot) return;
+  const P = s.players[a];
+  const auto = s.t.auto && (a === s.turn || s.phase === 'peer');
+  if (!P || (!P.bot && !auto)) return;
   if (S.mode === 'online' && !Online.amDriver()) return;
   const act = Engine.botAction(s, botOpts(s)); if (!act) return;
   const seq = s.seq;
-  S.botTimer = setTimeout(() => { if (!S.game || S.game.seq !== seq || S.busy) return; act.by = a; dispatch(act); }, botDelay(s));
+  S.botTimer = setTimeout(() => { if (!S.game || S.game.seq !== seq || S.busy) return; act.by = a; act.at = nowMs(); dispatch(act); }, botDelay(s));
 }
 function dispatch(a){
   if (S.mode === 'online'){ Online.act(a); return; }
@@ -1419,6 +1537,7 @@ $('#station').addEventListener('click', () => {
   if (S.selBlock){ humanAct({ type:'TRADE' }); }
   else { S.selBlock = true; renderBoard(s); }
 });
+$('#bigDie').addEventListener('click', e => { if (e.target.closest('#dieBig')) $('#die').click(); });
 $('#die').addEventListener('click', () => {
   const s = S.game; Snd.unlock();
   if (!s || !canAct(s)) return;
@@ -1527,42 +1646,114 @@ function rocketsHTML(sel, small){
 /* ---- פתיחה ---- */
 $('#btnPlay').addEventListener('click', () => {
   Snd.unlock(); Snd.tick();
-  if (!S.profile.name || !S.profile.rocket){ whoFrom = 'open'; show('who'); }
+  const needAccount = onlineCapable() && !S.profile.code && !S.localOnly;
+  if (!S.profile.name || !S.profile.rocket || needAccount){ whoFrom = 'open'; show('who'); }
   else afterProfile();
 });
 function afterProfile(){
   if (S.urlRoom){ const code = S.urlRoom; S.urlRoom = ''; goFriends(() => Online.joinRoom(code)); return; }
-  if (onlineCapable() && store.get('room')){ goFriends(() => Online.resume()); return; }
+  if (onlineCapable() && S.profile.code && store.get('room')){ goFriends(() => Online.resume()); return; }
   show('mode');
 }
+function setProfile(name, rocket, code){
+  S.profile = { name, rocket, code: code != null ? code : S.profile.code };
+  store.set('name', name); store.set('rocket', rocket);
+  if (S.profile.code) store.set('code', S.profile.code); else store.del('code');
+}
 
-/* ---- מי אתם ---- */
+/* ---- מי אתם: הרשמה / כניסה / שינוי ---- */
 let whoFrom = 'mode', whoTmp = { name:'', rocket:'' };
+const isEdit = () => !!S.profile.code;
 ENTER.who = () => {
   whoTmp = { name:S.profile.name, rocket:S.profile.rocket };
   namesWidget($('#whoNames'), whoTmp.name, v => { whoTmp.name = v; updWho(); });
   $('#whoRockets').innerHTML = rocketsHTML(whoTmp.rocket);
-  updWho();
+  $('#whoTabs').classList.toggle('hide', isEdit() || !onlineCapable());
+  $('#whoPinCard').classList.toggle('hide', isEdit() || !onlineCapable());
+  ['#whoPin','#logPin','#logCode'].forEach(q => { $(q).value = ''; });
+  $('#whoOk').textContent = isEdit() || !onlineCapable() ? TX.cont : TX.register;
+  setWhoTab('new'); updWho();
 };
+function setWhoTab(t){
+  $$('#whoTabs button').forEach(b => b.classList.toggle('sel', b.dataset.tab === t));
+  $('#whoNew').classList.toggle('hide', t !== 'new'); $('#whoOld').classList.toggle('hide', t !== 'old');
+}
+$('#whoTabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b){ Snd.tick(); setWhoTab(b.dataset.tab); } });
 $('#whoRockets').addEventListener('click', e => {
   const b = e.target.closest('.rbtn'); if (!b) return;
   whoTmp.rocket = b.dataset.r; $$('#whoRockets .rbtn').forEach(x => x.classList.toggle('sel', x === b)); updWho(); Snd.tick();
 });
-function updWho(){ $('#whoOk').disabled = !(whoTmp.name && whoTmp.rocket); }
-$('#whoOk').addEventListener('click', () => {
-  S.profile = { name: whoTmp.name, rocket: whoTmp.rocket };
-  store.set('name', S.profile.name); store.set('rocket', S.profile.rocket);
-  Online.updatePresence();
-  if (whoFrom === 'open') afterProfile(); else show('mode');
+function digitsOnly(el){ el.addEventListener('input', () => { const v = el.value.replace(/\D/g, '').slice(0, 4); if (v !== el.value) el.value = v; updWho(); }); }
+function codeOnly(el, n, after){ el.addEventListener('input', () => { const v = el.value.toUpperCase().split('').filter(c => USER_ABC.includes(c)).join('').slice(0, n); if (v !== el.value) el.value = v; (after || updWho)(); }); }
+const USER_ABC = '0123456789';
+digitsOnly($('#whoPin')); digitsOnly($('#logPin')); codeOnly($('#logCode'), 5);
+function updWho(){
+  const needPin = !isEdit() && onlineCapable();
+  $('#whoOk').disabled = !(whoTmp.name && whoTmp.rocket && (!needPin || /^\d{4}$/.test($('#whoPin').value)));
+  $('#loginOk').disabled = !(/^\d{5}$/.test($('#logCode').value) && /^\d{4}$/.test($('#logPin').value));
+}
+function afterWho(){ if (whoFrom === 'open') afterProfile(); else show('mode'); }
+function msgModal(text, then){
+  const o = modal(`<img src="images/bolli_think.png" alt="" style="height:90px;align-self:center"><div class="row"><h2 class="grow">${text}</h2>${spkBtn(text)}</div><button class="btn" id="mmOk">${TX.ok}</button>`);
+  $('#mmOk', o).onclick = () => { closeModal(); if (then) then(); };
+}
+function showCodes(code, pin, then){
+  const o = modal(`<img src="images/notebook.png" alt="" style="height:80px;align-self:center">
+    <div class="lbl2">${TX.myCode}</div><div class="bigCode2"><bdi class="ltr">${esc(code)}</bdi></div>
+    <div class="lbl2">${TX.secret}</div><div class="bigCode2"><bdi class="ltr">${esc(pin)}</bdi></div>
+    <div class="row"><div class="grow">${TX.writeDown}</div>${spkBtn(TX.writeDown)}</div>
+    <button class="btn" id="scOk">${TX.cont}</button>`);
+  $('#scOk', o).onclick = () => { closeModal(); then(); };
+}
+$('#whoOk').addEventListener('click', async () => {
+  $('#whoOk').disabled = true;
+  const { name, rocket } = whoTmp;
+  try {
+    if (isEdit()){
+      const r = await Online.saveProfile(name, rocket);
+      if (r && r.error) throw new Error(r.error);
+      setProfile(name, rocket); afterWho(); return;
+    }
+    if (!onlineCapable()){ S.localOnly = true; setProfile(name, rocket, ''); afterWho(); return; }
+    const pin = $('#whoPin').value;
+    const r = await Online.register(name, rocket, pin);
+    setProfile(r.name, r.rocket, r.code);
+    showCodes(r.code, pin, afterWho);
+  } catch(e){
+    console.warn(e);
+    if (e && e.code === 'nobackend'){ S.localOnly = true; setProfile(name, rocket, ''); afterWho(); }   // בלי שרת – מול בולי / באותו טלפון
+    else netError();
+  } finally { updWho(); }
 });
-BACK.who = () => show(S.profile.name && S.profile.rocket ? 'mode' : 'open');
+$('#loginOk').addEventListener('click', async () => {
+  $('#loginOk').disabled = true;
+  try {
+    const r = await Online.login($('#logCode').value, $('#logPin').value);
+    if (r.error){ msgModal(r.error === 'locked' ? TX.locked : TX.loginBad); return; }
+    setProfile(r.name, r.rocket, r.code);
+    afterWho();
+  } catch(e){ console.warn(e); if (e && e.code === 'nobackend') show('nofb'); else netError(); }
+  finally { updWho(); }
+});
+BACK.who = () => show(S.profile.name && S.profile.rocket && (S.profile.code || S.localOnly || !onlineCapable()) ? 'mode' : 'open');
 
 /* ---- מצב ---- */
 ENTER.mode = () => {
   $('#profileBtn').innerHTML = `<img src="${rocketSrc(S.profile.rocket)}" alt=""><span>${esc(S.profile.name)}</span>`;
-  if (onlineCapable()) Online.init().catch(() => {});        // כדי לקבל הזמנות מחברים
+  if (onlineCapable() && S.profile.code) Online.init().catch(() => {});        // כדי לקבל הזמנות ובקשות חברות
 };
-$('#profileBtn').addEventListener('click', () => { whoFrom = 'mode'; show('who'); });
+$('#profileBtn').addEventListener('click', () => {
+  const p = S.profile;
+  const o = modal(`<img src="${rocketSrc(p.rocket)}" alt="" style="height:90px;align-self:center"><h2>${esc(p.name)}</h2>
+    ${p.code ? `<div class="lbl2">${TX.myCode}</div><div class="bigCode2"><bdi class="ltr">${esc(p.code)}</bdi></div>` : ''}
+    <button class="btn" id="pfEdit">${TX.editProfile}</button>
+    ${p.code ? `<button class="btn coral" id="pfOut">${TX.logout}</button>` : ''}
+    <button class="btn white" id="pfClose">${TX.close}</button>`);
+  $('#pfClose', o).onclick = closeModal;
+  $('#pfEdit', o).onclick = () => { closeModal(); whoFrom = 'mode'; show('who'); };
+  const out = $('#pfOut', o);
+  if (out) out.onclick = async () => { closeModal(); await Online.logout(); whoFrom = 'open'; show('who'); };
+});
 $('#mBolli').addEventListener('click', () => { S.mode = 'solo'; show('level'); });
 $('#mLocal').addEventListener('click', () => { S.mode = 'local'; show('players'); });
 $('#mFriends').addEventListener('click', () => goFriends());
@@ -1575,7 +1766,7 @@ ENTER.players = () => {
   if (!S.lp.players.length){
     S.lp.players = [
       { name:S.profile.name, rocket:S.profile.rocket || 'moon' },
-      { name:'', rocket:'mars' }, { name:'', rocket:'jupiter' }
+      { name:'', rocket:'mars' }, { name:'', rocket:'jupiter' }, { name:'', rocket:'moon' }
     ];
     if (S.lp.players[1].rocket === S.lp.players[0].rocket) S.lp.players[1].rocket = 'moon';
     if (S.lp.players[2].rocket === S.lp.players[0].rocket) S.lp.players[2].rocket = 'moon';
@@ -1630,7 +1821,7 @@ function startLocalGame(level, skipHowto){
     players = S.lp.players.slice(0, S.lp.n).map(p => ({ name:p.name, rocket:p.rocket }));
     S.myIdx = -1;
   }
-  const go = () => { resetGameState(); show('game'); pushState(Engine.newGame(level, S.mode, players)); };
+  const go = () => { resetGameState(); show('game'); pushState(Engine.newGame(level, S.mode, players, Date.now())); };
   if (!skipHowto && store.get('howto') !== '1') showHowto(go); else go();
 }
 ENTER.game = () => { if (S.game) renderGame(); };
@@ -1656,17 +1847,13 @@ document.addEventListener('gesturestart', e => e.preventDefault());
    אין צורך בהגדרה: מה שעולה לנטליפיי – עובד.
    כל טלפון שואל את השרת כל שנייה בערך "מה חדש?" (מי מחובר, הזמנות, החדר).
    ===================================================================== */
-const CODE_ABC = 'ACDEFGHJKMNPQRTUVWXY2345679';     // בלי O/0, I/1, L, B/8, S/5, Z
+const CODE_ABC = '0123456789';                     // קודים מספרים בלבד – קל לילדים
 const HELP_BACK = 'חֲזָרָה';
 const API = '/api';
 const onlineCapable = () => /^https?:$/.test(location.protocol);
 const jclone = x => JSON.parse(JSON.stringify(x));
-function randTok(){
-  const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const a = new Uint32Array(32);
-  try { crypto.getRandomValues(a); } catch(e){ for (let i = 0; i < 32; i++) a[i] = Math.floor(Math.random() * 4294967295); }
-  return Array.from(a, n => abc[n % abc.length]).join('');
-}
+const clsKey = () => String(CONFIG.classCode || '').trim().replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 40) || 'class';
+function noAuth(){ const e = new Error('noauth'); e.code = 'noauth'; return e; }
 function noBackend(){ const e = new Error('nobackend'); e.code = 'nobackend'; return e; }
 
 const Online = {
@@ -1674,11 +1861,12 @@ const Online = {
   room:null, roomData:null, roomJSON:'', presence:{}, selected:new Set(), invShown:new Set(), invQueue:[],
   lastReacts:null, bubbles:{}, discOpen:null, discSnooze:{}, voted:false, reclaiming:false, invited:[],
   pollTimer:null, polling:false, pending:null,
+  friends:null, sent:new Set(), reqShown:new Set(), timers:false,
 
   now(){ return Date.now() + this.offset; },
 
   async call(op, data={}){
-    const body = Object.assign({ op, tok:this.tok, cls:this.cls, name:S.profile.name || '', rocket:S.profile.rocket || 'moon' }, data);
+    const body = Object.assign({ op, tok:this.tok || store.get('tok') || '', cls:this.cls || clsKey() }, data);
     const ctrl = window.AbortController ? new AbortController() : null;
     const tm = setTimeout(() => ctrl && ctrl.abort(), 12000);
     try {
@@ -1693,18 +1881,57 @@ const Online = {
     if (this.initP) return this.initP;
     this.initP = (async () => {
       if (!onlineCapable()) throw noBackend();
-      let tok = store.get('tok');
-      if (!tok || !/^[A-Za-z0-9]{24,64}$/.test(tok)){ tok = randTok(); store.set('tok', tok); }
-      this.tok = tok;
-      this.cls = String(CONFIG.classCode || '').trim().replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 40) || 'class';
+      const tok = store.get('tok');
+      if (!tok || !S.profile.code) throw noAuth();
+      this.tok = tok; this.cls = clsKey();
       await this.poll(true);
-      if (!this.uid) throw new Error('init');
+      if (!this.uid) throw noAuth();
       this.ready = true;
       this.schedule();
-      setInterval(() => { this.checkDisconnects(); this.renderFriends(); }, 3000);
-      document.addEventListener('visibilitychange', () => { if (!document.hidden) this.schedule(0); });
+      if (!this.timers){
+        this.timers = true;
+        setInterval(() => { this.checkDisconnects(); this.renderFriends(); }, 3000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) this.schedule(0); });
+      }
     })().catch(e => { this.initP = null; throw e; });
     return this.initP;
+  },
+
+  /* ---------- חשבון ---------- */
+  async register(name, rocket, pin){
+    if (!onlineCapable()) throw noBackend();
+    const r = await this.call('register', { name, rocket, pin, cls:clsKey() });
+    if (r.error || !r.tok) throw new Error(r.error || 'register');
+    store.set('tok', r.tok); this.tok = r.tok;
+    return r;
+  },
+  async login(code, pin){
+    if (!onlineCapable()) throw noBackend();
+    const r = await this.call('login', { code, pin });
+    if (!r.error && r.tok){ store.set('tok', r.tok); this.tok = r.tok; this.stop(); }
+    return r;
+  },
+  async saveProfile(name, rocket){
+    if (!S.profile.code) return { ok:true };
+    const r = await this.call('profile', { name, rocket });
+    this.schedule(0);
+    return r;
+  },
+  stop(){
+    clearTimeout(this.pollTimer); this.ready = false; this.initP = null; this.uid = null;
+    this.presence = {}; this.friends = null; this.requests = {}; this.sent = new Set();
+    this.invShown = new Set(); this.reqShown = new Set(); this.invQueue = []; this.selected.clear();
+  },
+  async logout(){
+    if (this.room) await this.leaveRoom().catch(() => {});
+    await this.call('logout').catch(() => {});
+    this.stop(); this.tok = null;
+    ['tok','code','name','rocket','room'].forEach(k => store.del(k));
+    S.profile = { name:'', rocket:'', code:'' }; S.localOnly = false;
+  },
+  lostAuth(){                                   // הכניסה פגה – מבקשים להיכנס שוב
+    this.stop(); this.tok = null; store.del('tok'); store.del('code'); S.profile.code = '';
+    if (['friends','wait','code'].includes(curScreen) || (curScreen === 'game' && S.mode === 'online')){ resetGameState(); whoFrom = 'open'; show('who'); }
   },
 
   /* ---------- "מה חדש?" ---------- */
@@ -1713,12 +1940,17 @@ const Online = {
     this.polling = true;
     const code = this.room || '';
     try {
-      const r = await this.call('poll', { busy:!!this.room, code });
+      const r = await this.call('poll', { busy:!!this.room, code, wantFriends: curScreen === 'friends' });
+      if (r.error === 'auth'){ if (first) throw noAuth(); this.lostAuth(); return; }
       if (r.error){ if (first) throw new Error(r.error); return; }
       this.uid = r.me; this.offset = r.now - Date.now(); this.connected = true;
+      if (r.profile && (r.profile.name !== S.profile.name || r.profile.rocket !== S.profile.rocket)) setProfile(r.profile.name, r.profile.rocket, r.profile.code);
       this.presence = r.presence || {};
+      if (r.friends) this.friends = r.friends;
+      this.sent = new Set(r.sent || []);
       this.renderFriends();
       this.onInvites(r.invites || {});
+      this.onRequests(r.requests || {});
       if (code && code === this.room) this.applyRoom(r.room);
     } catch(e){ this.connected = false; if (first) throw e; }
     finally { this.polling = false; }
@@ -1739,18 +1971,65 @@ const Online = {
       .map(([u, p]) => ({ uid:u, name:String(p.name).slice(0, 14), rocket:p.rocket }))
       .sort((a, b) => a.name.localeCompare(b.name, 'he'));
   },
+  myFriends(){
+    const now = this.now();
+    return Object.entries(this.friends || {}).map(([k, f]) => {
+      const on = now - (f.ts || 0) < 30000;
+      return { uid:k, name:String(f.name || '').slice(0, 14), rocket:f.rocket, on, busy:!!f.busy, avail: on && !f.busy };
+    }).sort((a, b) => (b.avail - a.avail) || a.name.localeCompare(b.name, 'he'));
+  },
   renderFriends(){
     if (curScreen !== 'friends') return;
-    const list = this.friendsList();
-    for (const u of [...this.selected]) if (!list.find(x => x.uid === u)) this.selected.delete(u);
-    const html = list.map(f => `<button class="fcard${this.selected.has(f.uid) ? ' sel' : ''}" data-uid="${esc(f.uid)}"><img src="${rocketSrc(f.rocket)}" alt=""><span>${esc(f.name)}</span></button>`).join('');
+    const tab = S.fTab || 'online';
+    $$('#fTabs button').forEach(b => b.classList.toggle('sel', b.dataset.tab === tab));
+    $('#fMyCode').textContent = this.uid || S.profile.code || '';
+    const mine = this.myFriends(), online = this.friendsList();
+    const avail = new Set([...mine.filter(f => f.avail).map(f => f.uid), ...online.map(f => f.uid)]);
+    for (const u of [...this.selected]) if (!avail.has(u)) this.selected.delete(u);
+    let html = '', count = 0, empty = '';
+    if (tab === 'mine'){
+      count = mine.length; empty = TX.noFriends;
+      html = mine.map(f => `<button class="fcard${this.selected.has(f.uid) ? ' sel' : ''}${f.avail ? '' : ' off'}" data-uid="${esc(f.uid)}"${f.avail ? '' : ' data-off="1"'}><img src="${rocketSrc(f.rocket)}" alt=""><span>${esc(f.name)}</span><span class="st${f.avail ? ' on' : ''}">${f.avail ? TX.online : (f.on ? TX.playing : TX.offline)}</span></button>`).join('');
+    } else if (tab === 'online'){
+      count = online.length; empty = TX.noOnline;
+      const fr = this.friends || {};
+      html = online.map(f => {
+        const extra = fr[f.uid] ? `<span class="st on">${TX.isFriend}</span>`
+          : `<button class="add" data-add="${esc(f.uid)}"${this.sent && this.sent.has(f.uid) ? ' disabled' : ''}>${this.sent && this.sent.has(f.uid) ? TX.reqSent : TX.addFriend}</button>`;
+        return `<div class="fcard${this.selected.has(f.uid) ? ' sel' : ''}" data-uid="${esc(f.uid)}" role="button"><img src="${rocketSrc(f.rocket)}" alt=""><span>${esc(f.name)}</span>${extra}</div>`;
+      }).join('');
+    }
     const box = $('#fList'); if (box.dataset.html !== html){ box.innerHTML = html; box.dataset.html = html; }
-    $('#fEmpty').classList.toggle('hide', list.length > 0);
-    $('#fPickNote').classList.toggle('hide', !list.length);
+    const isAdd = tab === 'add';
+    box.classList.toggle('hide', isAdd);
+    $('#fAdd').classList.toggle('hide', !isAdd);
+    $('#fEmpty').classList.toggle('hide', isAdd || count > 0);
+    $('#fEmptyText').textContent = empty;
+    $('#fPickNote').classList.toggle('hide', isAdd || !count);
     $('#fInvite').disabled = this.selected.size === 0;
   },
+  async addFriend(code){
+    const r = await this.call('friendReq', { to:code });
+    if (r.error === 'nouser') toast(TX.noUser);
+    else if (r.error === 'self') toast(TX.selfCode);
+    else if (r.error === 'full') toast(TX.tooMany);
+    else if (r.error) throw new Error(r.error);
+    else if (r.friends) { toast(fill(TX.nowFriends, { name:esc(r.name || '') })); Snd.ok(); }
+    else { toast(TX.reqDone); Snd.tick(); }
+    if (!r.error){ this.sent.add(code); $('#fList').dataset.html = ''; }
+    this.schedule(0);
+    return r;
+  },
+  onRequests(v){
+    this.reqShown = this.reqShown || new Set();
+    for (const from of Object.keys(v)){
+      if (this.reqShown.has(from)) continue;
+      this.reqShown.add(from); this.invQueue.push({ req:true, from, inv:v[from] || {} });
+    }
+    this.nextInvite();
+  },
   async inviteSelected(){
-    const to = [...this.selected].slice(0, 2), level = S.fLevel;
+    const to = [...this.selected].slice(0, 3), level = S.fLevel;
     const code = await this.createRoom(level);
     this.invited = to;
     await this.call('invite', { code, to, level }).catch(e => console.warn(e));
@@ -1769,7 +2048,9 @@ const Online = {
   },
   nextInvite(){
     if ($('#inviteOv').classList.contains('on') || !this.invQueue.length) return;
-    const { code, inv } = this.invQueue.shift();
+    const item = this.invQueue.shift();
+    if (item.req) return this.showRequest(item);
+    const { code, inv } = item;
     const left = 60000 - (this.now() - (inv.ts || 0));
     if (left < 1500 || this.room) return this.nextInvite();
     const L = LEVELS[inv.level] || LEVELS[1];
@@ -1789,6 +2070,24 @@ const Online = {
       this.call('decline', { code }).catch(() => {});
       this.nextInvite();
     };
+  },
+
+  showRequest({ from, inv }){
+    const text = fill(TX.friendReq, { name:esc(String(inv.name || '').slice(0, 14)) });
+    const o = openOv('inviteOv', `<div class="mcard"><img src="${rocketSrc(inv.rocket)}" alt="" style="height:96px;align-self:center">
+      <div class="row"><h2 class="grow">${text}</h2>${spkBtn(text)}</div>
+      <div class="yn"><button class="btn" id="rqYes">${TX.yesFriend}</button><button class="btn coral" id="rqNo">${TX.inviteNo}</button></div></div>`);
+    Snd.invite();
+    const answer = yes => {
+      closeOv('inviteOv');
+      this.call('friendAnswer', { from, yes }).then(r => {
+        if (yes && r && r.friends){ toast(fill(TX.nowFriends, { name:esc(r.name || inv.name || '') })); Snd.ok(); }
+        this.schedule(0);
+      }).catch(() => {});
+      this.nextInvite();
+    };
+    $('#rqYes', o).onclick = () => answer(true);
+    $('#rqNo', o).onclick = () => answer(false);
   },
 
   /* ---------- חדרים ---------- */
@@ -1891,7 +2190,7 @@ const Online = {
     const L = LEVELS[d.level] || LEVELS[1];
     $('#wLevel').innerHTML = `<span class="lchip sel" style="--lc:${L.color}"><img src="images/${L.planet}.png" alt="">שָׁלָב ${N(d.level)} · ${L.title}</span>`;
     const mem = this.sortedMembers(d);
-    const ghosts = Math.max(0, Math.min(3, mem.length + this.invited.length) - mem.length);
+    const ghosts = Math.max(0, Math.min(4, mem.length + this.invited.length) - mem.length);
     $('#wMembers').innerHTML = mem.map(m => `<div class="member"><img src="${rocketSrc(m.rocket)}" alt=""><span>${esc(String(m.name).slice(0, 14))}</span></div>`).join('')
       + (d.host === this.uid ? Array.from({ length:ghosts }, () => `<div class="member ghost"><img src="images/rocket_moon.png" alt=""><span>…</span></div>`).join('') : '');
     const dec = Object.values(d.declined || {}).filter(n => typeof n === 'string');
@@ -1903,8 +2202,8 @@ const Online = {
   },
   async start(){
     const d = this.roomData; if (!d || d.host !== this.uid) return;
-    const mem = this.sortedMembers(d).slice(0, 3); if (mem.length < 2) return;
-    const g = Engine.newGame(d.level || 1, 'online', mem.map(m => ({ name:String(m.name).slice(0, 14), rocket:m.rocket, uid:m.uid })));
+    const mem = this.sortedMembers(d).slice(0, 4); if (mem.length < 2) return;
+    const g = Engine.newGame(d.level || 1, 'online', mem.map(m => ({ name:String(m.name).slice(0, 14), rocket:m.rocket, uid:m.uid })), this.now());
     const code = this.room;
     const r = await this.call('start', { code, game:jclone(g) });
     if (r.room && this.room === code) this.applyRoom(r.room);
@@ -2000,7 +2299,7 @@ const Online = {
     const mem = this.sortedMembers(d), again = d.again || {};
     if (mem.length < 2 || !mem.every(m => again[m.uid])) return;
     if (mem.map(m => m.uid).sort()[0] !== this.uid) return;          // רק אחד מתחיל מחדש
-    const ng = Engine.newGame(g.level, 'online', mem.slice(0, 3).map(m => ({ name:String(m.name).slice(0, 14), rocket:m.rocket, uid:m.uid })));
+    const ng = Engine.newGame(g.level, 'online', mem.slice(0, 4).map(m => ({ name:String(m.name).slice(0, 14), rocket:m.rocket, uid:m.uid })), this.now());
     const code = this.room;
     this.call('restart', { code, game:jclone(ng) }).then(r => { if (r.room && this.room === code) this.applyRoom(r.room); }).catch(() => {});
   }
@@ -2031,7 +2330,12 @@ async function goFriends(then){
     closeModal();
     if (!Online.room) show('friends');
     if (then) await then();
-  } catch(e){ console.warn(e); closeModal(); if (e && e.code === 'nobackend'){ show('nofb'); return; } netError(() => goFriends(then)); }
+  } catch(e){
+    console.warn(e); closeModal();
+    if (e && e.code === 'nobackend'){ show('nofb'); return; }
+    if (e && e.code === 'noauth'){ Online.lostAuth(); whoFrom = 'open'; show('who'); return; }
+    netError(() => goFriends(then));
+  }
 }
 
 /* ---------- מסך החברים ---------- */
@@ -2043,16 +2347,32 @@ function levelChips(box, sel, onPick){
 }
 ENTER.friends = () => {
   S.mode = null;
+  if (!S.fTab || S.fTab === 'add') S.fTab = Online.friends && Object.keys(Online.friends).length ? 'mine' : 'online';
+  $('#fAddCode').value = ''; $('#fAddOk').disabled = true;
   levelChips($('#fLevels'), S.fLevel, l => { S.fLevel = l; store.set('level', l); ENTER.friends(); });
   $('#fList').dataset.html = '';
   Online.updatePresence();
   Online.renderFriends();
 };
-$('#fList').addEventListener('click', e => {
+$('#fTabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]'); if (!b) return;
+  S.fTab = b.dataset.tab; Snd.tick(); $('#fList').dataset.html = ''; Online.renderFriends();
+});
+codeOnly($('#fAddCode'), 5, () => { $('#fAddOk').disabled = !/^\d{5}$/.test($('#fAddCode').value); });
+$('#fAddOk').addEventListener('click', async () => {
+  const code = $('#fAddCode').value; $('#fAddOk').disabled = true;
+  try { const r = await Online.addFriend(code); if (!r.error){ $('#fAddCode').value = ''; S.fTab = r.friends ? 'mine' : S.fTab; } }
+  catch(e){ console.warn(e); toast(TX.netErr); }
+  $('#fAddOk').disabled = !/^\d{5}$/.test($('#fAddCode').value);
+});
+$('#fList').addEventListener('click', async e => {
+  const add = e.target.closest('[data-add]');
+  if (add){ add.disabled = true; try { await Online.addFriend(add.dataset.add); } catch(err){ toast(TX.netErr); } return; }
   const c = e.target.closest('[data-uid]'); if (!c) return;
+  if (c.dataset.off){ shakeEl(c); return; }
   const u = c.dataset.uid;
   if (Online.selected.has(u)) Online.selected.delete(u);
-  else if (Online.selected.size < 2) Online.selected.add(u);
+  else if (Online.selected.size < 3) Online.selected.add(u);
   else { shakeEl(c); return; }
   Snd.tick(); $('#fList').dataset.html = ''; Online.renderFriends();
 });
@@ -2068,7 +2388,7 @@ let codeIn = '';
 ENTER.code = () => {
   codeIn = '';
   ENTER.codeChips();
-  $('#cKeys').innerHTML = CODE_ABC.split('').map(ch => `<button data-c="${ch}">${ch}</button>`).join('') + `<button class="wide" data-c="del">${TX.del}</button>`;
+  $('#cKeys').innerHTML = '123456789'.split('').map(ch => `<button data-c="${ch}">${ch}</button>`).join('') + `<button data-c="del" class="delk">${TX.del}</button><button data-c="0">0</button><span></span>`;
   renderCode();
 };
 ENTER.codeChips = () => levelChips($('#cLevels'), S.fLevel, l => { S.fLevel = l; store.set('level', l); ENTER.codeChips(); });
@@ -2123,7 +2443,7 @@ BACK.wait = () => { Online.leaveRoom(); resetGameState(); show('friends'); };
   imgFallback(); Speak.init(); renderMute(); fillSpk();
   try {
     const params = new URLSearchParams(location.search);
-    const r = (params.get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+    const r = (params.get('room') || '').replace(/\D/g, '').slice(0, 4);
     if (r.length === 4){ S.urlRoom = r; history.replaceState(null, '', location.pathname); }
   } catch(e){}
   show('open');

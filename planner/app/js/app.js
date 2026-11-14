@@ -4,7 +4,7 @@ import { ic, art, spark, squiggle, miniArt, fileBadge, logo } from './icons.js';
 import * as ID from '../vendor/identity.mjs';
 import { putBlob, getBlob, delBlob, extractText, matchLessons, fmtSize, kindOf } from './files.js';
 import { readAnyPlan } from './genparse.js';
-import { cast, castConnect, castSend, castEnd, castStyle } from './cast.js';
+import { cast, castConnect, castSend, castEnd, castStyle, castEvent } from './cast.js';
 import { QUOTES, BANK, CATS, EV } from './toolkit.js';
 import { weekPrintHtml } from './printweek.js';
 import { PM_TYPES, buildToday, buildWeek as buildWeekMsg, buildDict, buildGear, buildTest, buildBday, buildAll, autoTests, autoEvents, weekBdays, buildPersonal, buildForms, formPersonal, buildChange, buildHoliday, nextHoliday, HOLIDAY_NAMES, OPENERS, CLOSERS, stripEmoji, waHtml } from './parentmsg.js';
@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 59; // keep in step with CACHE in sw.js
+const APP_V = 60; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1134,6 +1134,7 @@ function viewClass() {
     <div class="nl ${noise.on ? 'live' : ''}" id="noiseLight"><i class="r"></i><i class="y"></i><i class="g"></i></div>
     <label class="field">רגישות<input type="range" min="1" max="10" value="${noise.sens}" data-noisesens></label>
     <div class="btnrow"><button class="cta ${noise.on ? 'soft' : ''}" data-act="noise">${noise.on ? 'עצירה' : 'הפעלה'}</button>${noise.on ? `<button class="cta soft" data-act="noisetalk">${ic('pause')} ${g('אני מדברת', 'אני מדבר')} (30 שנ׳)</button>` : ''}</div>
+    <div class="setrow"><span>הדמות משמיעה "ששש" כשהרמזור אדום 3 שניות</span><button class="switch ${state.prefs.shhSound !== false ? 'on' : ''}" data-act="shhsound" role="switch" aria-checked="${state.prefs.shhSound !== false}"><i></i></button></div>
     <p class="hint">הרמזור מגיב בעיקר לרעש רצוף של הרבה קולות יחד, ופחות לדיבור של אדם אחד (שיש בו הפסקות בין מילים). כדאי להניח את הטלפון באמצע הכיתה, לא צמוד אלייך.</p>
     <p class="hint">משתמש במיקרופון רק כדי למדוד עוצמה – שום דבר לא מוקלט או נשמר.</p>
   </div>`;
@@ -1147,16 +1148,36 @@ function viewClass() {
 function weekKey() { const t = now(); const s = addDays(new Date(t.getFullYear(), t.getMonth(), t.getDate()), -t.getDay()); return isoDay(s); }
 const SHH_SVG = `<svg viewBox="0 0 200 230" aria-hidden="true"><ellipse cx="100" cy="222" rx="62" ry="7" fill="rgba(0,0,0,.18)"/><circle cx="100" cy="112" r="86" fill="#F4D88E"/><ellipse cx="72" cy="66" rx="26" ry="16" fill="#FFF3CF" opacity=".7" transform="rotate(-25 72 66)"/><path d="M58 100q13 11 26 0M116 100q13 11 26 0" fill="none" stroke="#4A3B5C" stroke-width="6" stroke-linecap="round"/><ellipse cx="56" cy="130" rx="14" ry="8" fill="#F2A7B5" opacity=".75"/><ellipse cx="144" cy="130" rx="14" ry="8" fill="#F2A7B5" opacity=".75"/><ellipse cx="100" cy="146" rx="10" ry="8" fill="#4A3B5C"/><circle cx="106" cy="182" r="20" fill="#F7C9A0" stroke="#E2A06E" stroke-width="3"/><rect x="93" y="118" width="15" height="58" rx="7.5" fill="#F7C9A0" stroke="#E2A06E" stroke-width="3"/></svg>`;
 function applyProjLook() { const el = $('#proj'); if (!el) return; const st = castLook(); el.dataset.look = st.theme; el.dataset.font = st.font; el.style.setProperty('--tsize', st.size); }
-// red for 3 seconds in a row -> the shushing friend comes up on the phone's projector view
-function localHush(l) {
-  const el = $('#pjShh'); if (!el) return;
-  if (l === 'r') { if (!noise.redSince) noise.redSince = Date.now(); clearTimeout(noise.ht); noise.ht = setTimeout(() => { const e = $('#pjShh'); if (e) e.classList.add('show'); }, Math.max(0, 3000 - (Date.now() - noise.redSince))); }
-  else { noise.redSince = 0; clearTimeout(noise.ht); if (el.classList.contains('show')) noise.ht = setTimeout(() => { const e = $('#pjShh'); if (e) e.classList.remove('show'); }, 1500); }
+// a soft "shhhh": white noise shaped like the sound of sh (most of it around 2–5 kHz), twice
+function playShh(ctx, vol = 1) {
+  const t = ctx.currentTime + .05, dur = 2, n = Math.floor(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3000; bp.Q.value = .8;
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1500;
+  const g = ctx.createGain(), v = .55 * vol;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(v, t + .12); g.gain.linearRampToValueAtTime(v * .7, t + .55); g.gain.linearRampToValueAtTime(0, t + .75);
+  g.gain.setValueAtTime(0, t + .95); g.gain.linearRampToValueAtTime(v, t + 1.1); g.gain.setValueAtTime(v * .9, t + 1.6); g.gain.linearRampToValueAtTime(0, t + 1.95);
+  src.connect(bp).connect(hp).connect(g).connect(ctx.destination); src.start(t); src.stop(t + dur);
+}
+// red for 3 seconds in a row -> the shushing friend: on the phone's projector and on the classroom screen.
+// While it shushes, the phone stops listening for a moment (so it doesn't hear its own "shh").
+function shush() {
+  const tnow = performance.now();
+  noise.shushUntil = tnow + 3200; noise.lastShush = tnow; noise.hist = []; noise.redSince = 0;
+  const el = $('#proj.show #pjShh');
+  if (el) {
+    el.classList.add('show'); clearTimeout(noise.ht); noise.ht = setTimeout(() => { const e = $('#pjShh'); if (e) e.classList.remove('show'); }, 3600);
+    if (state.prefs.shhSound !== false && noise.ctx) playShh(noise.ctx);
+  }
+  if (cast.on && cast.last && cast.last.kind === 'noise') castEvent('shh', { sound: state.prefs.shhSound !== false });
 }
 // show the light: on the phone, on the local projector, and on the classroom screen
 function noiseShow() {
   const l = noise.level || 'g';
-  const pj = $('#pjNoise'); if (pj) { pj.dataset.l = l; localHush(l); }
+  const pj = $('#pjNoise'); if (pj) pj.dataset.l = l;
   if (cast.on && cast.last && cast.last.kind === 'noise') {
     clearTimeout(noise.ct);
     const gap = cast.relay ? 2000 : 0, since = performance.now() - (noise.sent || 0);
@@ -1191,12 +1212,15 @@ async function noiseToggle() {
       hist.push([tnow, rms]); while (hist.length && tnow - hist[0][0] > 2500) hist.shift();
       const sorted = hist.map(h => h[1]).sort((a, b) => a - b);
       const floor = sorted[Math.floor(sorted.length * .25)] || 0;
-      const paused = noise.pauseUntil && tnow < noise.pauseUntil;
+      const paused = (noise.pauseUntil && tnow < noise.pauseUntil) || (noise.shushUntil && tnow < noise.shushUntil);
+      if (paused) hist.length = 0;
       // steady the light: a new colour must last a moment, and red stays up a little
       const want = paused ? 'g' : floor > 13 ? 'r' : floor > 6 ? 'y' : 'g';
       if (want !== noise.want) { noise.want = want; noise.since = tnow; }
       const hold = noise.level === 'r' ? 1500 : 350;
       if (want !== noise.level && tnow - noise.since > (want === 'r' ? 250 : hold)) { noise.level = want; noiseShow(); }
+      if (noise.level === 'r' && !paused) { if (!noise.redSince) noise.redSince = tnow; if (tnow - noise.redSince > 3000 && (!noise.lastShush || tnow - noise.lastShush > 8000) && ($('#proj.show #pjShh') || (cast.on && cast.last && cast.last.kind === 'noise'))) shush(); }
+      else if (noise.level !== 'r') noise.redSince = 0;
       const el = $('#noiseLight'); if (el) el.dataset.l = noise.level || 'g';
       noise.raf = requestAnimationFrame(tick);
     };
@@ -3627,6 +3651,7 @@ document.addEventListener('click', async e => {
     case 'ptclear': withUndo(['points'], 'הקבוצות נמחקו', () => { state.points = []; }); break;
     case 'noise': noiseToggle(); break;
     case 'noiseproj': noiseProject(); break;
+    case 'shhsound': state.prefs.shhSound = state.prefs.shhSound === false; save(); rerender(); if (state.prefs.shhSound) { try { const c = noise.ctx || new (window.AudioContext || window.webkitAudioContext)(); playShh(c, .6); } catch { /* fine */ } } break;
     case 'noisetalk': noise.pauseUntil = performance.now() + 30000; noise.hist = []; toast('הרמזור לא יגיב ב־30 השניות הקרובות 🤫', 2200); break;
     case 'nextweek': {
       const cur = pickWeek(); if (!cur) break;

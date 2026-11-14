@@ -83,6 +83,8 @@ iframe { position: fixed; inset: 0; width: 100vw; height: 100vh; border: 0; back
 #status { position: fixed; bottom: 2vh; left: 2vw; font-size: 1.8vh; color: var(--soft); direction: rtl; }
 #status i { display: inline-block; width: 1vh; height: 1vh; border-radius: 50%; background: #E8B45A; margin-inline-end: .8vh; }
 #status.on i { background: #6FCF8F; }
+#snd { position: fixed; top: 2vh; right: 2vw; background: rgba(255, 255, 255, .08); color: var(--ink); border: 1px solid rgba(255, 255, 255, .15); border-radius: 99px; padding: 1vh 2.2vh; font: inherit; font-size: 2vh; cursor: pointer; }
+#snd.on { display: none; }
 #fs { position: fixed; top: 2vh; left: 2vw; background: rgba(255, 255, 255, .08); color: var(--ink); border: 1px solid rgba(255, 255, 255, .15); border-radius: 99px; padding: 1vh 2.2vh; font: inherit; font-size: 2vh; cursor: pointer; }
 </style>
 </head>
@@ -101,6 +103,7 @@ iframe { position: fixed; inset: 0; width: 100vw; height: 100vh; border: 0; back
 </div>
 <button id="fs" type="button">מסך מלא</button>
 <div id="status"><i></i><span>מתחבר…</span></div>
+<button id="snd" type="button" title="קול">🔇 לחיצה כאן מפעילה קול</button>
 <script type="module">
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -120,12 +123,28 @@ function applyStyle(st) {
   try { localStorage.setItem('cast-style', JSON.stringify(st)); } catch {}
 }
 try { applyStyle(JSON.parse(localStorage.getItem('cast-style'))); } catch {}
-// red for a few seconds in a row -> the shushing friend comes up; it goes once it's calm again
-let redSince = 0, shhT = 0;
-function hush(l) {
-  const el = $('#shh');
-  if (l === 'r') { if (!redSince) redSince = Date.now(); clearTimeout(shhT); shhT = setTimeout(() => el.classList.add('show'), Math.max(0, 3000 - (Date.now() - redSince))); }
-  else { redSince = 0; clearTimeout(shhT); if (el.classList.contains('show')) shhT = setTimeout(() => el.classList.remove('show'), 1500); }
+// a soft "shhhh": white noise shaped like the sound of sh (most of it around 2–5 kHz), twice
+function playShh(ctx, vol = 1) {
+  const t = ctx.currentTime + .05, dur = 2, n = Math.floor(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3000; bp.Q.value = .8;
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1500;
+  const g = ctx.createGain(), v = .55 * vol;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(v, t + .12); g.gain.linearRampToValueAtTime(v * .7, t + .55); g.gain.linearRampToValueAtTime(0, t + .75);
+  g.gain.setValueAtTime(0, t + .95); g.gain.linearRampToValueAtTime(v, t + 1.1); g.gain.setValueAtTime(v * .9, t + 1.6); g.gain.linearRampToValueAtTime(0, t + 1.95);
+  src.connect(bp).connect(hp).connect(g).connect(ctx.destination); src.start(t); src.stop(t + dur);
+}
+// sound needs one click on this screen first (browsers block sound until someone touches the page)
+let actx = null;
+const unlock = () => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); $('#snd').classList.add('on'); } catch {} };
+document.addEventListener('pointerdown', unlock);
+let shhT = 0;
+function shh(d) {
+  const el = $('#shh'); el.classList.add('show'); clearTimeout(shhT); shhT = setTimeout(() => el.classList.remove('show'), 3600);
+  if (d && d.sound !== false && actx) playShh(actx);
 }
 function show(m) {
   if (m && m.kind === 'piece') {
@@ -135,9 +154,10 @@ function show(m) {
   }
   if (m && m.style) applyStyle(m.style);
   if (m && m.kind === 'style') return;
-  if (!m || m.kind !== 'noise') hush('g');
+  if (m && m.kind === 'shh') { shh(m.data); return; }
+  if (!m || m.kind !== 'noise') { clearTimeout(shhT); $('#shh').classList.remove('show'); }
   // the noise light changes often: only switch the lamp, don't redraw the screen
-  const lt = $('#light'); if (m && m.kind === 'noise' && lt) { lt.dataset.l = m.data || 'g'; hush(m.data); return; }
+  const lt = $('#light'); if (m && m.kind === 'noise' && lt) { lt.dataset.l = m.data || 'g'; return; }
   clearInterval(timerT); clearInterval(clockT);
   const st = $('#stage'); let h = '';
   const k = m && m.kind, d = m && m.data;
@@ -153,7 +173,7 @@ function show(m) {
     h = `<div class="timer" id="tm">${fmt(Math.round(d.left))}</div><div class="bar"><i id="tb" style="width:${Math.round(100 * d.left / total)}%"></i></div>${d.label ? `<div class="sub">${esc(d.label)}</div>` : ''}`;
     if (d.running) timerT = setInterval(() => { const l = Math.max(0, Math.round((end - Date.now()) / 1000)); const t = $('#tm'); if (!t) return; t.textContent = fmt(l); $('#tb').style.width = Math.round(100 * l / total) + '%'; if (!l) { t.classList.add('done'); clearInterval(timerT); } }, 250);
   }
-  else if (k === 'noise') { h = `<div class="light" id="light" data-l="${esc(d || 'g')}"><i class="r"></i><i class="y"></i><i class="g"></i></div>`; hush(d); }
+  else if (k === 'noise') { h = `<div class="light" id="light" data-l="${esc(d || 'g')}"><i class="r"></i><i class="y"></i><i class="g"></i></div>`; }
   else if (k === 'html') h = `<iframe sandbox="allow-scripts allow-forms allow-modals allow-popups" srcdoc="${esc(d)}"></iframe>`;
   else if (k === 'canva') { const u = String(d || ''); h = /^https:\/\/(www\.)?canva\.com\/design\//.test(u) ? `<iframe src="${esc(u)}" allow="fullscreen" allowfullscreen></iframe>` : ''; }
   else if (k === 'blank') h = '';

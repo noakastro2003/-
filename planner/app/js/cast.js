@@ -62,6 +62,8 @@ export function castSend(kind, data) {
   if (!cast.on) return false;
   return raw({ kind, data });
 }
+// a one-off moment (the shushing friend) – doesn't replace what the screen shows
+export function castEvent(kind, data) { return cast.on ? raw({ kind, data }) : false; }
 // how the classroom screen looks (background, text size, font) – kept apart from what it shows
 export function castStyle(style) {
   cast.style = style;

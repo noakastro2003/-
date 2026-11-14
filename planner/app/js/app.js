@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 61; // keep in step with CACHE in sw.js
+const APP_V = 62; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1090,7 +1090,6 @@ function castSheet() {
       ${b('picker', 'dice', 'מי עונה?')}
       ${state.points.length ? b('points', 'medal', 'ניקוד') : ''}
       ${b('noise', 'sparkle', 'רמזור רעש')}
-      ${noise.on ? `<button data-act="noisetalk">${ic('pause')}<span>${g('אני מדברת', 'אני מדבר')}</span></button>` : ''}
       ${b('blank', 'moon', 'מסך ריק')}
     </div>
     ${secs.length ? `<h4>שלב בשיעור</h4><div class="fchips wrap">${secs.map((x, i) => `<button class="fc" data-castsec="${i}">${esc(x.label || 'שלב ' + (i + 1))}</button>`).join('')}</div>` : ''}
@@ -1198,9 +1197,9 @@ function viewClass() {
   h += `<div class="card noise">${cardHead('sparkle', 'רמזור רעש', `<button class="linkbtn" data-act="noiseproj">${ic('screen')} ${cast.on ? 'למסך הכיתה' : 'הקרנה'}</button>`)}
     <div class="nl ${noise.on ? 'live' : ''}" id="noiseLight"><i class="r"></i><i class="y"></i><i class="g"></i></div>
     <label class="field">רגישות<input type="range" min="1" max="10" value="${noise.sens}" data-noisesens></label>
-    <div class="btnrow"><button class="cta ${noise.on ? 'soft' : ''}" data-act="noise">${noise.on ? 'עצירה' : 'הפעלה'}</button>${noise.on ? `<button class="cta soft" data-act="noisetalk">${ic('pause')} ${g('אני מדברת', 'אני מדבר')} (30 שנ׳)</button>` : ''}</div>
+    <button class="cta ${noise.on ? 'soft' : ''}" data-act="noise">${noise.on ? 'עצירה' : 'הפעלה'}</button>
     <div class="setrow"><span>הדמות משמיעה "ששש" כשהרמזור אדום 3 שניות</span><button class="switch ${state.prefs.shhSound !== false ? 'on' : ''}" data-act="shhsound" role="switch" aria-checked="${state.prefs.shhSound !== false}"><i></i></button></div>
-    <p class="hint">הרמזור מגיב בעיקר לרעש רצוף של הרבה קולות יחד, ופחות לדיבור של אדם אחד (שיש בו הפסקות בין מילים). כדאי להניח את הטלפון באמצע הכיתה, לא צמוד אלייך.</p>
+    <p class="hint">הרמזור מבחין לבד בין אדם אחד שמדבר לבין רעש של כיתה – ומאדים רק כשהרבה מדברים יחד. כדאי להניח את הטלפון באמצע הכיתה, לא צמוד אלייך.</p>
     <p class="hint">משתמש במיקרופון רק כדי למדוד עוצמה – שום דבר לא מוקלט או נשמר.</p>
   </div>`;
   const wk = weekKey();
@@ -1261,26 +1260,50 @@ async function noiseToggle() {
   try {
     noise.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     noise.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const an = noise.ctx.createAnalyser(); an.fftSize = 512;
+    const an = noise.ctx.createAnalyser(); an.fftSize = 2048;
     noise.ctx.createMediaStreamSource(noise.stream).connect(an);
-    const buf = new Uint8Array(an.fftSize); noise.on = true; noise.level = 'g'; noise.want = 'g'; rerender();
+    const buf = new Uint8Array(an.fftSize), fbuf = new Float32Array(1024), sr = noise.ctx.sampleRate;
+    // pitch range of a speaking voice (≈80–420 Hz) as sample lags
+    const lagMin = Math.floor(sr / 420), lagMax = Math.ceil(sr / 80);
+    let frame = 0; noise.on = true; noise.level = 'g'; noise.want = 'g'; rerender();
     if (!wantAwake) { wantAwake = true; wakeOn(); }
     const tick = () => {
       if (!noise.on) return;
       an.getByteTimeDomainData(buf);
       let sum = 0; for (const v of buf) sum += (v - 128) * (v - 128);
       const rms = Math.sqrt(sum / buf.length) * noise.sens / 5, tnow = performance.now();
-      // One person talking has small gaps between words; a noisy class doesn't.
-      // So the light follows the *quiet moments* (the lower quarter of the last 2.5 seconds),
-      // not the loud ones: the teacher's voice alone stays green, a whole class talking at once doesn't.
+      // Telling one voice from a whole class, automatically, with two signs:
+      // 1. gaps – one person talking has small quiet moments between words; a noisy class doesn't.
+      //    So we follow the quiet moments (the lower 20% of the last 3 seconds), not the loud ones.
+      // 2. one clear voice – a single voice repeats itself at its pitch (strong self-similarity);
+      //    many children at once are a blend of pitches with no single repeat.
+      // Red only when it's both loud in the quiet moments AND not one clear voice.
+      let per = -1;
+      if (++frame % 4 === 0 && rms > 4) {
+        an.getFloatTimeDomainData(fbuf);
+        let e0 = 0; for (let i = 0; i < fbuf.length; i++) e0 += fbuf[i] * fbuf[i];
+        if (e0 > 0) {
+          let best = 0;
+          for (let lag = lagMin; lag <= lagMax && lag < fbuf.length / 2; lag++) {
+            let c = 0, e1 = 0; for (let i = 0; i + lag < fbuf.length; i++) { c += fbuf[i] * fbuf[i + lag]; e1 += fbuf[i + lag] * fbuf[i + lag]; }
+            const r = c / Math.sqrt(e0 * e1 || 1); if (r > best) best = r;
+          }
+          per = best;
+        }
+      }
       const hist = noise.hist = noise.hist || [];
-      hist.push([tnow, rms]); while (hist.length && tnow - hist[0][0] > 2500) hist.shift();
+      hist.push([tnow, rms, per]); while (hist.length && tnow - hist[0][0] > 3000) hist.shift();
       const sorted = hist.map(h => h[1]).sort((a, b) => a - b);
-      const floor = sorted[Math.floor(sorted.length * .25)] || 0;
-      const paused = (noise.pauseUntil && tnow < noise.pauseUntil) || (noise.shushUntil && tnow < noise.shushUntil);
+      const pers = hist.map(h => h[2]).filter(x => x >= 0).sort((a, b) => a - b);
+      const voice = pers.length >= 4 ? pers[Math.floor(pers.length / 2)] : 0; // typical "one clear voice" score
+      const floor = sorted[Math.floor(sorted.length * .2)] || 0;
+      // one clear voice (the teacher, however loud) never turns the light on; a mixed voice can reach yellow at most
+      const cap = voice > .6 ? 'g' : voice > .48 ? 'y' : 'r';
+      const paused = noise.shushUntil && tnow < noise.shushUntil;
       if (paused) hist.length = 0;
       // steady the light: a new colour must last a moment, and red stays up a little
-      const want = paused ? 'g' : floor > 13 ? 'r' : floor > 6 ? 'y' : 'g';
+      let want = paused ? 'g' : floor > 13 ? 'r' : floor > 6 ? 'y' : 'g';
+      if (cap === 'g' || (cap === 'y' && want === 'r')) want = cap === 'g' ? 'g' : 'y';
       if (want !== noise.want) { noise.want = want; noise.since = tnow; }
       const hold = noise.level === 'r' ? 1500 : 350;
       if (want !== noise.level && tnow - noise.since > (want === 'r' ? 250 : hold)) { noise.level = want; noiseShow(); }
@@ -3726,7 +3749,6 @@ document.addEventListener('click', async e => {
     case 'noise': noiseToggle(); break;
     case 'noiseproj': noiseProject(); break;
     case 'shhsound': state.prefs.shhSound = state.prefs.shhSound === false; save(); rerender(); if (state.prefs.shhSound) { try { const c = noise.ctx || new (window.AudioContext || window.webkitAudioContext)(); playShh(c, .6); } catch { /* fine */ } } break;
-    case 'noisetalk': noise.pauseUntil = performance.now() + 30000; noise.hist = []; toast('הרמזור לא יגיב ב־30 השניות הקרובות 🤫', 2200); break;
     case 'nextweek': {
       const cur = pickWeek(); if (!cur) break;
       const { wk, carried } = nextWeekFrom(cur);

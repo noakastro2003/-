@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 55; // keep in step with CACHE in sw.js
+const APP_V = 56; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -3715,6 +3715,7 @@ document.addEventListener('submit', e => {
       if (r && r.ok && j.text) { nakdanSheet(t, j.text); return; }
       btn.disabled = false; btn.innerHTML = `${ic('sparkle')} ניקוד`;
       toast(!r ? 'אין אינטרנט כרגע' : r.status === 401 ? 'צריך להתחבר לחשבון' : 'הנקדן לא זמין כרגע – אפשר לנסות שוב עוד מעט', 3200);
+      if (j.detail) { const h = f.querySelector('.nkerr') || f.appendChild(Object.assign(document.createElement('p'), { className: 'hint nkerr' })); h.textContent = 'פרטים טכניים (לצלם ולשלוח): ' + j.detail; }
     })();
     return;
   }

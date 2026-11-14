@@ -1501,3 +1501,14 @@ body.onboarding::after, body.incm::after { display: none; }
 @keyframes shhush { 50% { transform: scale(1.06); opacity: .85; } }
 
 .hv-bar .ovx { position: static; flex: none; margin: 0; }
+
+/* suggested tasks */
+.sugcard { border: 1px dashed color-mix(in srgb, var(--accent-ink) 40%, transparent); }
+.sugrow { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.sugrow:first-of-type { border-top: 0; }
+.sugrow b { display: block; font-weight: 500; font-size: var(--fs-sm); }
+.sugrow small { color: var(--soft); font-size: var(--fs-note); }
+.sugk { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--tint2); color: var(--accent-ink); flex: none; }
+.sugk .ic { width: 17px; height: 17px; }
+.sugrow .iconbtn { width: 38px; height: 38px; flex: none; }
+.sugrow.bye { animation: bye .22s var(--ease) forwards; }

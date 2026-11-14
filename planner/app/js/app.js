@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 60; // keep in step with CACHE in sw.js
+const APP_V = 61; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -581,6 +581,70 @@ function prepCards(w, day, mode) {
     .map(([s, i]) => prepSectionCard(w, day, s, i)).join('');
 }
 
+// ---------------------------------------------------------------- tasks the plan doesn't spell out
+// Reads each lesson (its text, files and materials) and suggests what to print, bring and check.
+// Nothing is added on its own: suggestions wait in "להכין" for a tap (✓ add / ✕ not needed).
+const SUG_WORDS = [
+  [/מספריים/, 'מספריים'], [/דבק/, 'דבק'], [/צבעים|טושים|מרקר/, 'צבעים / טושים'], [/בדידים/, 'בדידים'], [/קוביות/, 'קוביות'],
+  [/לוח(?:ות)?\s*מחיק/, 'לוחות מחיקים + טושים'], [/מעטפ/, 'מעטפות'], [/פלסטלינה/, 'פלסטלינה'], [/שעון/, 'שעון לכיתה'], [/מטבעות|כסף/, 'מטבעות / כסף משחק'],
+  [/סרגל/, 'סרגלים'], [/פתקים|פתקיות|פוסט.?איט/, 'פתקיות'], [/בריסטול|גיליון גדול/, 'בריסטול'], [/רמקול|שיר|סרטון|וידאו|יוטיוב/, 'רמקול / סאונד עובד'],
+];
+const normT = t => String(t || '').replace(/[^\u05D0-\u05EAa-z0-9]/gi, '');
+function prepSuggestions(w, day) {
+  const have = (w.prep[day.dow] || []).flatMap(sc => sc.items);
+  const haveTxt = have.map(i => normT(i.text)).join('|'), haveUrl = new Set(have.map(i => i.url).filter(Boolean));
+  const off = new Set(((w.sugOff || {})[day.dow]) || []);
+  const out = [], seen = new Set();
+  const add = (key, kind, text, p, url) => {
+    const k = normT(key);
+    if (!k || seen.has(k) || off.has(k) || (url && haveUrl.has(url)) || haveTxt.includes(normT(key))) return;
+    seen.add(k); out.push({ k, kind, text, period: p.label, lesson: p.title, url: url || '' });
+  };
+  const n = classSize(w);
+  // the plan already has one file with all of the day's printing -> don't list each page again
+  const printFileDay = have.some(i => /קובץ ההדפסות|🖨/.test(i.text));
+  const haveAll = have.map(i => i.text).join(' ');
+  const forPeriod = lb => have.filter(i => String(i.period || '') === String(lb)).map(i => i.text).join(' ');
+  const copies = t => /למורה|מפתח|תשובות|מצגת/.test(t) ? '' : /שכפול|דף|דפי|עבודה|טקסט|מבדק|תלמיד|כרטיס/.test(t) && n ? ` – ${n} עותקים` : '';
+  for (const p of day.periods) {
+    const T = `${p.title} ${p.subtitle} ${p.badges.join(' ')} ${p.sections.map(x => x.label + ' ' + x.text).join(' ')}`;
+    const pp = forPeriod(p.label);
+    for (const l of p.links) {
+      if (!l.url) continue;
+      const k = fileKind(l);
+      if ((k === 'pdf' || k === 'doc') && !printFileDay && !/מצגת/.test(l.text)) add(l.text, 'print', `להדפיס: ${l.text}${copies(l.text)}`, p, l.url);
+      else if ((k === 'ppt' || k === 'slides' || /מצגת/.test(l.text)) && !/מקרן|מצגת/.test(pp)) add('מקרן ' + l.text, 'check', `מקרן + מצגת: ${l.text}`, p, l.url);
+      else if (/youtu/.test(l.url)) add('סרטון ' + l.text, 'check', `לבדוק שהסרטון עובד: ${l.text}`, p, l.url);
+    }
+    for (const m of p.materials) add(m.text, 'bring', m.text, p);
+    if (/דפ(?:י|ף)\s*עבודה/.test(T) && !p.links.some(l => /pdf|doc/.test(fileKind(l)))) add('דף עבודה ' + p.title, 'print', `לשכפל דף עבודה${n ? ` – ${n} עותקים` : ''}`, p);
+    const bk = T.match(/חוברת\s+["״]?([\u05D0-\u05EA][^"״,.·:]{1,24})/); if (bk) add('חוברת ' + bk[1], 'bring', `חוברת ${bk[1].trim()}`, p);
+    for (const [re, txt] of SUG_WORDS) if (re.test(T) && !re.test(haveAll)) add(txt, txt.startsWith('רמקול') ? 'check' : 'bring', txt, p);
+    if (isDict(p)) add('רשימת מילים להכתבה', 'check', 'רשימת המילים להכתבה מוכנה', p);
+    if (/מצגת|מקרן/.test(T) && !/מקרן|מצגת/.test(pp) && !p.links.some(l => /ppt|slides/.test(fileKind(l)) || /מצגת/.test(l.text))) add('מקרן', 'check', 'מקרן מוכן', p);
+  }
+  return out;
+}
+const SUG_KIND = { print: ['printer', 'להדפיס'], bring: ['backpack', 'להביא'], check: ['sparkle', 'לבדוק'] };
+function sugCard(w, day) {
+  const sg = prepSuggestions(w, day); state._sug = sg;
+  if (!sg.length) return '';
+  return `<div class="card sugcard">${cardHead('sparkle', 'הצעות מתוך השיעורים', `<button class="linkbtn" data-sugall="${day.dow}">להוסיף הכל</button>`)}
+    <p class="hint">גזרתי מהתיאור, מהקבצים ומהחומרים של השיעורים – לא כתוב ברשימה. + מוסיף לרשימה, ✕ לא צריך.</p>
+    ${sg.map((x, i) => `<div class="sugrow"><span class="sugk">${ic(/מקרן|מצגת/.test(x.text) ? 'screen' : SUG_KIND[x.kind][0])}</span><span class="grow"><b>${esc(x.text)}</b><small>${esc(SUG_KIND[x.kind][1])} · ${esc(x.lesson.length > 30 ? x.lesson.slice(0, 28) + '…' : x.lesson)}${x.period ? ` · ${/^\d+$/.test(x.period) ? 'שעה ' : ''}${esc(x.period)}` : ''}</small></span>
+      <button class="iconbtn" data-sugno="${day.dow}|${i}" aria-label="לא צריך">${ic('x')}</button><button class="iconbtn plus" data-sugok="${day.dow}|${i}" aria-label="להוסיף">${ic('plus')}</button></div>`).join('')}
+  </div>`;
+}
+function sugAccept(w, dow, list) {
+  const secs = w.prep[dow] = w.prep[dow] || [];
+  const sec = kind => {
+    const want = kind === 'print' ? /הדפס|להדפיס|שכפול/ : /להכין|להביא/;
+    let s = secs.find(x => want.test(x.title));
+    if (!s) { s = { title: kind === 'print' ? 'להדפיס' : 'להכין / להביא', icon: '', items: [] }; if (kind === 'print') secs.unshift(s); else secs.push(s); }
+    return s;
+  };
+  for (const x of list) sec(x.kind).items.push({ text: x.text, period: x.period, ...(x.url ? { url: x.url } : {}) });
+}
 function viewPrep(w) {
   const day = prepDay(w);
   let h = top('להכין', 'הכנה מסודרת ליום הלימודים – כדי שהכל יהיה מוכן ובזמן', 'notepad') + weekNav(w);
@@ -594,6 +658,7 @@ function viewPrep(w) {
     ${streak() > 1 ? `<div class="streak">🔥 ${streak()} ימים ברצף שהכל היה מוכן</div>` : ''}
     <div class="bar big"><span style="--w:${S.total ? S.done / S.total * 100 : 0}%"></span></div>
   </div>`;
+  h += sugCard(w, day);
   h += prepCards(w, day, 'all');
   if (state.prepEdit) h += `<div class="card">${cardHead('plus', 'רשימה חדשה ליום ' + esc(day.name))}<form class="addtodo" data-prepnew="${day.dow}"><input name="t" placeholder="למשל: לבדוק לפני היציאה" autocomplete="off"><button aria-label="הוספה">${ic('plus')}</button></form></div>`;
   h += `<button class="addbtn" data-act="prepedit">${ic(state.prepEdit ? 'check' : 'pencil')} ${state.prepEdit ? 'סיימתי לערוך' : 'עריכת הרשימות'}</button>`;
@@ -1471,6 +1536,7 @@ function importSummary(wk, n, empty) {
     <div class="ovh">${ic('check')}<h2>${wk.number ? 'שבוע ' + esc(wk.number) : 'השבוע'} נטען</h2></div>
     <div class="tiles">${tile(n, `שיעורים ב־${wk.days.length} ימים`)}${tile(files, 'קבצים', !files)}${tile(prep, 'פריטים להכין')}</div>
     ${empty.length ? `<p class="hint">ימים בלי שיעורים: ${esc(empty.join(', '))}</p>` : ''}
+    ${(() => { const k = wk.days.reduce((a, d) => a + prepSuggestions(wk, d).length, 0); return k ? `<p class="hint">✨ גזרתי עוד ${k} משימות מתוך השיעורים – מחכות לאישור במסך "להכין"</p>` : ''; })()}
     ${!files ? `<div class="lowbox"><b>לא נמצאו קבצים בתכנון.</b> אם יש בו קישורים (📎) – משהו לא נקרא נכון. כדאי לדווח, ונתקן.</div>
       <button class="cta soft" data-act="report">${ic('warn')} דיווח על הבעיה</button>` : ''}
     <button class="cta" data-act="close">יאללה לשבוע</button>
@@ -3443,6 +3509,14 @@ document.addEventListener('click', async e => {
   }
   if (D.gowk) state.viewWeekId = D.gowk === (realWeek() || {}).id ? null : D.gowk;
   if (D.day != null && !t.disabled) { state.dayDow = D.day === 'all' ? 'all' : +D.day; if (state.tab !== 'day') go('day'); else rerender(); return; }
+  if (D.sugok || D.sugno) {
+    const [dow, i] = (D.sugok || D.sugno).split('|').map(Number); const x = (state._sug || [])[i]; if (!x) return;
+    if (D.sugok) { sugAccept(w, dow, [x]); if (navigator.vibrate) navigator.vibrate(8); }
+    else { w.sugOff = w.sugOff || {}; (w.sugOff[dow] = w.sugOff[dow] || []).push(x.k); }
+    const row = t.closest('.sugrow'); if (row) row.classList.add('bye');
+    save(); setTimeout(rerender, 220); return;
+  }
+  if (D.sugall != null) { const dow = +D.sugall; const n = (state._sug || []).length; sugAccept(w, dow, state._sug || []); save(); rerender(); toast(`נוספו ${n} משימות ✓`, 1600); return; }
   if (D.pday != null) { state.prepDow = +D.pday; if (state.tab !== 'prep') go('prep'); else rerender(); return; }
   if (D.goto) {
     const [dow, lb] = D.goto.split('|');

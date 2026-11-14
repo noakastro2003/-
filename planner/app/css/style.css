@@ -1512,3 +1512,5 @@ body.onboarding::after, body.incm::after { display: none; }
 .sugk .ic { width: 17px; height: 17px; }
 .sugrow .iconbtn { width: 38px; height: 38px; flex: none; }
 .sugrow.bye { animation: bye .22s var(--ease) forwards; }
+
+.castsheet > .linkbtn { display: block; margin: 12px auto 0; }

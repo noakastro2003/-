@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 63; // keep in step with CACHE in sw.js
+const APP_V = 64; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1064,15 +1064,21 @@ function castHtml() {
 const CAST_THEMES = [['night', 'לילה', '#2B2138'], ['cream', 'שמנת', '#F6EEE2'], ['board', 'לוח ירוק', '#24493A'], ['sky', 'שמיים', '#D7EAFB'], ['black', 'שחור', '#000'], ['white', 'לבן', '#fff']];
 const castLook = () => ({ theme: 'night', size: 1, font: 'plain', ...(state.prefs.castStyle || {}) });
 const canvaEmbed = raw => { const m = String(raw || '').match(/canva\.com\/design\/([\w-]+)(?:\/([\w-]+))?/); return m ? `https://www.canva.com/design/${m[1]}/${m[2] ? m[2] + '/' : ''}view?embed` : ''; };
+// a computer or a big tablet is most likely the one connected to the projector
+const isBigScreen = () => matchMedia('(min-width: 900px) and (pointer: fine)').matches || matchMedia('(min-width: 1000px)').matches;
 function castSheet() {
   cast.style = castLook();
   if (!cast.on) {
     openOverlay(`<form class="ov sheet castsheet" data-castform>
       <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
       <div class="ovh">${ic('screen')}<h2>למחשב בכיתה</h2></div>
-      <ol class="caststeps"><li>במחשב שמחובר למקרן פותחים את <b dir="ltr">${esc(location.host)}/cast</b></li><li>על המסך מופיע קוד של 5 תווים</li><li>מקלידים אותו כאן – והטלפון הופך לשלט</li></ol>
-      <input name="code" class="castcode" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="קוד" dir="ltr" required>
-      <button class="cta">${ic('link')} התחברות</button>
+      ${isBigScreen() ? `<button type="button" class="cta" data-act="beScreen">${ic('screen')} המחשב הזה הוא מסך הכיתה</button>
+      <p class="hint">נפתח כאן מסך מלא עם קוד. אחר כך מתחברים אליו מהטלפון – וממנו שולטים.</p>
+      <h4>או: להתחבר ממכשיר זה למסך אחר</h4>` : ''}
+      <ol class="caststeps"><li>במחשב שמחובר למקרן פותחים את <b dir="ltr">${esc(location.host)}/cast</b> (או את האפליקציה ← "מסך הכיתה" ← "המחשב הזה הוא מסך הכיתה")</li><li>על המסך מופיע קוד של 5 תווים</li><li>מקלידים אותו כאן – והטלפון הופך לשלט</li></ol>
+      <input name="code" class="castcode" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="קוד" dir="ltr" ${isBigScreen() ? '' : 'required'}>
+      <button class="cta ${isBigScreen() ? 'soft' : ''}">${ic('link')} התחברות</button>
+      ${isBigScreen() ? '' : `<button type="button" class="linkbtn" data-act="beScreen">המכשיר הזה הוא מסך הכיתה</button>`}
     </form>`);
     setTimeout(() => { const i = $('.castcode'); if (i) i.focus(); }, 300);
     return;
@@ -3765,6 +3771,7 @@ document.addEventListener('click', async e => {
     case 'nkproj': { const o = $('#nkOut'); if (o) { closeOverlay(); projector('text', o.value); } break; }
     case 'cast': castSheet(); break;
     case 'castend': castEnd(); closeOverlay(); break;
+    case 'beScreen': closeOverlay(); location.href = '/cast'; break;
     case 'hvclose': { const el = $('#htmlv'); if (el) { el.classList.remove('show'); el.innerHTML = ''; } document.body.classList.remove('noscroll'); try { if (document.fullscreenElement) document.exitFullscreen(); } catch { /* fine */ } break; }
     case 'hvcast': castHtml(); break;
     case 'hvfull': { const el = $('#htmlv'); try { (el.requestFullscreen || el.webkitRequestFullscreen).call(el); } catch { toast('באייפון: מסובבים את הטלפון לרוחב'); } break; }

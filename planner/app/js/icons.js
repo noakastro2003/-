@@ -165,4 +165,5 @@ export const LOGO_SVG = `<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/200
   </g>
   <path d="M384 358l10.5 22 24 3.5-17.5 16.5 4.3 24L384 412.6 362.7 424l4.3-24-17.5-16.5 24-3.5z" fill="url(#lg-gd)"/>
 </svg>`;
-export const logo = (cls = '') => `<span class="logo ${cls}">${LOGO_SVG.replace(/lg-/g, 'lg' + cls + '-')}</span>`;
+// the app's mark: the same clay clipboard as the home-screen icon
+export const logo = (cls = '') => `<span class="logo ${cls}"><img src="img/logo.png" alt="" decoding="async"></span>`;

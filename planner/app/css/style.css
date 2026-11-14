@@ -1554,3 +1554,18 @@ body.onboarding::after, body.incm::after { display: none; }
 .top .illus { transform: none; }
 .titlerow .tt { min-width: 0; }
 @media (max-width: 370px) { .titlerow .ill { width: 84px; height: 84px; } }
+
+/* ================================================================ one visual language
+   colour = content (lessons, prep, reminders); navigation is neutral; one icon treatment everywhere */
+.toolgrid[class*=hue-] button, .hubgrid button[class*=hue-] { background: var(--card) !important; border: 1px solid var(--line); box-shadow: 0 1px 0 rgba(255, 255, 255, .6) inset, 0 6px 16px -10px rgba(58, 45, 71, .25); }
+[data-theme=dark] .toolgrid[class*=hue-] button, [data-theme=dark] .hubgrid button[class*=hue-] { box-shadow: none; }
+/* every small icon sits in the same soft plum circle */
+.toolgrid .ti, [data-skin=luxe] .toolgrid .ti, .hubgrid .ti, .chi, [data-skin=luxe] .chi, .sugk, .jq span {
+  background: color-mix(in srgb, var(--accent-ink) 9%, transparent) !important; border: 0 !important; color: var(--accent-ink) !important; border-radius: 50% !important; }
+[data-theme=dark] .toolgrid .ti, [data-theme=dark] .hubgrid .ti, [data-theme=dark] .chi, [data-theme=dark] .sugk { background: color-mix(in srgb, var(--accent-ink) 16%, transparent) !important; }
+.hubgrid .ti .ic, .toolgrid .ti .ic { color: var(--accent-ink) !important; }
+.hubgrid b, .toolgrid button { color: var(--ink); }
+/* children's initials: same family */
+.kidgrid .av { background: color-mix(in srgb, var(--accent-ink) 12%, var(--card)) !important; color: var(--accent-ink) !important; }
+.logo img { width: 100%; height: 100%; display: block; border-radius: 26%; object-fit: cover; }
+.logo.blogo { filter: drop-shadow(0 4px 10px rgba(58, 45, 71, .22)); }

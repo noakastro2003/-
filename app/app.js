@@ -923,9 +923,9 @@ SKILL_ORDER.push("story", "critic");
 
 const P = [
   { id: "p1", title: "מִי בַּסִּפּוּר?", sub: "מְסַמְּנִים אֶת הַדְּמֻיּוֹת", skill: "story",
-    owl: ["בְּכָל סִפּוּר יֵשׁ דְּמֻיּוֹת: מִי שֶׁפּוֹעֵל, מְדַבֵּר וּמַרְגִּישׁ.", "קַחוּ מַרְקֵר צָהֹב וְסַמְּנוּ אוֹתָן. גַּם בַּעֲלֵי חַיִּים יְכוֹלִים לִהְיוֹת דְּמֻיּוֹת!"],
-    tools: ["קוֹרְאִים אֶת כָּל הַסִּפּוּר.", "שׁוֹאֲלִים: מִי עוֹשֶׂה מַשֶּׁהוּ? מִי מְדַבֵּר?", "מְסַמְּנִים כָּל דְּמוּת. חֲפָצִים, כְּמוֹ כַּדּוּר, הֵם לֹא דְּמֻיּוֹת."],
-    parent: "התחלת ההכנה להבנת הנקרא בטקסט סיפורי: הילד מסמן את הדמויות בטקסט (כמו מרקר). נגיעה בשם צובעת אותו בכל הסיפור. כדאי לשאול: \"מי עשה את זה? איך ידעת שזו דמות?\"",
+    owl: ["בְּכָל סִפּוּר יֵשׁ דְּמֻיּוֹת: מִי שֶׁפּוֹעֵל, מְדַבֵּר וּמַרְגִּישׁ.", "לְכָל דְּמוּת יֵשׁ מַרְקֵר בְּצֶבַע אַחֵר. מְסַמְּנִים אוֹתָהּ בְּכָל מָקוֹם שֶׁהִיא מוֹפִיעָה!"],
+    tools: ["קוֹרְאִים אֶת כָּל הַסִּפּוּר.", "בּוֹחֲרִים מַרְקֵר שֶׁל דְּמוּת אַחַת, וּמְחַפְּשִׂים אוֹתָהּ מֵהַהַתְחָלָה עַד הַסּוֹף.", "שָׂמִים לֵב גַּם לְמִלִּים כְּמוֹ \"וְעוֹמֶר\" אוֹ \"לַכֶּלֶב\". זוֹ אוֹתָהּ דְּמוּת!"],
+    parent: "התחלת ההכנה להבנת הנקרא בטקסט סיפורי: מרקור דמויות. לכל דמות מרקר בצבע אחר, והילד מסמן אותה בכל מקום שבו היא מופיעה, כמו שעושים על דף בכיתה. בסוף האפליקציה בודקת שלא חסר אף סימון ושכל סימון בצבע הנכון. בבית אפשר לעשות את אותו הדבר בספר עם צבעים.",
     text: { kind: "סִפּוּר", title: "הַכַּדּוּר שֶׁעָף", paras: [[
       "בַּהַפְסָקָה שִׂחֲקוּ עוֹמֶר וְנוֹגָה בְּכַדּוּר בֶּחָצֵר.",
       "עוֹמֶר בָּעַט חָזָק, וְהַכַּדּוּר עָף מֵעַל הַגָּדֵר.",
@@ -935,8 +935,8 @@ const P = [
       "נוֹגָה הוֹצִיאָה מֵהַתִּיק כָּרִיךְ וְנָתְנָה חֲתִיכָה לַכֶּלֶב.",
       "הַכֶּלֶב עָזַב אֶת הַכַּדּוּר, וְעוֹמֶר צָעַק: \"תּוֹדָה, נוֹגָה!\"" ]] },
     questions: [
-      { type: "chars", skill: "story", q: "סַמְּנוּ בַּסִּפּוּר אֶת כָּל הַדְּמֻיּוֹת: מִי פּוֹעֵל אוֹ מְדַבֵּר?", chars: ["עוֹמֶר", "נוֹגָה", "שׁוֹמֵר", "כֶּלֶב"],
-        why: "בַּסִּפּוּר אַרְבַּע דְּמֻיּוֹת: עוֹמֶר, נוֹגָה, הַשּׁוֹמֵר וְהַכֶּלֶב. גַּם כֶּלֶב הוּא דְּמוּת, כִּי הוּא פּוֹעֵל בַּסִּפּוּר. הַכַּדּוּר וְהַגָּדֵר הֵם חֲפָצִים." },
+      { type: "chars", skill: "story", q: "מַרְקְרוּ כָּל דְּמוּת בַּצֶּבַע שֶׁלָּהּ, בְּכָל מָקוֹם שֶׁהִיא מוֹפִיעָה בַּסִּפּוּר.", chars: ["עוֹמֶר", "נוֹגָה", "שׁוֹמֵר", "כֶּלֶב"],
+        why: "כָּל דְּמוּת מוֹפִיעָה בַּסִּפּוּר כַּמָּה פְּעָמִים, וּמְסַמְּנִים אֶת כֻּלָּן: גַּם \"וְעוֹמֶר\" וְגַם \"לַכֶּלֶב\". גַּם כֶּלֶב הוּא דְּמוּת, כִּי הוּא פּוֹעֵל בַּסִּפּוּר." },
       { type: "sort", skill: "story", q: "מַיְּנוּ: זוֹ דְּמוּת בַּסִּפּוּר, אוֹ לֹא?", bins: { g: "דְּמוּת", h: "לֹא דְּמוּת" },
         items: [{ t: "עוֹמֶר", a: "g" }, { t: "הַגָּדֵר", a: "h" }, { t: "הַכֶּלֶב", a: "g" }, { t: "הַכָּרִיךְ", a: "h" }, { t: "הַשּׁוֹמֵר", a: "g" }, { t: "הַכַּדּוּר", a: "h" }],
         why: "דְּמוּת עוֹשָׂה דְּבָרִים: רָצָה, מְדַבֶּרֶת, מְשַׂחֶקֶת. כַּדּוּר, גָּדֵר וְכָרִיךְ הֵם חֲפָצִים, הֵם לֹא עוֹשִׂים כְּלוּם בְּעַצְמָם." },
@@ -989,8 +989,8 @@ const P = [
       "פִּתְאוֹם מָיָה חִיְּכָה, וְצִיְּרָה עַל הַכֶּתֶם סִירָה כְּתֻמָּה עִם מִפְרָשׂ.",
       "בַּתַּחֲרוּת אָמְרָה הַסַּפְרָנִית: \"הַסִּירָה הִיא הַחֵלֶק הֲכִי יָפֶה בַּצִּיּוּר!\"" ]] },
     questions: [
-      { type: "chars", skill: "story", q: "סַמְּנוּ בַּסִּפּוּר אֶת כָּל הַדְּמֻיּוֹת.", chars: ["מָיָה", "אִיתַי", "סַפְרָנִית"], alias: { "אָחִיהָ": "אִיתַי" },
-        why: "בַּסִּפּוּר שָׁלוֹשׁ דְּמֻיּוֹת: מָיָה, אִיתַי (אָחִיהָ) וְהַסַּפְרָנִית." },
+      { type: "chars", skill: "story", q: "מַרְקְרוּ כָּל דְּמוּת בַּצֶּבַע שֶׁלָּהּ, בְּכָל מָקוֹם שֶׁהִיא מוֹפִיעָה. שִׂימוּ לֵב: לִפְעָמִים קוֹרְאִים לַדְּמוּת בְּמִלָּה אַחֶרֶת, כְּמוֹ \"אָחִיהָ\".", chars: ["מָיָה", "אִיתַי", "סַפְרָנִית"], alias: { "אָחִיהָ": "אִיתַי" },
+        why: "שָׁלוֹשׁ דְּמֻיּוֹת: מָיָה, אִיתַי וְהַסַּפְרָנִית. \"אָחִיהָ\" הוּא אִיתַי, וְלָכֵן מְסַמְּנִים גַּם אוֹתוֹ בַּצֶּבַע שֶׁל אִיתַי." },
       { type: "mc", skill: "locate", q: "שְׁאֵלָה גְּלוּיָה: מָה שָׁפַךְ אִיתַי עַל הַצִּיּוּר?", opts: ["מִיץ", "מַיִם", "צֶבַע", "חָלָב"], ev: ["שָׁפַךְ"], why: "כָּתוּב: \"אִיתַי שָׁפַךְ מִיץ עַל הַצִּיּוּר.\"" },
       { type: "mc", skill: "hidden", q: "שְׁאֵלָה סְמוּיָה: אֵיךְ הִרְגִּישָׁה מָיָה כְּשֶׁרָאֲתָה אֶת הַכֶּתֶם?", opts: ["עֲצוּבָה מְאוֹד", "שְׂמֵחָה", "רְעֵבָה", "עֲיֵפָה"], ev: ["דְּמָעוֹת"], why: "לֹא כָּתוּב \"עֲצוּבָה\", אֲבָל הָעֵינַיִם שֶׁלָּהּ הִתְמַלְּאוּ דְּמָעוֹת. זֶה הָרֶמֶז." },
       { type: "mc", skill: "hidden", q: "שְׁאֵלָה סְמוּיָה: אֵיךְ הִרְגִּישׁ אִיתַי אַחֲרֵי שֶׁשָּׁפַךְ אֶת הַמִּיץ?", opts: ["הִצְטַעֵר וְהִתְבַּיֵּשׁ", "הִתְגָּאָה", "צָחַק", "כָּעַס עַל מָיָה"], ev: ["סְלִיחָה"], why: "הוּא הוֹרִיד אֶת הָרֹאשׁ וְלָחַשׁ \"סְלִיחָה\". מִכָּאן מְבִינִים שֶׁהוּא מִצְטַעֵר." },
@@ -1014,7 +1014,7 @@ const P = [
       "לִיאוֹר חָשְׁבָה רֶגַע וְהִצִּיעָה: \"כָּל אֶחָד יִתְנַדְנֵד עַד שֶׁנִּסְפֹּר עַד עֶשְׂרִים.\"",
       "כָּךְ כֻּלָּם הִסְפִּיקוּ לְהִתְנַדְנֵד, גַּם רוֹן." ]] },
     questions: [
-      { type: "chars", skill: "story", q: "סַמְּנוּ אֶת הַשֵּׁמוֹת שֶׁל הַדְּמֻיּוֹת שֶׁמְּדַבְּרוֹת בַּסִּפּוּר.", chars: ["רוֹן", "לִיאוֹר"], why: "רוֹן וְלִיאוֹר מְדַבְּרִים וּפוֹעֲלִים בַּסִּפּוּר. הֵם הַדְּמֻיּוֹת הַחֲשׁוּבוֹת." },
+      { type: "chars", skill: "story", q: "מַרְקְרוּ כָּל דְּמוּת בַּצֶּבַע שֶׁלָּהּ, בְּכָל מָקוֹם שֶׁהִיא מוֹפִיעָה בַּסִּפּוּר.", chars: ["רוֹן", "לִיאוֹר"], why: "רוֹן וְלִיאוֹר מְדַבְּרִים וּפוֹעֲלִים בַּסִּפּוּר. כָּל אֶחָד מֵהֶם מוֹפִיעַ כַּמָּה פְּעָמִים, וּמְסַמְּנִים אֶת כֻּלָּן." },
       { type: "mc", skill: "critic", q: "רוֹן רָץ יָשָׁר לַנַּדְנֵדָה. מָה דַּעְתְּכֶם עַל מָה שֶׁעָשָׂה?", opts: ["זֶה לֹא הוֹגֵן, כִּי יְלָדִים אֲחֵרִים חִכּוּ לִפְנָיו", "זֶה הוֹגֵן, כִּי הוּא הִגִּיעַ אַחֲרוֹן", "זֶה טוֹב, כִּי הוּא רָץ מַהֵר", "זֶה לֹא חָשׁוּב, כִּי זוֹ רַק נַדְנֵדָה"], ev: ["אַחֲרוֹן"], why: "הַנִּימּוּק בָּא מֵהַסִּפּוּר: רוֹן הִגִּיעַ אַחֲרוֹן, וְכֻלָּם חִכּוּ בַּתּוֹר לִפְנָיו." },
       { type: "mc", skill: "critic", q: "אֵיזֶה נִימּוּק מַתְאִים לַדֵּעָה: \"לִיאוֹר פָּעֲלָה בְּחָכְמָה\"?", opts: ["הִיא מָצְאָה פִּתָּרוֹן שֶׁטּוֹב לְכֻלָּם", "הִיא דִּבְּרָה בְּקוֹל רָם", "הִיא הָיְתָה הָרִאשׁוֹנָה בַּתּוֹר", "הִיא לֹא רָצְתָה לְהִתְנַדְנֵד"], ev: ["הִצִּיעָה"], why: "לִיאוֹר לֹא רַק כָּעֲסָה: הִיא הִצִּיעָה פִּתָּרוֹן, וּבִזְכוּתוֹ כֻּלָּם הִסְפִּיקוּ לְהִתְנַדְנֵד." },
       { type: "mc", skill: "critic", q: "הַאִם הַכּוֹתֶרֶת \"הַתּוֹר לַנַּדְנֵדָה\" מַתְאִימָה לַסִּפּוּר? בַּחֲרוּ אֶת הַנִּימּוּק הֲכִי טוֹב.", opts: ["כֵּן, כִּי כָּל הַסִּפּוּר הוּא עַל הַתּוֹר וְעַל הַוִּכּוּחַ עָלָיו", "לֹא, כִּי אֵין בַּסִּפּוּר נַדְנֵדָה", "כֵּן, כִּי רוֹן מְמַהֵר הַבַּיְתָה", "לֹא, כִּי הַסִּפּוּר הוּא עַל גִּנָּה"], why: "כּוֹתֶרֶת טוֹבָה מְסַפֶּרֶת עַל מָה הַסִּפּוּר. כָּאן כָּל הַסִּפּוּר סוֹבֵב סְבִיב הַתּוֹר." },
@@ -1031,15 +1031,15 @@ const P = [
     tools: ["קוֹרְאִים אֶת כָּל הַסִּפּוּר, וּמְסַמְּנִים אֶת הַדְּמֻיּוֹת.", "בְּכָל שְׁאֵלָה שׁוֹאֲלִים: הַתְּשׁוּבָה כְּתוּבָה, אוֹ שֶׁצָּרִיךְ לְהָבִין?", "חוֹזְרִים לַטֶּקְסְט לִפְנֵי שֶׁעוֹנִים."],
     parent: "מבדק קצר על כל מה שתורגל במסלול: דמויות, שאלות גלויות וסמויות, משפחות מילים, מילות קישור וביקורת. המשוב מגיע רק בסוף, כמו במבדק.",
     text: { kind: "סִפּוּר", title: "הַגּוּר שֶׁנֶּעֱלַם", paras: [[
-      "לְרוּתִי, הַשְּׁכֵנָה שֶׁל אָדָם, נוֹלַד גּוּר כְּלָבִים קָטָן וְשׁוֹבָב.",
+      "לְרוּתִי, שֶׁגָּרָה לְיַד אָדָם, נוֹלַד גּוּר כְּלָבִים קָטָן וְשׁוֹבָב.",
       "יוֹם אֶחָד הַגּוּר בָּרַח מֵהֶחָצֵר וְנֶעֱלַם.",
       "אָדָם וְסַבָּא שֶׁלּוֹ חִפְּשׂוּ אוֹתוֹ בְּכָל הָרְחוֹב.",
       "פִּתְאוֹם שָׁמַע אָדָם יְלָלָה חַלָּשָׁה מִתַּחַת לִמְכוֹנִית אֲדֻמָּה.",
       "הוּא שָׁכַב עַל הָרִצְפָּה, הוֹשִׁיט יָד בִּזְהִירוּת וְהוֹצִיא אֶת הַגּוּר.",
       "רוּתִי חִבְּקָה אֶת הַגּוּר וְאָמְרָה: \"אַתָּה גִּבּוֹר אֲמִתִּי, אָדָם!\"" ]] },
     questions: [
-      { type: "chars", skill: "story", q: "סַמְּנוּ בַּסִּפּוּר אֶת כָּל הַדְּמֻיּוֹת.", chars: ["אָדָם", "סַבָּא", "רוּתִי", "גּוּר"], alias: { "שְׁכֵנָה": "רוּתִי" },
-        why: "אַרְבַּע דְּמֻיּוֹת: אָדָם, סַבָּא, רוּתִי (הַשְּׁכֵנָה) וְהַגּוּר." },
+      { type: "chars", skill: "story", q: "מַרְקְרוּ כָּל דְּמוּת בַּצֶּבַע שֶׁלָּהּ, בְּכָל מָקוֹם שֶׁהִיא מוֹפִיעָה בַּסִּפּוּר.", chars: ["אָדָם", "סַבָּא", "רוּתִי", "גּוּר"],
+        why: "אַרְבַּע דְּמֻיּוֹת: אָדָם, סַבָּא, רוּתִי וְהַגּוּר. כָּל אַחַת מוֹפִיעָה בַּסִּפּוּר כַּמָּה פְּעָמִים." },
       { type: "mc", skill: "locate", q: "מִי חִפֵּשׂ אֶת הַגּוּר?", opts: ["אָדָם וְסַבָּא שֶׁלּוֹ", "רוּתִי וְאָדָם", "רַק סַבָּא", "כָּל הַשְּׁכֵנִים"], ev: ["חִפְּשׂוּ"], why: "כָּתוּב: \"אָדָם וְסַבָּא שֶׁלּוֹ חִפְּשׂוּ אוֹתוֹ\"." },
       { type: "mc", skill: "locate", q: "אֵיפֹה מָצָא אָדָם אֶת הַגּוּר?", opts: ["מִתַּחַת לִמְכוֹנִית אֲדֻמָּה", "בֶּחָצֵר שֶׁל רוּתִי", "עַל עֵץ", "בַּבַּיִת שֶׁל סַבָּא"], ev: ["מְכוֹנִית"], why: "כָּתוּב: \"יְלָלָה חַלָּשָׁה מִתַּחַת לִמְכוֹנִית אֲדֻמָּה\"." },
       { type: "mc", skill: "hidden", q: "לָמָּה הוֹשִׁיט אָדָם יָד \"בִּזְהִירוּת\"?", opts: ["כְּדֵי לֹא לְהַפְחִיד אֶת הַגּוּר וְלֹא לִפְגֹּעַ בּוֹ", "כִּי הוּא פָּחַד מִכְּלָבִים", "כִּי הַיָּד שֶׁלּוֹ כָּאֲבָה", "כִּי הַמְּכוֹנִית נָסְעָה"], ev: ["בִּזְהִירוּת"], why: "הַגּוּר הָיָה קָטָן וּמְפֻחָד (יְלָלָה חַלָּשָׁה). אָדָם נִזְהַר לֹא לְהַבְהִיל אוֹתוֹ." },
@@ -1749,48 +1749,67 @@ function charKey(q, w) {   // a word's key: the character it names (also with a 
   for (const c of q.chars) { const cb = wordBase(c); if (b === cb || (b.length - cb.length <= 2 && b.endsWith(cb) && /^[והבכלמש]+$/.test(b.slice(0, b.length - cb.length)))) return cb; }
   return b;
 }
-const charsOk = (q, st) => { const want = q.chars.map(wordBase); return st.hw.length === want.length && want.every(c => st.hw.includes(c)); };
-function charsText(T, q, st) {
+// each character gets its own marker colour; the child marks every place the character appears
+const MARKERS = [{ c: "#ffe45c", n: "צָהֹב" }, { c: "#8ee58e", n: "יָרֹק" }, { c: "#ffb3d9", n: "וָרֹד" }, { c: "#9ccfff", n: "כָּחֹל" }, { c: "#ffc27a", n: "כָּתֹם" }];
+// every word of the text in order, with the character it names (or null)
+function charWords(s, q) {
   const want = q.chars.map(wordBase);
+  return textFor(s, q).paras.flat().flatMap(sen => sen.split(" ")).map(w => { const k = charKey(q, w); return { w, ci: want.indexOf(k) }; });
+}
+// what is still wrong: for each character, places not marked or marked in another colour; words marked that aren't characters
+function charsReport(s, q, st) {
+  const words = charWords(s, q), missing = q.chars.map(() => 0), wrongColor = [], extra = [];
+  words.forEach((x, i) => {
+    const m = st.cm[i];
+    if (x.ci >= 0 && m !== x.ci) { if (m === undefined) missing[x.ci]++; else wrongColor.push(i); }
+    if (x.ci < 0 && m !== undefined) extra.push(i);
+  });
+  return { missing, wrongColor, extra, ok: !missing.some(Boolean) && !wrongColor.length && !extra.length };
+}
+const charsOk = (q, st) => charsReport(ST(), q, st).ok;
+function charsText(s, T, q, st) {
+  const words = charWords(s, q), bad = new Set(st.cbad || []);
+  let i = 0;
   return T.paras.map(p => `<p>${p.map(sen => sen.split(" ").map(w => {
-    const key = charKey(q, w), on = st.hw.includes(key) || (st.locked && want.includes(key));
-    const bad = st.hwBad && st.hwBad.includes(key) ? " bad" : "";
-    if (!key) return tx(w);
+    const k = i++, ci = words[k].ci, m = st.locked ? (ci >= 0 ? ci : undefined) : st.cm[k];
     // punctuation around the word (quotes, commas, colons) stays outside the highlight
     const [, pre, core, post] = w.match(/^([^\u05D0-\u05EA]*)([\s\S]*?)([^\u05D0-\u05EA\u0591-\u05C7]*)$/);
-    return `${tx(pre)}<span class="cw${on ? " on" : ""}${bad}" data-cw="${esc(key)}"${st.locked ? "" : ' role="button" tabindex="0"'}>${tx(core)}</span>${tx(post)}`;
+    if (!core) return tx(w);
+    return `${tx(pre)}<span class="cw${m !== undefined ? " on" : ""}${bad.has(k) ? " bad" : ""}" data-cw="${k}"${m !== undefined ? ` style="--mk:${MARKERS[m % MARKERS.length].c}"` : ""}${st.locked ? "" : ' role="button" tabindex="0"'}>${tx(core)}</span>${tx(post)}`;
   }).join(" ")).join(" ")}</p>`).join("");
 }
-function tapChar(key) {
+function tapChar(k) {
   const st = run.q; if (st.locked) return;
-  st.hw = st.hw.includes(key) ? st.hw.filter(k => k !== key) : [...st.hw, key]; st.hwBad = null;
-  sfx("tap"); draw();
+  k = +k;
+  if (st.cm[k] === st.pen) delete st.cm[k]; else st.cm[k] = st.pen;   // the same marker again rubs it out
+  st.cbad = null; st.dirty = true; sfx("tap"); draw();
 }
 function checkChars() {
-  const q = ST().questions[run.qi], st = run.q, want = q.chars.map(wordBase);
-  st.tries++;
-  if (charsOk(q, st)) { st.locked = true; settle(st.tries === 1); chime(true); return draw(); }
+  const s = ST(), q = s.questions[run.qi], st = run.q, r = charsReport(s, q, st);
+  st.tries++; st.dirty = false;
+  if (r.ok) { st.locked = true; st.cbad = null; settle(st.tries === 1); chime(true); return draw(); }
   chime(false);
-  st.hwBad = st.hw.filter(k => !want.includes(k));
-  const missing = want.filter(c => !st.hw.includes(c)).length;
-  st.fbMsg = [missing ? `חֲסֵרוֹת ${missing === 1 ? "דְּמוּת אַחַת" : missing + " דְּמֻיּוֹת"}. מִי עוֹד פּוֹעֵל אוֹ מְדַבֵּר בַּסִּפּוּר?` : "",
-    st.hwBad.length ? "מָה שֶׁמְּסֻמָּן בָּאָדֹם הוּא לֹא שֵׁם שֶׁל דְּמוּת." : ""].filter(Boolean).join(" ");
-  if (st.tries >= 2) { st.locked = true; st.hw = want.slice(); st.hwBad = null; settle(false); }
+  st.cbad = [...r.wrongColor, ...r.extra];
+  const miss = q.chars.map((c, i) => r.missing[i] ? `${c} (${r.missing[i] === 1 ? "עוֹד מָקוֹם אֶחָד" : "עוֹד " + r.missing[i] + " מְקוֹמוֹת"})` : "").filter(Boolean);
+  st.fbMsg = [miss.length ? `חָסֵר סִמּוּן: ${miss.join(", ")}.` : "",
+    r.wrongColor.length ? "מָה שֶׁמֻּקָּף בְּאָדֹם סֻמַּן בְּצֶבַע לֹא נָכוֹן, אוֹ שֶׁהוּא לֹא דְּמוּת." : r.extra.length ? "מָה שֶׁמֻּקָּף בְּאָדֹם הוּא לֹא שֵׁם שֶׁל דְּמוּת." : ""].filter(Boolean).join(" ");
+  if (st.tries >= 3) { st.locked = true; st.cbad = null; settle(false); }
   draw();
 }
 function renderChars(s, q, st, nextBtn) {
-  const n = st.hw.length;
-  return `<p class="how">${tx("גְּעוּ בְּשֵׁם שֶׁל דְּמוּת, וְהוּא יִצָּבַע בְּכָל הַסִּפּוּר. נְגִיעָה נוֹסֶפֶת מְבַטֶּלֶת.")}</p>
-    <p class="chars-count">${st.locked ? `${tx("הַדְּמֻיּוֹת בַּסִּפּוּר:")} ${q.chars.map(c => `<span class="cw on">${tx(c)}</span>`).join(" ")}` : `${tx("סִמַּנְתֶּם")} <b>${n}</b> ${tx(n === 1 ? "מִלָּה" : "מִלִּים")}`}</p>
-    ${st.locked ? "" : `<div class="row"><button class="btn" data-act="${s.test ? "testnext" : "checkchars"}" ${st.hw.length ? "" : "disabled"}>${tx(s.test ? (run.qi + 1 < s.questions.length ? "לַשְּׁאֵלָה הַבָּאָה" : "לְסִיּוּם") : "בְּדִיקָה")}</button></div>`}
-    ${s.test ? "" : feedback(q, st)}${st.locked ? `<div class="row">${nextBtn}</div>` : ""}`;
+  const done = q.chars.map(() => 0); Object.values(st.cm).forEach(m => done[m]++);
+  return `<p class="how">${tx("בַּחֲרוּ מַרְקֵר, וְגַעוּ בְּכָל מָקוֹם בַּסִּפּוּר שֶׁבּוֹ מוֹפִיעָה הַדְּמוּת. נְגִיעָה נוֹסֶפֶת בְּאוֹתוֹ צֶבַע מוֹחֶקֶת.")}</p>
+    <div class="markers">${q.chars.map((c, i) => `<button class="marker${st.pen === i ? " on" : ""}" data-pen="${i}" style="--mk:${MARKERS[i % MARKERS.length].c}" ${st.locked ? "disabled" : ""}>
+      <span class="mk-tip" aria-hidden="true"></span><span><b>${tx(c)}</b> ${tx("בְּ" + MARKERS[i % MARKERS.length].n)}</span>${st.locked ? "" : `<span class="mk-n">${done[i]}</span>`}</button>`).join("")}</div>
+    ${st.locked ? "" : `<div class="row"><button class="btn" data-act="${s.test ? "testnext" : "checkchars"}" ${Object.keys(st.cm).length ? "" : "disabled"}>${tx(s.test ? (run.qi + 1 < s.questions.length ? "לַשְּׁאֵלָה הַבָּאָה" : "לְסִיּוּם") : "בְּדִיקָה")}</button></div>`}
+    ${s.test || st.dirty ? "" : feedback(q, st)}${st.locked ? `<div class="row">${nextBtn}</div>` : ""}`;
 }
 
 function renderText(s, q, st) {
   const T = textFor(s, q);
   if (q.type === "chars") return `<article class="reading" id="reading">
     ${T.kind ? `<span class="kind">${tx(T.kind)}</span>` : ""}${T.title ? `<h3>${tx(T.title)}</h3>` : ""}
-    <div class="txt hlable">${charsText(T, q, st)}</div></article>`;
+    <div class="txt hlable">${charsText(s, T, q, st)}</div></article>`;
   let k = 0;
   const paras = T.paras.map(p => `<p>${p.map(sen => {
     const idx = k++;
@@ -1816,7 +1835,7 @@ function qStateNew(q, s) {
     stage: sc >= 1 && q.verb ? "verb" : "do", needNum: sc >= 2 && !!q.num, foundV: [], foundN: null, stageMsg: null,
     tool: null, color: null, pending: null, bad: null, reveal: false, fbMsg: null, msg: null,
     bank: q.type === "build" ? shuffle(q.bank.map((_, i) => i)) : [], slots: [],
-    p: q.type === "punct" ? q.lines.map(() => "") : [], pmarks: null, sort: {}, smarks: null, allOk: false, hw: [], hwBad: null };
+    p: q.type === "punct" ? q.lines.map(() => "") : [], pmarks: null, sort: {}, smarks: null, allOk: false, cm: {}, pen: 0, cbad: null };
 }
 
 /* ---------- play ---------- */
@@ -2307,7 +2326,7 @@ function nextQ() {
     if (q.type === "mark") run.res[run.qi] = markOk(q, st.marks);
     if (q.type === "build") run.ans[run.qi] = buildWord(q, st), run.res[run.qi] = buildWord(q, st) === q.word;
     if (q.type === "punct") run.ans[run.qi] = st.p.slice(), run.res[run.qi] = q.lines.every((l, k) => st.p[k] === l.a);
-    if (q.type === "chars") run.ans[run.qi] = st.hw.slice(), run.res[run.qi] = charsOk(q, st);
+    if (q.type === "chars") run.ans[run.qi] = Object.assign({}, st.cm), run.res[run.qi] = charsOk(q, st);
   }
   if (q.type === "open") { run.res[run.qi] = "open"; run.open[q.q] = st.text.trim(); }
   if (run.qi + 1 < s.questions.length) { run.qi++; logReach(); run.q = qStateNew(s.questions[run.qi], s); view = { name: "play" }; draw(); scrollTop(); }
@@ -3136,6 +3155,7 @@ document.addEventListener("click", e => {
   if (d.pu !== undefined) { const st = run.q, k = +d.pu; st.p[k] = st.p[k] === "." ? "?" : "."; if (st.pmarks) st.pmarks = null; return draw(); }
   if (d.opt !== undefined) return answerMC(+d.opt);
   if (d.cw !== undefined) return tapChar(d.cw);
+  if (d.pen !== undefined) { run.q.pen = +d.pen; sfx("tap"); return draw(); }
   if (d.sen !== undefined) {
     const q = ST().questions[run.qi];
     if (q.type === "find" && !run.q.locked) { run.q.picked = +d.sen; draw(); }

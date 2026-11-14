@@ -704,7 +704,15 @@ tr.sel td { background: #eef2ff; }
 /* "chars": highlighting the characters in a story */
 .txt.hlable .cw { cursor: pointer; border-radius: 6px; padding: 0 2px; transition: background .15s, box-shadow .15s; }
 .txt.hlable .cw:hover { background: rgba(255, 230, 80, .25); }
-.cw.on { background: linear-gradient(transparent 12%, #ffe45c 12%, #ffe45c 88%, transparent 88%); box-shadow: 0 0 0 1px rgba(230, 180, 0, .35); }
+.cw.on { --mk: #ffe45c; background: linear-gradient(transparent 10%, var(--mk) 10%, var(--mk) 90%, transparent 90%); box-shadow: 0 0 0 1px rgba(0, 0, 0, .12); }
 .cw.bad { background: #ffd2d2; box-shadow: 0 0 0 2px #e05555; }
 .chars-count { font-weight: 600; margin: 6px 0 10px; line-height: 2; }
 .chars-count .cw { padding: 1px 6px; }
+
+/* the marker pens: one per character */
+.markers { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.marker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px; border: 2px solid #e2e0f0; background: #fff; font: inherit; color: inherit; cursor: pointer; }
+.marker .mk-tip { width: 22px; height: 22px; border-radius: 6px 6px 50% 50%; background: var(--mk); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .15); flex: none; }
+.marker.on { border-color: #5b4bff; box-shadow: 0 0 0 3px rgba(91, 75, 255, .25); background: #f6f5ff; }
+.marker .mk-n { min-width: 22px; padding: 0 6px; border-radius: 10px; background: #efeefa; font-size: .85em; text-align: center; }
+.marker:disabled { cursor: default; opacity: 1; }

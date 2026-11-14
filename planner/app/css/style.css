@@ -1533,7 +1533,7 @@ body.onboarding::after, body.incm::after { display: none; }
 .lg .lgm { width: 16px; height: 16px; margin-inline-end: 4px; }
 
 /* ================================================================ illustrations (one family) */
-.ill { display: block; width: 104px; height: 104px; border-radius: var(--r-card); overflow: hidden; background: #F6F0E8; flex: none;
+.ill { display: block; width: 116px; height: 116px; border-radius: var(--r-card); overflow: hidden; background: #F6F0E8; flex: none;
   box-shadow: 0 1px 0 rgba(255, 255, 255, .7) inset, 0 12px 28px -14px rgba(58, 45, 71, .35); }
 .ill img { width: 100%; height: 100%; object-fit: cover; display: block; transform: scale(1.06); }
 .illus { width: auto; margin-bottom: 4px; }
@@ -1569,3 +1569,70 @@ body.onboarding::after, body.incm::after { display: none; }
 .kidgrid .av { background: color-mix(in srgb, var(--accent-ink) 12%, var(--card)) !important; color: var(--accent-ink) !important; }
 .logo img { width: 100%; height: 100%; display: block; border-radius: 26%; object-fit: cover; }
 .logo.blogo { filter: drop-shadow(0 4px 10px rgba(58, 45, 71, .22)); }
+
+/* ================================================================ CLAY — the whole app in the illustrations' material
+   warm cream ground (the illustrations' own background), puffy surfaces lit from the top,
+   soft shadow underneath, plum as the one accent. Night: the same material in deep plum. */
+html[data-skin=luxe] {
+  --bg: #F6F0E8; --solid: #FFFAF3; --card: #FFFAF3; --line: rgba(74, 53, 102, .07);
+  --clay-hi: rgba(255, 255, 255, .95); --clay-lo: rgba(122, 92, 60, .10);
+  --clay: 0 14px 26px -16px rgba(96, 70, 44, .35), 0 2px 5px -2px rgba(96, 70, 44, .10), inset 0 2px 1px var(--clay-hi), inset 0 -4px 8px var(--clay-lo);
+  --clay-sm: 0 6px 12px -8px rgba(96, 70, 44, .35), inset 0 1.5px 1px var(--clay-hi), inset 0 -3px 5px var(--clay-lo);
+  --clay-pressed: inset 0 3px 6px rgba(96, 70, 44, .18), inset 0 -1px 1px var(--clay-hi);
+  --dough: #EEE4F6;
+}
+html[data-skin=luxe][data-theme=dark] {
+  --bg: #1F1927; --solid: #2B2334; --card: #2B2334; --line: rgba(255, 255, 255, .06);
+  --clay-hi: rgba(255, 255, 255, .08); --clay-lo: rgba(0, 0, 0, .28);
+  --clay: 0 16px 28px -16px rgba(0, 0, 0, .7), inset 0 1.5px 1px var(--clay-hi), inset 0 -4px 8px var(--clay-lo);
+  --clay-sm: 0 8px 14px -8px rgba(0, 0, 0, .7), inset 0 1px 1px var(--clay-hi), inset 0 -3px 5px var(--clay-lo);
+  --clay-pressed: inset 0 3px 6px rgba(0, 0, 0, .45);
+  --dough: #3A2F4A;
+}
+/* ground: one calm colour, no marble, no stars */
+html[data-skin=luxe] body { background: var(--bg) !important; }
+html[data-skin=luxe] .orbs, html[data-skin=luxe][data-theme=dark] .orbs { background: var(--bg) !important; }
+html[data-skin=luxe] .orbs::before, html[data-skin=luxe] .orbs::after { display: none !important; }
+/* illustrations sit straight on the cream (same colour) – no frame by day */
+html[data-skin=luxe]:not([data-theme=dark]) .ill { background: transparent; box-shadow: none; }
+html[data-skin=luxe]:not([data-theme=dark]) .ill img { mix-blend-mode: multiply; transform: none; }
+html[data-skin=luxe][data-theme=dark] .ill { box-shadow: var(--clay); }
+/* puffy surfaces */
+html[data-skin=luxe] .card, html[data-skin=luxe] .tlempty, html[data-skin=luxe] .attline, html[data-skin=luxe] .toolgrid button,
+html[data-skin=luxe] .hubgrid button, html[data-skin=luxe] .trow, html[data-skin=luxe] .file, html[data-skin=luxe] .castgrid button,
+html[data-skin=luxe] .ctheme button, html[data-skin=luxe] .attk, html[data-skin=luxe] .tile, html[data-skin=luxe] .setrow.pal .seg button,
+html[data-skin=luxe] .daypick, html[data-skin=luxe] .castfile, html[data-skin=luxe] .sheet, html[data-skin=luxe] .ov {
+  border: 0 !important; box-shadow: var(--clay) !important; }
+html[data-skin=luxe] .card { border-radius: 28px; }
+html[data-skin=luxe] .attline.todo { background: var(--card); color: var(--accent-ink); }
+html[data-skin=luxe] .card .card, html[data-skin=luxe] .card .trow, html[data-skin=luxe] .card .file { box-shadow: var(--clay-sm) !important; }
+html[data-skin=luxe] .toolgrid button:active, html[data-skin=luxe] .hubgrid button:active, html[data-skin=luxe] .trow:active, html[data-skin=luxe] .attline:active { box-shadow: var(--clay-pressed) !important; transform: scale(.98); }
+/* the small round icons become little dough balls */
+html[data-skin=luxe] .toolgrid .ti, html[data-skin=luxe] .hubgrid .ti, html[data-skin=luxe] .chi, html[data-skin=luxe] .sugk, html[data-skin=luxe] .jq span, html[data-skin=luxe] .hb, html[data-skin=luxe] .kidgrid .av {
+  background: var(--dough) !important; box-shadow: var(--clay-sm) !important; border: 0 !important; }
+html[data-skin=luxe] .hb { background: var(--card) !important; }
+/* main button: a plum clay bar; soft buttons: cream clay */
+html[data-skin=luxe] .cta:not(.soft) { background: #5B4190 !important; box-shadow: 0 12px 22px -12px rgba(74, 53, 102, .75), inset 0 2px 2px rgba(255, 255, 255, .28), inset 0 -5px 8px rgba(30, 18, 50, .28) !important; }
+html[data-skin=luxe] .cta.soft, html[data-skin=luxe] .iconbtn, html[data-skin=luxe] .addtodo button, html[data-skin=luxe] .back { background: var(--card) !important; border: 0 !important; box-shadow: var(--clay-sm) !important; color: var(--accent-ink); }
+html[data-skin=luxe] .cta:active { box-shadow: var(--clay-pressed) !important; }
+/* inputs are pressed into the dough */
+html[data-skin=luxe] .field input, html[data-skin=luxe] .field select, html[data-skin=luxe] textarea, html[data-skin=luxe] .addtodo input, html[data-skin=luxe] .search {
+  background: color-mix(in srgb, var(--bg) 70%, var(--card)) !important; border: 0 !important; box-shadow: var(--clay-pressed) !important; }
+/* segmented controls: a pressed track with a raised knob */
+html[data-skin=luxe] .seg { background: color-mix(in srgb, var(--bg) 60%, var(--card)) !important; border: 0 !important; box-shadow: var(--clay-pressed); }
+html[data-skin=luxe] .seg button.on, html[data-skin=luxe] .kindseg input:checked + span { background: var(--card) !important; box-shadow: var(--clay-sm) !important; color: var(--ink); }
+/* day chips */
+html[data-skin=luxe] .dc { border: 0 !important; background: var(--card); box-shadow: var(--clay-sm); }
+html[data-skin=luxe] .dc.on { background: #5B4190 !important; color: #fff; box-shadow: 0 8px 14px -8px rgba(74, 53, 102, .7), inset 0 2px 2px rgba(255, 255, 255, .25), inset 0 -4px 6px rgba(30, 18, 50, .3) !important; }
+/* tab bar: a cream clay pill; the active tab is pressed in */
+html[data-skin=luxe] .tabs { background: var(--card) !important; border: 0 !important; box-shadow: 0 18px 34px -16px rgba(96, 70, 44, .45), inset 0 2px 1px var(--clay-hi), inset 0 -4px 8px var(--clay-lo) !important; backdrop-filter: none; -webkit-backdrop-filter: none; }
+html[data-skin=luxe] .tab-ind { background: var(--dough) !important; box-shadow: var(--clay-pressed) !important; }
+html[data-skin=luxe] .tab-ind::after { display: none; }
+/* top fade follows the new ground */
+html[data-skin=luxe] body::after { background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg) 94%, transparent) 70%); }
+/* title line: plum, not gold */
+html[data-skin=luxe] .tt h1::after, html[data-skin=luxe] .brand > span::after { background: color-mix(in srgb, var(--accent-ink) 35%, transparent) !important; }
+/* the picture's own cream melts into the page: soft fade at the edges, no visible frame */
+html[data-skin=luxe]:not([data-theme=dark]) .ill { border-radius: 0; overflow: visible; }
+html[data-skin=luxe]:not([data-theme=dark]) .ill img {
+  -webkit-mask-image: radial-gradient(closest-side, #000 86%, transparent 100%); mask-image: radial-gradient(closest-side, #000 86%, transparent 100%); }

@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 66; // keep in step with CACHE in sw.js
+const APP_V = 67; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -252,6 +252,13 @@ const line = () => { const d = now(); return `יום ${DAY_FULL[d.getDay()]}, ${
 const hello = () => `${greet()}${state.name ? ', ' + esc(state.name) : ''}`;
 const greet = () => { const h = now().getHours(); return h < 5 ? 'לילה טוב' : h < 12 ? 'בוקר טוב' : h < 16 ? 'צהריים טובים' : h < 21 ? 'ערב טוב' : 'לילה טוב'; };
 
+// one illustration family (soft clay, plum / cream / gold), shown in a rounded tile
+const ILL = { books: 'desk', notepad: 'prep', star: 'tools', heart: 'class', clock: 'week', calendar: 'week', cake: 'notebook', medal: 'medal', sunrise: 'school', school: 'school', notebook: 'notebook' };
+// which picture belongs to which screen
+const TAB_ILL = { now: 'desk', day: 'week', prep: 'prep', cls: 'class', kids: 'class', class: 'class', friends: 'class', more: 'tools', tools: 'tools', files: 'tools', journal: 'notebook', todos: 'notebook', lists: 'prep', autos: 'notebook', calendar: 'week', bells: 'week', bank: 'desk', msgs: 'notebook', summary: 'medal', grades: 'medal', settings: 'tools', reports: 'notebook' };
+const ILLF = new Set(['desk', 'week', 'prep', 'class', 'tools', 'school', 'notebook', 'medal']);
+const illFile = name => ILLF.has(name) ? name : ILL[name];
+const illImg = (name, cls = '') => illFile(name) ? `<span class="ill ${cls}"><img src="img/ill/${illFile(name)}.jpg" alt="" decoding="async"></span>` : '';
 function top(title, sub, illus, opts = {}) {
   const dot = state.todos.some(todoDue) || bdOn(now()).length;
   return `<header class="top">
@@ -264,7 +271,7 @@ function top(title, sub, illus, opts = {}) {
     </div>
     <div class="titlerow">
       <div class="tt"><h1>${noEmoji(title)}</h1>${squiggle('t')}<p>${ic('heart', 'h')}<span>${sub}</span></p></div>
-      ${illus ? `<div class="illus">${art(illus, 'bob')}</div>` : ''}
+      ${(() => { const f = TAB_ILL[state.tab] || illFile(illus); return f ? `<div class="illus">${illImg(f)}</div>` : illus ? `<div class="illus">${art(illus, 'bob')}</div>` : ''; })()}
     </div>
   </header>`;
 }
@@ -357,7 +364,7 @@ function viewNow(w) {
     h += top('סיימת את היום 🎉', line(), 'books');
     h += birthdayBanner() + teaser;
     const S = dayStats(w, day);
-    h += `<div class="card bravo hue-gold"><div class="grow"><b>היום הסתיים</b><span>סיימת ${day.periods.length} שיעורים${S.total ? ` ו־${S.done} מתוך ${S.total} משימות` : ''}</span></div>${art('medal', 'wiggle')}</div>`;
+    h += `<div class="card bravo hue-gold"><div class="grow"><b>היום הסתיים</b><span>סיימת ${day.periods.length} שיעורים${S.total ? ` ו־${S.done} מתוך ${S.total} משימות` : ''}</span></div>${illImg('medal', 'sm')}</div>`;
     const ng = nextDayGlobal();
     if (ng) h += tomorrowCard(ng.w, ng.d);
     h += howWasCard(w, day);
@@ -3347,7 +3354,7 @@ function welcome(force) {
   const bd = bdOn(t);
   const el = document.createElement('div'); el.id = 'welcome';
   el.innerHTML = `<div class="wl-in">
-    <div class="wl-logo">${logo('wlogo')}</div>
+    <div class="wl-logo">${illImg('school', 'wl')}</div>
     <small>יום ${DAY_FULL[t.getDay()]}, ${t.getDate()} ${HE_MONTHS[t.getMonth()]}</small>
     <h1>${hello()}</h1>
     ${(([q, by]) => `<p class="wl-q">${esc(q)}</p>${by ? `<p class="wl-by">— ${esc(by)}</p>` : ''}`)(pickQuote())}

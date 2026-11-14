@@ -1531,3 +1531,26 @@ body.onboarding::after, body.incm::after { display: none; }
 .lgm.part circle, .lgm.part path { stroke: #D89A2B; fill: #D89A2B; } .lgm.part circle { fill: none; }
 .lgm.skip circle, .lgm.skip path { stroke: var(--soft); }
 .lg .lgm { width: 16px; height: 16px; margin-inline-end: 4px; }
+
+/* ================================================================ illustrations (one family) */
+.ill { display: block; width: 104px; height: 104px; border-radius: var(--r-card); overflow: hidden; background: #F6F0E8; flex: none;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .7) inset, 0 12px 28px -14px rgba(58, 45, 71, .35); }
+.ill img { width: 100%; height: 100%; object-fit: cover; display: block; transform: scale(1.06); }
+.illus { width: auto; margin-bottom: 4px; }
+.ill.sm { width: 72px; height: 72px; border-radius: var(--r-item); }
+.ill.md { width: 120px; height: 120px; margin-bottom: 10px; }
+.ill.wl { width: 168px; height: 168px; border-radius: 40px; margin: 0 auto; }
+[data-theme=dark] .ill { box-shadow: 0 0 0 1px rgba(255, 255, 255, .06), 0 14px 30px -12px rgba(0, 0, 0, .6); }
+/* calmer headers: plain subtitle, no beating heart, no ornaments */
+.tt p .ic.h, [data-skin=luxe] .tt p .ic.h { display: none; }
+[data-skin=luxe] .tt p { font-family: 'Heebo', sans-serif; }
+.titlerow { align-items: center; min-height: 0; }
+[data-skin=luxe] .titlerow { min-height: 0; }
+/* one type family: the handwriting face is retired from headers and cards */
+:root, html[data-skin=luxe] { --hand: 'Assistant', 'Heebo', sans-serif; }
+[data-skin=luxe] .tt p span, [data-skin=luxe] .bravo b, [data-skin=luxe] .rest b, [data-skin=luxe] .almost b, [data-skin=luxe] .streak { font-weight: 400; }
+[data-skin=luxe] .wl-q { font-weight: 300; font-style: italic; }
+[data-skin=luxe] .top .illus, .top .illus { display: block !important; width: auto !important; }
+.top .illus { transform: none; }
+.titlerow .tt { min-width: 0; }
+@media (max-width: 370px) { .titlerow .ill { width: 84px; height: 84px; } }

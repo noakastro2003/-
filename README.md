@@ -33,3 +33,9 @@ python3 tools/render_sample.py font/NoaBubble-Regular.otf samples/bubble_sample.
 python3 tools/compare_glyphs.py WORKDIR font/NoaBubble-Regular.otf samples/bubble_compare_original_vs_font.png
 ```
 דרוש: `opencv-python-headless numpy scikit-image fonttools potracer pillow` (ו-libraqm לרינדור הדוגמה).
+
+## 3, 2, 1… שיגור! – משחק חיסור עם המרה לכיתה ב'
+
+- `shigur/site/` – המשחק (קובץ `index.html` אחד + תיקיית `images/`). גוררים את התיקייה הזו ל-app.netlify.com/drop.
+- `shigur/database.rules.json` – חוקי האבטחה ל-Firebase Realtime Database.
+- `shigur/SETUP-he.md` – מדריך הקמה למורה, צעד אחר צעד.

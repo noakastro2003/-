@@ -1,0 +1,2141 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<script>
+/* =====================================================================
+   הגדרות – זה החלק היחיד שהמורה ממלאת
+   ---------------------------------------------------------------------
+   firebase   : מעתיקים מתוך Firebase (הגדרות הפרויקט ← "האפליקציות שלך" ← Config).
+                אם משאירים ריק – המשחק עובד מול בולי ובאותו טלפון,
+                ובמצב "חברים" מופיעה הודעה עדינה שהמשחק עם חברים עוד לא מוכן.
+   classCode  : קוד כיתה שהמורה בוחרת (אותיות באנגלית, ספרות ומקף), למשל "tavenkin-b2".
+                רק ילדים עם אותו קוד רואים זה את זה ויכולים להזמין זה את זה.
+   studentNames : רשימת שמות פרטיים של תלמידי הכיתה, בתוך מירכאות ומופרדים בפסיקים.
+                למשל: ["נועה", "איתי", "מאיה"]
+                אם הרשימה ריקה – כל ילד כותב שם פרטי בעצמו (עד 10 אותיות).
+   ===================================================================== */
+const CONFIG = {
+  firebase: { apiKey:"", authDomain:"", databaseURL:"", projectId:"", appId:"" },
+  classCode: "",      // קוד כיתה שהמורה בוחרת, למשל "tavenkin-b2"
+  studentNames: []    // רשימת שמות פרטיים של תלמידי הכיתה, המורה ממלאת
+};
+/* ======================= סוף ההגדרות ======================= */
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#FFF8EC">
+<meta name="color-scheme" content="light">
+<title>3, 2, 1… שיגור!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FFF8EC; --card:#FFFFFF; --tq:#2FB9C6; --tqd:#1F8E99; --lil:#A98BE8; --lild:#7F62C4;
+  --coral:#FF7A6B; --corald:#D9584A; --orange:#FF9F43; --oranged:#D97C22; --text:#2E3A59; --muted:#6A7493;
+  --lvl:#3FA9E0; --shadow:0 6px 18px rgba(46,58,89,.10); --shadow2:0 2px 6px rgba(46,58,89,.10);
+  --appw:min(100vw,520px);
+  --u:clamp(18px, calc((var(--appw) - 160px) / 9.4), 34px);
+  --b:calc(var(--u) * .62);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}
+body{font-family:'Varela Round',system-ui,-apple-system,'Segoe UI',Arial,sans-serif;font-size:18px;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation;
+  overflow-x:hidden;overscroll-behavior:none}
+img{-webkit-user-drag:none;user-select:none;pointer-events:none}
+img.noimg{visibility:hidden}
+button{font:inherit;color:inherit;touch-action:manipulation}
+input{font:inherit;-webkit-user-select:text;user-select:text}
+.ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}
+.hide{display:none!important}
+#app{max-width:520px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;position:relative}
+.screen{display:none;flex:1;flex-direction:column;padding:10px 16px 8px;position:relative;gap:12px}
+.screen.on{display:flex;animation:fadeIn .35s ease}
+.foot{text-align:center;font-size:12px;color:var(--muted);padding:3px 0 calc(3px + env(safe-area-inset-bottom));opacity:.8}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---------- global buttons (mute / help) ---------- */
+#gbar{position:fixed;top:calc(8px + env(safe-area-inset-top));left:max(8px, calc(50vw - 252px));display:flex;gap:8px;z-index:60}
+.round{width:48px;height:48px;border-radius:50%;border:none;background:#fff;box-shadow:var(--shadow2);display:grid;place-items:center;padding:0;cursor:pointer}
+.round svg{width:26px;height:26px}
+.round:active{transform:scale(.94)}
+.topbar{display:flex;align-items:center;gap:10px;min-height:52px;padding-left:112px}
+.topbar h2{margin:0;font-size:22px;flex:1;text-align:center}
+.back{width:48px;height:48px;border-radius:50%;border:none;background:#fff;box-shadow:var(--shadow2);font-size:26px;display:grid;place-items:center;cursor:pointer;padding:0;color:var(--text)}
+
+/* ---------- buttons ---------- */
+.btn{border:none;border-radius:20px;min-height:58px;padding:10px 20px;font-size:21px;color:#fff;background:var(--tq);
+  box-shadow:0 5px 0 var(--tqd),var(--shadow);cursor:pointer;transition:transform .12s, box-shadow .12s;line-height:1.3}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 var(--tqd),var(--shadow)}
+.btn.lil{background:var(--lil);box-shadow:0 5px 0 var(--lild),var(--shadow)}
+.btn.coral{background:var(--coral);box-shadow:0 5px 0 var(--corald),var(--shadow)}
+.btn.orange{background:var(--orange);box-shadow:0 5px 0 var(--oranged),var(--shadow)}
+.btn.white{background:#fff;color:var(--text);box-shadow:0 5px 0 #E3DCCB,var(--shadow)}
+.btn:disabled{opacity:.45;pointer-events:none}
+.btn.big{font-size:26px;min-height:68px;padding:12px 36px}
+.btn.glow{animation:glow 1.1s ease-in-out infinite}
+@keyframes glow{0%,100%{outline:4px solid rgba(255,159,67,0);outline-offset:2px}50%{outline:5px solid rgba(255,159,67,.95);outline-offset:4px}}
+.card{background:var(--card);border-radius:24px;box-shadow:var(--shadow);padding:14px}
+.center{text-align:center}
+.col{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:10px;align-items:center}
+.wrap{flex-wrap:wrap}
+.grow{flex:1}
+h1,h2,h3{font-weight:normal}
+
+/* ---------- speaker ---------- */
+.spk{flex:none;width:48px;height:48px;border-radius:50%;border:none;background:#E8F7F9;display:grid;place-items:center;cursor:pointer;padding:0}
+.spk svg{width:24px;height:24px}
+body.no-tts .spk{display:none!important}
+
+/* ---------- opening ---------- */
+.corner{position:absolute;width:118px;z-index:0;opacity:.95}
+.corner.tl{top:4px;left:-6px}
+.corner.tr{top:4px;right:-6px;transform:scaleX(-1)}
+.corner.bl{bottom:30px;left:-6px;transform:scaleY(-1);width:90px}
+.corner.br{bottom:30px;right:-6px;transform:scale(-1,-1);width:90px}
+#s-open{align-items:center;justify-content:center;text-align:center;overflow:hidden;gap:6px}
+#s-open .launchImg{height:clamp(130px,24vh,210px);margin-top:42px;animation:bob 3s ease-in-out infinite}
+.title{font-size:clamp(34px,10vw,46px);margin:6px 0 0;color:var(--text);letter-spacing:.5px;position:relative;z-index:1}
+.sub{font-size:22px;margin:0 0 4px;color:var(--lild)}
+#s-open .bolliBig{height:clamp(130px,24vh,200px)}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+/* ---------- who ---------- */
+.names{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-height:38vh;overflow-y:auto;padding:4px}
+.chip{min-height:52px;min-width:72px;padding:8px 16px;border-radius:26px;border:3px solid #EDE6D6;background:#fff;font-size:20px;cursor:pointer}
+.chip.sel{border-color:var(--tq);background:#E6F8FA}
+.nameInput{width:100%;min-height:58px;border-radius:18px;border:3px solid #EDE6D6;padding:8px 16px;font-size:22px;text-align:center;background:#fff;color:var(--text)}
+.nameInput:focus{outline:none;border-color:var(--tq)}
+.rockets{display:flex;gap:10px;justify-content:center}
+.rbtn{flex:1;max-width:120px;border:3px solid #EDE6D6;background:#fff;border-radius:22px;padding:8px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:48px;font-size:18px}
+.rbtn img{height:76px}
+.rbtn.sel{border-color:var(--lil);background:#F4EFFD}
+.rbtn.small img{height:44px}
+.rbtn.small{padding:4px;font-size:16px}
+.lbl2{font-size:20px;margin:4px 0;text-align:center}
+
+/* ---------- mode ---------- */
+.modeBtn{display:flex;align-items:center;gap:12px;text-align:right;min-height:96px;font-size:22px;padding:10px 16px}
+.modeBtn .imgs{display:flex;align-items:flex-end;flex:none;width:96px;justify-content:center}
+.modeBtn .imgs img{height:70px}
+.modeBtn .imgs img+img{margin-inline-start:-18px}
+.profile{display:flex;align-items:center;gap:8px;background:#fff;border-radius:26px;padding:4px 14px 4px 8px;box-shadow:var(--shadow2);border:none;min-height:52px;cursor:pointer;font-size:19px}
+.profile img{height:42px}
+
+/* ---------- level ---------- */
+.lvl{display:flex;align-items:center;gap:10px;background:#fff;border:none;border-radius:24px;box-shadow:var(--shadow);padding:10px 12px;cursor:pointer;text-align:right;border-inline-start:8px solid var(--lc);min-height:110px}
+.lvl:active{transform:scale(.98)}
+.lvl .pics{position:relative;width:96px;height:90px;flex:none}
+.lvl .pics .pl{position:absolute;left:0;top:0;height:70px}
+.lvl .pics .rk{position:absolute;right:4px;bottom:0;height:60px}
+.lvlT{font-size:21px;color:var(--lc)}
+.lvlS{font-size:19px}
+.lvlX{font-size:16px;color:var(--muted)}
+.lvlChips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.lchip{min-height:50px;padding:6px 12px;border-radius:24px;border:3px solid #EDE6D6;background:#fff;font-size:17px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.lchip img{height:28px}
+.lchip.sel{border-color:var(--lc);background:color-mix(in srgb,var(--lc) 12%, white)}
+
+/* ---------- friends ---------- */
+.friends{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.fcard{background:#fff;border:3px solid transparent;border-radius:22px;box-shadow:var(--shadow2);padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:110px;cursor:pointer;font-size:18px;position:relative}
+.fcard img{height:62px}
+.fcard.sel{border-color:var(--orange);background:#FFF3E6}
+.fcard.sel::after{content:"✓";position:absolute;top:4px;left:8px;color:var(--oranged);font-size:20px}
+.empty{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;font-size:19px}
+.empty img{height:120px}
+.codeBoxes{display:flex;gap:8px;justify-content:center;direction:ltr}
+.codeBoxes span{width:56px;height:64px;border-radius:16px;background:#fff;box-shadow:var(--shadow2);display:grid;place-items:center;font-size:32px;border:3px solid #EDE6D6}
+.codeBoxes span.cur{border-color:var(--tq)}
+.ckeys{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;direction:ltr}
+.ckeys button{min-height:50px;border-radius:14px;border:none;background:#fff;box-shadow:0 3px 0 #E3DCCB;font-size:22px;cursor:pointer;padding:0}
+.ckeys button:active{transform:translateY(2px);box-shadow:0 1px 0 #E3DCCB}
+.ckeys .wide{grid-column:span 2;font-size:18px}
+.bigCode{font-size:46px;letter-spacing:10px;text-align:center;color:var(--lild)}
+.members{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;min-height:120px;align-items:flex-end}
+.member{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:18px;animation:pop .4s ease}
+.member img{height:84px}
+.member.ghost{opacity:.35}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+.note{font-size:17px;color:var(--muted);text-align:center}
+
+/* ---------- game ---------- */
+#s-game{gap:8px;padding-top:6px}
+#s-game .topbar{min-height:50px}
+.gtools{display:flex;gap:8px;flex:1;justify-content:flex-start}
+.tbtn{height:48px;border-radius:24px;border:none;background:#fff;box-shadow:var(--shadow2);display:flex;align-items:center;gap:6px;padding:0 12px 0 8px;font-size:16px;cursor:pointer}
+.tbtn img{height:34px}
+.tracks{display:flex;flex-direction:column;gap:4px}
+.trk{display:flex;align-items:center;gap:6px;background:#fff;border-radius:16px;padding:2px 8px;box-shadow:var(--shadow2);border:3px solid transparent;position:relative;min-height:40px;transition:border-color .3s, opacity .3s}
+.trk.act{border-color:var(--lvl)}
+.trk:not(.act){opacity:.8}
+.trkName{width:64px;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trkLine{flex:1;position:relative;height:36px;direction:ltr}
+.trkLine .path{position:absolute;left:30px;right:6px;top:50%;border-top:3px dashed #E0D8C6}
+.trkLine .planet{position:absolute;left:0;top:2px;height:32px}
+.trkLine .rk{position:absolute;top:1px;height:34px;transform:translateX(-50%) rotate(-90deg);transition:left .6s ease}
+.trkNum{min-width:30px;text-align:center;font-size:19px;color:var(--lvl)}
+.bubble{position:absolute;top:-6px;right:70px;background:#fff;border-radius:16px;padding:4px 10px;font-size:18px;box-shadow:var(--shadow);opacity:0;transform:translateY(6px) scale(.8);transition:all .3s;pointer-events:none;z-index:5;white-space:nowrap}
+.bubble.show{opacity:1;transform:none}
+
+.instr{display:flex;align-items:center;gap:8px;background:#fff;border-radius:20px;padding:8px 10px;box-shadow:var(--shadow);min-height:62px;border-inline-start:6px solid var(--lvl)}
+.instr .who{height:48px;flex:none}
+.itx{flex:1;min-width:0}
+.ihead{font-size:16px;color:var(--muted)}
+.imain{font-size:19px;line-height:1.35}
+.instr.bolli .imain{background:#F4EFFD;border-radius:14px;padding:4px 10px;display:inline-block}
+
+.boardWrap{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px}
+.board{direction:ltr;display:flex;gap:10px;justify-content:center;align-items:flex-end;background:#fff;border-radius:22px;padding:8px 10px;box-shadow:var(--shadow);width:100%}
+.side{display:flex;flex-direction:column;align-items:center}
+.side .lbl{direction:rtl;font-size:16px;color:var(--muted);text-align:center;margin-bottom:4px;line-height:1.2;min-height:2.4em;display:flex;align-items:flex-end;justify-content:center}
+.tens{display:flex;gap:4px;align-items:flex-end;padding:4px;background:#F4F1EA;border-radius:12px;touch-action:none}
+.slot{width:calc(var(--b) + 4px);height:calc(var(--b) * 10 + 4px);border-radius:7px;background:repeating-linear-gradient(180deg,#E9E3D5 0 1px,transparent 1px calc(var(--b))) ,#EFEADF;display:flex;align-items:flex-end;justify-content:center;padding:2px 0}
+.block{width:var(--b);height:calc(var(--b) * 10);display:flex;flex-direction:column;border:1.5px solid var(--cd);border-radius:5px;overflow:hidden;touch-action:none;cursor:grab;position:relative}
+.block i{flex:1;background:linear-gradient(160deg,var(--cl),var(--c) 65%);border-bottom:1px solid var(--cd);position:relative}
+.block i:last-child{border-bottom:none}
+.block i::after{content:"";position:absolute;top:2px;left:18%;width:36%;height:2px;border-radius:2px;background:rgba(255,255,255,.85)}
+.block.sel{outline:4px solid var(--orange);outline-offset:2px;animation:wiggle .6s ease-in-out infinite}
+.frames{display:flex;gap:6px;touch-action:none}
+.frame{display:grid;grid-template-columns:repeat(2,var(--u));grid-template-rows:repeat(5,var(--u));grid-auto-flow:column;gap:3px;padding:5px;background:#F4F1EA;border-radius:12px}
+.cell{border-radius:8px;border:2px dashed #E1D9C8;display:grid;place-items:center}
+.cube{width:calc(var(--u) - 4px);height:calc(var(--u) - 4px);border-radius:7px;border:2px solid var(--cd);background:linear-gradient(160deg,var(--cl),var(--c) 65%);position:relative;box-shadow:0 2px 0 rgba(0,0,0,.08)}
+.cube::after{content:"";position:absolute;top:3px;left:18%;width:40%;height:3px;border-radius:3px;background:rgba(255,255,255,.85)}
+.cube.blink{animation:blink .7s ease-in-out infinite}
+@keyframes blink{0%,100%{transform:scale(1);filter:none}50%{transform:scale(1.12);filter:brightness(1.18)}}
+.hl{outline:4px solid var(--orange);outline-offset:1px;filter:brightness(1.12)}
+.num{font-size:38px;line-height:1.1;min-height:42px;color:var(--text)}
+.num.hidden{visibility:hidden}
+.countTag{position:absolute;background:var(--orange);color:#fff;border-radius:12px;padding:2px 8px;font-size:18px;pointer-events:none;z-index:10;transform:translate(-50%,-100%)}
+.locked .block,.locked .cube{cursor:default}
+.shake{animation:shake .4s ease}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes wiggle{0%,100%{transform:rotate(0)}50%{transform:rotate(3deg)}}
+.zoneHint{outline:3px dashed var(--orange);outline-offset:3px;border-radius:12px}
+
+#s-game.compact{--u:clamp(15px, calc((var(--appw) - 160px) / 12), 26px)}
+#s-game.compact .num{font-size:30px;min-height:34px}
+#s-game.compact .trk{min-height:34px}
+#s-game.compact .trkLine{height:30px}
+#s-game.compact .trkLine .rk{height:28px}
+#s-game.compact .trkLine .planet{height:26px}
+#s-game.compact .ask,#s-game.compact .eq{padding:2px 10px;font-size:30px}
+#s-game.compact .ask .ansBox{font-size:30px}
+#s-game.compact{gap:6px}
+#s-game.compact .side .lbl{min-height:1.2em;font-size:15px}
+#s-game.compact .onesSide .lbl{white-space:nowrap}
+.miniWrap{display:flex;align-items:center;gap:8px;background:#fff;border-radius:18px;padding:6px 10px;box-shadow:var(--shadow2);align-self:center}
+.miniWrap .mlbl{font-size:16px;color:var(--muted)}
+.mini{--u:9px;--b:6px}
+.mini .board{box-shadow:none;padding:2px;gap:4px;width:auto}
+.mini .side .lbl{display:none}
+.mini .num{font-size:20px;min-height:22px}
+.mini .cell{border-width:1px;border-radius:3px}
+.mini .cube{border-width:1px;border-radius:3px}
+.mini .cube::after,.mini .block i::after{display:none}
+.mini .tens,.mini .frame{padding:2px;gap:2px}
+.mini .frame{gap:1px}
+.mini .slot{padding:1px 0;width:calc(var(--b) + 2px)}
+
+.panel{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.panel:empty{display:none}
+.yn{display:flex;gap:12px}
+.yn .btn{flex:1;font-size:26px}
+.hint{display:flex;align-items:center;gap:8px;background:#F4EFFD;border-radius:18px;padding:8px 10px;animation:pop .35s ease}
+.hint img{height:52px;flex:none}
+.hint .htx{font-size:18px;line-height:1.4;flex:1}
+.eq{font-size:34px;text-align:center;background:#fff;border-radius:18px;padding:6px 10px;box-shadow:var(--shadow2)}
+.eq .ans,.ansBox{display:inline-block;min-width:64px;border-bottom:4px solid var(--tq);color:var(--tqd);text-align:center}
+.ask{display:flex;align-items:center;justify-content:center;gap:10px;font-size:22px;background:#fff;border-radius:18px;padding:6px 10px;box-shadow:var(--shadow2)}
+.ask .ansBox{font-size:34px}
+.kp{display:grid;grid-template-columns:repeat(10,1fr);gap:8px;direction:ltr}
+.kp .key{grid-column:span 2}
+.kp .key.del,.kp .key.ok{grid-column:span 5}
+.key{min-height:48px;border-radius:16px;border:none;background:#fff;box-shadow:0 4px 0 #E3DCCB;font-size:28px;cursor:pointer;padding:0}
+.key:active{transform:translateY(3px);box-shadow:0 1px 0 #E3DCCB}
+.key.del{font-size:18px;background:#FFF0EE}
+.key.ok{font-size:20px;background:var(--tq);color:#fff;box-shadow:0 4px 0 var(--tqd)}
+.msg{background:#fff;border-radius:18px;padding:10px 12px;box-shadow:var(--shadow2);font-size:20px;text-align:center;line-height:1.45;display:flex;flex-direction:column;gap:4px;align-items:center}
+.msg img{height:60px}
+.msg.good{background:#EAFBF3}
+.reacts{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.reacts button{min-height:48px;min-width:52px;border-radius:24px;border:none;background:#fff;box-shadow:var(--shadow2);font-size:22px;cursor:pointer;padding:4px 12px}
+.reacts button.txt{font-size:17px}
+.reacts button:disabled{opacity:.4}
+
+.dock{display:flex;gap:12px;align-items:stretch;justify-content:center}
+.die{width:92px;height:92px;border:none;background:none;padding:0;cursor:pointer;flex:none;touch-action:manipulation}
+.die svg{width:100%;height:100%;filter:drop-shadow(0 5px 6px rgba(46,58,89,.18))}
+.die.ready{animation:pulse 1.4s ease-in-out infinite}
+.die.rolling{animation:roll .6s ease}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes roll{0%{transform:rotate(0) scale(1)}30%{transform:rotate(200deg) scale(1.15)}70%{transform:rotate(330deg) scale(.95)}100%{transform:rotate(360deg) scale(1)}}
+.station{flex:1;max-width:220px;background:#fff;border-radius:22px;box-shadow:var(--shadow);display:flex;align-items:center;gap:6px;padding:4px 10px;position:relative;cursor:pointer;min-height:92px}
+.station img{height:80px;flex:none}
+.station .stLbl{font-size:16px;line-height:1.3;color:var(--muted)}
+.station.target{outline:4px dashed var(--orange);outline-offset:3px;animation:pulse 1.2s ease-in-out infinite}
+.station.over{background:#FFF3E6}
+.station.hop img{animation:hop .5s ease}
+@keyframes hop{0%,100%{transform:none}40%{transform:translateY(-16px) rotate(-4deg)}}
+.stTip{position:absolute;bottom:100%;right:0;left:0;margin-bottom:6px;background:var(--orange);color:#fff;border-radius:16px;padding:6px 10px;font-size:17px;text-align:center;opacity:0;transform:translateY(6px);transition:all .3s;pointer-events:none;z-index:6}
+.stTip.show{opacity:1;transform:none}
+.ghost{position:fixed;z-index:80;pointer-events:none;opacity:.92;transform:translate(-50%,-50%) scale(1.08)}
+.flyer{position:fixed;z-index:80;pointer-events:none}
+.magn{position:absolute;height:84px;top:30%;left:0;z-index:12;pointer-events:none}
+
+/* ---------- overlays ---------- */
+.ov{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(255,248,236,.92)}
+.ov.on{display:flex;animation:fadeIn .3s ease}
+.mcard{background:#fff;border-radius:26px;box-shadow:0 10px 30px rgba(46,58,89,.18);padding:18px 16px;width:100%;max-width:440px;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;text-align:center}
+.mcard h2{margin:0;font-size:24px}
+#inviteOv{z-index:140}
+#handoffOv{z-index:110}
+#launchOv{z-index:120;background:linear-gradient(180deg,#E7F6FB 0%,#FFF8EC 70%);flex-direction:column;justify-content:flex-start;overflow:hidden}
+.steps{display:flex;flex-direction:column;gap:8px;text-align:right}
+.step{display:flex;align-items:center;gap:10px;background:#FFFCF5;border-radius:18px;padding:8px}
+.step img{height:54px;width:60px;object-fit:contain;flex:none}
+.step .stx{flex:1;font-size:18px;line-height:1.4}
+.step b{font-weight:normal;color:var(--lild)}
+.tip{display:flex;align-items:center;gap:10px;background:#E6F8FA;border-radius:18px;padding:8px;text-align:right;font-size:19px}
+.tip img{height:70px}
+.jlist{display:flex;flex-direction:column;gap:6px;text-align:right}
+.jrow{display:flex;align-items:center;gap:8px;background:#FFFCF5;border-radius:14px;padding:6px 10px;font-size:18px}
+.jrow img{height:30px}
+.jrow .jn{width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jrow .je{flex:1;font-size:21px;text-align:center}
+.badge{font-size:15px;background:#FFF0DD;color:var(--oranged);border-radius:10px;padding:2px 8px}
+.lsky{position:relative;width:100%;max-width:440px;height:58vh;margin-top:8px}
+.lplanet{position:absolute;top:0;left:50%;transform:translateX(-50%);height:min(26vh,180px)}
+.lrocket{position:absolute;bottom:0;left:50%;height:min(22vh,160px);transform:translateX(-50%)}
+.lcount{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);font-size:90px;color:var(--coral);text-shadow:0 4px 0 #fff}
+.ltext{font-size:26px;margin:6px 0;text-align:center;min-height:36px}
+.lbtns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:400px;padding:0 8px}
+.smoke{position:absolute;width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px #EEE8DA;pointer-events:none}
+.confetti{position:fixed;top:-20px;width:10px;height:14px;border-radius:3px;z-index:130;pointer-events:none}
+.toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 18px;border-radius:20px;font-size:18px;z-index:150;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:.95}
+.launchedRow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.launchedRow div{display:flex;flex-direction:column;align-items:center;font-size:17px}
+.launchedRow img{height:64px}
+
+@media (min-width:700px){ body{font-size:19px} .screen{padding-top:16px} }
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<div id="gbar">
+  <button class="round" id="btnMute" aria-label="השתקה"></button>
+  <button class="round" id="btnHelp" aria-label="איך משחקים" style="font-size:24px;color:var(--lild)">?</button>
+</div>
+<div id="app">
+
+  <!-- 1. פתיחה -->
+  <section class="screen" id="s-open">
+    <img class="corner tl" src="images/corner.png" alt="">
+    <img class="corner tr" src="images/corner.png" alt="">
+    <img class="corner bl" src="images/corner.png" alt="">
+    <img class="corner br" src="images/corner.png" alt="">
+    <img class="launchImg" src="images/launch.png" alt="">
+    <h1 class="title">3, 2, 1… שִׁגּוּר!</h1>
+    <p class="sub">חִסּוּר עִם הֲמָרָה</p>
+    <img class="bolliBig" src="images/bolli_astro.png" alt="">
+    <button class="btn big" id="btnPlay">שַׂחֲקוּ</button>
+  </section>
+
+  <!-- 2. מי אתם -->
+  <section class="screen" id="s-who">
+    <div class="topbar"><button class="back" data-back>→</button><h2>מִי אַתֶּם?</h2></div>
+    <div class="card col">
+      <div class="row" style="justify-content:center"><div class="lbl2" data-say>בַּחֲרוּ שֵׁם</div><button class="spk" data-say-prev></button></div>
+      <div id="whoNames"></div>
+    </div>
+    <div class="card col">
+      <div class="row" style="justify-content:center"><div class="lbl2">בַּחֲרוּ טִיל</div><button class="spk" data-say-prev></button></div>
+      <div class="rockets" id="whoRockets"></div>
+    </div>
+    <button class="btn" id="whoOk">הַמְשֵׁךְ</button>
+  </section>
+
+  <!-- 3. בחירת מצב -->
+  <section class="screen" id="s-mode">
+    <div class="topbar"><button class="profile" id="profileBtn"></button></div>
+    <button class="btn modeBtn" id="mFriends"><span class="imgs"><img src="images/rocket_moon.png" alt=""><img src="images/rocket_mars.png" alt=""></span><span class="grow">מְשַׂחֲקִים עִם חֲבֵרִים</span></button>
+    <button class="btn lil modeBtn" id="mBolli"><span class="imgs"><img src="images/bolli_astro.png" alt=""></span><span class="grow">מְשַׂחֲקִים מוּל בּוֹלִי</span></button>
+    <button class="btn orange modeBtn" id="mLocal"><span class="imgs"><img src="images/rocket_moon.png" alt=""><img src="images/rocket_mars.png" alt=""><img src="images/rocket_jupiter.png" alt=""></span><span class="grow">כַּמָּה שַׂחְקָנִים בְּאוֹתוֹ טֶלֶפוֹן</span></button>
+  </section>
+
+  <!-- שחקנים באותו טלפון -->
+  <section class="screen" id="s-players">
+    <div class="topbar"><button class="back" data-back>→</button><h2>כַּמָּה שַׂחְקָנִים?</h2></div>
+    <div class="row" style="justify-content:center">
+      <button class="chip" data-n="2"><span class="ltr">2</span></button>
+      <button class="chip" data-n="3"><span class="ltr">3</span></button>
+    </div>
+    <div class="col" id="plRows"></div>
+    <button class="btn" id="plOk">הַמְשֵׁךְ</button>
+  </section>
+
+  <!-- 4. בחירת יעד -->
+  <section class="screen" id="s-level">
+    <div class="topbar"><button class="back" data-back>→</button><h2>לְאָן טָסִים?</h2></div>
+    <div class="col" id="lvlList"></div>
+  </section>
+
+  <!-- חברים – לא מוכן -->
+  <section class="screen" id="s-nofb">
+    <div class="topbar"><button class="back" data-back>→</button></div>
+    <div class="card empty">
+      <img src="images/bolli_think.png" alt="">
+      <div class="row"><div data-say>הַמִּשְׂחָק עִם חֲבֵרִים עוֹד לֹא מוּכָן</div><button class="spk" data-say-prev></button></div>
+      <button class="btn lil" id="nofbBolli">מְשַׂחֲקִים מוּל בּוֹלִי</button>
+    </div>
+  </section>
+
+  <!-- מי מחובר -->
+  <section class="screen" id="s-friends">
+    <div class="topbar"><button class="back" data-back>→</button><h2>מִי מְחֻבָּר עַכְשָׁו?</h2></div>
+    <div class="lvlChips" id="fLevels"></div>
+    <div class="row" style="justify-content:center" id="fPickNote"><div class="note" data-say>בַּחֲרוּ חָבֵר אוֹ שְׁנַיִם</div><button class="spk" data-say-prev></button></div>
+    <div class="friends" id="fList"></div>
+    <div class="card empty hide" id="fEmpty">
+      <img src="images/bolli_astro.png" alt="">
+      <div class="row"><div data-say>אַף אֶחָד לֹא מְחֻבָּר כָּרֶגַע – אֶפְשָׁר לְשַׂחֵק מוּל בּוֹלִי!</div><button class="spk" data-say-prev></button></div>
+      <button class="btn lil" id="fBolli">מְשַׂחֲקִים מוּל בּוֹלִי</button>
+    </div>
+    <div class="grow"></div>
+    <button class="btn orange" id="fInvite" disabled>מַזְמִינִים!</button>
+    <button class="btn white" id="fCode">חֶדֶר עִם קוֹד</button>
+  </section>
+
+  <!-- חדר עם קוד -->
+  <section class="screen" id="s-code">
+    <div class="topbar"><button class="back" data-back>→</button><h2>חֶדֶר עִם קוֹד</h2></div>
+    <div class="card col">
+      <div class="lvlChips" id="cLevels"></div>
+      <button class="btn orange" id="cCreate">יוֹצְרִים חֶדֶר</button>
+    </div>
+    <div class="note">אוֹ</div>
+    <div class="card col">
+      <div class="lbl2">הַקּוֹד שֶׁל הַחֶדֶר</div>
+      <div class="codeBoxes" id="cBoxes"></div>
+      <div class="ckeys" id="cKeys"></div>
+      <button class="btn" id="cJoin" disabled>נִכְנָסִים</button>
+    </div>
+  </section>
+
+  <!-- חדר המתנה -->
+  <section class="screen" id="s-wait">
+    <div class="topbar"><button class="back" data-back>→</button><h2>הַקּוֹד שֶׁל הַחֶדֶר</h2></div>
+    <div class="card col center">
+      <div class="bigCode ltr" id="wCode" style="display:block"></div>
+      <button class="btn white" id="wShare">שׁוֹלְחִים קִשּׁוּר</button>
+      <div id="wLevel" class="lvlChips"></div>
+    </div>
+    <div class="members" id="wMembers"></div>
+    <div class="note" id="wNotes"></div>
+    <div class="row" style="justify-content:center" id="wWaitRow"><div class="lbl2" data-say>מְחַכִּים לַחֲבֵרִים…</div><button class="spk" data-say-prev></button></div>
+    <div class="grow"></div>
+    <button class="btn orange big" id="wStart" disabled>מַתְחִילִים!</button>
+  </section>
+
+  <!-- 6. משחק -->
+  <section class="screen" id="s-game">
+    <div class="topbar">
+      <button class="back" id="gBack">→</button>
+      <div class="gtools"><button class="tbtn" id="gJournal"><img src="images/notebook.png" alt="">יוֹמַן הַטִּיסָה</button></div>
+    </div>
+    <div class="tracks" id="tracks"></div>
+    <div class="instr" id="instr"></div>
+    <div class="boardWrap" id="boardWrap"></div>
+    <div id="mini"></div>
+    <div class="panel" id="panel"></div>
+    <div class="dock" id="dock">
+      <button class="die" id="die" aria-label="קֻבִּיַּת הַמִּשְׂחָק"></button>
+      <div class="station" id="station"><img src="images/bolli_station.png" alt=""><div class="stLbl">תַּחֲנַת הַדֶּלֶק שֶׁל בּוֹלִי</div><div class="stTip" id="stTip"></div></div>
+    </div>
+  </section>
+
+  <div class="foot">© נועה קסטרו</div>
+</div>
+
+<div class="ov" id="modal"></div>
+<div class="ov" id="howtoOv"></div>
+<div class="ov" id="journalOv"></div>
+<div class="ov" id="handoffOv"></div>
+<div class="ov" id="launchOv"></div>
+<div class="ov" id="inviteOv"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   כלים כלליים
+   ===================================================================== */
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const T_ = ms => RM ? Math.min(ms, 60) : ms;            // משך אנימציה בהתחשב בהעדפת תנועה מופחתת
+const rnd = n => Math.floor(Math.random() * n);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const N = v => `<bdi class="ltr">${v}</bdi>`;           // מספר בעטיפה משמאל לימין
+const fill = (s, o) => s.replace(/\{(\w+)\}/g, (m, k) => (o[k] != null ? o[k] : m));
+const store = {
+  get(k){ try { return localStorage.getItem('shigur.' + k); } catch(e){ return null; } },
+  set(k, v){ try { localStorage.setItem('shigur.' + k, v); } catch(e){} },
+  del(k){ try { localStorage.removeItem('shigur.' + k); } catch(e){} }
+};
+function imgFallback(){ document.addEventListener('error', e => { if (e.target && e.target.tagName === 'IMG') e.target.classList.add('noimg'); }, true); }
+
+/* ---------- צבעי החלקים ---------- */
+function hexRGB(h){ h = h.replace('#',''); return [0,2,4].map(i => parseInt(h.substr(i,2),16)); }
+function mix(a, b, t){ const A = hexRGB(a), B = hexRGB(b); return '#' + A.map((v,i) => Math.round(v + (B[i]-v)*t).toString(16).padStart(2,'0')).join(''); }
+const PAL = ['#35C6D3','#FF7A6B','#A98BE8','#FFA43A','#4CC994','#4FA8EA','#F27BB5','#FFD13F']
+  .map(c => ({ c, l: mix(c,'#ffffff',.5), d: mix(c,'#000000',.3) }));
+const colStyle = i => { const p = PAL[((i % 8) + 8) % 8]; return `--c:${p.c};--cl:${p.l};--cd:${p.d}`; };
+
+/* ---------- שלבים וטילים ---------- */
+const LEVELS = {
+  1: { id:1, start:29, planet:'moon',    color:'#3FA9E0', title:'טִיסָה לַיָּרֵחַ',  exact:false, predict:false, eq:false },
+  2: { id:2, start:59, planet:'mars',    color:'#EF5B52', title:'טִיסָה לְמַאְדִּים', exact:false, predict:false, eq:true  },
+  3: { id:3, start:99, planet:'jupiter', color:'#9B6AD6', title:'טִיסָה לְצֶדֶק',    exact:true,  predict:true,  eq:true  }
+};
+const ROCKETS = {
+  moon:    { img:'rocket_moon',    name:'תְּכֵלֶת' },
+  mars:    { img:'rocket_mars',    name:'אָדֹם' },
+  jupiter: { img:'rocket_jupiter', name:'סָגֹל' }
+};
+const rocketSrc = r => `images/${(ROCKETS[r] || ROCKETS.moon).img}.png`;
+const BOLLI_NAME = 'בּוֹלִי';
+
+/* ---------- טקסטים (עם ניקוד) ---------- */
+const TX = {
+  turnOf: 'הַתּוֹר שֶׁל {name}',
+  bolliTurn: 'עַכְשָׁו הַתּוֹר שֶׁל בּוֹלִי',
+  roll: 'לַחֲצוּ עַל קֻבִּיַּת הַמִּשְׂחָק',
+  overLaunch: 'יָצָא יוֹתֵר מִמָּה שֶׁנִּשְׁאַר – הִגַּעְתֶּם לְ־0!',
+  overWait: 'צָרִיךְ לִנְחֹת בְּדִיּוּק עַל 0. מְחַכִּים לַתּוֹר הַבָּא.',
+  needQ: 'צָרִיךְ הֲמָרָה?',
+  hint1: 'בּוֹאוּ נִסְפֹּר: יֵשׁ {u} קֻבִּיּוֹת, וְצָרִיךְ לְהוֹצִיא {d}.',
+  hint2no: 'יֵשׁ מַסְפִּיק קֻבִּיּוֹת – לֹא צָרִיךְ הֲמָרָה.',
+  hint2yes: 'אֵין מַסְפִּיק קֻבִּיּוֹת – צָרִיךְ הֲמָרָה!',
+  predict: 'לִפְנֵי שֶׁנּוֹגְעִים: כַּמָּה יִשָּׁאֵר?',
+  trade: 'גִּרְרוּ בְּלוֹק אֶחָד לַתַּחֲנָה שֶׁל בּוֹלִי.',
+  traded: 'בּוֹלִי נָתַן לָכֶם 10 קֻבִּיּוֹת!',
+  remove: 'לַחֲצוּ עַל {d} קֻבִּיּוֹת כְּדֵי לְהוֹצִיא אוֹתָן.',
+  removed: 'הוֹצֵאתֶם {k} מִתּוֹךְ {d}',
+  howMany: 'כַּמָּה נִשְׁאַר?',
+  checking: 'בּוֹלִי בּוֹדֵק…',
+  correct: 'נָכוֹן! כָּל בְּלוֹק = 10, כָּל קֻבִּיָּה = 1.',
+  guessOk: 'נִחַשְׁתֶּם נָכוֹן מֵרֹאשׁ!',
+  guessNo: 'הַנִּחוּשׁ הָיָה {g} – עַכְשָׁו רוֹאִים שֶׁנִּשְׁאַר {r}.',
+  almost: 'כִּמְעַט! בּוֹאוּ נִסְפֹּר יַחַד.',
+  peerQ: '{name} סִיֵּם. הוּא צָדַק?',
+  right: 'צָדַק ✓', wrong: 'טָעָה ✗',
+  checkTogether: 'רֶגַע… בּוֹאוּ נִבְדֹּק יַחַד.',
+  caught: 'תְּפַסְתֶּם טָעוּת! {name} מְתַקֵּן.',
+  bolliCaught: 'תְּפַסְתֶּם אֶת הַטָּעוּת! תּוֹדָה!',
+  checkAgain: 'רֶגַע… בּוֹאוּ נִבְדֹּק שׁוּב.',
+  waitFor: 'מְחַכִּים לְ{name}…',
+  launched: 'הַטִּיל שֶׁל {name} הִמְרִיא!',
+  allLaunched: 'כָּל הַטִּילִים הִמְרִיאוּ!',
+  contAll: 'מַמְשִׁיכִים עַד שֶׁכָּל הַטִּילִים מַמְרִיאִים',
+  finish: 'סִיַּמְנוּ',
+  again: 'מְשַׂחֲקִים שׁוּב', otherDest: 'בּוֹחֲרִים יַעַד אַחֵר', backFriends: 'חֲזָרָה לַחֲבֵרִים',
+  phoneTo: 'הַטֶּלֶפוֹן עוֹבֵר לְ{name}',
+  cont: 'הַמְשֵׁךְ', yes: 'כֵּן', no: 'לֹא', ok: 'אִישּׁוּר', del: 'מְחִיקָה',
+  myBoard: 'הַלּוּחַ שֶׁלִּי',
+  b_roll: 'אֲנִי מַטִּיל!',
+  b_think: 'יֵשׁ לִי {u} קֻבִּיּוֹת וְיָצָא {d}…',
+  b_yes: 'צָרִיךְ הֲמָרָה!',
+  b_no: 'לֹא צָרִיךְ הֲמָרָה.',
+  b_trade: 'נוֹתֵן בְּלוֹק אֶחָד וּמְקַבֵּל 10 קֻבִּיּוֹת.',
+  b_remove: 'מוֹצִיא {d} קֻבִּיּוֹת.',
+  b_guess: 'יִשָּׁאֵר לִי {g}.',
+  b_fix: 'אֲנִי מְתַקֵּן!',
+  disc: '{name} הִתְנַתֵּק', discWait: 'מְחַכִּים', discBolli: 'בּוֹלִי מַמְשִׁיךְ בִּמְקוֹמוֹ',
+  invite: '{name} מַזְמִין/ה אוֹתְךָ לְשַׂחֵק: {level}',
+  inviteYes: 'בּוֹא/י נְשַׂחֵק!', inviteNo: 'לֹא עַכְשָׁו',
+  waitAll: 'מְחַכִּים שֶׁכֻּלָּם יַסְכִּימוּ…',
+  noLog: 'עוֹד אֵין תַּרְגִּילִים',
+  close: 'סְגִירָה', trade_badge: 'הֲמָרָה',
+  leaveQ: 'יוֹצְאִים מֵהַמִּשְׂחָק?',
+  connecting: 'מִתְחַבְּרִים…',
+  netErr: 'מַשֶּׁהוּ לֹא עָבַד. נְנַסֶּה שׁוּב?', retry: 'נְנַסֶּה שׁוּב',
+  roomNone: 'הַחֶדֶר לֹא נִמְצָא', roomFull: 'הַחֶדֶר מָלֵא', roomOther: 'הַחֶדֶר הַזֶּה שֶׁל כִּתָּה אַחֶרֶת',
+  roomStarted: 'הַמִּשְׂחָק כְּבָר הִתְחִיל', declined: '{name}: לֹא עַכְשָׁו',
+  copied: 'הַקִּשּׁוּר הוּעְתַּק!',
+  letters: 'רַק אוֹתִיּוֹת, עַד 10',
+  writeName: 'כִּתְבוּ שֵׁם פְּרָטִי',
+  chooseName: 'בַּחֲרוּ שֵׁם',
+  player: 'שַׂחְקָן',
+  reactions: ['👏','🚀','⭐','😄','כָּל הַכָּבוֹד!','יֹפִי שֶׁל תּוֹר!','בְּהַצְלָחָה!']
+};
+
+/* =====================================================================
+   צלילים – Web Audio, בלי קבצים
+   ===================================================================== */
+const Snd = (() => {
+  let ctx = null, muted = store.get('mute') === '1';
+  function ac(){
+    try {
+      if (!ctx){ const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ctx = new C(); }
+      if (ctx.state === 'suspended') ctx.resume();
+    } catch(e){ return null; }
+    return ctx;
+  }
+  function tone(f, dur, o={}){
+    const c = ac(); if (!c || muted) return;
+    const t0 = c.currentTime + (o.at || 0), osc = c.createOscillator(), g = c.createGain();
+    osc.type = o.type || 'sine'; osc.frequency.setValueAtTime(f, t0);
+    if (o.slide) osc.frequency.exponentialRampToValueAtTime(o.slide, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(o.vol || .15, t0 + .015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g).connect(c.destination); osc.start(t0); osc.stop(t0 + dur + .05);
+  }
+  function noise(dur, o={}){
+    const c = ac(); if (!c || muted) return;
+    const len = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random()*2 - 1) * (1 - i/len);
+    const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    src.buffer = buf; f.type = 'lowpass'; f.frequency.value = o.freq || 600; g.gain.value = o.vol || .12;
+    src.connect(f).connect(g).connect(c.destination); src.start(c.currentTime + (o.at || 0));
+  }
+  return {
+    unlock(){ ac(); },
+    get muted(){ return muted; },
+    toggle(){ muted = !muted; store.set('mute', muted ? '1' : '0'); return muted; },
+    roll(){ for (let i = 0; i < 7; i++) tone(260 + Math.random()*500, .05, { type:'triangle', vol:.12, at:i*.08 }); },
+    trade(){ [523,659,784,1047,1319].forEach((f,i) => tone(f, .16, { type:'triangle', at:i*.07, vol:.13 })); },
+    pop(){ tone(620, .1, { slide:1250, vol:.16 }); },
+    ok(){ [659,784,1047].forEach((f,i) => tone(f, .25, { at:i*.12, vol:.14 })); },
+    soft(){ tone(392, .2, { slide:330, vol:.08 }); },
+    tick(){ tone(880, .05, { type:'sine', vol:.07 }); },
+    beep(){ tone(660, .18, { type:'triangle', vol:.15 }); },
+    launch(){ noise(1.8, { vol:.16, freq:420 }); tone(110, 1.8, { type:'sawtooth', slide:520, vol:.05 }); [784,988,1319].forEach((f,i)=>tone(f,.3,{at:1.4+i*.12,vol:.12})); },
+    invite(){ tone(880, .2, { vol:.16 }); tone(660, .3, { at:.22, vol:.16 }); tone(990, .3, { at:.5, vol:.12 }); },
+    react(){ tone(1046, .12, { vol:.09 }); }
+  };
+})();
+
+/* =====================================================================
+   הקראה – speechSynthesis בעברית
+   ===================================================================== */
+const Speak = {
+  voice: null,
+  init(){
+    document.body.classList.add('no-tts');
+    if (!('speechSynthesis' in window)) return;
+    const pick = () => {
+      const vs = speechSynthesis.getVoices() || [];
+      this.voice = vs.find(v => /^(he|iw)/i.test(v.lang)) || null;
+      document.body.classList.toggle('no-tts', !this.voice);
+    };
+    pick();
+    try { speechSynthesis.addEventListener('voiceschanged', pick); } catch(e){ speechSynthesis.onvoiceschanged = pick; }
+  },
+  prep(t){
+    return String(t).replace(/<[^>]+>/g, ' ').replace(/−/g, ' פָּחוֹת ').replace(/=/g, ' שָׁוֶה ')
+      .replace(/_{2,}/g, ' כַּמָּה ').replace(/[✓✗·]/g, ' ').replace(/\s+/g, ' ').trim();
+  },
+  say(text){
+    if (!this.voice || !text) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(this.prep(text));
+      u.lang = 'he-IL'; u.voice = this.voice; u.rate = .88;
+      speechSynthesis.speak(u);
+    } catch(e){}
+  }
+};
+const ICON_SPK = '<svg viewBox="0 0 24 24" fill="none" stroke="#1F8E99" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="#BFEFF3"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="#2E3A59" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="#FFE2A8"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="#2E3A59" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="#EEE"/><path d="M16 9l5 6M21 9l-5 6"/></svg>';
+const spkBtn = text => `<button class="spk" data-say="${esc(text)}" aria-label="הקראה">${ICON_SPK}</button>`;
+
+/* =====================================================================
+   מנוע המשחק – לוגיקה טהורה, בלי תצוגה ובלי רשת.
+   מצב המשחק הוא אובייקט JSON פשוט; כל מהלך עובר דרך Engine.reduce.
+   (כך אפשר בעתיד להוסיף מצב "מתדלקים לשיגור" – חיבור – באותו מבנה.)
+   ===================================================================== */
+const Engine = (() => {
+  const val = p => p.tens * 10 + p.ones;
+  const freshTurn = () => ({ d:0, n:0, need:false, tq:0, guess:-1, removed:0, ans:-1, tries:0,
+    fixing:false, checker:-1, verdict:'', outcome:'', mistake:'', over:'', traded:false });
+
+  function newGame(level, mode, players){
+    const L = LEVELS[level];
+    return {
+      v:1, gid: Math.random().toString(36).slice(2, 10), level, mode, seq:0, turn:0, phase:'roll',
+      players: players.map(p => ({ name:p.name, rocket:p.rocket, uid:p.uid || '', bolli:!!p.bolli, bot:!!p.bolli,
+        tens: Math.floor(L.start / 10), ones: L.start % 10, launched:false })),
+      t: freshTurn(), log: [], launchOrder: [], lastLaunch: -1, ev: { k:'start', seq:0 }
+    };
+  }
+
+  // מנרמל מצב שהגיע מהרשת (מערכים ריקים נעלמים ב-Firebase וכו')
+  function normalize(s){
+    if (!s || typeof s !== 'object') return null;
+    const arr = x => Array.isArray(x) ? x.filter(v => v != null)
+      : (x && typeof x === 'object' ? Object.keys(x).sort((a,b) => a - b).map(k => x[k]) : []);
+    s.players = arr(s.players).map(p => Object.assign({ name:'', rocket:'moon', uid:'', bolli:false, bot:false, tens:0, ones:0, launched:false }, p));
+    s.log = arr(s.log); s.launchOrder = arr(s.launchOrder);
+    s.t = Object.assign(freshTurn(), s.t || {});
+    s.ev = s.ev || { k:'none', seq: s.seq || 0 };
+    if (s.lastLaunch == null) s.lastLaunch = -1;
+    if (s.seq == null) s.seq = 0;
+    return s;
+  }
+
+  // מי צריך לפעול עכשיו: אינדקס שחקן, או -2 = כל אחד
+  function actor(s){
+    if (s.phase === 'peer') return s.t.checker;
+    if (s.phase === 'launch' || s.phase === 'end') return -2;
+    return s.turn;
+  }
+
+  // מי בודק את התור ("השותף בודק"); -1 = אין שותף, בולי בודק לבד
+  function pickChecker(s){
+    const P = s.players, a = s.turn, n = P.length;
+    if (s.mode === 'solo') return P[a].bolli ? P.findIndex(p => !p.bolli) : -1;
+    for (let k = 1; k < n; k++){ const i = (a + k) % n; if (!P[i].launched) return P[i].bot ? -1 : i; }
+    for (let k = 1; k < n; k++){ const i = (a + k) % n; return P[i].bot ? -1 : i; }
+    return -1;
+  }
+
+  const turnCorrect = s => { const t = s.t, p = s.players[s.turn]; return t.ans === t.n - t.d && val(p) === t.n - t.d; };
+
+  function advance(s){
+    const P = s.players, n = P.length;
+    for (let k = 1; k <= n; k++){
+      const i = (s.turn + k) % n;
+      if (!P[i].launched){ s.turn = i; s.t = freshTurn(); s.phase = 'roll'; return true; }
+    }
+    s.phase = 'end'; return false;
+  }
+
+  function doLaunch(s){
+    const p = s.players[s.turn];
+    p.launched = true; p.tens = 0; p.ones = 0;
+    s.launchOrder.push(s.turn); s.lastLaunch = s.turn;
+    s.phase = s.players.some(x => !x.launched) ? 'launch' : 'end';
+  }
+
+  // מקבל מצב ומהלך, מחזיר מצב חדש או null אם המהלך לא חוקי
+  function reduce(s0, a){
+    if (!s0 || !a) return null;
+    const s = JSON.parse(JSON.stringify(s0));
+    const L = LEVELS[s.level], P = s.players, p = P[s.turn], t = s.t;
+    const act = actor(s), anyone = a.type === 'TAKEOVER' || a.type === 'RECLAIM';
+    if (!anyone && act !== -2 && a.by !== act) return null;
+    let ev;
+    switch (a.type){
+      case 'ROLL': {
+        if (s.phase !== 'roll' || !(a.d >= 1 && a.d <= 6)) return null;
+        t.d = a.d; t.n = val(p);
+        if (a.d > t.n){ t.over = L.exact ? 'wait' : 'launch'; s.phase = 'over'; }
+        else { t.need = p.ones < a.d; s.phase = 'tradeQ'; }
+        ev = { k:'roll', d:a.d }; break;
+      }
+      case 'TRADE_ANS': {
+        if (s.phase !== 'tradeQ') return null;
+        if (!!a.yes === t.need){ s.phase = L.predict ? 'predict' : (t.need ? 'trade' : 'remove'); ev = { k:'tqOk', yes:!!a.yes }; }
+        else { t.tq++; ev = { k:'tqWrong', tq:t.tq }; }
+        break;
+      }
+      case 'PREDICT': {
+        if (s.phase !== 'predict' || !(a.g >= 0)) return null;
+        t.guess = a.g; s.phase = t.need ? 'trade' : 'remove'; ev = { k:'predict', g:a.g }; break;
+      }
+      case 'TRADE': {
+        if (s.phase !== 'trade' || p.tens < 1) return null;
+        p.tens--; p.ones += 10; t.traded = true; s.phase = 'remove'; ev = { k:'trade', slot:p.tens, from:p.ones - 10 }; break;
+      }
+      case 'REMOVE': {
+        if (s.phase !== 'remove' || p.ones < 1 || t.removed >= t.d) return null;
+        p.ones--; t.removed++; ev = { k:'remove', cell:p.ones };
+        if (t.removed === t.d) s.phase = 'write';
+        break;
+      }
+      case 'WRITE': {
+        if (s.phase !== 'write' || !(a.r >= 0)) return null;
+        t.ans = a.r; t.tries++;
+        const ch = t.fixing ? -1 : pickChecker(s);
+        if (ch >= 0){ t.checker = ch; s.phase = 'peer'; ev = { k:'peer' }; }
+        else { t.outcome = turnCorrect(s) ? 'correct' : 'wrong'; s.phase = 'result'; ev = { k:'result' }; }
+        break;
+      }
+      case 'BOT_MISTAKE': {          // רק בולי, רק כשצריך המרה – טעות מכוונת כדי שיהיה מה לתפוס
+        if (s.phase !== 'tradeQ' || !p.bolli || !t.need) return null;
+        const kind = (a.kind === 'a' && p.ones > 0) ? 'a' : 'b';
+        t.mistake = kind;
+        let count = 0;
+        if (kind === 'a'){ count = p.ones; t.removed = p.ones; p.ones = 0; t.ans = val(p); }      // "לא צריך המרה" – מוציא רק מה שיש
+        else { t.ans = p.tens * 10 + Math.abs(p.ones - t.d); }                                       // הופך ספרות ביחידות
+        t.checker = pickChecker(s);
+        if (t.checker >= 0) s.phase = 'peer'; else { t.outcome = 'wrong'; s.phase = 'result'; }
+        ev = { k:'mistake', kind, count }; break;
+      }
+      case 'VERDICT': {
+        if (s.phase !== 'peer' || (a.says !== 'right' && a.says !== 'wrong')) return null;
+        const ok = turnCorrect(s);
+        t.verdict = a.says;
+        t.outcome = ok ? (a.says === 'right' ? 'correct' : 'falseAlarm') : (a.says === 'wrong' ? 'caught' : 'missed');
+        s.phase = 'result'; ev = { k:'result' }; break;
+      }
+      case 'NEXT': {
+        if (s.phase === 'over'){
+          s.log.push({ p:s.turn, n:t.n, d:t.d, r:(t.over === 'launch' ? 0 : -1), trade:false, kind:t.over });
+          if (t.over === 'launch'){ doLaunch(s); ev = { k:'launch', who:s.lastLaunch }; }
+          else { advance(s); ev = { k:'turn' }; }
+          break;
+        }
+        if (s.phase !== 'result') return null;
+        if (t.outcome === 'correct' || t.outcome === 'falseAlarm'){
+          s.log.push({ p:s.turn, n:t.n, d:t.d, r:t.n - t.d, trade:t.traded, kind:'ok' });
+          if (val(p) === 0){ doLaunch(s); ev = { k:'launch', who:s.lastLaunch }; }
+          else { advance(s); ev = { k:'turn' }; }
+        } else {
+          t.fixing = true; t.outcome = ''; t.verdict = '';
+          if (t.mistake){ t.mistake = ''; s.phase = 'trade'; }      // בולי מתקן מול העיניים: המרה והוצאה נכונה
+          else s.phase = 'write';                                    // הילד מתקן את התרגיל
+          ev = { k:'fix' };
+        }
+        break;
+      }
+      case 'CONTINUE': { if (s.phase !== 'launch') return null; advance(s); ev = { k:'turn' }; break; }
+      case 'FINISH':   { if (s.phase !== 'launch') return null; s.phase = 'end'; ev = { k:'end' }; break; }
+      case 'TAKEOVER': { const q = P[a.idx]; if (!q || q.bot) return null; q.bot = true; ev = { k:'takeover', idx:a.idx }; break; }
+      case 'RECLAIM':  { const q = P[a.idx]; if (!q || q.bolli || !q.bot) return null; q.bot = false; ev = { k:'reclaim', idx:a.idx }; break; }
+      default: return null;
+    }
+    s.seq++;
+    s.ev = Object.assign(ev, { seq:s.seq, by:(a.by == null ? -1 : a.by) });
+    return s;
+  }
+
+  // המהלך הבא של בולי (או של בולי שמחליף שחקן שהתנתק)
+  function botAction(s, opts={}){
+    const p = s.players[s.turn], t = s.t;
+    switch (s.phase){
+      case 'roll':   return { type:'ROLL', d: opts.roll ? opts.roll(s) : 1 + rnd(6) };
+      case 'over':   return { type:'NEXT' };
+      case 'tradeQ': if (opts.mistake && t.need && opts.mistake(s)) return { type:'BOT_MISTAKE', kind: rnd(2) ? 'a' : 'b' };
+                     return { type:'TRADE_ANS', yes:t.need };
+      case 'predict':return { type:'PREDICT', g:t.n - t.d };
+      case 'trade':  return { type:'TRADE' };
+      case 'remove': return { type:'REMOVE' };
+      case 'write':  return { type:'WRITE', r: val(p) };
+      case 'peer':   return { type:'VERDICT', says: turnCorrect(s) ? 'right' : 'wrong' };
+      case 'result': return { type:'NEXT' };
+    }
+    return null;
+  }
+
+  return { val, newGame, normalize, actor, reduce, botAction, turnCorrect, freshTurn };
+})();
+</script>
+
+<script>
+'use strict';
+/* =====================================================================
+   מצב האפליקציה
+   ===================================================================== */
+const S = {
+  profile: { name: store.get('name') || '', rocket: store.get('rocket') || '' },
+  mode: null,              // 'solo' | 'local' | 'online'
+  level: +(store.get('level') || 1) || 1,
+  game: null, myIdx: -1,
+  busy: false, pending: false,
+  kp: '', kpSeq: -1,
+  resReady: -1, resPartial: '',
+  selBlock: false, dropDone: false,
+  botTimer: null, bmTurns: 0, bmLast: -10,
+  lp: { n: 2, players: [] },
+  urlRoom: ''
+};
+if (!LEVELS[S.level]) S.level = 1;
+const fbConfigured = () => !!(CONFIG.firebase && CONFIG.firebase.apiKey && CONFIG.firebase.databaseURL);
+
+/* ---------- ניווט בין מסכים ---------- */
+let curScreen = 'open';
+const BACK = {};
+function show(id){
+  curScreen = id;
+  $$('.screen').forEach(x => x.classList.toggle('on', x.id === 's-' + id));
+  window.scrollTo(0, 0);
+  if (ENTER[id]) ENTER[id]();
+}
+const ENTER = {};
+
+/* ---------- חלונות ---------- */
+function openOv(id, html){ const o = $('#' + id); if (html != null) o.innerHTML = html; o.classList.add('on'); fillSpk(o); return o; }
+function closeOv(id){ const o = $('#' + id); o.classList.remove('on'); }
+function modal(html){ return openOv('modal', `<div class="mcard">${html}</div>`); }
+function closeModal(){ closeOv('modal'); }
+let toastTimer = null;
+function toast(text, ms=2200){ const t = $('#toast'); t.innerHTML = text; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms); }
+function fillSpk(root=document){ $$('.spk', root).forEach(b => { if (!b.innerHTML.trim()) b.innerHTML = ICON_SPK; }); }
+function waitClick(el){ return new Promise(r => el.addEventListener('click', r, { once:true })); }
+
+/* =====================================================================
+   ציור: קוביית משחק, לוח, מסלולים
+   ===================================================================== */
+const PIPS = { 1:[[50,50]], 2:[[29,29],[71,71]], 3:[[27,27],[50,50],[73,73]], 4:[[29,29],[71,29],[29,71],[71,71]],
+  5:[[27,27],[73,27],[50,50],[27,73],[73,73]], 6:[[29,25],[71,25],[29,50],[71,50],[29,75],[71,75]] };
+const PIPCOL = ['#FF7A6B','#2FB9C6','#A98BE8','#FF9F43','#4CC994','#F27BB5'];
+function dieSVG(v){
+  const pips = (PIPS[v] || []).map(([x,y], i) => `<circle cx="${x}" cy="${y}" r="9.5" fill="${PIPCOL[(v + i) % 6]}"/><circle cx="${x-3}" cy="${y-3}" r="3" fill="#fff" opacity=".7"/>`).join('');
+  const q = v ? '' : '<text x="50" y="66" text-anchor="middle" font-size="46" fill="#C9BDF0" font-family="Varela Round, sans-serif">?</text>';
+  return `<svg viewBox="0 0 100 100"><defs><linearGradient id="dg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#F1ECFD"/></linearGradient></defs>
+    <rect x="4" y="4" width="92" height="92" rx="22" fill="url(#dg)" stroke="#A98BE8" stroke-width="4"/>
+    <rect x="16" y="10" width="34" height="6" rx="3" fill="#fff"/>${pips}${q}</svg>`;
+}
+
+function blockHTML(i, sel){
+  let sq = ''; for (let k = 0; k < 10; k++) sq += '<i></i>';
+  return `<div class="block${sel ? ' sel' : ''}" data-i="${i}" style="${colStyle(i)}">${sq}</div>`;
+}
+function boardHTML(p, o={}){
+  let tens = '';
+  for (let i = 0; i < 9; i++) tens += `<div class="slot">${i < p.tens ? blockHTML(i, o.sel && i === p.tens - 1) : ''}</div>`;
+  let frames = '';
+  for (let f = 0; f < 2; f++){
+    let cells = '';
+    for (let c = 0; c < 10; c++){
+      const idx = f * 10 + c;
+      cells += `<div class="cell">${idx < p.ones ? `<div class="cube${o.blink ? ' blink' : ''}" data-i="${idx}" style="${colStyle(idx + 3)}"></div>` : ''}</div>`;
+    }
+    frames += `<div class="frame">${cells}</div>`;
+  }
+  const numCls = o.noNum ? ' hide' : (o.hideNum ? ' hidden' : '');
+  return `<div class="board${o.locked ? ' locked' : ''}">
+      <div class="side tensSide"><div class="lbl">עֲשָׂרוֹת · בְּלוֹקִים</div><div class="tens${o.tensHint ? ' zoneHint' : ''}">${tens}</div></div>
+      <div class="side onesSide"><div class="lbl">יְחִידוֹת · קֻבִּיּוֹת</div><div class="frames${o.onesHint ? ' zoneHint' : ''}">${frames}</div></div>
+    </div><div class="num${numCls}">${N(Engine.val(p))}</div>`;
+}
+
+function focusIdx(s){ return (s.phase === 'launch' || s.phase === 'end') ? Math.max(0, s.lastLaunch) : s.turn; }
+function shownVal(s, i){
+  const p = s.players[i];
+  if (i === s.turn && ['remove','write','peer','result'].includes(s.phase)) return s.t.n;
+  return Engine.val(p);
+}
+const isBolliTurn = s => s.mode === 'solo' && s.players[s.turn] && s.players[s.turn].bolli;
+
+function tracksHTML(s){
+  const L = LEVELS[s.level];
+  return s.players.map((p, i) => {
+    const v = shownVal(s, i), frac = p.launched ? 0 : Math.max(0, Math.min(1, v / L.start));
+    const act = i === s.turn && !['launch','end'].includes(s.phase);
+    const left = `calc(30px + (100% - 50px) * ${frac.toFixed(3)} + 10px)`;
+    return `<div class="trk${act ? ' act' : ''}" data-i="${i}">
+      <div class="trkName">${esc(p.name)}</div>
+      <div class="trkLine"><div class="path"></div><img class="planet" src="images/${L.planet}.png" alt=""><img class="rk" src="${rocketSrc(p.rocket)}" alt="" style="left:${left}"></div>
+      <div class="trkNum">${N(p.launched ? 0 : v)}</div>
+      <div class="bubble" data-b="${i}"></div></div>`;
+  }).join('');
+}
+
+/* ---------- הוראה ---------- */
+const eqHTML = (n, d, ans) => `<bdi class="ltr">${n} − ${d} = ${ans}</bdi>`;
+function resultLines(s){
+  const t = s.t, p = s.players[s.turn], b = isBolliTurn(s), r = t.n - t.d;
+  const guess = (LEVELS[s.level].predict && !p.bot && t.guess >= 0)
+    ? (t.guess === r ? TX.guessOk : fill(TX.guessNo, { g:N(t.guess), r:N(r) })) : null;
+  switch (t.outcome){
+    case 'correct':    return [TX.correct, guess];
+    case 'falseAlarm': return [b ? TX.checkAgain : TX.checkTogether, TX.correct, guess];
+    case 'caught':     return [b ? TX.bolliCaught : fill(TX.caught, { name:esc(p.name) })];
+    case 'missed':     return [b ? TX.checkAgain : TX.checkTogether];
+    case 'wrong':      return [TX.almost];
+  }
+  return [''];
+}
+function instrInfo(s){
+  const fi = focusIdx(s), p = s.players[fi], t = s.t, L = LEVELS[s.level], b = isBolliTurn(s);
+  let head = b ? TX.bolliTurn : fill(TX.turnOf, { name:esc(p.name) }), main = '', sub = '';
+  const think = fill(TX.b_think, { u:N(t.n % 10), d:N(t.d) });
+  switch (s.phase){
+    case 'roll':   main = b ? TX.b_roll : TX.roll; break;
+    case 'over':   main = t.over === 'launch' ? TX.overLaunch : TX.overWait; break;
+    case 'tradeQ': main = b ? think : TX.needQ; break;
+    case 'predict':main = b ? think + ' ' + (t.need ? TX.b_yes : TX.b_no) : TX.predict; break;
+    case 'trade':  main = b ? (t.fixing ? TX.b_fix + ' ' + TX.b_trade : think + ' ' + TX.b_yes + ' ' + TX.b_trade) : TX.trade; break;
+    case 'remove':
+      if (b) main = (!t.traded && t.removed === 0) ? think + ' ' + TX.b_no : fill(TX.b_remove, { d:N(t.d) });
+      else { main = fill(TX.remove, { d:N(t.d) }); sub = fill(TX.removed, { k:N(t.removed), d:N(t.d) }); }
+      break;
+    case 'write':  main = b || (L.eq && !canAct(s)) ? eqHTML(t.n, t.d, '__') : TX.howMany; break;
+    case 'peer': {
+      const c = s.players[t.checker];
+      const mine = canDo(s, t.checker);
+      if (b) main = (t.mistake === 'a' ? think + ' ' + TX.b_no + ' ' : '') + eqHTML(t.n, t.d, t.ans);
+      else main = (mine || S.mode !== 'online') ? fill(TX.peerQ, { name:esc(p.name) }) : fill(TX.waitFor, { name:esc(c ? c.name : '') });
+      break;
+    }
+    case 'result': main = S.resReady === s.seq ? resultLines(s)[0] : (S.resPartial || TX.checking); break;
+    case 'launch': case 'end': head = ''; main = fill(TX.launched, { name:esc(p.name) }); break;
+  }
+  return { head, main, sub, b, img: b ? 'images/bolli_astro.png' : rocketSrc(p.rocket) };
+}
+function renderInstr(s){
+  const i = instrInfo(s), el = $('#instr');
+  el.classList.toggle('bolli', i.b);
+  el.innerHTML = `<img class="who" src="${i.img}" alt=""><div class="itx">${i.head ? `<div class="ihead">${i.head}</div>` : ''}<div class="imain">${i.main}</div>${i.sub ? `<div class="ihead">${i.sub}</div>` : ''}</div>${spkBtn(i.main + (i.sub ? '. ' + i.sub : ''))}`;
+}
+
+/* ---------- מי רשאי לפעול ---------- */
+function canDo(s, idx){
+  if (idx === -2) return true;
+  if (idx < 0 || !s.players[idx] || s.players[idx].bot) return false;
+  if (S.mode === 'online') return idx === S.myIdx;
+  return true;
+}
+function canAct(s){ return !!s && !S.busy && !S.pending && canDo(s, Engine.actor(s)); }
+function humanAct(a){
+  const s = S.game; if (!canAct(s)) return;
+  const act = Engine.actor(s);
+  a.by = act === -2 ? (S.mode === 'online' ? S.myIdx : -2) : act;
+  dispatch(a);
+}
+
+/* ---------- הלוח ---------- */
+function boardOpts(s, idx){
+  const t = s.t, focus = idx === s.turn && !['launch','end'].includes(s.phase);
+  const me = canAct(s) && focus;
+  const kpOn = me && (s.phase === 'write' || s.phase === 'predict');
+  return {
+    sel: focus && s.phase === 'trade' && S.selBlock,
+    blink: focus && s.phase === 'tradeQ' && t.tq >= 1,
+    locked: !(me && (s.phase === 'trade' || s.phase === 'remove')),
+    tensHint: me && s.phase === 'trade',
+    onesHint: me && s.phase === 'remove',
+    noNum: kpOn,
+    hideNum: focus && ((s.phase === 'remove' && t.removed > 0) || s.phase === 'write' || s.phase === 'peer' ||
+      (s.phase === 'result' && (S.resReady !== s.seq || t.outcome === 'caught')))
+  };
+}
+function renderBoard(s){
+  const fi = focusIdx(s);
+  $('#boardWrap').innerHTML = boardHTML(s.players[fi], boardOpts(s, fi));
+  const mini = $('#mini');
+  if ((S.mode === 'solo' || S.mode === 'online') && S.myIdx >= 0 && fi !== S.myIdx && s.players[S.myIdx] && !['peer','result','launch','end'].includes(s.phase)){
+    mini.innerHTML = `<div class="miniWrap"><div class="mlbl">${TX.myBoard}</div><div class="mini">${boardHTML(s.players[S.myIdx], { locked:true })}</div></div>`;
+  } else mini.innerHTML = '';
+}
+
+/* ---------- הפאנל התחתון ---------- */
+function keypadHTML(){
+  return `<div class="kp">${[1,2,3,4,5,6,7,8,9,0].map(n => `<button class="key" data-k="${n}">${n}</button>`).join('')}
+    <button class="key del" data-k="del">${TX.del}</button><button class="key ok" data-k="ok">${TX.ok}</button></div>`;
+}
+const kpShown = () => (S.kp === '' ? '__' : S.kp);
+function reactsHTML(){
+  return `<div class="reacts">${TX.reactions.map((r, i) => `<button class="${i > 3 ? 'txt' : ''}" data-react="${i}">${r}</button>`).join('')}</div>`;
+}
+function renderPanel(s){
+  const el = $('#panel'), t = s.t, p = s.players[s.turn], L = LEVELS[s.level], b = isBolliTurn(s);
+  const actor = Engine.actor(s), me = canAct(s);
+  let h = '';
+  switch (s.phase){
+    case 'tradeQ':
+      if (me) h += `<div class="yn"><button class="btn${t.tq >= 2 && t.need ? ' glow' : ''}" data-act="yes">${TX.yes}</button><button class="btn coral${t.tq >= 2 && !t.need ? ' glow' : ''}" data-act="no">${TX.no}</button></div>`;
+      if (!b && t.tq >= 1){
+        const line = fill(TX.hint1, { u:N(p.ones), d:N(t.d) }) + (t.tq >= 2 ? '<br>' + (t.need ? TX.hint2yes : TX.hint2no) : '');
+        h += `<div class="hint"><img src="images/bolli_think.png" alt=""><div class="htx">${line}</div>${spkBtn(line)}</div>`;
+      }
+      break;
+    case 'predict':
+      if (me) h += `<div class="ask"><span class="ansBox ltr">${kpShown()}</span></div>` + keypadHTML();
+      break;
+    case 'write':
+      if (me){
+        h += L.eq ? `<div class="eq ltr">${t.n} − ${t.d} = <span class="ans">${kpShown()}</span></div>`
+                  : `<div class="ask"><span>${TX.howMany}</span><span class="ansBox ltr">${kpShown()}</span></div>`;
+        h += keypadHTML();
+      }
+      break;
+    case 'peer': {
+      const c = s.players[t.checker];
+      h += `<div class="eq">${eqHTML(t.n, t.d, t.ans)}</div>`;
+      if (me){
+        if (S.mode !== 'online' && c) h += `<div class="row" style="justify-content:center"><img src="images/magnifier.png" alt="" style="height:40px"><span>${esc(c.name)}</span></div>`;
+        h += `<div class="yn"><button class="btn" data-act="right">${TX.right}</button><button class="btn coral" data-act="wrong">${TX.wrong}</button></div>`;
+      }
+      break;
+    }
+    case 'result':
+      if (S.resReady === s.seq){
+        const lines = resultLines(s).filter(Boolean), good = ['correct','falseAlarm'].includes(t.outcome);
+        h += `<div class="msg${good ? ' good' : ''}">${good ? '' : '<img src="images/bolli_think.png" alt="">'}${lines.map(x => `<div>${x}</div>`).join('')}${good ? `<div style="font-size:26px">${eqHTML(t.n, t.d, t.n - t.d)}</div>` : ''}</div>`;
+        if (me) h += `<button class="btn" data-act="next">${TX.cont}</button>`;
+      } else if (S.resPartial) h += `<div class="msg"><img src="images/bolli_think.png" alt=""><div>${S.resPartial}</div></div>`;
+      break;
+    case 'over':
+      if (me) h += `<button class="btn" data-act="next">${TX.cont}</button>`;
+      break;
+  }
+  if (S.mode === 'online' && S.myIdx >= 0 && actor !== S.myIdx && !['launch','end'].includes(s.phase)) h += reactsHTML();
+  el.innerHTML = h;
+  fillSpk(el);
+}
+function updateKpDisplay(){ const a = $('#panel .ans') || $('#panel .ansBox'); if (a) a.textContent = kpShown(); }
+
+function renderDock(s){
+  const me = canAct(s), kpOn = me && (s.phase === 'write' || s.phase === 'predict');
+  const dock = $('#dock'); dock.classList.toggle('hide', kpOn || ['launch','end','peer','result'].includes(s.phase));
+  const die = $('#die');
+  if (!die.classList.contains('rolling')) die.innerHTML = dieSVG(s.phase === 'roll' ? 0 : s.t.d);
+  die.classList.toggle('ready', me && s.phase === 'roll');
+  $('#station').classList.toggle('target', me && s.phase === 'trade');
+}
+
+function renderGame(){
+  const s = S.game; if (!s) return;
+  if (S.kpSeq !== s.seq){ S.kp = ''; S.kpSeq = s.seq; }
+  if (s.phase !== 'trade') S.selBlock = false;
+  document.documentElement.style.setProperty('--lvl', LEVELS[s.level].color);
+  const kpOn = canAct(s) && (s.phase === 'write' || s.phase === 'predict');
+  $('#s-game').classList.toggle('compact', kpOn || ['peer','result'].includes(s.phase));
+  $('#tracks').innerHTML = tracksHTML(s);
+  renderInstr(s); renderBoard(s); renderPanel(s); renderDock(s);
+  if (!['launch','end'].includes(s.phase)) closeOv('launchOv');
+  paintBubbles();
+}
+
+/* =====================================================================
+   אנימציות
+   ===================================================================== */
+function anim(el, frames, opts){
+  try { const a = el.animate(frames, Object.assign({ fill:'forwards' }, opts)); return a.finished ? a.finished.catch(() => {}) : sleep(opts.duration); }
+  catch(e){ return sleep(opts.duration || 0); }
+}
+function centerOf(el){ const r = el.getBoundingClientRect(); return { x:r.left + r.width/2, y:r.top + r.height/2, r }; }
+function stationPoint(){ const img = $('#station img'); return centerOf(img && img.getBoundingClientRect().width ? img : $('#station')); }
+async function flyToStation(el, dur){
+  if (!el) return;
+  const a = centerOf(el), b = stationPoint();
+  const c = el.cloneNode(true); c.classList.add('flyer'); c.classList.remove('sel','blink');
+  Object.assign(c.style, { left:a.r.left + 'px', top:a.r.top + 'px', width:a.r.width + 'px', height:a.r.height + 'px', margin:0 });
+  document.body.appendChild(c); el.style.visibility = 'hidden';
+  await anim(c, [{ transform:'translate(0,0) scale(1)', opacity:1 }, { transform:`translate(${b.x - a.x}px,${b.y - a.y}px) scale(.35)`, opacity:.3 }], { duration:T_(dur), easing:'cubic-bezier(.5,0,.7,1)' });
+  c.remove();
+}
+function stationHop(){ const st = $('#station'); st.classList.remove('hop'); void st.offsetWidth; st.classList.add('hop'); setTimeout(() => st.classList.remove('hop'), 600); }
+function stTip(text){ const t = $('#stTip'); t.innerHTML = text; t.classList.add('show'); clearTimeout(stTip.tm); stTip.tm = setTimeout(() => t.classList.remove('show'), 2200); }
+async function cubesFromStation(from, count){
+  const b = stationPoint(), jobs = [];
+  for (let i = 0; i < count; i++){
+    const el = $(`#boardWrap .cube[data-i="${from + i}"]`); if (!el) continue;
+    const a = centerOf(el);
+    jobs.push(anim(el, [{ transform:`translate(${b.x - a.x}px,${b.y - a.y}px) scale(.3)`, opacity:0 }, { transform:'none', opacity:1 }],
+      { duration:T_(480), delay:T_(i * 55), easing:'cubic-bezier(.2,.8,.3,1.2)', fill:'backwards' }));
+  }
+  await Promise.all(jobs);
+}
+async function animRoll(d){
+  const die = $('#die'); Snd.roll();
+  die.classList.remove('ready'); die.classList.add('rolling');
+  for (let k = 0; k < 7; k++){ die.innerHTML = dieSVG(1 + rnd(6)); await sleep(T_(80)); }
+  die.innerHTML = dieSVG(d); die.classList.remove('rolling');
+  await sleep(T_(150));
+}
+async function magnify(){
+  const w = $('#boardWrap'); const img = document.createElement('img');
+  img.src = 'images/magnifier.png'; img.className = 'magn'; w.appendChild(img);
+  const W = w.getBoundingClientRect().width;
+  await anim(img, [{ transform:'translate(0,0) rotate(-10deg)' }, { transform:`translate(${W*0.45}px,-20px) rotate(6deg)` }, { transform:`translate(${W - 90}px,10px) rotate(-6deg)` }], { duration:T_(1200), easing:'ease-in-out' });
+  img.remove();
+}
+async function countAnim(p){
+  const w = $('#boardWrap'), num = $('.num', w); if (!num) return;
+  num.classList.remove('hidden', 'hide');
+  const wr = w.getBoundingClientRect();
+  const tag = document.createElement('div'); tag.className = 'countTag'; w.appendChild(tag);
+  const mark = async (el, txt, total, ms) => {
+    const r = el.getBoundingClientRect();
+    tag.style.left = (r.left - wr.left + r.width/2) + 'px'; tag.style.top = (r.top - wr.top - 2) + 'px';
+    tag.innerHTML = N(txt); num.innerHTML = N(total); el.classList.add('hl'); Snd.tick();
+    await sleep(T_(ms));
+  };
+  let total = 0;
+  const blocks = $$('.block', w).sort((a,b) => a.dataset.i - b.dataset.i);
+  for (const el of blocks){ total += 10; await mark(el, total, total, 420); }
+  const cubes = $$('.cube', w).sort((a,b) => a.dataset.i - b.dataset.i);
+  for (const el of cubes){ total += 1; await mark(el, '+1', total, 300); }
+  num.innerHTML = N(total);
+  await sleep(T_(500)); tag.remove();
+  $$('.hl', w).forEach(e => e.classList.remove('hl'));
+}
+
+/* ---------- רצף מצבים: כל שינוי עובר כאן (מקומי או מהרשת) ---------- */
+const Q = { items: [], running: false };
+function pushState(ns){ Q.items.push(ns); runQ(); }
+function resetGameState(){ Q.items = []; S.game = null; S.resReady = -1; S.resPartial = ''; S.selBlock = false; clearTimeout(S.botTimer); closeOv('launchOv'); closeOv('handoffOv'); }
+async function runQ(){
+  if (Q.running) return; Q.running = true;
+  while (Q.items.length){
+    const ns = Q.items.shift(), old = S.game;
+    if (old && ns.gid === old.gid && ns.seq <= old.seq) continue;
+    S.busy = true;
+    const animated = !!old && ns.gid === old.gid && ns.seq === old.seq + 1 && curScreen === 'game';
+    if (!old || ns.gid !== old.gid){ S.resReady = -1; closeOv('launchOv'); }
+    try { if (animated) await animPre(old, ns); } catch(e){ console.warn(e); }
+    S.game = ns; S.resPartial = '';
+    if (!animated && ns.phase === 'result') S.resReady = ns.seq;
+    if (curScreen === 'game') renderGame();
+    try { if (animated) await animPost(old, ns); else await jumpPost(old, ns); } catch(e){ console.warn(e); }
+    S.busy = false;
+    if (curScreen === 'game') renderGame();
+  }
+  Q.running = false;
+  scheduleBot();
+}
+async function animPre(old, ns){
+  const ev = ns.ev || {};
+  switch (ev.k){
+    case 'roll': await animRoll(ev.d); break;
+    case 'trade':
+      if (S.dropDone) S.dropDone = false;
+      else await flyToStation($(`#boardWrap .block[data-i="${ev.slot}"]`), 600);
+      stationHop(); Snd.trade(); break;
+    case 'remove': Snd.pop(); await flyToStation($(`#boardWrap .cube[data-i="${ev.cell}"]`), 320); break;
+    case 'mistake':
+      if (ev.kind === 'a') for (let i = ev.count - 1; i >= 0; i--){ Snd.pop(); await flyToStation($(`#boardWrap .cube[data-i="${i}"]`), 300); }
+      break;
+  }
+}
+async function animPost(old, ns){
+  const ev = ns.ev || {};
+  switch (ev.k){
+    case 'trade':
+      await cubesFromStation(ev.from, 10);
+      stTip(isBolliTurn(ns) ? TX.b_trade : TX.traded); break;
+    case 'tqWrong': Snd.soft(); break;
+    case 'tqOk': Snd.tick(); break;
+    case 'result': await animResult(ns); break;
+    case 'launch': await showLaunch(ns, true); break;
+    case 'end': showLaunch(ns, false); break;
+    case 'turn': await onTurnStart(ns); break;
+    case 'takeover': case 'reclaim': break;
+  }
+}
+async function jumpPost(old, ns){
+  if (ns.phase === 'launch' || ns.phase === 'end') showLaunch(ns, false);
+  else if (ns.ev && ns.ev.k === 'start' && (!old || old.gid !== ns.gid)) await onTurnStart(ns);
+}
+async function animResult(ns){
+  const t = ns.t, p = ns.players[ns.turn];
+  S.resReady = -1; S.resPartial = ''; renderInstr(ns); renderPanel(ns);
+  await magnify();
+  if (['falseAlarm','missed','wrong'].includes(t.outcome)){
+    S.resPartial = resultLines(ns)[0]; renderInstr(ns); renderPanel(ns);
+    if (!RM) await sleep(500);
+    await countAnim(p);
+  }
+  if (['correct','falseAlarm'].includes(t.outcome)) Snd.ok(); else Snd.soft();
+  S.resReady = ns.seq; S.resPartial = '';
+}
+async function onTurnStart(ns){
+  const p = ns.players[ns.turn];
+  if (ns.phase !== 'roll' || !p) return;
+  const humans = ns.players.filter(x => !x.bot && !x.launched).length;
+  if (S.mode === 'local' && humans > 1 && !p.bot){
+    const o = openOv('handoffOv', `<div class="mcard"><img src="${rocketSrc(p.rocket)}" alt="" style="height:120px;align-self:center">
+      <h2>${fill(TX.phoneTo, { name:esc(p.name) })}</h2><button class="btn big" id="hoOk">${TX.cont}</button></div>`);
+    Snd.beep();
+    await waitClick($('#hoOk', o)); closeOv('handoffOv'); Snd.unlock();
+  } else if (S.mode === 'online' && ns.turn === S.myIdx){ Snd.beep(); }
+}
+
+/* ---------- שיגור וניצחון ---------- */
+function confetti(){
+  if (RM) return;
+  const cols = ['#2FB9C6','#A98BE8','#FF7A6B','#FF9F43','#4CC994','#FFD13F','#F27BB5'];
+  for (let i = 0; i < 46; i++){
+    const c = document.createElement('div'); c.className = 'confetti';
+    c.style.left = (Math.random() * 100) + 'vw'; c.style.background = cols[i % cols.length];
+    document.body.appendChild(c);
+    anim(c, [{ transform:`translateY(0) rotate(0)` }, { transform:`translateY(${window.innerHeight + 40}px) rotate(${360 + rnd(360)}deg)` }],
+      { duration:2200 + rnd(1600), delay:rnd(700), easing:'cubic-bezier(.3,.6,.6,1)' }).then(() => c.remove());
+  }
+}
+async function showLaunch(ns, animate){
+  const who = ns.players[Math.max(0, ns.lastLaunch)], L = LEVELS[ns.level];
+  const o = $('#launchOv');
+  const already = o.classList.contains('on') && o.dataset.gid === ns.gid && o.dataset.who === String(ns.lastLaunch);
+  if (!already){
+    o.dataset.gid = ns.gid; o.dataset.who = String(ns.lastLaunch);
+    openOv('launchOv', `<img class="corner tl" src="images/corner.png" alt=""><img class="corner tr" src="images/corner.png" alt="">
+      <div class="lsky"><img class="lplanet" src="images/${L.planet}.png" alt=""><img class="lrocket" src="${rocketSrc(who.rocket)}" alt=""><div class="lcount"></div></div>
+      <div class="ltext"></div><div class="lbtns"></div><div class="foot">© נועה קסטרו</div>`);
+    const cnt = $('.lcount', o), rk = $('.lrocket', o), sky = $('.lsky', o);
+    if (animate){
+      for (const n of ['3…','2…','1…']){ cnt.innerHTML = N(n); Snd.beep(); await anim(cnt, [{ transform:'translate(-50%,-50%) scale(.6)', opacity:0 }, { transform:'translate(-50%,-50%) scale(1)', opacity:1 }], { duration:T_(320), easing:'ease-out' }); await sleep(T_(520)); }
+      cnt.innerHTML = '';
+      Snd.launch();
+      if (!RM) for (let i = 0; i < 8; i++){
+        const sm = document.createElement('div'); sm.className = 'smoke';
+        sm.style.left = `calc(50% + ${rnd(80) - 40}px)`; sm.style.bottom = '0px'; sky.appendChild(sm);
+        anim(sm, [{ transform:'scale(.4)', opacity:.9 }, { transform:`translate(${rnd(120)-60}px, 20px) scale(2.4)`, opacity:0 }], { duration:1400, delay:i * 90 });
+      }
+      const h = sky.getBoundingClientRect().height;
+      await anim(rk, [{ transform:'translateX(-50%) translateY(0) scale(1)' }, { transform:`translateX(-50%) translateY(-${Math.max(0, h * .62)}px) scale(.55)` }], { duration:T_(1700), easing:'cubic-bezier(.5,0,.4,1)' });
+      confetti(); Snd.ok();
+    } else {
+      rk.style.transform = `translateX(-50%) translateY(-${Math.max(0, sky.getBoundingClientRect().height * .62)}px) scale(.55)`;
+    }
+  }
+  const text = $('.ltext', o), btns = $('.lbtns', o);
+  if (ns.phase === 'end'){
+    const all = ns.players.every(p => p.launched);
+    const launchedP = ns.launchOrder.map(i => ns.players[i]).filter(Boolean);
+    text.innerHTML = all ? TX.allLaunched : launchedP.map(p => fill(TX.launched, { name:esc(p.name) })).join('<br>');
+    let h = `<div class="launchedRow">${launchedP.map(p => `<div><img src="${rocketSrc(p.rocket)}" alt="">${esc(p.name)}</div>`).join('')}</div>`;
+    if (S.mode === 'online'){
+      const voted = Online.myVote();
+      h += voted ? `<div class="note">${TX.waitAll}</div>` : `<button class="btn" data-end="again">${TX.again}</button>`;
+      h += `<button class="btn lil" data-end="dest">${TX.otherDest}</button><button class="btn white" data-end="friends">${TX.backFriends}</button>`;
+    } else {
+      h += `<button class="btn" data-end="again">${TX.again}</button><button class="btn lil" data-end="dest">${TX.otherDest}</button>`;
+    }
+    btns.innerHTML = h;
+  } else {
+    text.innerHTML = fill(TX.launched, { name:esc(who.name) });
+    btns.innerHTML = `<button class="btn" data-end="cont">${TX.contAll}</button><button class="btn white" data-end="finish">${TX.finish}</button>`;
+  }
+}
+$('#launchOv').addEventListener('click', e => {
+  const b = e.target.closest('[data-end]'); if (!b) return;
+  const k = b.dataset.end, s = S.game;
+  if (k === 'cont') humanAct({ type:'CONTINUE' });
+  else if (k === 'finish') humanAct({ type:'FINISH' });
+  else if (k === 'again'){
+    if (S.mode === 'online'){ Online.voteAgain(); b.outerHTML = `<div class="note">${TX.waitAll}</div>`; }
+    else { const lvl = s.level; closeOv('launchOv'); startLocalGame(lvl, true); }
+  }
+  else if (k === 'dest'){ closeOv('launchOv'); if (S.mode === 'online'){ Online.leaveRoom(); show('friends'); } else { resetGameState(); show('level'); } }
+  else if (k === 'friends'){ closeOv('launchOv'); Online.leaveRoom(); show('friends'); }
+});
+
+/* =====================================================================
+   בולי – המוח של הבוט
+   ===================================================================== */
+function botOpts(s){
+  if (s.mode !== 'solo') return {};
+  return {
+    roll(st){
+      S.bmTurns++;
+      const b = st.players.find(p => p.bolli), h = st.players.find(p => !p.bolli);
+      if (b && h && !h.launched && Engine.val(h) - Engine.val(b) > 15) return [1,1,2,2,3,4][rnd(6)];   // בולי מוביל – מאט בעדינות
+      return 1 + rnd(6);
+    },
+    mistake(){
+      const gap = S.bmTurns - S.bmLast;
+      if ((gap >= 3 && Math.random() < .7) || gap >= 5){ S.bmLast = S.bmTurns; return true; }
+      return false;
+    }
+  };
+}
+function botDelay(s){
+  const t = s.t;
+  switch (s.phase){
+    case 'roll': return 1100;
+    case 'over': return 2600;
+    case 'tradeQ': return 2300;
+    case 'predict': return 1600;
+    case 'trade': return 1500;
+    case 'remove': return t.removed === 0 ? 1500 : 520;
+    case 'write': return 1300;
+    case 'peer': return 1600;
+    case 'result': return 2300;
+  }
+  return 1200;
+}
+function scheduleBot(){
+  clearTimeout(S.botTimer); S.botTimer = null;
+  const s = S.game; if (!s || S.busy || curScreen !== 'game') return;
+  const a = Engine.actor(s); if (a < 0) return;
+  const P = s.players[a]; if (!P || !P.bot) return;
+  if (S.mode === 'online' && !Online.amDriver()) return;
+  const act = Engine.botAction(s, botOpts(s)); if (!act) return;
+  const seq = s.seq;
+  S.botTimer = setTimeout(() => { if (!S.game || S.game.seq !== seq || S.busy) return; act.by = a; dispatch(act); }, botDelay(s));
+}
+function dispatch(a){
+  if (S.mode === 'online'){ Online.act(a); return; }
+  const ns = Engine.reduce(S.game, a);
+  if (ns) pushState(ns);
+}
+
+/* =====================================================================
+   קלט במסך המשחק
+   ===================================================================== */
+function inside(el, x, y){ const r = el.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; }
+function shakeEl(el){ if (!el) return; el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); setTimeout(() => el.classList.remove('shake'), 450); }
+function lastBlockEl(){ const bs = $$('#boardWrap .block'); return bs.sort((a,b) => a.dataset.i - b.dataset.i).pop(); }
+
+$('#boardWrap').addEventListener('pointerdown', e => {
+  const s = S.game; if (!s) return;
+  const inTens = e.target.closest('.tens'), inOnes = e.target.closest('.frames');
+  if (!inTens && !inOnes) return;
+  if (!canAct(s) || focusIdx(s) !== s.turn){ return; }
+  if (s.phase === 'trade' && inTens){ const b = lastBlockEl(); if (b){ e.preventDefault(); startDrag(e, b); } return; }
+  if (s.phase === 'remove' && inOnes){ e.preventDefault(); humanAct({ type:'REMOVE' }); return; }
+  // החלקים נעולים עד שעונים על השאלה
+  Snd.soft(); shakeEl(e.target.closest('.block,.cube') || inTens || inOnes);
+  if (s.phase === 'tradeQ' || s.phase === 'predict') shakeEl($('#panel'));
+});
+function startDrag(e, blockEl){
+  const st = $('#station'), sx = e.clientX, sy = e.clientY;
+  const r = blockEl.getBoundingClientRect();
+  const g = blockEl.cloneNode(true); g.classList.add('ghost'); g.classList.remove('sel');
+  Object.assign(g.style, { left:sx + 'px', top:sy + 'px', width:r.width + 'px', height:r.height + 'px' });
+  let moved = false, done = false;
+  const move = ev => {
+    if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 8){ moved = true; document.body.appendChild(g); blockEl.style.visibility = 'hidden'; }
+    if (moved){ g.style.left = ev.clientX + 'px'; g.style.top = ev.clientY + 'px'; st.classList.toggle('over', inside(st, ev.clientX, ev.clientY)); }
+  };
+  const end = (ev, cancel) => {
+    if (done) return; done = true;
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', canc);
+    st.classList.remove('over');
+    if (!cancel && moved && inside(st, ev.clientX, ev.clientY)){
+      g.remove(); S.dropDone = true; humanAct({ type:'TRADE' });
+      if (!S.busy && !S.pending){ S.dropDone = false; blockEl.style.visibility = ''; }
+    } else if (moved){
+      const a = centerOf(blockEl);
+      anim(g, [{ left:g.style.left, top:g.style.top }, { left:a.x + 'px', top:a.y + 'px' }], { duration:T_(250) }).then(() => { g.remove(); blockEl.style.visibility = ''; });
+    } else {
+      g.remove(); S.selBlock = !S.selBlock; renderBoard(S.game);      // הקשה במקום גרירה: בוחרים בלוק, ואז מקישים על התחנה
+    }
+  };
+  const up = ev => end(ev, false), canc = ev => end(ev, true);
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', canc);
+}
+$('#station').addEventListener('click', () => {
+  const s = S.game; if (!s || !canAct(s) || s.phase !== 'trade') return;
+  if (S.selBlock){ humanAct({ type:'TRADE' }); }
+  else { S.selBlock = true; renderBoard(s); }
+});
+$('#die').addEventListener('click', () => {
+  const s = S.game; Snd.unlock();
+  if (!s || !canAct(s)) return;
+  if (s.phase === 'roll') humanAct({ type:'ROLL', d: 1 + rnd(6) });
+  else shakeEl($('#die'));
+});
+function kpPress(k){
+  const s = S.game; if (!s || !canAct(s) || (s.phase !== 'write' && s.phase !== 'predict')) return;
+  if (k === 'del') S.kp = S.kp.slice(0, -1);
+  else if (k === 'ok'){
+    if (S.kp === '') return;
+    const v = parseInt(S.kp, 10);
+    humanAct(s.phase === 'predict' ? { type:'PREDICT', g:v } : { type:'WRITE', r:v });
+    return;
+  } else if (/^\d$/.test(k)){ S.kp = (S.kp === '0' ? '' : S.kp) + k; S.kp = S.kp.slice(0, 2); }
+  Snd.tick(); updateKpDisplay();
+}
+let lastReact = 0;
+$('#panel').addEventListener('click', e => {
+  const k = e.target.closest('[data-k]'); if (k){ kpPress(k.dataset.k); return; }
+  const r = e.target.closest('[data-react]');
+  if (r){ const now = Date.now(); if (now - lastReact < 2000) return; lastReact = now; Online.react(+r.dataset.react); return; }
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const a = b.dataset.act;
+  if (a === 'yes' || a === 'no') humanAct({ type:'TRADE_ANS', yes: a === 'yes' });
+  else if (a === 'right' || a === 'wrong') humanAct({ type:'VERDICT', says:a });
+  else if (a === 'next') humanAct({ type:'NEXT' });
+});
+document.addEventListener('keydown', e => {
+  if (curScreen !== 'game' || document.activeElement && document.activeElement.tagName === 'INPUT') return;
+  if (/^\d$/.test(e.key)) kpPress(e.key);
+  else if (e.key === 'Backspace') kpPress('del');
+  else if (e.key === 'Enter') kpPress('ok');
+});
+$('#gJournal').addEventListener('click', showJournal);
+$('#gBack').addEventListener('click', () => {
+  const o = modal(`<h2>${TX.leaveQ}</h2><div class="yn"><button class="btn coral" id="lvYes">${TX.yes}</button><button class="btn" id="lvNo">${TX.no}</button></div>`);
+  $('#lvNo', o).onclick = closeModal;
+  $('#lvYes', o).onclick = () => {
+    closeModal();
+    if (S.mode === 'online'){ Online.leaveRoom(); resetGameState(); show('friends'); }
+    else { resetGameState(); show('mode'); }
+  };
+});
+
+function showJournal(){
+  const s = S.game; if (!s) return;
+  const rows = s.log.slice().reverse().map(e => {
+    const p = s.players[e.p] || { name:'', rocket:'moon' };
+    let ex;
+    if (e.kind === 'wait') ex = `<bdi class="ltr">${e.n} − ${e.d}</bdi>`;
+    else if (e.kind === 'launch') ex = `<bdi class="ltr">${e.n} − ${e.d} → 0</bdi>`;
+    else ex = eqHTML(e.n, e.d, e.r);
+    return `<div class="jrow"><img src="${rocketSrc(p.rocket)}" alt=""><span class="jn">${esc(p.name)}</span><span class="je">${ex}</span>${e.trade ? `<span class="badge">${TX.trade_badge}</span>` : ''}</div>`;
+  }).join('');
+  const o = openOv('journalOv', `<div class="mcard"><div class="row" style="justify-content:center"><img src="images/notebook.png" alt="" style="height:56px"><h2>יוֹמַן הַטִּיסָה</h2></div>
+    <div class="jlist">${rows || `<div class="note">${TX.noLog}</div>`}</div><button class="btn" id="jClose">${TX.close}</button></div>`);
+  $('#jClose', o).onclick = () => closeOv('journalOv');
+}
+
+/* =====================================================================
+   איך משחקים
+   ===================================================================== */
+const HOWTO = [
+  ['rocket_moon',   'מְמַלְּאִים דֶּלֶק', 'בּוֹחֲרִים יַעַד, וְהַלּוּחַ מִתְמַלֵּא בִּבְלוֹקִים וְקֻבִּיּוֹת.'],
+  ['dice',          'מַטִּילִים', 'לוֹחֲצִים עַל קֻבִּיַּת הַמִּשְׂחָק.'],
+  ['bolli_think',   'עוֹצְרִים וְחוֹשְׁבִים', 'לִפְנֵי שֶׁנּוֹגְעִים: צָרִיךְ הֲמָרָה?'],
+  ['bolli_station', 'מַחְלִיפִים', 'אֵין מַסְפִּיק קֻבִּיּוֹת? נוֹתְנִים לְבוֹלִי בְּלוֹק אֶחָד וּמְקַבְּלִים 10 קֻבִּיּוֹת.'],
+  ['notebook',      'מוֹצִיאִים וְכוֹתְבִים', 'מוֹצִיאִים קֻבִּיּוֹת וְכוֹתְבִים כַּמָּה נִשְׁאַר.'],
+  ['magnifier',     'בּוֹדְקִים', 'כָּל בְּלוֹק = 10, כָּל קֻבִּיָּה = 1.'],
+  ['launch',        'שִׁגּוּר!', 'הָרִאשׁוֹן שֶׁמַּגִּיעַ לְ־0 מַמְרִיא!']
+];
+function showHowto(onDone){
+  const steps = HOWTO.map(([img, a, b], i) => {
+    const sep = i === 6 ? ' – ' : ' – ';
+    return `<div class="step"><img src="images/${img}.png" alt=""><div class="stx"><bdi class="ltr">${i+1}.</bdi> <b>${a}</b>${sep}${b}</div>${spkBtn(a + sep + b)}</div>`;
+  }).join('');
+  const tip = 'הַטִּיפּ שֶׁל בּוֹלִי: קֹדֶם חוֹשְׁבִים, אַחַר כָּךְ נוֹגְעִים!';
+  const o = openOv('howtoOv', `<div class="mcard"><h2>אֵיךְ מְשַׂחֲקִים?</h2><div class="steps">${steps}</div>
+    <div class="tip"><img src="images/bolli_astro.png" alt=""><div class="grow">${tip}</div>${spkBtn(tip)}</div>
+    <button class="btn big" id="htOk">${TX.cont}</button></div>`);
+  $('#htOk', o).onclick = () => { closeOv('howtoOv'); store.set('howto', '1'); if (onDone) onDone(); };
+}
+
+/* =====================================================================
+   מסכים: פתיחה, מי אתם, מצב, שחקנים, יעד
+   ===================================================================== */
+const cleanName = v => String(v || '').normalize('NFC').replace(/[֑-ׇ]/g, '').replace(/[^\p{L}]/gu, '').slice(0, 10);
+function studentList(){ return (Array.isArray(CONFIG.studentNames) ? CONFIG.studentNames : []).map(x => String(x).trim().slice(0, 14)).filter(Boolean); }
+function namesWidget(box, initial, onChange){
+  const list = studentList();
+  if (list.length){
+    box.innerHTML = `<div class="names">${list.map(n => `<button class="chip${n === initial ? ' sel' : ''}" data-name="${esc(n)}">${esc(n)}</button>`).join('')}</div>`;
+    box.onclick = e => { const b = e.target.closest('.chip'); if (!b) return; $$('.chip', box).forEach(c => c.classList.toggle('sel', c === b)); onChange(b.dataset.name); };
+  } else {
+    box.innerHTML = `<input class="nameInput" maxlength="10" placeholder="${TX.writeName}" value="${esc(initial || '')}" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="done"><div class="note">${TX.letters}</div>`;
+    const inp = $('input', box);
+    inp.oninput = () => { const v = cleanName(inp.value); if (v !== inp.value) inp.value = v; onChange(v); };
+    inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); };
+  }
+}
+function rocketsHTML(sel, small){
+  return Object.keys(ROCKETS).map(r => `<button class="rbtn${small ? ' small' : ''}${r === sel ? ' sel' : ''}" data-r="${r}"><img src="${rocketSrc(r)}" alt="">${ROCKETS[r].name}</button>`).join('');
+}
+
+/* ---- פתיחה ---- */
+$('#btnPlay').addEventListener('click', () => {
+  Snd.unlock(); Snd.tick();
+  if (!S.profile.name || !S.profile.rocket){ whoFrom = 'open'; show('who'); }
+  else afterProfile();
+});
+function afterProfile(){
+  if (S.urlRoom){ const code = S.urlRoom; S.urlRoom = ''; goFriends(() => Online.joinRoom(code)); return; }
+  if (fbConfigured() && store.get('room')){ goFriends(() => Online.resume(), true); return; }
+  show('mode');
+}
+
+/* ---- מי אתם ---- */
+let whoFrom = 'mode', whoTmp = { name:'', rocket:'' };
+ENTER.who = () => {
+  whoTmp = { name:S.profile.name, rocket:S.profile.rocket };
+  namesWidget($('#whoNames'), whoTmp.name, v => { whoTmp.name = v; updWho(); });
+  $('#whoRockets').innerHTML = rocketsHTML(whoTmp.rocket);
+  updWho();
+};
+$('#whoRockets').addEventListener('click', e => {
+  const b = e.target.closest('.rbtn'); if (!b) return;
+  whoTmp.rocket = b.dataset.r; $$('#whoRockets .rbtn').forEach(x => x.classList.toggle('sel', x === b)); updWho(); Snd.tick();
+});
+function updWho(){ $('#whoOk').disabled = !(whoTmp.name && whoTmp.rocket); }
+$('#whoOk').addEventListener('click', () => {
+  S.profile = { name: whoTmp.name, rocket: whoTmp.rocket };
+  store.set('name', S.profile.name); store.set('rocket', S.profile.rocket);
+  Online.updatePresence();
+  if (whoFrom === 'open') afterProfile(); else show('mode');
+});
+BACK.who = () => show(S.profile.name && S.profile.rocket ? 'mode' : 'open');
+
+/* ---- מצב ---- */
+ENTER.mode = () => {
+  $('#profileBtn').innerHTML = `<img src="${rocketSrc(S.profile.rocket)}" alt=""><span>${esc(S.profile.name)}</span>`;
+  if (fbConfigured()) Online.init().catch(() => {});        // כדי לקבל הזמנות מחברים
+};
+$('#profileBtn').addEventListener('click', () => { whoFrom = 'mode'; show('who'); });
+$('#mBolli').addEventListener('click', () => { S.mode = 'solo'; show('level'); });
+$('#mLocal').addEventListener('click', () => { S.mode = 'local'; show('players'); });
+$('#mFriends').addEventListener('click', () => goFriends());
+$('#nofbBolli').addEventListener('click', () => { S.mode = 'solo'; show('level'); });
+$('#fBolli').addEventListener('click', () => { S.mode = 'solo'; show('level'); });
+BACK.nofb = () => show('mode');
+
+/* ---- כמה שחקנים באותו טלפון ---- */
+ENTER.players = () => {
+  if (!S.lp.players.length){
+    S.lp.players = [
+      { name:S.profile.name, rocket:S.profile.rocket || 'moon' },
+      { name:'', rocket:'mars' }, { name:'', rocket:'jupiter' }
+    ];
+    if (S.lp.players[1].rocket === S.lp.players[0].rocket) S.lp.players[1].rocket = 'moon';
+    if (S.lp.players[2].rocket === S.lp.players[0].rocket) S.lp.players[2].rocket = 'moon';
+  }
+  renderPlayers();
+};
+function renderPlayers(){
+  $$('#s-players [data-n]').forEach(b => b.classList.toggle('sel', +b.dataset.n === S.lp.n));
+  $('#plRows').innerHTML = S.lp.players.slice(0, S.lp.n).map((p, i) => `
+    <div class="card col" data-row="${i}">
+      <button class="chip${p.name ? ' sel' : ''}" data-pname="${i}">${p.name ? esc(p.name) : TX.chooseName}</button>
+      <div class="rockets">${rocketsHTML(p.rocket, true)}</div>
+    </div>`).join('');
+  $('#plOk').disabled = !S.lp.players.slice(0, S.lp.n).every(p => p.name && p.rocket);
+}
+$('#s-players').addEventListener('click', e => {
+  const nb = e.target.closest('[data-n]'); if (nb){ S.lp.n = +nb.dataset.n; renderPlayers(); return; }
+  const rb = e.target.closest('.rbtn'); const row = e.target.closest('[data-row]');
+  if (rb && row){ S.lp.players[+row.dataset.row].rocket = rb.dataset.r; renderPlayers(); return; }
+  const pn = e.target.closest('[data-pname]');
+  if (pn){
+    const i = +pn.dataset.pname; let tmp = S.lp.players[i].name;
+    const o = modal(`<h2>${TX.chooseName}</h2><div id="mNames"></div><button class="btn" id="mNameOk">${TX.ok}</button>`);
+    namesWidget($('#mNames', o), tmp, v => { tmp = v; });
+    $('#mNameOk', o).onclick = () => { if (!tmp) return; S.lp.players[i].name = tmp; closeModal(); renderPlayers(); };
+  }
+});
+$('#plOk').addEventListener('click', () => show('level'));
+BACK.players = () => show('mode');
+
+/* ---- בחירת יעד ---- */
+function levelCard(l){
+  const L = LEVELS[l];
+  return `<button class="lvl" data-l="${l}" style="--lc:${L.color}"><div class="pics"><img class="pl" src="images/${L.planet}.png" alt=""><img class="rk" src="${rocketSrc(S.profile.rocket || L.planet)}" alt=""></div>
+    <div><div class="lvlT">שָׁלָב ${N(l)} · ${L.title}</div><div class="lvlS">מַתְחִילִים עִם ${N(L.start)}</div><div class="lvlX">(${N(Math.floor(L.start/10))} בְּלוֹקִים, ${N(L.start % 10)} קֻבִּיּוֹת)</div></div></button>`;
+}
+ENTER.level = () => { $('#lvlList').innerHTML = [1,2,3].map(levelCard).join(''); };
+$('#lvlList').addEventListener('click', e => {
+  const b = e.target.closest('[data-l]'); if (!b) return;
+  S.level = +b.dataset.l; store.set('level', S.level);
+  startLocalGame(S.level);
+});
+BACK.level = () => show(S.mode === 'local' ? 'players' : 'mode');
+
+function startLocalGame(level, skipHowto){
+  let players;
+  if (S.mode === 'solo'){
+    const br = ['jupiter','mars','moon'].find(r => r !== S.profile.rocket);
+    players = [{ name:S.profile.name, rocket:S.profile.rocket }, { name:BOLLI_NAME, rocket:br, bolli:true }];
+    S.myIdx = 0;
+  } else {
+    players = S.lp.players.slice(0, S.lp.n).map(p => ({ name:p.name, rocket:p.rocket }));
+    S.myIdx = -1;
+  }
+  const go = () => { resetGameState(); show('game'); pushState(Engine.newGame(level, S.mode, players)); };
+  if (!skipHowto && store.get('howto') !== '1') showHowto(go); else go();
+}
+ENTER.game = () => { if (S.game) renderGame(); };
+
+/* ---------- כפתורים קבועים ---------- */
+function renderMute(){ $('#btnMute').innerHTML = Snd.muted ? ICON_OFF : ICON_ON; }
+$('#btnMute').addEventListener('click', () => { Snd.toggle(); renderMute(); Snd.unlock(); Snd.tick(); });
+$('#btnHelp').addEventListener('click', () => showHowto());
+document.addEventListener('click', e => {
+  const b = e.target.closest('.spk'); if (!b) return;
+  if (b.dataset.say) Speak.say(b.dataset.say);
+  else if (b.hasAttribute('data-say-prev')){ const p = b.previousElementSibling; if (p) Speak.say(p.textContent); }
+});
+document.addEventListener('click', e => { if (e.target.closest('[data-back]')){ const h = BACK[curScreen]; if (h) h(); else show('mode'); } });
+document.addEventListener('dblclick', e => e.preventDefault(), { passive:false });
+document.addEventListener('gesturestart', e => e.preventDefault());
+</script>
+
+<script>
+'use strict';
+/* =====================================================================
+   משחק עם חברים – Firebase (Realtime Database + Anonymous Auth)
+   מבנה הנתונים:
+     classes/{classCode}/presence/{uid}      – מי מחובר (שם פרטי + צבע טיל בלבד)
+     classes/{classCode}/invites/{to}/{room} – הזמנות (פגות אחרי 60 שניות)
+     rooms/{code}                            – חדר: חברים, מצב משחק, תגובות
+     roomIndex/{code}                        – זמן יצירה, לניקוי חדרים ישנים
+   ===================================================================== */
+const FB_VER = '10.12.2';
+const CODE_ABC = 'ACDEFGHJKMNPQRTUVWXY2345679';     // בלי O/0, I/1, L, B/8, S/5, Z
+const HELP_BACK = 'חֲזָרָה';
+
+const Online = {
+  ready:false, initP:null, F:null, db:null, auth:null, uid:null, offset:0, cls:'', connected:false,
+  room:null, roomData:null, roomUnsub:null, presence:{}, selected:new Set(), invShown:new Set(), invQueue:[],
+  lastReacts:null, bubbles:{}, discOpen:null, discSnooze:{}, voted:false, reclaiming:false, invited:[],
+
+  now(){ return Date.now() + this.offset; },
+  R(p){ return this.F.ref(this.db, p); },
+  ST(){ return this.F.serverTimestamp(); },
+
+  init(){
+    if (!fbConfigured()) return Promise.reject(new Error('nofb'));
+    if (this.initP) return this.initP;
+    this.initP = (async () => {
+      const base = `https://www.gstatic.com/firebasejs/${FB_VER}/`;
+      const [A, Au, D] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-database.js')]);
+      this.F = Object.assign({}, A, Au, D);
+      const app = A.getApps().find(x => x.name === 'shigur') || A.initializeApp(CONFIG.firebase, 'shigur');   // גם בניסיון חוזר
+      this.auth = Au.getAuth(app);
+      this.db = D.getDatabase(app);
+      if (window.__SHIGUR_EMU && !this.emu){ this.emu = true;             // לבדיקות מקומיות בלבד (Firebase Emulator); לא פעיל באתר האמיתי
+        Au.connectAuthEmulator(this.auth, 'http://127.0.0.1:9099', { disableWarnings:true });
+        D.connectDatabaseEmulator(this.db, '127.0.0.1', 9000);
+      }
+      if (this.auth.authStateReady) await this.auth.authStateReady();
+      if (!this.auth.currentUser) await Au.signInAnonymously(this.auth);
+      this.uid = this.auth.currentUser.uid;
+      this.cls = String(CONFIG.classCode || '').trim().replace(/[.#$\[\]\/\s]/g, '_') || 'class';
+      D.onValue(this.R('.info/serverTimeOffset'), s => { this.offset = s.val() || 0; });
+      D.onValue(this.R('.info/connected'), s => { this.connected = s.val() === true; if (this.connected) this.onConnect(); });
+      D.onValue(this.R(`classes/${this.cls}/presence`), s => { this.presence = s.val() || {}; this.renderFriends(); }, e => console.warn(e));
+      D.onValue(this.R(`classes/${this.cls}/invites/${this.uid}`), s => this.onInvites(s.val() || {}), e => console.warn(e));
+      setInterval(() => this.heartbeat(), 15000);
+      setInterval(() => { this.checkDisconnects(); this.renderFriends(); }, 3000);
+      this.cleanup();
+      this.ready = true;
+    })().catch(e => { this.initP = null; throw e; });
+    return this.initP;
+  },
+
+  /* ---------- נוכחות ---------- */
+  presRef(){ return this.R(`classes/${this.cls}/presence/${this.uid}`); },
+  presData(){ return { name:S.profile.name, rocket:S.profile.rocket || 'moon', ts:this.ST(), busy:!!this.room }; },
+  onConnect(){
+    if (S.profile.name){ this.F.onDisconnect(this.presRef()).remove(); this.F.set(this.presRef(), this.presData()).catch(() => {}); }
+    if (this.room){
+      const mr = this.R(`rooms/${this.room}/members/${this.uid}`);
+      this.F.onDisconnect(mr).update({ on:false, seen:this.ST() });
+      this.F.update(mr, { on:true, seen:this.ST() }).catch(() => {});
+    }
+  },
+  updatePresence(){ if (this.ready && this.connected && S.profile.name){ this.F.onDisconnect(this.presRef()).remove(); this.F.set(this.presRef(), this.presData()).catch(() => {}); } },
+  heartbeat(){
+    if (!this.ready || !this.connected) return;
+    if (S.profile.name) this.F.update(this.presRef(), { ts:this.ST(), busy:!!this.room }).catch(() => {});
+    if (this.room) this.F.update(this.R(`rooms/${this.room}/members/${this.uid}`), { on:true, seen:this.ST() }).catch(() => {});
+  },
+  // ניקוי: כל לקוח מוחק בהפעלה חדרים בני יותר מ-24 שעות
+  async cleanup(){
+    try {
+      const cutoff = this.now() - 86400000;
+      const snap = await this.F.get(this.F.query(this.R('roomIndex'), this.F.orderByValue(), this.F.endAt(cutoff)));
+      snap.forEach(ch => {
+        const code = ch.key;
+        this.F.remove(this.R('rooms/' + code)).catch(() => {}).finally(() => this.F.remove(this.R('roomIndex/' + code)).catch(() => {}));
+      });
+    } catch(e){ console.warn('cleanup', e); }
+  },
+
+  /* ---------- מסך "מי מחובר עכשיו?" ---------- */
+  friendsList(){
+    const now = this.now();
+    return Object.entries(this.presence || {})
+      .filter(([u, p]) => u !== this.uid && p && p.name && !p.busy && (now - (p.ts || 0)) < 60000)
+      .map(([u, p]) => ({ uid:u, name:String(p.name).slice(0, 14), rocket:p.rocket }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'he'));
+  },
+  renderFriends(){
+    if (curScreen !== 'friends') return;
+    const list = this.friendsList();
+    for (const u of [...this.selected]) if (!list.find(x => x.uid === u)) this.selected.delete(u);
+    const html = list.map(f => `<button class="fcard${this.selected.has(f.uid) ? ' sel' : ''}" data-uid="${esc(f.uid)}"><img src="${rocketSrc(f.rocket)}" alt=""><span>${esc(f.name)}</span></button>`).join('');
+    const box = $('#fList'); if (box.dataset.html !== html){ box.innerHTML = html; box.dataset.html = html; }
+    $('#fEmpty').classList.toggle('hide', list.length > 0);
+    $('#fPickNote').classList.toggle('hide', !list.length);
+    $('#fInvite').disabled = this.selected.size === 0;
+  },
+  async inviteSelected(){
+    const to = [...this.selected].slice(0, 2), level = S.fLevel;
+    const code = await this.createRoom(level);
+    this.invited = to;
+    await Promise.all(to.map(u => this.F.set(this.R(`classes/${this.cls}/invites/${u}/${code}`),
+      { from:this.uid, name:S.profile.name, rocket:S.profile.rocket, level, room:code, ts:this.ST() }).catch(e => console.warn(e))));
+    this.selected.clear();
+    this.enterRoom(code);
+  },
+
+  /* ---------- הזמנות נכנסות ---------- */
+  onInvites(v){
+    for (const code of Object.keys(v)){
+      const inv = v[code] || {}, age = this.now() - (inv.ts || 0);
+      const ref = this.R(`classes/${this.cls}/invites/${this.uid}/${code}`);
+      if (age > 60000 || this.room === code){ this.F.remove(ref).catch(() => {}); continue; }
+      if (this.room || this.invShown.has(code)) continue;
+      this.invShown.add(code); this.invQueue.push({ code, inv });
+    }
+    this.nextInvite();
+  },
+  nextInvite(){
+    if ($('#inviteOv').classList.contains('on') || !this.invQueue.length) return;
+    const { code, inv } = this.invQueue.shift();
+    const left = 60000 - (this.now() - (inv.ts || 0));
+    if (left < 1500 || this.room) return this.nextInvite();
+    const L = LEVELS[inv.level] || LEVELS[1];
+    const text = fill(TX.invite, { name:esc(String(inv.name || '').slice(0, 14)), level:L.title });
+    const o = openOv('inviteOv', `<div class="mcard"><div class="row" style="justify-content:center"><img src="${rocketSrc(inv.rocket)}" alt="" style="height:96px"><img src="images/${L.planet}.png" alt="" style="height:80px"></div>
+      <div class="row"><h2 class="grow">${text}</h2>${spkBtn(text)}</div>
+      <div class="yn"><button class="btn" id="ivYes">${TX.inviteYes}</button><button class="btn coral" id="ivNo">${TX.inviteNo}</button></div></div>`);
+    Snd.invite();
+    const ref = this.R(`classes/${this.cls}/invites/${this.uid}/${code}`);
+    const tm = setTimeout(() => { closeOv('inviteOv'); this.F.remove(ref).catch(() => {}); this.nextInvite(); }, left);
+    $('#ivYes', o).onclick = async () => {
+      clearTimeout(tm); closeOv('inviteOv'); closeOv('howtoOv'); closeModal(); this.F.remove(ref).catch(() => {});
+      resetGameState(); show('friends');
+      try { await this.joinRoom(code); } catch(e){ console.warn(e); netError(); }
+    };
+    $('#ivNo', o).onclick = () => {
+      clearTimeout(tm); closeOv('inviteOv'); this.F.remove(ref).catch(() => {});
+      this.F.set(this.R(`rooms/${code}/declined/${this.uid}`), String(S.profile.name).slice(0, 14)).catch(() => {});
+      this.nextInvite();
+    };
+  },
+
+  /* ---------- חדרים ---------- */
+  genCode(){ let c = ''; for (let i = 0; i < 4; i++) c += CODE_ABC[rnd(CODE_ABC.length)]; return c; },
+  memberData(){ return { name:S.profile.name, rocket:S.profile.rocket || 'moon', on:true, seen:this.ST(), j:this.ST() }; },
+  async createRoom(level){
+    for (let k = 0; k < 8; k++){
+      const code = this.genCode();
+      const snap = await this.F.get(this.R('rooms/' + code));
+      if (snap.exists()) continue;
+      await this.F.set(this.R('rooms/' + code), { host:this.uid, cls:this.cls, level, created:this.ST(), status:'wait', members:{ [this.uid]:this.memberData() } });
+      await this.F.set(this.R('roomIndex/' + code), this.ST());
+      return code;
+    }
+    throw new Error('no-code');
+  },
+  async joinRoom(code){
+    code = String(code || '').toUpperCase();
+    const snap = await this.F.get(this.R('rooms/' + code));
+    const d = snap.val();
+    if (!d) return infoModal(TX.roomNone);
+    if (d.cls !== this.cls) return infoModal(TX.roomOther);
+    const members = d.members || {};
+    if (!members[this.uid]){
+      if (d.status !== 'wait') return infoModal(TX.roomStarted);
+      if (Object.keys(members).length >= 3) return infoModal(TX.roomFull);
+      await this.F.set(this.R(`rooms/${code}/members/${this.uid}`), this.memberData());
+    }
+    this.F.remove(this.R(`classes/${this.cls}/invites/${this.uid}/${code}`)).catch(() => {});
+    this.enterRoom(code);
+    return true;
+  },
+  async resume(){
+    const code = store.get('room'); if (!code){ return; }
+    try {
+      const d = (await this.F.get(this.R('rooms/' + code))).val();
+      if (!d || !d.members || !d.members[this.uid]){ store.del('room'); return; }
+      this.enterRoom(code);
+    } catch(e){ store.del('room'); }
+  },
+  enterRoom(code){
+    if (this.roomUnsub){ this.roomUnsub(); this.roomUnsub = null; }
+    this.room = code; store.set('room', code);
+    this.lastReacts = null; this.voted = false; this.roomData = null; this.bubbles = {};
+    S.mode = 'online';
+    const mr = this.R(`rooms/${code}/members/${this.uid}`);
+    this.F.onDisconnect(mr).update({ on:false, seen:this.ST() });
+    this.F.update(mr, { on:true, seen:this.ST() }).catch(() => {});
+    this.updatePresence();
+    this.roomUnsub = this.F.onValue(this.R('rooms/' + code), s => this.onRoom(s.val()), e => { console.warn(e); this.clearRoomLocal(); resetGameState(); show('friends'); });
+  },
+  clearRoomLocal(){
+    if (this.roomUnsub){ this.roomUnsub(); this.roomUnsub = null; }
+    this.room = null; this.roomData = null; store.del('room'); this.voted = false;
+    if (this.discOpen){ closeModal(); this.discOpen = null; }
+  },
+  async leaveRoom(){
+    const code = this.room; if (!code) return;
+    this.clearRoomLocal();
+    try {
+      const mr = this.R(`rooms/${code}/members/${this.uid}`);
+      await this.F.onDisconnect(mr).cancel();
+      const m = (await this.F.get(this.R(`rooms/${code}/members`))).val() || {};
+      const others = Object.keys(m).filter(u => u !== this.uid);
+      if (!others.length){ await this.F.remove(this.R('rooms/' + code)); await this.F.remove(this.R('roomIndex/' + code)); }   // החדר נמחק בסיום
+      else await this.F.remove(mr);
+      for (const u of this.invited) this.F.remove(this.R(`classes/${this.cls}/invites/${u}/${code}`)).catch(() => {});
+    } catch(e){ console.warn(e); }
+    this.invited = [];
+    this.updatePresence();
+  },
+  sortedMembers(d){
+    return Object.entries((d && d.members) || {}).map(([uid, m]) => Object.assign({ uid }, m))
+      .filter(m => m.name).sort((a, b) => (a.j || 0) - (b.j || 0) || (a.uid < b.uid ? -1 : 1));
+  },
+
+  /* ---------- כל שינוי בחדר ---------- */
+  onRoom(d){
+    if (!d || !d.members || !d.members[this.uid]){
+      const inGame = curScreen === 'game' || curScreen === 'wait';
+      const ended = S.game && S.game.phase === 'end';
+      this.clearRoomLocal();
+      if (inGame && !ended){ resetGameState(); show('friends'); }
+      this.updatePresence();
+      return;
+    }
+    this.roomData = d;
+    this.handleReactions(d);
+    if (d.status === 'play' && d.game){
+      const g = Engine.normalize(JSON.parse(JSON.stringify(d.game)));
+      if (!g) return;
+      const fresh = !S.game || S.game.gid !== g.gid;
+      if (fresh){ resetGameState(); this.voted = false; closeModal(); }
+      S.mode = 'online';
+      S.myIdx = g.players.findIndex(p => p.uid === this.uid);
+      if (curScreen !== 'game') show('game');
+      pushState(g);
+      if (S.myIdx >= 0 && g.players[S.myIdx].bot && !this.reclaiming){         // חזרתי – בולי מחזיר לי את התור
+        this.reclaiming = true;
+        this.act({ type:'RECLAIM', idx:S.myIdx, by:S.myIdx }, true).finally(() => { this.reclaiming = false; });
+      }
+      this.maybeRestart(d);
+      if (!S.busy) scheduleBot();
+    } else {
+      if (curScreen !== 'wait'){ resetGameState(); show('wait'); }
+      this.renderWait();
+    }
+  },
+  renderWait(){
+    const d = this.roomData; if (!d) return;
+    $('#wCode').textContent = this.room;
+    const L = LEVELS[d.level] || LEVELS[1];
+    $('#wLevel').innerHTML = `<span class="lchip sel" style="--lc:${L.color}"><img src="images/${L.planet}.png" alt="">שָׁלָב ${N(d.level)} · ${L.title}</span>`;
+    const mem = this.sortedMembers(d);
+    const ghosts = Math.max(0, Math.min(3, mem.length + this.invited.length) - mem.length);
+    $('#wMembers').innerHTML = mem.map(m => `<div class="member"><img src="${rocketSrc(m.rocket)}" alt=""><span>${esc(String(m.name).slice(0, 14))}</span></div>`).join('')
+      + (d.host === this.uid ? Array.from({ length:ghosts }, () => `<div class="member ghost"><img src="images/rocket_moon.png" alt=""><span>…</span></div>`).join('') : '');
+    const dec = Object.values(d.declined || {}).filter(n => typeof n === 'string');
+    $('#wNotes').innerHTML = dec.map(n => fill(TX.declined, { name:esc(n.slice(0, 14)) })).join('<br>');
+    const host = d.host === this.uid;
+    $('#wStart').classList.toggle('hide', !host);
+    $('#wStart').disabled = mem.length < 2;
+    $('#wWaitRow').classList.toggle('hide', host && mem.length >= 2);
+  },
+  async start(){
+    const d = this.roomData; if (!d || d.host !== this.uid) return;
+    const mem = this.sortedMembers(d).slice(0, 3); if (mem.length < 2) return;
+    const g = Engine.newGame(d.level || 1, 'online', mem.map(m => ({ name:String(m.name).slice(0, 14), rocket:m.rocket, uid:m.uid })));
+    await this.F.update(this.R('rooms/' + this.room), { status:'play', game:JSON.parse(JSON.stringify(g)), again:null });
+    for (const u of this.invited) this.F.remove(this.R(`classes/${this.cls}/invites/${u}/${this.room}`)).catch(() => {});
+  },
+
+  /* ---------- מהלכים: רק מי שבתור כותב, בטרנזקציה ---------- */
+  act(a, isBot){
+    if (!this.room || !this.ready) return Promise.resolve();
+    if (!isBot){ if (S.pending) return Promise.resolve(); S.pending = true; if (curScreen === 'game' && S.game && !S.busy) renderPanel(S.game); }
+    const code = this.room;
+    return this.F.runTransaction(this.R(`rooms/${code}/game`), cur => {
+      if (!cur) return;                                   // מבטל – ננסה שוב עם הנתונים האמיתיים
+      const ns = Engine.reduce(Engine.normalize(cur), a);
+      if (!ns) return;                                    // מהלך לא חוקי / כבר בוצע
+      return JSON.parse(JSON.stringify(ns));
+    }, { applyLocally:false })
+      .then(res => { if (!res || !res.committed){ S.dropDone = false; } })
+      .catch(e => { console.warn(e); S.dropDone = false; toast(TX.netErr); })
+      .finally(() => { if (!isBot) S.pending = false; if (curScreen === 'game' && S.game && !S.busy) renderGame(); });
+  },
+
+  /* ---------- מי מריץ את בולי (כשמישהו התנתק) ---------- */
+  offline(uid){
+    if (uid === this.uid) return !this.connected;
+    const m = ((this.roomData && this.roomData.members) || {})[uid];
+    if (!m) return true;
+    const age = this.now() - (m.seen || 0);
+    return (m.on === false && age > 45000) || age > 80000;
+  },
+  amDriver(){
+    const g = S.game; if (!g || !this.roomData) return false;
+    for (const p of g.players){ if (p.bot || !p.uid) continue; if (!this.offline(p.uid)) return p.uid === this.uid; }
+    return false;
+  },
+  checkDisconnects(){
+    if (!this.room || !S.game || curScreen !== 'game') return;
+    const g = S.game; if (g.phase === 'end') return;
+    const actor = Engine.actor(g);
+    for (let i = 0; i < g.players.length; i++){
+      const p = g.players[i];
+      if (p.bot || !p.uid || p.uid === this.uid || (p.launched && actor !== i)) continue;
+      const off = this.offline(p.uid);
+      if (!off){ delete this.discSnooze[p.uid]; if (this.discOpen === p.uid){ closeModal(); this.discOpen = null; } continue; }
+      if (this.discOpen || (this.discSnooze[p.uid] || 0) > Date.now()) continue;
+      this.discOpen = p.uid;
+      const o = modal(`<img src="${rocketSrc(p.rocket)}" alt="" style="height:90px;align-self:center"><div class="row"><h2 class="grow">${fill(TX.disc, { name:esc(p.name) })}</h2>${spkBtn(fill(TX.disc, { name:p.name }))}</div>
+        <button class="btn" id="dcWait">${TX.discWait}</button><button class="btn lil" id="dcBolli">${TX.discBolli}</button>`);
+      $('#dcWait', o).onclick = () => { closeModal(); this.discOpen = null; this.discSnooze[p.uid] = Date.now() + 45000; };
+      $('#dcBolli', o).onclick = () => { closeModal(); this.discOpen = null; this.act({ type:'TAKEOVER', idx:i, by:S.myIdx }, true); };
+      break;
+    }
+  },
+
+  /* ---------- תגובות מוכנות (אין צ'אט) ---------- */
+  react(i){
+    if (!this.room || !(i >= 0 && i < TX.reactions.length)) return;
+    this.F.set(this.R(`rooms/${this.room}/reactions/${this.uid}`), { r:i, ts:this.ST() }).catch(() => {});
+  },
+  handleReactions(d){
+    const r = d.reactions || {};
+    if (!this.lastReacts){ this.lastReacts = {}; for (const k in r) this.lastReacts[k] = (r[k] && r[k].ts) || 0; return; }
+    for (const k in r){
+      const ts = (r[k] && r[k].ts) || 0;
+      if (ts > (this.lastReacts[k] || 0)){ this.lastReacts[k] = ts; this.showReact(k, r[k].r); }
+    }
+  },
+  showReact(uid, ri){
+    const g = S.game; if (!g) return;
+    const i = g.players.findIndex(p => p.uid === uid); if (i < 0) return;
+    const text = TX.reactions[ri]; if (!text) return;
+    this.bubbles[i] = { text, until: Date.now() + 2600 };
+    paintBubbles(); Snd.react();
+    setTimeout(paintBubbles, 2700);
+  },
+
+  /* ---------- משחקים שוב (כל אחד מאשר) ---------- */
+  myVote(){ return this.voted; },
+  voteAgain(){ if (!this.room) return; this.voted = true; this.F.set(this.R(`rooms/${this.room}/again/${this.uid}`), true).catch(() => {}); },
+  maybeRestart(d){
+    const g = S.game; if (!g || g.phase !== 'end') return;
+    const mem = this.sortedMembers(d), again = d.again || {};
+    if (mem.length < 2 || !mem.every(m => again[m.uid])) return;
+    if (mem.map(m => m.uid).sort()[0] !== this.uid) return;          // רק אחד מתחיל מחדש
+    const ng = Engine.newGame(g.level, 'online', mem.slice(0, 3).map(m => ({ name:String(m.name).slice(0, 14), rocket:m.rocket, uid:m.uid })));
+    this.F.update(this.R('rooms/' + this.room), { game:JSON.parse(JSON.stringify(ng)), again:null, status:'play' }).catch(() => {});
+  }
+};
+
+function paintBubbles(){
+  $$('.bubble[data-b]').forEach(el => {
+    const b = Online.bubbles[el.dataset.b];
+    if (b && b.until > Date.now()){ el.textContent = b.text; el.classList.add('show'); } else el.classList.remove('show');
+  });
+}
+
+function infoModal(text){
+  const o = modal(`<img src="images/bolli_think.png" alt="" style="height:100px;align-self:center"><div class="row"><h2 class="grow">${text}</h2>${spkBtn(text)}</div><button class="btn" id="imOk">${TX.ok}</button>`);
+  $('#imOk', o).onclick = () => { closeModal(); if (curScreen !== 'friends' && curScreen !== 'code') show('friends'); };
+  return false;
+}
+function netError(retry){
+  const o = modal(`<img src="images/bolli_think.png" alt="" style="height:100px;align-self:center"><h2>${TX.netErr}</h2>
+    <button class="btn" id="neRetry">${TX.retry}</button><button class="btn white" id="neBack">${HELP_BACK}</button>`);
+  $('#neRetry', o).onclick = () => { closeModal(); if (retry) retry(); };
+  $('#neBack', o).onclick = () => { closeModal(); show('mode'); };
+}
+async function goFriends(then){
+  if (!fbConfigured()){ show('nofb'); return; }
+  if (!Online.ready) modal(`<img src="images/bolli_astro.png" alt="" style="height:100px;align-self:center"><h2>${TX.connecting}</h2>`);
+  try {
+    await Online.init();
+    closeModal();
+    if (!Online.room) show('friends');
+    if (then) await then();
+  } catch(e){ console.warn(e); closeModal(); netError(() => goFriends(then)); }
+}
+
+/* ---------- מסך החברים ---------- */
+S.fLevel = S.level;
+function levelChips(box, sel, onPick){
+  box.innerHTML = [1,2,3].map(l => { const L = LEVELS[l];
+    return `<button class="lchip${l === sel ? ' sel' : ''}" data-l="${l}" style="--lc:${L.color}"><img src="images/${L.planet}.png" alt="">שָׁלָב ${N(l)}</button>`; }).join('');
+  box.onclick = e => { const b = e.target.closest('[data-l]'); if (!b) return; Snd.tick(); onPick(+b.dataset.l); };
+}
+ENTER.friends = () => {
+  S.mode = null;
+  levelChips($('#fLevels'), S.fLevel, l => { S.fLevel = l; store.set('level', l); ENTER.friends(); });
+  $('#fList').dataset.html = '';
+  Online.updatePresence();
+  Online.renderFriends();
+};
+$('#fList').addEventListener('click', e => {
+  const c = e.target.closest('[data-uid]'); if (!c) return;
+  const u = c.dataset.uid;
+  if (Online.selected.has(u)) Online.selected.delete(u);
+  else if (Online.selected.size < 2) Online.selected.add(u);
+  else { shakeEl(c); return; }
+  Snd.tick(); $('#fList').dataset.html = ''; Online.renderFriends();
+});
+$('#fInvite').addEventListener('click', async () => {
+  $('#fInvite').disabled = true;
+  try { await Online.inviteSelected(); } catch(e){ console.warn(e); netError(); }
+});
+$('#fCode').addEventListener('click', () => show('code'));
+BACK.friends = () => show('mode');
+
+/* ---------- חדר עם קוד ---------- */
+let codeIn = '';
+ENTER.code = () => {
+  codeIn = '';
+  ENTER.codeChips();
+  $('#cKeys').innerHTML = CODE_ABC.split('').map(ch => `<button data-c="${ch}">${ch}</button>`).join('') + `<button class="wide" data-c="del">${TX.del}</button>`;
+  renderCode();
+};
+ENTER.codeChips = () => levelChips($('#cLevels'), S.fLevel, l => { S.fLevel = l; store.set('level', l); ENTER.codeChips(); });
+function renderCode(){
+  $('#cBoxes').innerHTML = [0,1,2,3].map(i => `<span class="${i === codeIn.length ? 'cur' : ''}">${codeIn[i] || ''}</span>`).join('');
+  $('#cJoin').disabled = codeIn.length !== 4;
+}
+$('#cKeys').addEventListener('click', e => {
+  const b = e.target.closest('[data-c]'); if (!b) return;
+  if (b.dataset.c === 'del') codeIn = codeIn.slice(0, -1); else if (codeIn.length < 4) codeIn += b.dataset.c;
+  Snd.tick(); renderCode();
+});
+document.addEventListener('keydown', e => {
+  if (curScreen !== 'code') return;
+  const k = e.key.toUpperCase();
+  if (k.length === 1 && CODE_ABC.includes(k) && codeIn.length < 4){ codeIn += k; renderCode(); }
+  else if (e.key === 'Backspace'){ codeIn = codeIn.slice(0, -1); renderCode(); }
+  else if (e.key === 'Enter' && codeIn.length === 4) $('#cJoin').click();
+});
+$('#cJoin').addEventListener('click', async () => {
+  $('#cJoin').disabled = true;
+  try { await Online.joinRoom(codeIn); } catch(e){ console.warn(e); netError(); }
+  renderCode();
+});
+$('#cCreate').addEventListener('click', async () => {
+  $('#cCreate').disabled = true;
+  try { const code = await Online.createRoom(S.fLevel); Online.invited = []; Online.enterRoom(code); }
+  catch(e){ console.warn(e); netError(); }
+  $('#cCreate').disabled = false;
+});
+BACK.code = () => show('friends');
+
+/* ---------- חדר המתנה ---------- */
+$('#wShare').addEventListener('click', async () => {
+  const url = location.origin + location.pathname + '?room=' + Online.room;
+  try {
+    if (navigator.share){ await navigator.share({ title:'3, 2, 1… שיגור!', url }); return; }
+  } catch(e){ if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(url); toast(TX.copied); }
+  catch(e){ toast(`<bdi class="ltr">${esc(url)}</bdi>`, 5000); }
+});
+$('#wStart').addEventListener('click', async () => {
+  $('#wStart').disabled = true;
+  try { await Online.start(); } catch(e){ console.warn(e); netError(); }
+});
+BACK.wait = () => { Online.leaveRoom(); resetGameState(); show('friends'); };
+
+/* =====================================================================
+   הפעלה
+   ===================================================================== */
+(function boot(){
+  imgFallback(); Speak.init(); renderMute(); fillSpk();
+  try {
+    const params = new URLSearchParams(location.search);
+    const r = (params.get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+    if (r.length === 4){ S.urlRoom = r; history.replaceState(null, '', location.pathname); }
+  } catch(e){}
+  show('open');
+  if (fbConfigured() && S.profile.name) Online.init().catch(e => console.warn(e));   // כדי לקבל הזמנות כבר במסך הפתיחה
+})();
+</script>
+</body>
+</html>

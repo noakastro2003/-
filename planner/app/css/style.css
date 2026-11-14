@@ -1411,3 +1411,54 @@ body.onboarding::after, body.incm::after { display: none; }
 .gkinds input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 .gn-other { display: none; }
 .gnew:has(input[name=kind][value=אחר]:checked) .gn-other { display: flex; }
+
+/* import summary */
+.impsum .tiles { margin: 14px 0; }
+.impsum .tile.warn b { color: #C0563B; }
+.impsum .cta { margin-top: 10px; }
+.impsum .ovh .ic { color: var(--green, #4CAF7A); }
+
+/* files without internet */
+.offmark { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--green, #4CAF7A) 18%, transparent); color: var(--green, #4CAF7A); flex: none; }
+.offmark .ic { width: 12px; height: 12px; }
+.offline-btn, .offline-ok { display: flex; align-items: center; gap: 8px; width: 100%; margin: 4px 0 8px; padding: 10px 14px; border-radius: var(--r-btn); font-size: var(--fs-note); text-align: start; }
+.offline-btn { border: 1px dashed var(--line); color: var(--accent-ink); background: transparent; }
+.offline-ok { color: var(--soft); }
+.offline-btn .ic, .offline-ok .ic { width: 16px; height: 16px; flex: none; }
+.offline-ok .ic { color: var(--green, #4CAF7A); }
+
+/* attendance */
+.attline { display: flex; align-items: center; gap: 10px; width: 100%; margin: 10px 0; padding: 12px 14px; border-radius: var(--r-btn); background: var(--p-sage); font-size: var(--fs-sm); text-align: start; color: var(--ink); }
+.attline.todo { background: transparent; border: 1px dashed var(--line); color: var(--accent-ink); }
+.attline > .ic { width: 18px; height: 18px; flex: none; }
+.attline .chev { width: 16px; height: 16px; color: var(--soft); }
+.attgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 16px; max-height: 52vh; overflow-y: auto; padding: 2px; }
+.attk { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 58px; padding: 8px 4px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: var(--ink); transition: background .15s, transform .1s; }
+.attk:active { transform: scale(.95); }
+.attk b { font-weight: 500; font-size: var(--fs-sm); }
+.attk small { font-size: 11px; min-height: 14px; }
+.attk.a { background: color-mix(in srgb, #E07A6A 22%, var(--card)); border-color: #E07A6A; }
+.attk.a small { color: #C0563B; }
+.attk.l { background: color-mix(in srgb, #E8B45A 25%, var(--card)); border-color: #E8B45A; }
+.attk.l small { color: #9A6B14; }
+
+/* classroom screen remote */
+.caststeps { margin: 8px 0 14px; padding-inline-start: 22px; color: var(--soft); font-size: var(--fs-sm); line-height: 1.7; }
+.caststeps b { color: var(--ink); font-weight: 500; }
+.castcode { width: 100%; text-align: center; font-size: 34px !important; letter-spacing: 12px; text-transform: uppercase; padding: 12px; border-radius: var(--r-btn); border: 1.5px solid var(--line); background: var(--tint2); color: var(--ink); margin-bottom: 14px; font-weight: 300; }
+.castlive { margin-inline-start: auto; font-size: var(--fs-note); color: var(--green, #4CAF7A); display: inline-flex; align-items: center; gap: 6px; }
+.castlive::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+.castgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+.castgrid button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px; border-radius: 18px; border: 1px solid var(--line); background: var(--card); font-size: var(--fs-note); color: var(--ink); }
+.castgrid button .ic { width: 24px; height: 24px; color: var(--accent-ink); }
+.castgrid button.on { border-color: var(--accent-ink); box-shadow: 0 0 0 1px var(--accent-ink); }
+.castsheet h4 { margin: 16px 0 8px; font-size: var(--fs-sm); color: var(--soft); font-weight: 500; }
+.castfile { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; margin-bottom: 6px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); text-align: start; color: var(--ink); font-size: var(--fs-sm); }
+.castfile .fbadge { width: 26px; height: 28px; }
+.castfile .chev { width: 16px; height: 16px; color: var(--soft); }
+.castsheet .danger-l { display: block; margin: 16px auto 0; }
+
+/* nakdan */
+.nksheet textarea { font-size: var(--fs-h3) !important; line-height: 1.9; }
+.nkout { font-family: 'Heebo', 'Arial Hebrew', Arial, sans-serif; }
+.nksheet .cta { margin-top: 6px; }

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>הכיתה שלי · מסך הכיתה</title>
+<link rel="icon" href="icons/icon-192.png">
+<style>
+@font-face { font-family: 'Heebo'; font-weight: 300; src: url(fonts/heebo-hebrew-300-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Heebo'; font-weight: 400; src: url(fonts/heebo-hebrew-400-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Heebo'; font-weight: 500; src: url(fonts/heebo-hebrew-500-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Heebo'; font-weight: 300; src: url(fonts/heebo-latin-300-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: 'Heebo'; font-weight: 400; src: url(fonts/heebo-latin-400-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: 'Heebo'; font-weight: 500; src: url(fonts/heebo-latin-500-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+:root { --ink: #F4EEE6; --soft: rgba(244, 238, 230, .6); --gold: #D6B474; --bg: #17131E; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font-family: Heebo, system-ui, sans-serif; color: var(--ink); overflow: hidden;
+  background: radial-gradient(900px 600px at 50% 10%, rgba(201, 162, 95, .16), transparent 70%), radial-gradient(900px 700px at 100% 100%, rgba(123, 79, 214, .22), transparent 70%), linear-gradient(165deg, #2B2138, #17131E 70%); }
+#stage { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4vh 5vw; text-align: center; }
+.fade { animation: in .45s ease both; }
+@keyframes in { from { opacity: 0; transform: translateY(12px); } }
+.logo { width: 11vh; height: 11vh; border-radius: 3vh; background: linear-gradient(160deg, #FFFDF8, #F3E9D8); display: grid; place-items: center; box-shadow: 0 2vh 6vh -2vh rgba(201, 162, 95, .5); margin: 0 auto 4vh; }
+.logo img { width: 70%; }
+.code { font-size: 16vh; letter-spacing: 3vh; font-weight: 300; direction: ltr; color: var(--gold); margin: 1vh 0 3vh; text-shadow: 0 0 6vh rgba(214, 180, 116, .35); }
+.howto { font-size: 3.2vh; color: var(--soft); line-height: 1.6; }
+.howto b { color: var(--ink); font-weight: 500; }
+.clock { font-size: 22vh; font-weight: 300; font-variant-numeric: tabular-nums; direction: ltr; }
+.sub { font-size: 4vh; color: var(--soft); margin-top: 1vh; }
+.big { font-size: clamp(5vh, 9vh, 12vw); font-weight: 400; line-height: 1.3; white-space: pre-wrap; max-width: 90vw; }
+.timer { font-size: 34vh; font-weight: 300; font-variant-numeric: tabular-nums; direction: ltr; line-height: 1; }
+.timer.done { color: var(--gold); animation: pulse 1s ease infinite; }
+@keyframes pulse { 50% { opacity: .5; } }
+.bar { width: 60vw; height: 1.4vh; border-radius: 1vh; background: rgba(255, 255, 255, .1); margin-top: 5vh; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--gold); border-radius: 1vh; transition: width 1s linear; }
+.name { font-size: 20vh; font-weight: 500; color: var(--gold); animation: pop .6s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } }
+.pts { display: flex; gap: 3vw; flex-wrap: wrap; justify-content: center; }
+.pts div { min-width: 18vw; padding: 3vh 2vw; border-radius: 3vh; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); }
+.pts b { display: block; font-size: 5vh; font-weight: 400; }
+.pts span { font-size: 12vh; font-weight: 300; color: var(--gold); }
+.groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(22vw, 1fr)); gap: 2vw; width: 90vw; }
+.groups div { padding: 2.5vh; border-radius: 3vh; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); }
+.groups b { display: block; color: var(--gold); font-size: 3.6vh; margin-bottom: 1vh; font-weight: 500; }
+.groups span { display: block; font-size: 3.6vh; }
+.list { font-size: 7vh; line-height: 1.6; text-align: start; }
+.list li::marker { color: var(--gold); }
+.lesson h1 { font-size: 9vh; font-weight: 400; margin: 0 0 3vh; }
+.lesson .sec { font-size: 4.4vh; color: var(--gold); margin-bottom: 2vh; }
+.lesson p { font-size: 5vh; line-height: 1.5; max-width: 80vw; white-space: pre-wrap; margin: 0 auto; }
+iframe { position: fixed; inset: 0; width: 100vw; height: 100vh; border: 0; background: #000; }
+#status { position: fixed; bottom: 2vh; left: 2vw; font-size: 1.8vh; color: var(--soft); direction: rtl; }
+#status i { display: inline-block; width: 1vh; height: 1vh; border-radius: 50%; background: #E8B45A; margin-inline-end: .8vh; }
+#status.on i { background: #6FCF8F; }
+#fs { position: fixed; top: 2vh; left: 2vw; background: rgba(255, 255, 255, .08); color: var(--ink); border: 1px solid rgba(255, 255, 255, .15); border-radius: 99px; padding: 1vh 2.2vh; font: inherit; font-size: 2vh; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<button id="fs" type="button">מסך מלא</button>
+<div id="status"><i></i><span>מתחבר…</span></div>
+<script type="module">
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const api = (op, code, body, q = '') => fetch(`/api/cast?op=${op}&code=${code}${q}`, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}).then(r => r.json().then(j => ({ ok: r.ok, status: r.status, ...j })));
+const status = (t, on) => { $('#status span').textContent = t; $('#status').classList.toggle('on', !!on); };
+$('#fs').onclick = () => { (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen || (() => {})).call(document.documentElement); };
+document.addEventListener('fullscreenchange', () => { $('#fs').style.display = document.fullscreenElement ? 'none' : ''; });
+
+let timerT = 0, clockT = 0;
+const fmt = s => `${Math.floor(s / 60)}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
+function show(m) {
+  clearInterval(timerT); clearInterval(clockT);
+  const st = $('#stage'); let h = '';
+  const k = m && m.kind, d = m && m.data;
+  if (k === 'text') h = `<div class="big">${esc(d)}</div>`;
+  else if (k === 'picker') h = `<div class="sub">עונה עכשיו</div><div class="name">${esc(d)}</div>`;
+  else if (k === 'points') h = `<div class="pts">${(d || []).map(t => `<div><b>${esc(t.name)}</b><span>${t.pts}</span></div>`).join('')}</div>`;
+  else if (k === 'groups') h = `<div class="groups">${(d || []).map((g, i) => `<div><b>קבוצה ${i + 1}</b>${g.map(n => `<span>${esc(n)}</span>`).join('')}</div>`).join('')}</div>`;
+  else if (k === 'dict') h = `<ol class="list">${(d || []).map(x => `<li>${esc(x)}</li>`).join('')}</ol>`;
+  else if (k === 'lesson') h = `<div class="lesson">${d.sec ? `<div class="sec">${esc(d.sec)}</div>` : ''}<h1>${esc(d.title)}</h1>${d.text ? `<p>${esc(d.text)}</p>` : ''}</div>`;
+  else if (k === 'file') { const id = (String(d.url).match(/\/d\/([\w-]{10,})/) || [])[1]; h = id ? `<iframe src="https://drive.google.com/file/d/${id}/preview" allow="autoplay; fullscreen" allowfullscreen></iframe>` : `<div class="big">${esc(d.text || '')}</div>`; }
+  else if (k === 'timer') {
+    const end = d.running ? Date.now() + d.left * 1000 : 0, total = d.total || d.left || 1;
+    h = `<div class="timer" id="tm">${fmt(Math.round(d.left))}</div><div class="bar"><i id="tb" style="width:${Math.round(100 * d.left / total)}%"></i></div>${d.label ? `<div class="sub">${esc(d.label)}</div>` : ''}`;
+    if (d.running) timerT = setInterval(() => { const l = Math.max(0, Math.round((end - Date.now()) / 1000)); const t = $('#tm'); if (!t) return; t.textContent = fmt(l); $('#tb').style.width = Math.round(100 * l / total) + '%'; if (!l) { t.classList.add('done'); clearInterval(timerT); } }, 250);
+  }
+  else if (k === 'blank') h = '';
+  else { h = `<div class="clock" id="ck"></div><div class="sub" id="dt"></div>`; }
+  st.innerHTML = `<div class="fade">${h}</div>`;
+  if (!k || k === 'idle') { const tick = () => { const n = new Date(); $('#ck').textContent = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; $('#dt').textContent = n.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }); }; tick(); clockT = setInterval(tick, 5000); }
+}
+function showCode(code) {
+  $('#stage').innerHTML = `<div class="fade"><div class="logo"><img src="icons/icon-192.png" alt=""></div>
+    <div class="howto">בטלפון: <b>הכיתה שלי ← מצב בכיתה ← למחשב בכיתה</b><br>ומקלידים את הקוד:</div>
+    <div class="code">${code}</div><div class="howto">הקוד מתחלף בכל פתיחה של המסך</div></div>`;
+}
+
+const iceDone = pc => new Promise(res => { if (pc.iceGatheringState === 'complete') return res(); const t = setTimeout(res, 3500); pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } }); });
+let pc, relayT, pollT, code;
+async function start() {
+  clearTimeout(relayT); clearInterval(pollT); try { pc && pc.close(); } catch {}
+  pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  const dc = pc.createDataChannel('c');
+  dc.onopen = () => { status('מחובר לטלפון', true); show({ kind: 'idle' }); clearTimeout(relayT); };
+  dc.onmessage = e => { try { show(JSON.parse(e.data)); } catch {} };
+  dc.onclose = () => { status('החיבור נותק'); setTimeout(start, 1500); };
+  await pc.setLocalDescription(await pc.createOffer());
+  await iceDone(pc);
+  for (let i = 0; i < 6; i++) {
+    code = Array.from({ length: 5 }, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]).join('');
+    const r = await api('offer', code, { sdp: pc.localDescription }).catch(() => ({ ok: false }));
+    if (r.ok) break; if (r.status !== 409) { status('אין חיבור לאינטרנט – מנסה שוב…'); setTimeout(start, 5000); return; }
+  }
+  showCode(code); status('מחכה לטלפון…');
+  const t0 = Date.now();
+  pollT = setInterval(async () => {
+    if (Date.now() - t0 > 15 * 60e3) { clearInterval(pollT); status('הקוד פג – רעננו את הדף'); return; }
+    const r = await api('getanswer', code).catch(() => null);
+    if (!r || !r.sdp) return;
+    clearInterval(pollT);
+    await pc.setRemoteDescription(r.sdp).catch(() => {});
+    status('מתחבר לטלפון…');
+    // strict networks: if no direct link within 8s, fall back to the relay
+    setTimeout(() => { if (dc.readyState !== 'open') relay(); }, 8000);
+  }, 3000);
+}
+function relay() {
+  status('מחובר (דרך השרת)', true); show({ kind: 'idle' });
+  // ask often right after a change, rarely when nothing happens (saves the site's quota)
+  let since = 0, lastMsg = Date.now();
+  const loop = async () => {
+    const r = await api('getstate', code, null, `&since=${since}`).catch(() => null);
+    if (r && r.msg !== undefined && r.at > since) { since = r.at; lastMsg = Date.now(); show(r.msg); }
+    const idle = Date.now() - lastMsg;
+    relayT = setTimeout(loop, idle < 3 * 60e3 ? 2500 : idle < 20 * 60e3 ? 6000 : 15000);
+  };
+  loop();
+}
+start();
+</script>
+</body>
+</html>

@@ -4,6 +4,7 @@ import { ic, art, spark, squiggle, miniArt, fileBadge, logo } from './icons.js';
 import * as ID from '../vendor/identity.mjs';
 import { putBlob, getBlob, delBlob, extractText, matchLessons, fmtSize, kindOf } from './files.js';
 import { readAnyPlan } from './genparse.js';
+import { cast, castConnect, castSend, castEnd } from './cast.js';
 import { QUOTES, BANK, CATS, EV } from './toolkit.js';
 import { weekPrintHtml } from './printweek.js';
 import { PM_TYPES, buildToday, buildWeek as buildWeekMsg, buildDict, buildGear, buildTest, buildBday, buildAll, autoTests, autoEvents, weekBdays, buildPersonal, buildForms, formPersonal, buildChange, buildHoliday, nextHoliday, HOLIDAY_NAMES, OPENERS, CLOSERS, stripEmoji, waHtml } from './parentmsg.js';
@@ -12,12 +13,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 54; // keep in step with CACHE in sw.js
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass'];
+const APP_V = 55; // keep in step with CACHE in sw.js
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null,
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null, att: {},
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -295,7 +296,7 @@ function fileRow(f, compact, metaOver) {
   const u = f.uses && f.uses[0];
   const meta = metaOver != null ? metaOver : u ? `${ic('folder')}${esc(look(u.p).n)} · ${f.uses.length > 2 ? `${f.uses.length} פעמים השבוע` : [...new Set(f.uses.map(x => 'יום ' + DAY_SHORT[x.d.dow]))].join(', ')}` : '';
   return `<div class="file ${compact ? 'compact' : ''}">
-    <a href="${esc(f.url)}" target="_blank" rel="noopener">${fileBadge(fileKind(f))}<span class="fx"><b>${esc(f.text)}</b>${meta && !compact ? `<small>${meta}</small>` : ''}</span>${compact ? ic('chevL', 'chev') : ''}</a>
+    <a href="${esc(f.url)}" target="_blank" rel="noopener">${fileBadge(fileKind(f))}<span class="fx"><b>${esc(f.text)}</b>${meta && !compact ? `<small>${meta}</small>` : ''}</span>${isOff(f.url) ? `<span class="offmark" title="שמור בטלפון">${ic('check')}</span>` : ''}${compact ? ic('chevL', 'chev') : ''}</a>
     ${compact ? '' : `<button class="star ${pin ? 'on' : ''}" data-pin="${esc(f.url)}" data-pintext="${esc(f.text)}" aria-label="נעיצה">${ic(pin ? 'starFill' : 'star')}</button>`}
   </div>`;
 }
@@ -336,6 +337,7 @@ function viewNow(w) {
     h += top('עכשיו', `${hello()} · ${line()}`, 'books') + firstSteps();
     h += birthdayBanner();
     h += nowCard(w, day, ph.cur, ph) + quickTools();
+    if (!attToday() || ph.cur === day.periods[0]) h += attLine();
     if (ph.next) h += nextCard(day, ph.next, ph.inMin);
   } else if (ph.kind === 'break') {
     h += top('הפסקה', `השיעור הבא ${inText(ph.inMin)}`, 'books');
@@ -344,7 +346,7 @@ function viewNow(w) {
   } else if (ph.kind === 'before') {
     h += top(hello(), `יום ${day.name} · מתחילים ב־${ph.next.start}`, 'books') + firstSteps();
     h += birthdayBanner();
-    h += prepCards(w, day, 'today');
+    h += attLine() + prepCards(w, day, 'today');
     h += nextCard(day, ph.next, ph.inMin, 'השיעור הראשון') + tipCard();
   } else if (ph.kind === 'after') {
     h += top('סיימת את היום 🎉', line(), 'books');
@@ -440,6 +442,7 @@ function tomorrowCard(w, nd) {
     ${first ? row(ic('alarm'), `<span class="tpill">${esc(first.start)}</span>`, esc(first.title), `data-goto="${nd.dow}|${esc(first.label)}" data-gowk="${w.id}"`, 'hue-lav') : ''}
     ${pr && pr.items.length ? row(ic('printer'), '<b>להדפיס בבוקר:</b>', `${pr.items.length} פריטים`, `data-pday="${nd.dow}" data-gowk="${w.id}"`, 'hue-blue') : ''}
     ${br && br.items.length ? row(ic('backpack'), '<b>להביא:</b>', esc(br.items.slice(0, 2).map(i => i.text.split('–')[0].trim()).join(', ')) + (br.items.length > 2 ? ` ועוד ${br.items.length - 2}` : ''), `data-pday="${nd.dow}" data-gowk="${w.id}"`, 'hue-sage') : ''}
+    ${dayUrls(nd).length ? (() => { const n = dayUrls(nd).length, k = dayUrls(nd).filter(isOff).length; return k === n ? `<div class="offline-ok">${ic('check')} ${n} הקבצים של ${isTomorrow ? 'מחר' : 'יום ' + nd.name} שמורים בטלפון – ייפתחו גם בלי אינטרנט</div>` : `<button class="offline-btn" data-offday="${w.id}|${nd.dow}">${ic('upload')} שמירת ${n} הקבצים בטלפון (לשימוש בלי אינטרנט)</button>`; })() : ''}
     ${file ? `<a class="trow hue-apr" href="${esc(file.url)}" target="_blank" rel="noopener"><span class="tri">${fileBadge(fileKind(file))}</span><span class="grow"><b>קובץ חשוב:</b> ${esc(file.text)}</span>${ic('chevL', 'chev')}</a>` : ''}
   </div>`;
 }
@@ -967,6 +970,60 @@ document.addEventListener('input', e => {
 
 
 // ================================================================ IN CLASS: class mode, projector, class management
+// ---------------------------------------------------------------- classroom screen (computer shows, phone controls)
+function timerMsg(label) { const left = T.running ? Math.max(0, (T.endAt - Date.now()) / 1000) : (T.left || T.total); return { left, total: T.total || left, running: T.running, label: label || (T.rounds > 1 ? `תחנה ${T.round} מתוך ${T.rounds}` : '') }; }
+function castTimer(label) { if (cast.on && (T.running || T.left)) castSend('timer', timerMsg(label)); }
+function castData(kind, data) {
+  if (kind === 'text') return data || state.projText || '';
+  if (kind === 'points') return state.points.map(t => ({ name: t.name, pts: t.pts }));
+  return data;
+}
+cast.onChange = () => { if ($('#overlay.show .castsheet')) castSheet(); toast(cast.on ? (cast.relay ? 'מחובר למסך הכיתה (דרך השרת)' : 'מחובר למסך הכיתה 📺') : 'החיבור למסך הכיתה נותק', 2200); };
+function castSheet() {
+  if (!cast.on) {
+    openOverlay(`<form class="ov sheet castsheet" data-castform>
+      <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+      <div class="ovh">${ic('screen')}<h2>למחשב בכיתה</h2></div>
+      <ol class="caststeps"><li>במחשב שמחובר למקרן פותחים את <b dir="ltr">${esc(location.host)}/cast</b></li><li>על המסך מופיע קוד של 5 תווים</li><li>מקלידים אותו כאן – והטלפון הופך לשלט</li></ol>
+      <input name="code" class="castcode" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="קוד" dir="ltr" required>
+      <button class="cta">${ic('link')} התחברות</button>
+    </form>`);
+    setTimeout(() => { const i = $('.castcode'); if (i) i.focus(); }, 300);
+    return;
+  }
+  const c = curLesson(), last = cast.last && cast.last.kind;
+  const secs = c ? c.p.sections.filter(x => x.text || x.label) : [];
+  const files = c ? c.p.links.filter(l => l.url && driveId(l.url)) : [];
+  const b = (kind, icon, label, attrs = '') => `<button class="${last === kind ? 'on' : ''}" ${attrs || `data-cast="${kind}"`}>${ic(icon)}<span>${label}</span></button>`;
+  openOverlay(`<div class="ov sheet castsheet">
+    <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('screen')}<h2>מסך הכיתה</h2><span class="castlive">${cast.relay ? 'מחובר · דרך השרת' : 'מחובר'}</span></div>
+    <div class="castgrid">
+      ${b('idle', 'clock', 'שעון')}
+      ${c ? b('lesson', 'book', 'השיעור עכשיו') : ''}
+      ${b('timer', 'timer', 'טיימר')}
+      ${b('picker', 'dice', 'מי עונה?')}
+      ${state.points.length ? b('points', 'medal', 'ניקוד') : ''}
+      ${b('blank', 'moon', 'מסך ריק')}
+    </div>
+    ${secs.length ? `<h4>שלב בשיעור</h4><div class="fchips wrap">${secs.map((x, i) => `<button class="fc" data-castsec="${i}">${esc(x.label || 'שלב ' + (i + 1))}</button>`).join('')}</div>` : ''}
+    ${files.length ? `<h4>קובץ מהשיעור</h4>${files.map((l, i) => `<button class="castfile" data-castfile="${i}">${fileBadge(fileKind(l))}<span class="grow">${esc(l.text)}</span>${ic('chevL', 'chev')}</button>`).join('')}<p class="hint">קבצים מדרייב מוצגים אם הם משותפים "לכל מי שיש לו קישור"</p>` : ''}
+    <h4>כתיבה על הלוח</h4>
+    <form class="addtodo" data-casttext><input name="t" placeholder="המשימה עכשיו…" autocomplete="off" value="${esc(state.projText || '')}"><button aria-label="הצגה">${ic('screen')}</button></form>
+    <button class="linkbtn danger-l" data-act="castend">ניתוק</button>
+  </div>`);
+}
+function castDo(kind, arg) {
+  const c = curLesson();
+  if (kind === 'lesson' && c) { const secs = c.p.sections.filter(x => x.text || x.label), s = arg != null ? secs[arg] : null; castSend('lesson', { title: c.p.title, sec: s ? s.label : '', text: s ? s.text : '' }); }
+  else if (kind === 'timer') { if (T.running || T.left) castTimer(); else { timerSetup(state.lastMin || 5, 1); return; } }
+  else if (kind === 'picker') { pickerScreen(); return; }
+  else if (kind === 'points') castSend('points', castData('points'));
+  else if (kind === 'file' && c) { const l = c.p.links.filter(x => x.url && driveId(x.url))[arg]; if (l) castSend('file', { url: l.url, text: l.text }); }
+  else castSend(kind);
+  if (navigator.vibrate) navigator.vibrate(8);
+  castSheet();
+}
 function curLesson() {
   const w = realWeek(); const day = w && todayInWeek(w); if (!day) return null;
   const ph = phase(day);
@@ -995,6 +1052,7 @@ function classMode() {
       <button data-act="picker">${ic('dice')}<span>מי עונה?</span></button>
       ${c ? `<button data-cnote="${esc(id)}" data-tag="note">${ic('pencil')}<span>פתק ליומן</span></button>` : ''}
       <button data-act="projtext">${ic('screen')}<span>הקרנה</span></button>
+      <button data-act="cast" class="${cast.on ? 'on' : ''}">${ic('link')}<span>${cast.on ? 'מסך הכיתה ✓' : 'למחשב בכיתה'}</span></button>
       <button data-go2="class">${ic('medal')}<span>ניקוד</span></button>
     </div>
   </div>`;
@@ -1006,6 +1064,7 @@ function closeClassMode() { const el = $('#classmode'); if (el) el.classList.rem
 
 // projector: huge, simple, dark – for the classroom screen
 function projector(kind, data) {
+  if (cast.on) { castSend(kind === 'timer' ? 'timer' : kind, kind === 'timer' ? timerMsg() : castData(kind, data)); toast('מוצג במסך הכיתה 📺', 1500); return; }
   let el = $('#proj'); if (!el) { el = document.createElement('div'); el.id = 'proj'; document.body.appendChild(el); }
   let body = '';
   if (kind === 'text') body = `<div class="pj-text" contenteditable="true" spellcheck="false">${esc(data || state.projText || 'המשימה עכשיו:')}</div><p class="pj-hint">אפשר לכתוב ישר על המסך</p>`;
@@ -1031,6 +1090,7 @@ function closeProjector() {
 const noise = { on: false, ctx: null, raf: 0, level: 0, sens: 5 };
 function viewClass() {
   let h = top('ניקוד ורמזור', 'ניקוד לקבוצות, רמזור רעש ומלך שיעור', 'star', { back: 'cls' });
+  h += `<button class="attline ${cast.on ? '' : 'todo'}" data-act="cast">${ic('screen')}<span class="grow"><b>מסך הכיתה</b> · ${cast.on ? 'מחובר – לחיצה לשליטה' : 'המחשב בכיתה מציג, הטלפון שולט'}</span>${ic('chevL', 'chev')}</button>`;
   h += `<div class="card">${cardHead('medal', 'ניקוד לקבוצות', `<button class="linkbtn" data-act="projpoints">${ic('screen')} הקרנה</button>`)}
     ${state.points.length ? state.points.map((t, i) => `<div class="ptrow"><b class="grow">${esc(t.name)}</b><button class="iconbtn" data-pt="${i}|-1">−</button><span class="ptn">${t.pts}</span><button class="iconbtn plus" data-pt="${i}|1">+</button></div>`).join('') : '<p class="dim">אין עדיין קבוצות. מוסיפים קבוצה או שולחן:</p>'}
     <form class="addtodo" data-ptnew><input name="t" placeholder="${state.points.length ? 'עוד קבוצה' : 'שולחן 1 / הכחולים'}" autocomplete="off"><button aria-label="הוספה">${ic('plus')}</button></form>
@@ -1080,6 +1140,40 @@ function lastTouch(n) {
   return ts.length ? Math.max(...ts) : 0;
 }
 function quietKids(days = 7) { return state.kids.filter(k => Date.now() - lastTouch(k.name) > days * 864e5); }
+// ---------------------------------------------------------------- attendance: one tap per child
+const attKey = (d = now()) => `${isoDay(d)}|${state.curClass || ''}`;
+const attToday = () => (state.att || {})[attKey()];
+const ATT = { a: 'חסר/ה', l: 'איחור' };
+function kidAtt(name) {
+  let a = 0, l = 0;
+  for (const [k, v] of Object.entries(state.att || {})) if (k.endsWith('|' + (state.curClass || ''))) { if (v[name] === 'a') a++; if (v[name] === 'l') l++; }
+  return { a, l };
+}
+function attLine() {
+  if (!state.kids.length) return '';
+  const t = attToday();
+  if (!t) return `<button class="attline todo" data-act="att">${ic('users')}<span class="grow"><b>נוכחות</b> · לסמן מי חסר היום</span>${ic('chevL', 'chev')}</button>`;
+  const ab = Object.entries(t).filter(([, v]) => v === 'a').map(([n]) => n), la = Object.entries(t).filter(([, v]) => v === 'l').map(([n]) => n);
+  return `<button class="attline" data-act="att">${ic('check')}<span class="grow">${ab.length || la.length ? `${ab.length ? `<b>חסרים ${ab.length}:</b> ${esc(ab.join(', '))}` : ''}${la.length ? `${ab.length ? ' · ' : ''}<b>איחור:</b> ${esc(la.join(', '))}` : ''}` : '<b>כולם כאן</b> ✓'}</span>${ic('chevL', 'chev')}</button>`;
+}
+function attSheet() {
+  const t = attToday() || {};
+  openOverlay(`<div class="ov sheet attsheet">
+    <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('users')}<h2>נוכחות היום</h2></div>
+    <p class="hint">לחיצה = חסר/ה · עוד לחיצה = איחור · עוד אחת = נוכח/ת</p>
+    <div class="attgrid">${state.kids.map(k => `<button class="attk ${t[k.name] || ''}" data-attk="${esc(k.name)}"><b>${esc(k.name)}</b><small>${ATT[t[k.name]] || ''}</small></button>`).join('')}</div>
+    <button class="cta" data-act="attsave">${ic('check')} ${Object.keys(t).length ? 'שמירה' : 'כולם כאן – שמירה'}</button>
+  </div>`);
+}
+function attSet(name) {
+  const k = attKey(); state.att = state.att || {}; const t = state.att[k] = state.att[k] || {};
+  t[name] = !t[name] ? 'a' : t[name] === 'a' ? 'l' : undefined; if (!t[name]) delete t[name];
+  state.absent = { d: todayKey(), names: Object.entries(t).filter(([, v]) => v === 'a').map(([n]) => n) };
+  save(); if (navigator.vibrate) navigator.vibrate(6);
+  const b = document.querySelector(`[data-attk="${CSS.escape(name)}"]`); if (b) { b.className = 'attk ' + (t[name] || ''); b.querySelector('small').textContent = ATT[t[name]] || ''; }
+  const sv = document.querySelector('[data-act=attsave]'); if (sv) sv.innerHTML = `${ic('check')} ${Object.keys(t).length ? 'שמירה' : 'כולם כאן – שמירה'}`;
+}
 function kidSheet(name) {
   const k = state.kids.find(x => x.name === name) || { name };
   const ns = kidNotes(name).slice().reverse(), ms = kidMsgs(name), gs = kidGrades(name);
@@ -1095,6 +1189,7 @@ function kidSheet(name) {
     </div>
     <div class="btnrow"><button class="cta" data-kidmsg="${esc(name)}">${ic('phone2')} הודעה להורה</button><button class="cta soft" data-kidnote="${esc(name)}">${ic('pencil')} פתק</button></div>
     ${k.phone ? `<p class="hint">📞 <bdi dir="ltr">${esc(k.phone)}</bdi></p>` : '<p class="hint">אין טלפון של הורה – מוסיפים ב"הכיתה שלי"</p>'}
+    ${(() => { const x = kidAtt(name); return x.a || x.l ? `<p class="hint">נוכחות: ${x.a} חיסורים · ${x.l} איחורים</p>` : ''; })()}
     ${gs.length ? `<h4>ציונים</h4>${gs.slice().reverse().map(({ g, v }) => `<div class="row"><span class="tpill">${esc(g.kind)}</span><span class="grow">${esc(g.title)}</span><b class="${pct(v, g.max) < 60 ? 'low' : ''}">${v}${g.max && g.max !== 100 ? '/' + g.max : ''}</b></div>`).join('')}` : ''}
     <h4>מהיומן</h4>${ns.length ? ns.slice(0, 12).map(n => `<div class="row"><span>${(TAGS[n.tag] || TAGS.note)[0]}</span><span class="grow">${esc(n.text || TAGS[n.tag][1])}</span><small class="dim">${new Date(n.at).getDate()}.${new Date(n.at).getMonth() + 1}</small></div>`).join('') : '<p class="dim">עוד לא נרשם כלום</p>'}
     ${ms.length ? `<h4>הודעות להורים</h4>${ms.slice(0, 6).map(m => `<div class="row"><span class="tpill">${new Date(m.at).getDate()}.${new Date(m.at).getMonth() + 1}</span><span class="grow">${esc(m.text.split('\n').find(l => l.trim() && !/^היי|טובים/.test(l)) || '')}</span></div>`).join('')}` : ''}
@@ -1268,6 +1363,33 @@ async function shrinkImage(file, max = 1280) {
     return c.toDataURL('image/jpeg', .72);
   } catch { return null; } finally { URL.revokeObjectURL(url); }
 }
+// after a plan is read: what was found, and a clear warning when the files were missed
+function importSummary(wk, n, empty) {
+  const files = wk.days.reduce((a, d) => a + d.periods.reduce((b, p) => b + p.links.filter(l => l.url).length, 0), 0);
+  const prep = Object.values(wk.prep || {}).reduce((a, ss) => a + ss.reduce((b, sc) => b + sc.items.length, 0), 0);
+  const tile = (v, l, warn) => `<div class="tile ${warn ? 'warn' : ''}"><b>${v}</b><span>${l}</span></div>`;
+  openOverlay(`<div class="ov sheet impsum">
+    <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('check')}<h2>${wk.number ? 'שבוע ' + esc(wk.number) : 'השבוע'} נטען</h2></div>
+    <div class="tiles">${tile(n, `שיעורים ב־${wk.days.length} ימים`)}${tile(files, 'קבצים', !files)}${tile(prep, 'פריטים להכין')}</div>
+    ${empty.length ? `<p class="hint">ימים בלי שיעורים: ${esc(empty.join(', '))}</p>` : ''}
+    ${!files ? `<div class="lowbox"><b>לא נמצאו קבצים בתכנון.</b> אם יש בו קישורים (📎) – משהו לא נקרא נכון. כדאי לדווח, ונתקן.</div>
+      <button class="cta soft" data-act="report">${ic('warn')} דיווח על הבעיה</button>` : ''}
+    <button class="cta" data-act="close">יאללה לשבוע</button>
+  </div>`);
+}
+// ---------------------------------------------------------------- automatic niqqud (Dicta)
+function nakdanSheet(text = state._nk || '', out = '') {
+  openOverlay(`<form class="ov sheet nksheet" data-nakdan>
+    <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('pencil')}<h2>נקדן</h2></div>
+    <label class="field">טקסט בלי ניקוד<textarea name="t" rows="4" placeholder="מדביקים או כותבים כאן…" required>${esc(text)}</textarea></label>
+    <button class="cta">${ic('sparkle')} ניקוד</button>
+    ${out ? `<label class="field">עם ניקוד <small class="dim">(אפשר לתקן ידנית)</small><textarea id="nkOut" class="nkout" rows="5">${esc(out)}</textarea></label>
+      <div class="btnrow"><button type="button" class="cta soft" data-act="nkcopy">${ic('link')} העתקה</button><button type="button" class="cta soft" data-act="nkproj">${ic('screen')} הקרנה</button></div>` : ''}
+    <p class="hint">הניקוד נעשה אוטומטית באדיבות <b>דיקטה</b> – כדאי לעבור על התוצאה לפני שמחלקים.</p>
+  </form>`);
+}
 function reportSheet() {
   openOverlay(`<form class="ov sheet" data-report>
     <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
@@ -1389,6 +1511,7 @@ function viewHub() {
   const tiles = [['phone2', 'הודעה להורים', 'data-go="msgs"', ''], ['star', 'ציונים', 'data-go="grades"', state.grades.filter(g => !g.cls || g.cls === state.curClass).length || ''],
     ['pencil', 'יומן כיתה', 'data-go="journal"', openActions().length || ''], ['medal', 'ניקוד ורמזור', 'data-go="class"', ''], ['users', 'עריכת הרשימה', 'data-go="kids"', state.kids.length || ''], ['calendar', 'לוח אירועים', 'data-go="calendar"', '']];
   const HUES = ['hue-rose', 'hue-gold', 'hue-lav', 'hue-apr', 'hue-sage', 'hue-blue'];
+  h += attLine();
   h += `<div class="hubgrid">${tiles.map(([i, l, a, n], k) => `<button class="${HUES[k % 6]}" ${a}><span class="ti">${ic(i)}</span><b>${l}</b>${n ? `<em>${n}</em>` : ''}</button>`).join('')}</div>`;
   if (!state.kids.length) h += `<div class="card">${cardHead('users', 'עוד אין ילדים בכיתה')}<p class="dim">מדביקים רשימת שמות (ואם רוצים גם יום הולדת וטלפון של הורה) – ואז יש כרטיס לכל ילד, "מי עונה?", ימי הולדת והודעות אישיות.</p><button class="cta" data-go="kids">${ic('plus')} הוספת הילדים</button></div>`;
   else {
@@ -1781,7 +1904,7 @@ function viewMore(w) {
   return top('עוד', streak() > 1 ? `🔥 ${streak()} ימים ברצף שהכל מוכן` : 'כלים, הגדרות ותכנונים', 'star') + `
   ${[
     ['תכנון', [['upload', 'תכנון חדש', 'data-act="upload"'], ['layers', 'השבוע הבא', w ? 'data-act="nextweek"' : 'disabled'], ['grid', 'מערכת', 'data-day="all"'], ['clock', 'לוח צלצולים', 'data-go="bells"'], ['book', 'מאגר שיעורים', 'data-go="bank"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`]]],
-    ['חומרים ורעיונות', [['folder', 'קבצים', 'data-go="files"'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"']]],
+    ['חומרים ורעיונות', [['folder', 'קבצים', 'data-go="files"'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"'], ['pencil', 'נקדן', 'data-act="nakdan"']]],
     ['תזכורות ושיתוף', [['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"'], ['heart', 'מורות חברות', 'data-go="friends"']]],
   ].map(([t, items], k) => `<h4 class="sect msect">${t}</h4><div class="toolgrid ${['hue-lav', 'hue-apr', 'hue-rose'][k] || ''}">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
   <h4 class="sect msect">עזרה והגדרות</h4>
@@ -1848,6 +1971,7 @@ function viewSettings(w) {
   <div class="card">
     ${cardHead('layers', 'גיבוי')}
     <p class="dim">כל המידע נשמר רק בטלפון. כדאי לשמור גיבוי מדי פעם (למשל בדרייב).</p>
+    <div class="setrow"><span>לשמור בטלפון את הקבצים של מחר (אחרי 14:00) – כדי שייפתחו גם בלי אינטרנט</span><button class="switch ${state.prefs.autoOff ? 'on' : ''}" data-toggle-pref="autoOff" role="switch" aria-checked="${!!state.prefs.autoOff}"><i></i></button></div>
     <div class="btnrow"><button class="cta soft" data-act="export">${ic('upload')} שמירת גיבוי</button><button class="cta soft" data-act="import">${ic('folder')} שחזור מגיבוי</button></div>
   </div>
   <div class="card">
@@ -2133,7 +2257,7 @@ function timerSetup(min, rounds) {
 function timerStart() {
   T.total = T.setMin * 60; T.rounds = T.setRounds; T.round = 1; T.between = false;
   T.left = T.total; T.endAt = Date.now() + T.total * 1000; T.running = true;
-  wakeOn(); timerScreen();
+  wakeOn(); timerScreen(); castTimer();
   clearInterval(tInt); tInt = setInterval(tick, 250);
 }
 function timerScreen() {
@@ -2164,8 +2288,8 @@ function tick() {
   renderTimerPill();
   if (T.running && T.left <= 0) {
     const msg = t => { const m = $('#tMsg'); if (m) { m.textContent = t; m.classList.remove('pop'); void m.offsetWidth; m.classList.add('pop'); } };
-    if (T.between) { T.between = false; T.round++; T.total = T.setMin * 60; T.endAt = Date.now() + T.total * 1000; bell(1); msg(''); }
-    else if (T.round < T.rounds) { bell(3); T.between = true; T.total = 15; T.endAt = Date.now() + 15000; msg('עוברים תחנה! 🔔'); }
+    if (T.between) { T.between = false; T.round++; T.total = T.setMin * 60; T.endAt = Date.now() + T.total * 1000; bell(1); msg(''); castTimer(); }
+    else if (T.round < T.rounds) { bell(3); T.between = true; T.total = 15; T.endAt = Date.now() + 15000; msg('עוברים תחנה! 🔔'); castTimer('עוברים תחנה!'); }
     else { bell(3); T.running = false; clearInterval(tInt); if (!wantAwake) wakeOff(); msg('הזמן נגמר! 🎉'); confetti(); }
   }
 }
@@ -2258,7 +2382,7 @@ function doPick() {
     if (++n < 18) setTimeout(step, 40 + n * n * 1.2);
     else {
       el.classList.remove('spin'); el.textContent = win; el.classList.add('win'); bell(1); miniBurst(el);
-      state.picked.push(win); state._lastPick = win; save();
+      state.picked.push(win); state._lastPick = win; save(); if (cast.on) castSend('picker', win);
       const pl = $('#pLeft'); if (pl) pl.firstChild.textContent = `בלי חזרות: נשארו ${here.filter(k => !state.picked.includes(k)).length} מתוך ${here.length} · `;
       if (btn) btn.disabled = false;
     }
@@ -2555,6 +2679,48 @@ async function printFile(it, id) {
     return new File([rec.blob], rec.name, { type: rec.blob.type || 'application/pdf' });
   } catch { return null; }
 }
+
+// ---------------------------------------------------------------- files without internet
+// the next school day's Drive files are kept on the phone (same cache as printFile)
+const offIdx = () => { try { return JSON.parse(localStorage.getItem('hk-off')) || {}; } catch { return {}; } };
+const isOff = url => { const id = url && driveId(url); return !!(id && offIdx()[id]); };
+const dayUrls = d => [...new Set(d.periods.flatMap(p => p.links.map(l => l.url)).filter(u => u && driveId(u)))];
+async function saveDayOffline(w, d, quiet) {
+  if (saveDayOffline.busy) return; saveDayOffline.busy = true;
+  const urls = dayUrls(d), idx = offIdx(), today = isoDay(now());
+  for (const [k, v] of Object.entries(idx)) if (v < isoDay(addDays(now(), -10))) { delete idx[k]; delBlob('drv:' + k).catch(() => {}); }
+  let ok = 0, i = 0;
+  for (const u of urls) {
+    i++; if (!quiet) toast(`שומרת קבצים בטלפון… ${i}/${urls.length}`, 60000);
+    const id = driveId(u);
+    if (idx[id]) { ok++; continue; }
+    const p = d.periods.find(x => x.links.some(l => l.url === u)), l = p && p.links.find(x => x.url === u);
+    const f = await printFile({ url: u, text: (l && l.text) || 'קובץ' }, id);
+    if (f) { idx[id] = today; ok++; }
+  }
+  localStorage.setItem('hk-off', JSON.stringify(idx)); saveDayOffline.busy = false;
+  if (!quiet || ok < urls.length) toast(ok === urls.length ? `✓ ${ok} קבצים שמורים בטלפון – ייפתחו גם בלי אינטרנט` : `נשמרו ${ok} מתוך ${urls.length}. קבצים שלא משותפים "לכל מי שיש לו קישור" לא נשמרים.`, 4200);
+  if (state.tab === 'now' || state.tab === 'day') rerender();
+}
+// automatic: from 14:00, once a day, when the setting is on
+function autoOffline() {
+  if (!state.prefs.autoOff || !navigator.onLine || now().getHours() < 14) return;
+  const k = isoDay(now()); if (localStorage.getItem('hk-offday') === k) return;
+  const ng = nextDayGlobal(); if (!ng) return;
+  localStorage.setItem('hk-offday', k); saveDayOffline(ng.w, ng.d, true);
+}
+async function openOffline(url) {
+  const id = driveId(url); const rec = id && await getBlob('drv:' + id).catch(() => null);
+  if (!rec) { toast('אין אינטרנט, והקובץ הזה לא נשמר בטלפון 😕'); return; }
+  const f = new File([rec.blob], rec.name, { type: rec.blob.type || 'application/pdf' });
+  if (/pdf|image/.test(f.type)) { window.open(URL.createObjectURL(f), '_blank'); return; }
+  if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f] }).catch(() => {}); else window.open(URL.createObjectURL(f), '_blank');
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('.file a[href]'); if (!a || navigator.onLine) return;
+  if (!driveId(a.href)) return;
+  e.preventDefault(); e.stopPropagation(); openOffline(a.href);
+}, true);
 
 // ================================================================ account & sync (Netlify Identity + Blobs)
 const sync = { user: null, ready: false, pulled: false, pending: false, busy: false, last: null, err: '', t: null };
@@ -3301,6 +3467,11 @@ document.addEventListener('click', async e => {
   if (D.repshot) { const box = document.getElementById('shot-' + D.repshot); if (box.innerHTML) { box.innerHTML = ''; return; } box.textContent = 'טוען…'; repApi('shot', null, '&id=' + encodeURIComponent(D.repshot)).then(j => { box.innerHTML = j.shot ? `<img src="${j.shot}" alt="צילום מסך">` : 'לא נמצא'; }).catch(() => { box.textContent = 'לא הצלחתי לטעון'; }); return; }
   if (D.repdone) { repApi('done', { id: D.repdone }).then(repLoad); return; }
   if (D.repdel) { ask('למחוק את הדיווח?', { ok: 'מחיקה' }).then(y => { if (y) repApi('del', { id: D.repdel }).then(repLoad); }); return; }
+  if (D.offday) { const [wid, dow] = D.offday.split('|'); const w = state.weeks[wid], d = w && w.days.find(x => x.dow === +dow); if (d) saveDayOffline(w, d); return; }
+  if (D.attk) { attSet(D.attk); return; }
+  if (D.cast) { castDo(D.cast); return; }
+  if (D.castsec) { castDo('lesson', +D.castsec); return; }
+  if (D.castfile) { castDo('file', +D.castfile); return; }
   if (D.pal) { state.prefs.palette = D.pal; save(); applyPrefs(); rerender(); return; }
   if (D.act === 'mypalreset') { delete state.prefs.myPal; save(); applyPrefs(); rerender(); return; }
   if (D.skin) { state.prefs.skin = D.skin; save(); applyPrefs(); rerender(); return; }
@@ -3316,9 +3487,10 @@ document.addEventListener('click', async e => {
     case 'tpause':
       if (T.running) { T.running = false; T.left = Math.max(0, (T.endAt - Date.now()) / 1000); }
       else if (T.left > 0) { T.running = true; T.endAt = Date.now() + T.left * 1000; clearInterval(tInt); tInt = setInterval(tick, 250); }
+      castTimer();
       tick(); break;
     case 'tplus': T.total += 60; if (T.running) T.endAt += 60000; else T.left += 60; tick(); break;
-    case 'tstop': T.running = false; T.left = 0; T.total = 0; clearInterval(tInt); if (!wantAwake) wakeOff(); closeOverlay(); break;
+    case 'tstop': T.running = false; T.left = 0; T.total = 0; clearInterval(tInt); if (cast.on && cast.last && cast.last.kind === 'timer') castSend('idle'); if (!wantAwake) wakeOff(); closeOverlay(); break;
     case 'close': closeOverlay(); break;
     case 'topen': timerScreen(); break;
     case 'picker': pickerScreen(); break;
@@ -3373,6 +3545,13 @@ document.addEventListener('click', async e => {
     }
     case 'guide': guideSheet(0); break;
     case 'report': reportSheet(); break;
+    case 'nakdan': nakdanSheet(); break;
+    case 'nkcopy': { const o = $('#nkOut'); if (o) navigator.clipboard.writeText(o.value).then(() => toast('הועתק ✓', 1400)); break; }
+    case 'nkproj': { const o = $('#nkOut'); if (o) { closeOverlay(); projector('text', o.value); } break; }
+    case 'cast': castSheet(); break;
+    case 'castend': castEnd(); closeOverlay(); break;
+    case 'att': attSheet(); break;
+    case 'attsave': { const k = attKey(); state.att = state.att || {}; state.att[k] = state.att[k] || {}; save(); closeOverlay(); rerender(); toast('הנוכחות נשמרה ✓', 1500); break; }
     case 'diagreport': { const t2 = `קובץ תכנון שלא נקרא · גרסה ${APP_V}\n${diagText(state._review && state._review.diag)}\n${navigator.userAgent}`; if (navigator.share) navigator.share({ text: t2 }).catch(() => {}); else navigator.clipboard.writeText(t2).then(() => toast('הפרטים הועתקו 📋')); break; }
     case 'snaps': snapsSheet(); break;
     case 'pmreset': state.pm.text = null; rerender(); break;
@@ -3525,6 +3704,26 @@ document.addEventListener('submit', e => {
   if (f.matches('[data-ptnew]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; state.points.push({ name: t, pts: 0 }); save(); rerender(); return; }
   if (f.matches('[data-gnew]')) { e.preventDefault(); const id = uid(); state.grades.push({ id, title: f.title.value.trim(), kind: f.kind.value === 'אחר' ? (f.kindOther.value.trim() || 'אחר') : f.kind.value, max: +f.max.value || 100, date: isoDay(now()), scores: {} }); state.gOpen = id; save(); rerender(); return; }
   if (f.matches('[data-evnew]')) { e.preventDefault(); state.events.push({ text: f.text.value.trim(), date: f.date.value, icon: '⭐' }); save(); rerender(); toast('נוסף ללוח ✓'); return; }
+  if (f.matches('[data-nakdan]')) {
+    e.preventDefault(); const t = f.t.value.trim(); if (!t) return; state._nk = t;
+    if (!sync.user) { toast('הנקדן עובד למחוברות לחשבון – הגדרות ← התחברות', 3500); return; }
+    const btn = f.querySelector('.cta'); btn.disabled = true; btn.textContent = 'מנקדת…';
+    (async () => {
+      try { await ID.refreshSession(); } catch { /* fine */ }
+      const r = await fetch('/api/nakdan', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: t }) }).catch(() => null);
+      const j = r ? await r.json().catch(() => ({})) : {};
+      if (r && r.ok && j.text) { nakdanSheet(t, j.text); return; }
+      btn.disabled = false; btn.innerHTML = `${ic('sparkle')} ניקוד`;
+      toast(!r ? 'אין אינטרנט כרגע' : r.status === 401 ? 'צריך להתחבר לחשבון' : 'הנקדן לא זמין כרגע – אפשר לנסות שוב עוד מעט', 3200);
+    })();
+    return;
+  }
+  if (f.matches('[data-castform]')) {
+    e.preventDefault(); const btn = f.querySelector('.cta'); btn.disabled = true; btn.textContent = 'מתחברת…';
+    castConnect(f.code.value).then(() => castSheet()).catch(x => { btn.disabled = false; btn.innerHTML = `${ic('link')} התחברות`; toast(x.code === 'no-such-code' ? 'לא מצאתי את הקוד – כדאי לבדוק שוב (או לרענן את המסך במחשב)' : x.code === 'bad-code' ? 'הקוד הוא 5 תווים' : 'לא הצלחתי להתחבר 😕', 3500); });
+    return;
+  }
+  if (f.matches('[data-casttext]')) { e.preventDefault(); state.projText = f.t.value.trim(); save(); castSend('text', state.projText); toast('מוצג במסך הכיתה 📺', 1400); return; }
   if (f.matches('[data-report]')) {
     e.preventDefault();
     const txt = `דיווח מ"הכיתה שלי" · גרסה ${APP_V}\nמסך: ${state.tab} · ${innerWidth}×${innerHeight} · ${standalone() ? 'מסך הבית' : 'דפדפן'}\n${navigator.userAgent}\n\nמה קרה:\n${f.what.value.trim()}`;
@@ -3614,7 +3813,7 @@ $('#file').addEventListener('change', async e => {
     tagClasses(wk); if (state.prefs.bellAuto) applyBell(wk);
     state.weeks[wk.id] = wk; state.activeId = wk.id; state.viewWeekId = null; save();
     go('now');
-    toast(`${wk.number ? 'שבוע ' + wk.number : 'השבוע'} נטען! ${wk.days.length} ימים, ${n} שיעורים 🎉${empty.length ? ` (בלי שיעורים: ${empty.join(', ')})` : ''}`, 4000);
+    importSummary(wk, n, empty);
     confetti();
   } catch (err) {
     console.error(err); loader(false);
@@ -3737,6 +3936,7 @@ setInterval(() => { if (state.tab === 'now' && !document.hidden && !document.act
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { if (sync.pending) push(); return; }
   if (wantAwake || T.running) wakeOn();
+  autoOffline();
   if (sync.user) pull().then(() => { if (!$('#overlay.show') && !document.activeElement.matches('input, textarea')) rerender(); });
   else if (!$('#overlay.show')) rerender();
 });
@@ -3762,4 +3962,4 @@ if (appLocked) showLock();
 { const g = new URLSearchParams(location.search).get('go'); if (g && VIEWS[g]) state.tab = g; }
 setTimeout(() => { const l = +localStorage.getItem('hk-snap') || 0; if (!appLocked && Date.now() - l > 20 * 3600e3) dailySnap(); }, 5000);
 render(true);
-if (!appLocked) { initAuth(); welcome(); }
+if (!appLocked) { initAuth(); welcome(); setTimeout(autoOffline, 8000); }

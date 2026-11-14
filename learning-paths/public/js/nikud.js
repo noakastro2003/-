@@ -51,44 +51,56 @@ export function nikudBar(scope) {
     }, h('span', { class: 'nikud-glyph' }, n.letter ? n.insert : base + n.insert), h('span', { class: 'nikud-name' }, n.name));
   });
 
-  // Claude adds nikud to the whole field; the teacher sees the result in place and can undo.
-  const autoBtn = h('button', {
-    type: 'button', class: 'btn small primary', onmousedown: keepFocus,
-    title: cost('aiNikud') ? `עולה ${creditWord(cost('aiNikud'))}` : '',
-    onclick: async () => {
-      if (!ensureTarget()) return;
-      const field = target;
-      const before = field.value;
-      if (!before.trim()) return toast('השדה ריק', 'error');
-      autoBtn.disabled = true;
-      autoBtn.textContent = 'מנקד…';
-      try {
-        const r = await api('POST', '/api/ai/nikud', { text: before });
-        setCredits(r.credits);
-        field.value = r.text;
-        field.dispatchEvent(new Event('input', { bubbles: true }));
-        field.dispatchEvent(new Event('change', { bubbles: true }));
-        undoBtn.hidden = false;
-        undoBtn.onclick = () => {
-          field.value = before;
-          field.dispatchEvent(new Event('input', { bubbles: true }));
-          field.dispatchEvent(new Event('change', { bubbles: true }));
-          undoBtn.hidden = true;
-        };
-        toast(r.changed ? 'נוקד – שימו לב: נראה שמילה השתנתה, כדאי לבדוק' : 'נוקד ✓', r.changed ? 'info' : 'ok');
-      } catch (err) {
-        if (err.status === 503) toast('הניקוד האוטומטי לא הופעל בשרת. אפשר לנקד בדיקטה.', 'error');
-        else showError(err);
-      } finally {
-        autoBtn.disabled = false;
-        autoBtn.textContent = '✨ ניקוד אוטומטי';
-      }
-    },
-  }, '✨ ניקוד אוטומטי');
+  // Whole-field nikud: Dicta's Nakdan (free) or Claude (costs a credit). The result replaces
+  // the field's text in place, and the teacher can undo it.
+  const autoNikud = (btn, label, endpoint, onFail) => async () => {
+    if (!ensureTarget()) return;
+    const field = target;
+    const before = field.value;
+    if (!before.trim()) return toast('השדה ריק', 'error');
+    btn.disabled = true;
+    btn.textContent = 'מנקד…';
+    try {
+      const r = await api('POST', endpoint, { text: before });
+      if (r.credits !== undefined) setCredits(r.credits);
+      setField(field, r.text);
+      undoBtn.hidden = false;
+      undoBtn.onclick = () => { setField(field, before); undoBtn.hidden = true; };
+      toast(r.changed ? 'נוקד – שימו לב: נראה שמילה השתנתה, כדאי לבדוק' : 'נוקד ✓', r.changed ? 'info' : 'ok');
+    } catch (err) {
+      onFail(err, field);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  };
+  const setField = (field, value) => {
+    field.value = value;
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  const dictaBtn = h('button', { type: 'button', class: 'btn small primary', onmousedown: keepFocus, title: 'הנקדן של דיקטה – חינם' }, '✨ ניקוד אוטומטי');
+  dictaBtn.onclick = autoNikud(dictaBtn, '✨ ניקוד אוטומטי', '/api/nikud/dicta', (err, field) => {
+    // Where the app can't reach Dicta itself (the demo), the teacher can still use Dicta's site.
+    if (err.status === 503 || err.status === 404) {
+      navigator.clipboard?.writeText(stripNikud(field.value)).catch(() => {});
+      toast('אין כאן חיבור ישיר לדיקטה. הטקסט הועתק – פתחו את "אתר דיקטה", הדביקו, והעתיקו את התוצאה בחזרה.', 'info');
+    } else showError(err);
+  });
+
+  const aiBtn = h('button', {
+    type: 'button', class: 'btn small ghost', onmousedown: keepFocus,
+    title: cost('aiNikud') ? `ניקוד עם Claude – עולה ${creditWord(cost('aiNikud'))}` : 'ניקוד עם Claude',
+  }, '🤖 ניקוד עם AI');
+  aiBtn.onclick = autoNikud(aiBtn, '🤖 ניקוד עם AI', '/api/ai/nikud', (err) => {
+    if (err.status === 503) toast('הניקוד עם AI לא הופעל בשרת. אפשר להשתמש בניקוד האוטומטי של דיקטה.', 'error');
+    else showError(err);
+  });
   const undoBtn = h('button', { type: 'button', class: 'btn small ghost', hidden: true, onmousedown: keepFocus }, '↩ ביטול הניקוד');
 
   const tools = h('div', { class: 'nikud-tools' },
-    autoBtn, undoBtn,
+    dictaBtn, aiBtn, undoBtn,
     h('button', {
       type: 'button', class: 'btn small ghost', onmousedown: keepFocus,
       onclick: () => {
@@ -107,7 +119,7 @@ export function nikudBar(scope) {
           .then(() => toast('הטקסט הועתק – הדביקו אותו בדיקטה, ואז העתיקו את הטקסט המנוקד בחזרה לשדה', 'ok'))
           .catch(() => {});
       },
-    }, 'ניקוד בדיקטה'));
+    }, '↗ אתר דיקטה'));
 
   const panel = h('div', { class: 'nikud-panel', hidden: !open },
     status, h('div', { class: 'nikud-keys' }, keys), tools);

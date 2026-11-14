@@ -83,6 +83,30 @@ CREATE TABLE IF NOT EXISTS task_attempts (
   wrong INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (student_id, task_id)
 );
+CREATE TABLE IF NOT EXISTS classes (
+  id INTEGER PRIMARY KEY,
+  teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  code TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS class_paths (
+  class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  path_id INTEGER NOT NULL REFERENCES paths(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (class_id, path_id)
+);
+CREATE TABLE IF NOT EXISTS class_members (
+  id INTEGER PRIMARY KEY,
+  class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  name TEXT NOT NULL COLLATE NOCASE,
+  avatar TEXT NOT NULL DEFAULT '',
+  secret_hash TEXT,
+  token TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_active TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (class_id, name)
+);
 CREATE TABLE IF NOT EXISTS help_requests (
   id INTEGER PRIMARY KEY,
   student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -120,6 +144,10 @@ function migrate(db) {
   if (!has('progress', 'approved')) db.exec('ALTER TABLE progress ADD COLUMN approved INTEGER NOT NULL DEFAULT 1');
   // How long a task took the student (from first opening it to finishing it).
   if (!has('progress', 'duration_sec')) db.exec('ALTER TABLE progress ADD COLUMN duration_sec INTEGER');
+  // A path's student record can belong to a class member (one login for all the class's paths).
+  if (!has('students', 'class_member_id')) {
+    db.exec('ALTER TABLE students ADD COLUMN class_member_id INTEGER REFERENCES class_members(id) ON DELETE SET NULL');
+  }
   // Student secret password (hash) and avatar.
   if (!has('students', 'secret_hash')) db.exec('ALTER TABLE students ADD COLUMN secret_hash TEXT');
   if (!has('students', 'avatar')) db.exec("ALTER TABLE students ADD COLUMN avatar TEXT NOT NULL DEFAULT ''");

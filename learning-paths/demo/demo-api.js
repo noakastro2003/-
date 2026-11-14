@@ -34,7 +34,7 @@ function newId() {
 }
 
 function newCode() {
-  const used = new Set([...paths.values()].map((p) => p.code));
+  const used = new Set([...paths.values()].map((p) => p.code).concat((meta.classes || []).map((c) => c.code)));
   let code;
   do code = Array.from({ length: 6 }, () => CODE_ALPHABET[randomIndex(CODE_ALPHABET.length)]).join('');
   while (used.has(code));
@@ -462,6 +462,9 @@ async function withCredits(action, note, fn) {
   }
 }
 
+// The demo page may not contact other sites, so Dicta's Nakdan is reached through its website.
+route('POST', '/api/nikud/dicta', () => { throw new HttpError(503, 'אין חיבור ישיר לדיקטה בגרסת ההדגמה.'); });
+
 route('POST', '/api/ai/nikud', async ({ body }) => {
   const text = v.str(body.text, { max: 3000, required: true, field: 'טקסט' });
   const out = await withCredits('aiNikud', text.slice(0, 40), async (sample) =>
@@ -639,6 +642,148 @@ route('POST', '/api/s/:code/tasks/:taskId/help', ({ params, headers }) => {
   }
   save(p, { touch: false });
   return studentState(p, s);
+});
+
+// ---------- classes (kept in the meta document: a handful of small records) ----------
+
+const classes = () => (meta.classes ||= []);
+const saveMeta = () => store.save('meta', meta);
+const classOut = (c) => ({ id: c.id, name: c.name, code: c.code, createdAt: c.createdAt });
+const getClass = (id) => {
+  const c = classes().find((x) => x.id === Number(id));
+  if (!c) throw new HttpError(404, 'הכיתה לא נמצאה');
+  return c;
+};
+const classByCode = (code) => {
+  const c = classes().find((x) => x.code === String(code).toUpperCase());
+  if (!c) throw new HttpError(404, 'לא מצאנו כיתה עם הקוד הזה');
+  return c;
+};
+const approvedDone = (p, s) => Object.values(p.progress[s.id] || {}).filter((d) => d.approved !== false).length;
+const memberProgress = (m) => {
+  const out = {};
+  for (const p of paths.values()) {
+    const s = p.students.find((x) => x.classMemberId === m.id);
+    if (s) out[p.id] = approvedDone(p, s);
+  }
+  return out;
+};
+const classPaths = (c) => c.pathIds.map((id) => paths.get(id)).filter((p) => p && p.published).map((p) => {
+  const th = v.theme(p.theme);
+  return { id: p.id, code: p.code, title: p.title, icon: th.icon, color: th.color, taskCount: p.tasks.length };
+});
+const currentMember = (c, headers) => {
+  const m = c.members.find((x) => x.token === headers['X-Class-Token']);
+  if (!m) throw new HttpError(401, 'צריך להיכנס לכיתה מחדש');
+  m.lastActive = now();
+  return m;
+};
+const memberState = (m) => ({ member: { id: m.id, name: m.name, avatar: m.avatar }, done: memberProgress(m) });
+
+route('GET', '/api/classes', () => ({
+  classes: classes().map((c) => ({ ...classOut(c), memberCount: c.members.length, pathCount: c.pathIds.length })),
+}));
+route('POST', '/api/classes', ({ body }) => {
+  const c = { id: newId(), name: v.str(body.name, { max: 80, required: true, field: 'שם הכיתה' }), code: newCode(), createdAt: now(), pathIds: [], members: [] };
+  classes().unshift(c);
+  saveMeta();
+  return { class: classOut(c) };
+});
+route('GET', '/api/classes/:id', ({ params }) => {
+  const c = getClass(params.id);
+  return {
+    class: classOut(c),
+    pathIds: c.pathIds,
+    taskCounts: Object.fromEntries(c.pathIds.map((id) => [id, paths.get(id)?.tasks.length || 0])),
+    members: [...c.members].sort((a, b) => a.name.localeCompare(b.name, 'he')).map((m) => ({
+      id: m.id, name: m.name, avatar: m.avatar, hasSecret: Boolean(m.secret), lastActive: m.lastActive, done: memberProgress(m),
+    })),
+  };
+});
+route('PUT', '/api/classes/:id', ({ params, body }) => {
+  const c = getClass(params.id);
+  if (body.name !== undefined) c.name = v.str(body.name, { max: 80, required: true, field: 'שם הכיתה' });
+  if (body.pathIds !== undefined) c.pathIds = [...new Set((body.pathIds || []).map(Number))].filter((id) => paths.has(id));
+  saveMeta();
+  return { class: classOut(c) };
+});
+route('DELETE', '/api/classes/:id', ({ params }) => {
+  const c = getClass(params.id);
+  meta.classes = classes().filter((x) => x !== c);
+  saveMeta();
+  return { ok: true };
+});
+const findMember = (id) => {
+  for (const c of classes()) {
+    const m = c.members.find((x) => x.id === Number(id));
+    if (m) return { c, m };
+  }
+  throw new HttpError(404, 'התלמיד לא נמצא');
+};
+route('POST', '/api/class-members/:id/reset-secret', ({ params }) => {
+  findMember(params.id).m.secret = null;
+  saveMeta();
+  return { ok: true };
+});
+route('DELETE', '/api/class-members/:id', ({ params }) => {
+  const { c, m } = findMember(params.id);
+  c.members = c.members.filter((x) => x !== m);
+  for (const p of paths.values()) for (const st of p.students) if (st.classMemberId === m.id) { st.classMemberId = null; save(p, { touch: false }); }
+  saveMeta();
+  return { ok: true };
+});
+
+route('GET', '/api/c/:code', ({ params }) => {
+  const c = classByCode(params.code);
+  return { class: { name: c.name, code: c.code }, paths: classPaths(c), join: { secretEmojis: SECRET_EMOJIS, avatars: AVATARS } };
+});
+route('POST', '/api/c/:code/name', ({ params, body }) => {
+  const c = classByCode(params.code);
+  const name = v.str(body.name, { max: 40, required: true, field: 'שם' });
+  const m = c.members.find((x) => x.name.toLowerCase() === name.toLowerCase());
+  return { exists: Boolean(m), hasSecret: Boolean(m?.secret) };
+});
+route('POST', '/api/c/:code/join', ({ params, body }) => {
+  const c = classByCode(params.code);
+  const name = v.str(body.name, { max: 40, required: true, field: 'שם' });
+  const secret = secretString(body.secret);
+  const avatar = AVATARS.includes(body.avatar) ? body.avatar : '';
+  let m = c.members.find((x) => x.name.toLowerCase() === name.toLowerCase());
+  if (!m) {
+    m = { id: newId(), name, avatar, secret, token: token(), createdAt: now(), lastActive: now() };
+    c.members.push(m);
+  } else if (!m.secret) {
+    m.secret = secret;
+    if (avatar) m.avatar = avatar;
+  } else if (m.secret !== secret) {
+    throw Object.assign(new HttpError(403, 'הסיסמה הסודית לא נכונה. נסו שוב, או בקשו מהמורה לאפס אותה.'), { code: 'wrong_secret' });
+  }
+  // Same-name students who joined a path alone continue there only if the secret matches.
+  for (const id of c.pathIds) {
+    const p = paths.get(id);
+    if (!p || p.students.some((st) => st.classMemberId === m.id)) continue;
+    const solo = p.students.find((st) => st.name.toLowerCase() === m.name.toLowerCase() && !st.classMemberId);
+    if (solo && solo.secret === secret) { solo.classMemberId = m.id; save(p, { touch: false }); }
+  }
+  m.lastActive = now();
+  saveMeta();
+  return { token: m.token, ...memberState(m) };
+});
+route('GET', '/api/c/:code/me', ({ params, headers }) => memberState(currentMember(classByCode(params.code), headers)));
+route('POST', '/api/c/:code/paths/:pathId/enter', ({ params, headers }) => {
+  const c = classByCode(params.code);
+  const m = currentMember(c, headers);
+  const p = classPaths(c).find((x) => x.id === Number(params.pathId)) && paths.get(Number(params.pathId));
+  if (!p) throw new HttpError(404, 'המסלול לא נמצא בכיתה');
+  let st = p.students.find((x) => x.classMemberId === m.id);
+  if (!st) {
+    const taken = p.students.some((x) => x.name.toLowerCase() === m.name.toLowerCase());
+    st = { id: newId(), name: taken ? `${m.name} (${c.name})`.slice(0, 40) : m.name, token: token(), createdAt: now(), lastActive: now(), secret: m.secret, avatar: m.avatar, classMemberId: m.id };
+    p.students.push(st);
+    save(p, { touch: false });
+  }
+  saveMeta();
+  return { code: p.code, token: st.token };
 });
 
 // ---------- the fetch stand-in ----------

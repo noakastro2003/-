@@ -14,6 +14,7 @@ import {
 } from './logic.js';
 import * as billing from './billing.js';
 import { createMailer } from './mailer.js';
+import { DICTA_URL, dictaRequest, dictaToText } from './dicta.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -171,14 +172,27 @@ function rateLimiter(limit, windowMs) {
 
 // ai: { enabled, generatePath } – injectable so tests don't call the real API.
 // billingCfg: see billingConfig().
+// Calls Dicta's Nakdan; returns its token list. Injectable for tests.
+async function callDicta(text) {
+  const res = await fetch(process.env.DICTA_URL || DICTA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dictaRequest(text)),
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!res.ok) throw new Error(`Dicta answered ${res.status}`);
+  return res.json();
+}
+
 // mailer: { send({to, subject, text}) } – injectable for tests.
-export function createApp(db, { ai, billingCfg = billingConfig(), mailer = createMailer() } = {}) {
+export function createApp(db, { ai, billingCfg = billingConfig(), mailer = createMailer(), dicta = callDicta } = {}) {
   const loginLimit = rateLimiter(10, 15 * 60 * 1000);
   const joinLimit = rateLimiter(60, 15 * 60 * 1000);
   const aiLimit = rateLimiter(20, 60 * 60 * 1000);
   const pinLimit = rateLimiter(8, 10 * 60 * 1000); // per student: stops guessing the 4-digit code
   const secretLimit = rateLimiter(8, 10 * 60 * 1000); // per student: stops guessing a classmate's secret
   const forgotLimit = rateLimiter(5, 60 * 60 * 1000);
+  const dictaLimit = rateLimiter(120, 60 * 60 * 1000);
   // Tests pass their own tools; otherwise the real ones are made on first use.
   let tools = ai && (ai.generatePath || ai.nikud || ai.improveTask) ? ai : null;
   const aiTools = () => (tools ||= createAiTools());
@@ -214,7 +228,37 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
                            FROM paths p WHERE teacher_id = ? ORDER BY updated_at DESC, id DESC`),
     pathById: db.prepare('SELECT * FROM paths WHERE id = ?'),
     pathByCode: db.prepare('SELECT * FROM paths WHERE code = ?'),
-    codeExists: db.prepare('SELECT 1 FROM paths WHERE code = ?'),
+    // Path and class codes share one namespace: a student types either.
+    codeExists: db.prepare('SELECT 1 FROM paths WHERE code = ?1 UNION SELECT 1 FROM classes WHERE code = ?1'),
+
+    classesOf: db.prepare(`SELECT c.*, (SELECT COUNT(*) FROM class_members WHERE class_id = c.id) AS member_count,
+                             (SELECT COUNT(*) FROM class_paths WHERE class_id = c.id) AS path_count
+                           FROM classes c WHERE teacher_id = ? ORDER BY c.created_at DESC, c.id DESC`),
+    classById: db.prepare('SELECT * FROM classes WHERE id = ?'),
+    classByCode: db.prepare('SELECT * FROM classes WHERE code = ?'),
+    insertClass: db.prepare('INSERT INTO classes (teacher_id, name, code) VALUES (?, ?, ?)'),
+    renameClass: db.prepare('UPDATE classes SET name = ? WHERE id = ?'),
+    deleteClass: db.prepare('DELETE FROM classes WHERE id = ?'),
+    classPathIds: db.prepare('SELECT path_id FROM class_paths WHERE class_id = ? ORDER BY position, path_id'),
+    clearClassPaths: db.prepare('DELETE FROM class_paths WHERE class_id = ?'),
+    addClassPath: db.prepare('INSERT INTO class_paths (class_id, path_id, position) VALUES (?, ?, ?)'),
+    membersOf: db.prepare('SELECT * FROM class_members WHERE class_id = ? ORDER BY name'),
+    memberById: db.prepare('SELECT * FROM class_members WHERE id = ?'),
+    memberByToken: db.prepare('SELECT * FROM class_members WHERE token = ?'),
+    memberByName: db.prepare('SELECT * FROM class_members WHERE class_id = ? AND name = ?'),
+    insertMember: db.prepare('INSERT INTO class_members (class_id, name, token, secret_hash, avatar) VALUES (?, ?, ?, ?, ?)'),
+    setMemberSecret: db.prepare('UPDATE class_members SET secret_hash = ? WHERE id = ?'),
+    setMemberAvatar: db.prepare('UPDATE class_members SET avatar = ? WHERE id = ?'),
+    touchMember: db.prepare("UPDATE class_members SET last_active = datetime('now') WHERE id = ?"),
+    deleteMember: db.prepare('DELETE FROM class_members WHERE id = ?'),
+    studentOfMember: db.prepare('SELECT * FROM students WHERE path_id = ? AND class_member_id = ?'),
+    linkStudent: db.prepare('UPDATE students SET class_member_id = ?, secret_hash = ?, avatar = ? WHERE id = ?'),
+    insertLinkedStudent: db.prepare('INSERT INTO students (path_id, name, token, secret_hash, avatar, class_member_id) VALUES (?, ?, ?, ?, ?, ?)'),
+    // Finished (and approved) tasks per path for one class member.
+    memberDone: db.prepare(`SELECT s.path_id, COUNT(p.task_id) AS done FROM students s
+                            LEFT JOIN progress p ON p.student_id = s.id AND p.approved = 1
+                            WHERE s.class_member_id = ? GROUP BY s.path_id`),
+    taskCount: db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE path_id = ?'),
     insertPathRow: db.prepare('INSERT INTO paths (teacher_id, title, description, code, theme, approval_pin) VALUES (?, ?, ?, ?, ?, ?)'),
     setPin: db.prepare('UPDATE paths SET approval_pin = ? WHERE id = ?'),
     updatePath: db.prepare(`UPDATE paths SET title = ?, description = ?, theme = ?, published = ?,
@@ -649,6 +693,22 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     }
   }
 
+  // Nikud by Dicta's Nakdan: free for the teacher, no credits.
+  route('POST', '/api/nikud/dicta', async (ctx) => {
+    const teacher = requireTeacher(ctx);
+    if (process.env.DICTA_ENABLED === '0') throw new HttpError(503, 'הניקוד של דיקטה כבוי בשרת הזה.');
+    const text = v.str(ctx.body.text, { max: 3000, required: true, field: 'טקסט' });
+    dictaLimit(teacher.id);
+    let tokens;
+    try {
+      tokens = await dicta(text);
+    } catch (err) {
+      console.error('Dicta:', err.message);
+      throw new HttpError(502, 'דיקטה לא זמינה כרגע. נסו שוב בעוד רגע, או נקדו עם AI.');
+    }
+    return { text: dictaToText(tokens) };
+  });
+
   route('POST', '/api/ai/nikud', async (ctx) => {
     const teacher = requireTeacher(ctx);
     const text = v.str(ctx.body.text, { max: 3000, required: true, field: 'טקסט' });
@@ -793,6 +853,181 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     const pin = ctx.body.pin === undefined ? randomPin() : v.pin(ctx.body.pin);
     q.setPin.run(pin, p.id);
     return { path: pathOut(q.pathById.get(p.id)) };
+  });
+
+  // --- classes: one code and one login for several paths ---
+
+  function ownClass(ctx, id) {
+    const teacher = requireTeacher(ctx);
+    const c = q.classById.get(Number(id));
+    if (!c || c.teacher_id !== teacher.id) throw new HttpError(404, 'הכיתה לא נמצאה');
+    return c;
+  }
+
+  const classOut = (c) => ({ id: c.id, name: c.name, code: c.code, createdAt: c.created_at });
+
+  // { pathId: done } for one member, from the students rows linked to them.
+  const memberProgress = (memberId) => Object.fromEntries(q.memberDone.all(memberId).map((r) => [r.path_id, r.done]));
+
+  route('GET', '/api/classes', (ctx) => {
+    const teacher = requireTeacher(ctx);
+    return {
+      classes: q.classesOf.all(teacher.id).map((c) => ({ ...classOut(c), memberCount: c.member_count, pathCount: c.path_count })),
+    };
+  });
+
+  route('POST', '/api/classes', (ctx) => {
+    const teacher = requireTeacher(ctx);
+    const name = v.str(ctx.body.name, { max: 80, required: true, field: 'שם הכיתה' });
+    const r = q.insertClass.run(teacher.id, name, newCode());
+    return [201, { class: classOut(q.classById.get(Number(r.lastInsertRowid))) }];
+  });
+
+  route('GET', '/api/classes/:id', (ctx) => {
+    const c = ownClass(ctx, ctx.params.id);
+    const pathIds = q.classPathIds.all(c.id).map((r) => r.path_id);
+    return {
+      class: classOut(c),
+      pathIds,
+      taskCounts: Object.fromEntries(pathIds.map((id) => [id, q.taskCount.get(id).n])),
+      members: q.membersOf.all(c.id).map((m) => ({
+        id: m.id, name: m.name, avatar: m.avatar, hasSecret: Boolean(m.secret_hash), lastActive: m.last_active,
+        done: memberProgress(m.id),
+      })),
+    };
+  });
+
+  route('PUT', '/api/classes/:id', (ctx) => {
+    const c = ownClass(ctx, ctx.params.id);
+    if (ctx.body.name !== undefined) q.renameClass.run(v.str(ctx.body.name, { max: 80, required: true, field: 'שם הכיתה' }), c.id);
+    if (ctx.body.pathIds !== undefined) {
+      const ids = Array.isArray(ctx.body.pathIds) ? [...new Set(ctx.body.pathIds.map(Number))] : [];
+      for (const id of ids) ownPath(ctx, id);
+      tx(db, () => {
+        q.clearClassPaths.run(c.id);
+        ids.forEach((id, i) => q.addClassPath.run(c.id, id, i));
+      });
+    }
+    return { class: classOut(q.classById.get(c.id)) };
+  });
+
+  route('DELETE', '/api/classes/:id', (ctx) => {
+    q.deleteClass.run(ownClass(ctx, ctx.params.id).id);
+    return { ok: true };
+  });
+
+  const ownMember = (ctx, id) => {
+    const m = q.memberById.get(Number(id));
+    if (!m) throw new HttpError(404, 'התלמיד לא נמצא');
+    ownClass(ctx, m.class_id);
+    return m;
+  };
+
+  route('POST', '/api/class-members/:id/reset-secret', (ctx) => {
+    q.setMemberSecret.run(null, ownMember(ctx, ctx.params.id).id);
+    return { ok: true };
+  });
+
+  route('DELETE', '/api/class-members/:id', (ctx) => {
+    q.deleteMember.run(ownMember(ctx, ctx.params.id).id);
+    return { ok: true };
+  });
+
+  // --- the class, from the student's side ---
+
+  const classByCode = (code) => {
+    const c = q.classByCode.get(String(code).toUpperCase());
+    if (!c) throw new HttpError(404, 'לא מצאנו כיתה עם הקוד הזה');
+    return c;
+  };
+
+  // The class's published paths, as the student's home page lists them.
+  const classPaths = (c) => q.classPathIds.all(c.id)
+    .map((r) => q.pathById.get(r.path_id))
+    .filter((p) => p && p.published)
+    .map((p) => {
+      const theme = v.theme(JSON.parse(p.theme));
+      return { id: p.id, code: p.code, title: p.title, icon: theme.icon, color: theme.color, taskCount: q.taskCount.get(p.id).n };
+    });
+
+  const currentMember = (req, c) => {
+    const token = req.headers['x-class-token'];
+    const m = token && q.memberByToken.get(String(token));
+    if (!m || m.class_id !== c.id) throw new HttpError(401, 'צריך להיכנס לכיתה מחדש');
+    q.touchMember.run(m.id);
+    return m;
+  };
+
+  const memberState = (m) => ({ member: { id: m.id, name: m.name, avatar: m.avatar }, done: memberProgress(m.id) });
+
+  route('GET', '/api/c/:code', (ctx) => {
+    const c = classByCode(ctx.params.code);
+    return { class: { name: c.name, code: c.code }, paths: classPaths(c), join: { secretEmojis: SECRET_EMOJIS, avatars: AVATARS } };
+  });
+
+  route('POST', '/api/c/:code/name', (ctx) => {
+    const c = classByCode(ctx.params.code);
+    joinLimit(ctx.ip);
+    const m = q.memberByName.get(c.id, v.str(ctx.body.name, { max: 40, required: true, field: 'שם' }));
+    return { exists: Boolean(m), hasSecret: Boolean(m?.secret_hash) };
+  });
+
+  route('POST', '/api/c/:code/join', (ctx) => {
+    const c = classByCode(ctx.params.code);
+    joinLimit(ctx.ip);
+    const name = v.str(ctx.body.name, { max: 40, required: true, field: 'שם' });
+    const secret = secretString(ctx.body.secret);
+    const avatar = AVATARS.includes(ctx.body.avatar) ? ctx.body.avatar : '';
+    let m = q.memberByName.get(c.id, name);
+    if (!m) {
+      q.insertMember.run(c.id, name, crypto.randomBytes(24).toString('hex'), hashPassword(secret), avatar);
+      m = q.memberByName.get(c.id, name);
+    } else if (!m.secret_hash) {
+      q.setMemberSecret.run(hashPassword(secret), m.id);
+      if (avatar) q.setMemberAvatar.run(avatar, m.id);
+    } else {
+      secretLimit(`c${c.id}:${m.id}`);
+      if (!checkPassword(secret, m.secret_hash)) {
+        throw Object.assign(new HttpError(403, 'הסיסמה הסודית לא נכונה. נסו שוב, או בקשו מהמורה לאפס אותה.'), { code: 'wrong_secret' });
+      }
+    }
+    q.touchMember.run(m.id);
+    m = q.memberById.get(m.id);
+    // A student who already joined one of the class's paths on their own, with this same name
+    // and secret, continues there. The secret must match: a name alone proves nothing.
+    for (const { path_id: pathId } of q.classPathIds.all(c.id)) {
+      if (q.studentOfMember.get(pathId, m.id)) continue;
+      const solo = q.studentByName.get(pathId, m.name);
+      if (solo && !solo.class_member_id && solo.secret_hash && checkPassword(secret, solo.secret_hash)) {
+        q.linkStudent.run(m.id, solo.secret_hash, solo.avatar || m.avatar, solo.id);
+      }
+    }
+    return { token: m.token, ...memberState(m) };
+  });
+
+  route('GET', '/api/c/:code/me', (ctx) => {
+    const c = classByCode(ctx.params.code);
+    return memberState(currentMember(ctx.req, c));
+  });
+
+  // Opening a path from the class: the member's student record in that path, made on first use.
+  route('POST', '/api/c/:code/paths/:pathId/enter', (ctx) => {
+    const c = classByCode(ctx.params.code);
+    const m = currentMember(ctx.req, c);
+    const p = classPaths(c).find((x) => x.id === Number(ctx.params.pathId));
+    if (!p) throw new HttpError(404, 'המסלול לא נמצא בכיתה');
+    let s = q.studentOfMember.get(p.id, m.id);
+    if (!s) {
+      // Same-name records were linked at join time when the secret matched; any other
+      // same-name record belongs to someone else, so this member gets their own.
+      const sameName = q.studentByName.get(p.id, m.name);
+      {
+        const name = sameName ? `${m.name} (${c.name})`.slice(0, 40) : m.name;
+        q.insertLinkedStudent.run(p.id, name, crypto.randomBytes(24).toString('hex'), m.secret_hash, m.avatar, m.id);
+      }
+      s = q.studentOfMember.get(p.id, m.id);
+    }
+    return { code: p.code, token: s.token };
   });
 
   route('DELETE', '/api/students/:id', (ctx) => {

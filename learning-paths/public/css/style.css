@@ -36,6 +36,8 @@
 }
 
 * { box-sizing: border-box; }
+/* `hidden` must win over component display rules (e.g. .btn's inline-flex). */
+[hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
   font-family: var(--ui-font);
@@ -828,3 +830,26 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .dash-stat.alert { background: #fff4d6; box-shadow: none; }
 .dash-stat.alert strong, .dash-stat.alert span { color: #7a5a00; }
 .dash-stat.alert:hover { background: #ffecb3; }
+
+/* ===== class home (students) ===== */
+.class-back { display: block; padding: .45rem 1rem; background: var(--k-surface-2); color: var(--k-text); text-decoration: none; font-weight: 600; font-size: .95rem; }
+.class-paths { list-style: none; padding: 0; margin: 1rem 0 0; display: flex; flex-direction: column; gap: .8rem; }
+.class-path { width: 100%; display: flex; align-items: center; gap: 1rem; padding: 1rem 1.1rem; border-radius: 22px; border: 3px solid color-mix(in srgb, var(--accent) 35%, white); background: var(--k-surface); cursor: pointer; text-align: start; font: inherit; color: var(--k-text); box-shadow: 0 6px 0 color-mix(in srgb, var(--accent) 30%, white); transition: transform .1s; }
+.class-path:hover { transform: translateY(-2px); }
+.class-path-icon { flex: none; width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; font-size: 2rem; background: color-mix(in srgb, var(--accent) 15%, white); }
+.class-path-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .35rem; }
+.class-path-body strong { font-size: 1.25rem; }
+.class-path-bar { height: 10px; border-radius: 5px; background: var(--k-surface-2); overflow: hidden; }
+.class-path-bar span { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
+
+/* ===== classes (teacher) ===== */
+.classes-box { margin-top: 2.5rem; }
+.class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: .8rem; }
+.class-card { display: flex; align-items: center; gap: .8rem; padding: 1rem 1.1rem; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); text-decoration: none; color: var(--text); }
+.class-card:hover { box-shadow: 0 10px 28px rgba(30, 25, 70, .12); }
+.class-card-icon { font-size: 1.8rem; }
+.class-admin-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 1.2rem; margin-bottom: 1.5rem; }
+@media (max-width: 760px) { .class-admin-grid { grid-template-columns: 1fr; } }
+.class-path-picker { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .7rem; }
+.class-cell { display: inline-flex; align-items: center; gap: .3rem; text-decoration: none; }
+.section-title { margin: .5rem 0 .8rem; }

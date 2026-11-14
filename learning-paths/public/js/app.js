@@ -4,6 +4,8 @@ import { homePage, authPage, forgotPage, resetPage, dashboardPage, editorPage, t
 import { generatorPage } from './generator.js';
 import { billingPage } from './plan.js';
 import { studentPage, joinCodePage } from './student.js';
+import { classPage } from './classroom.js';
+import { classAdminPage } from './classes.js';
 
 const app = document.getElementById('app');
 export const session = { teacher: null, loaded: false };
@@ -33,6 +35,8 @@ const routes = [
   [/^#\/reset\/([0-9a-f]{64})$/, (m) => resetPage(app, m[1])],
   [/^#\/join$/, () => joinCodePage(app)],
   [/^#\/s\/([A-Za-z0-9]+)$/, (m) => studentPage(app, m[1].toUpperCase())],
+  [/^#\/c\/([A-Za-z0-9]+)$/, (m) => classPage(app, m[1].toUpperCase())],
+  [/^#\/class\/(\d+)$/, (m) => needTeacher(() => classAdminPage(app, Number(m[1]), topbar))],
   [/^#\/dashboard$/, () => needTeacher(() => dashboardPage(app))],
   [/^#\/generate$/, () => needTeacher(() => generatorPage(app, topbar))],
   [/^#\/billing$/, () => needTeacher(() => billingPage(app, topbar))],

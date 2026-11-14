@@ -18,7 +18,11 @@ export function joinCodePage(app) {
       class: 'card narrow center', onsubmit: (e) => {
         e.preventDefault();
         const code = input.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-        if (code) go(`#/s/${code}`);
+        if (!code) return;
+        // One box for both: a class code opens the class, anything else is tried as a path code.
+        api('GET', `/api/c/${code}`)
+          .then(() => go(`#/c/${code}`))
+          .catch(() => { storage(FROM_CLASS_KEY, null); go(`#/s/${code}`); });
       },
     },
       h('div', { class: 'big-emoji', 'aria-hidden': 'true' }, '🗺️'),
@@ -128,14 +132,21 @@ function badgeRow(s) {
   }));
 }
 
-function frame(s, ...children) {
+export const FROM_CLASS_KEY = 'lp-from-class';
+
+export function frame(s, ...children) {
+  const fromClass = !s.isClass && storage(FROM_CLASS_KEY);
   return mount(s.app,
+    fromClass && h('a', { class: 'class-back', href: `#/c/${fromClass}` }, '→ כל המסלולים שלי'),
     DEMO && h('div', { class: 'demo-bar' }, 'גרסת הדגמה · ', h('a', { href: '#/dashboard' }, 'חזרה למסך המורה')),
     s.preview && h('div', { class: 'preview-banner' }, '👀 תצוגה מקדימה – כך התלמידים יראו את המסלול. ההתקדמות לא נשמרת.'),
     children);
 }
 
-function showJoin(s) {
+// Joining works the same for one path (/api/s/CODE) and for a class (/api/c/CODE).
+const joinBase = (s) => s.joinBase || `/api/s/${s.code}`;
+
+export function showJoin(s) {
   const name = h('input', { type: 'text', maxlength: 40, required: true, autocomplete: 'given-name', 'aria-label': 'השם שלי', placeholder: 'השם שלי' });
   const submit = h('button', { class: 'btn primary big block', type: 'submit' }, 'המשך ←');
   frame(s, h('main', { class: 'center-page kid' },
@@ -144,7 +155,7 @@ function showJoin(s) {
         e.preventDefault();
         submit.disabled = true;
         try {
-          const r = await api('POST', `/api/s/${s.code}/name`, { name: name.value });
+          const r = await api('POST', `${joinBase(s)}/name`, { name: name.value });
           showSecret(s, name.value.trim(), r.hasSecret ? 'enter' : 'create');
         } catch (err) {
           toast(err.message, 'error');
@@ -156,7 +167,7 @@ function showJoin(s) {
       s.theme.buddy && buddySays(s, 'היי! אני אלווה אתכם לאורך כל המסלול 👋'),
       h('h1', { class: 'path-font' }, s.path.title),
       s.path.description && h('p', { class: 'path-font desc' }, s.path.description),
-      h('p', {}, `${s.tasks.length} משימות קטנות מחכות לכם`),
+      h('p', {}, s.joinIntro || `${s.tasks.length} משימות קטנות מחכות לכם`),
       h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'איך קוראים לכם?'), name),
       submit)));
   name.focus();
@@ -190,7 +201,8 @@ function showSecret(s, name, mode) {
   submit.onclick = async () => {
     submit.disabled = true;
     try {
-      const r = await api('POST', `/api/s/${s.code}/join`, { name, secret: picks, avatar });
+      const r = await api('POST', `${joinBase(s)}/join`, { name, secret: picks, avatar });
+      if (s.onJoined) return s.onJoined(r);
       s.token = r.token;
       storage(tokenKey(s.code), r.token);
       applyState(s, r);

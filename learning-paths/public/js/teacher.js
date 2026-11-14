@@ -11,6 +11,7 @@ import { celebrate } from './student.js';
 const THEME_FALLBACK = { color: '#6c5ce7', background: 'plain', font: 'rounded', mode: 'light' };
 import { nikudBar } from './nikud.js';
 import { imageField, audioField } from './media.js';
+import { classesSection } from './classes.js';
 import { DEMO } from './env.js';
 import { creditBadge, creditWord, cost, setCredits, showError } from './credits.js';
 
@@ -200,6 +201,7 @@ export function resetPage(app, token) {
 export async function dashboardPage(app) {
   const list = h('div', { class: 'path-grid' }, h('p', { class: 'muted' }, 'טוען…'));
   const summary = h('div', { class: 'dash-summary' });
+  const classesBox = h('section', { class: 'classes-box' });
   const hour = new Date().getHours();
   const hello = hour < 12 ? 'בוקר טוב' : hour < 17 ? 'צהריים טובים' : 'ערב טוב';
   mount(app, topbar(), h('main', { class: 'page' },
@@ -210,7 +212,9 @@ export async function dashboardPage(app) {
       h('div', { class: 'row wrap' },
         h('a', { class: 'btn secondary', href: '#/generate' }, '✨ מחולל מסלולים'),
         h('button', { class: 'btn primary', onclick: newPathDialog }, '+ מסלול חדש'))),
-    list));
+    list,
+    classesBox));
+  classesSection(classesBox);
 
   let paths;
   try {

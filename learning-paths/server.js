@@ -545,7 +545,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
   route('POST', '/api/billing/checkout', (ctx) => {
     const teacher = requireTeacher(ctx);
     if (billingCfg.paymentsMode !== 'test') {
-      throw new HttpError(503, 'התשלום המקוון עוד לא הופעל. כדי להצטרף למנוי, פנו למנהל/ת המערכת.');
+      throw new HttpError(503, 'התשלום המקוון עוד לא הופעל. כדי להצטרף למנוי, פנו להנהלת המערכת.');
     }
     tx(db, () => changeAccount(teacher.id, (acc) => {
       billing.activate(acc, billingCfg);
@@ -780,7 +780,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
   // Approving from the progress table, without the student's screen.
   route('POST', '/api/students/:id/tasks/:taskId/decision', (ctx) => {
     const s = q.studentById.get(Number(ctx.params.id));
-    if (!s) throw new HttpError(404, 'התלמיד/ה לא נמצא/ה');
+    if (!s) throw new HttpError(404, 'התלמיד לא נמצא');
     const p = ownPath(ctx, s.path_id);
     const t = studentTask(p, ctx.params.taskId);
     if (!q.progressRow.get(s.id, t.id)) throw new HttpError(400, 'המשימה עוד לא הושלמה');
@@ -797,7 +797,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
 
   route('DELETE', '/api/students/:id', (ctx) => {
     const s = q.studentById.get(Number(ctx.params.id));
-    if (!s) throw new HttpError(404, 'התלמיד/ה לא נמצא/ה');
+    if (!s) throw new HttpError(404, 'התלמיד לא נמצא');
     ownPath(ctx, s.path_id);
     q.deleteStudent.run(s.id);
     return { ok: true };
@@ -860,7 +860,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
 
   route('POST', '/api/students/:id/reset-secret', (ctx) => {
     const s = q.studentById.get(Number(ctx.params.id));
-    if (!s) throw new HttpError(404, 'התלמיד/ה לא נמצא/ה');
+    if (!s) throw new HttpError(404, 'התלמיד לא נמצא');
     ownPath(ctx, s.path_id);
     q.setSecret.run(null, s.id);
     return { ok: true };

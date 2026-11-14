@@ -19,7 +19,7 @@ import { creditBadge, creditWord, cost, setCredits, showError } from './credits.
 export function topbar(...extra) {
   return h('header', { class: 'topbar' },
     h('a', { class: 'brand', href: session.teacher ? '#/dashboard' : '#/' },
-      h('span', { class: 'brand-mark', 'aria-hidden': 'true' }, '〰️'), 'מסלולי למידה'),
+      brandMark(), 'מסלולי למידה'),
     h('div', { class: 'topbar-actions' },
       extra,
       creditBadge(),
@@ -36,29 +36,82 @@ async function logout() {
 
 // ---------- home ----------
 
+// The logo: a winding path with stations.
+export function brandMark() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 40 40');
+  svg.setAttribute('class', 'brand-mark');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = '<rect width="40" height="40" rx="11" fill="currentColor"/>'
+    + '<path d="M9 30c7 0 6-9 12-9s5-9 11-9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="0.5 5.5"/>'
+    + '<circle cx="9" cy="30" r="3.4" fill="#ffd166"/><circle cx="21" cy="21" r="3.4" fill="#fff"/><circle cx="32" cy="12" r="3.4" fill="#06d6a0"/>';
+  return svg;
+}
+
+// A small, non-interactive picture of the student's map, for the home page.
+function mapMockup() {
+  const station = (cls, dot, title, meta) => h('li', { class: `mock-station ${cls}` },
+    h('span', { class: 'mock-dot' }, dot), h('span', { class: 'mock-label' }, h('strong', {}, title), h('span', {}, meta)));
+  return h('div', { class: 'mock-phone', 'aria-hidden': 'true' },
+    h('div', { class: 'mock-head' }, h('span', {}, '🦊 היי נועם!'), h('span', { class: 'mock-stars' }, '⭐ 2')),
+    h('div', { class: 'mock-title' }, 'מחזור המים'),
+    h('div', { class: 'mock-progress' }, h('span', { style: { width: '40%' } })),
+    h('ol', { class: 'mock-map' },
+      station('done', '✓', 'מתכוננים', '2 דק׳'),
+      station('done', '✓', 'מה זה אידוי?', '3 דק׳'),
+      station('current', '🃏', 'משחק זיכרון', '4 דק׳ · 🦉'),
+      station('locked', '🔒', 'זמן עבודה', '8 דק׳'),
+      station('locked', '🔒', 'נכון או לא?', '3 דק׳')));
+}
+
 export function homePage(app) {
-  const features = [
-    ['🧩', 'משימות קטנות וברורות', 'מפרקים את הלמידה לצעדים קצרים, עם זמן משוער לכל משימה.'],
-    ['🎯', 'משימה אחת בכל פעם', 'מסך ממוקד בלי הסחות, עם התקדמות שרואים על המפה.'],
-    ['⏱️', 'שעון והפסקות', 'זמני עבודה מרוכזים והפסקות תנועה מובנות.'],
-    ['🎉', 'חיזוקים מיידיים', 'כוכבים וחגיגה קטנה בסיום כל משימה.'],
-    ['🎨', 'עיצוב אישי', 'צבעים, רקעים ופונטים בכתב יד – כולל ניקוד.'],
-    ['✋', 'כפתור "צריך עזרה"', 'רואים מיד מי נתקע ובאיזו משימה.'],
-    ['✨', 'מחולל מסלולים חכם', 'כותבים נושא, שכבת גיל ומטרות, מצרפים חומרים – ומקבלים מסלול מוכן לעריכה.'],
-    ['🃏', 'משחקים ותרגולים', 'משחק זיכרון, תפזורת, התאמה, סידור, השלמת מילים ונכון/לא נכון.'],
+  const forStudents = [
+    ['🎯', 'משימה אחת על המסך', 'בלי הסחות: משימה קצרה, ברורה, עם זמן משוער ומפה שמראה כמה נשאר.'],
+    ['🃏', 'משחקים ותרגול', 'משחק זיכרון, תפזורת, התאמה, סידור, השלמת מילים, נכון או לא נכון.'],
+    ['🙆', 'הפסקות תנועה', 'הפסקה קצרה עם הצעה לתנועה כל כמה משימות, עם שעון.'],
+    ['🏅', 'חיזוקים', 'כוכבים, תגים, חגיגה קטנה ודמות מלווה שמעודדת.'],
+    ['🔊', 'הקראה בקול המורה', 'ההוראות בקול שלכם, וניקוד מלא לקוראים מתחילים.'],
   ];
+  const forTeachers = [
+    ['✨', 'מחולל מסלולים', 'נושא, שכבת גיל ומטרות, אפשר לצרף דף עבודה – ומקבלים מסלול שלם לעריכה.'],
+    ['אָ', 'ניקוד אוטומטי', 'מנקדים כל שדה בלחיצה, או במקלדת הניקוד.'],
+    ['🧑‍🏫', 'אישור מורה', 'תחנות שבהן התלמיד ממתין עד שתקלידו את הקוד שלכם על המסך שלו.'],
+    ['🔎', 'איפה נתקעים', 'מי צריך עזרה, כמה ניסיונות, כמה זמן – ומה כדאי לפשט.'],
+    ['🎨', 'עיצוב בלחיצה', 'ערכות מוכנות: חלל, ים, יער, מחברת, מצב לילה ועוד.'],
+  ];
+  const card = ([icon, title, text]) => h('li', { class: 'home-feature' },
+    h('span', { class: 'home-feature-icon', 'aria-hidden': 'true' }, icon),
+    h('div', {}, h('h3', {}, title), h('p', {}, text)));
+
   mount(app,
-    topbar(h('a', { class: 'btn ghost small', href: '#/login' }, 'כניסה')),
+    topbar(h('a', { class: 'btn ghost small', href: '#/login' }, 'כניסה למורים')),
     h('main', { class: 'home' },
-      h('section', { class: 'hero' },
-        h('h1', {}, 'מסלולי למידה עצמאיים', h('br'), h('span', { class: 'accent' }, 'לתלמידים עם קשיי קשב')),
-        h('p', { class: 'lead' }, 'בונים מסלול, מוסיפים משימות, מעצבים – ומשתפים קוד עם הכיתה. התלמידים מתקדמים בקצב שלהם, ואת רואה בדיוק איפה כל אחד נמצא.'),
-        h('div', { class: 'row center wrap' },
-          h('a', { class: 'btn primary big', href: '#/register' }, 'הרשמה למורות – חינם'),
-          h('a', { class: 'btn secondary big', href: '#/join' }, 'אני תלמיד/ה – יש לי קוד'))),
-      h('section', { class: 'features' },
-        features.map(([icon, title, text]) => h('div', { class: 'feature' },
-          h('div', { class: 'feature-icon', 'aria-hidden': 'true' }, icon), h('h3', {}, title), h('p', {}, text))))));
+      h('section', { class: 'home-hero' },
+        h('div', { class: 'home-hero-text' },
+          h('p', { class: 'eyebrow' }, 'למידה עצמאית לתלמידים עם קשיי קשב'),
+          h('h1', {}, 'כל תלמיד מתקדם ', h('span', { class: 'accent' }, 'במסלול משלו')),
+          h('p', { class: 'lead' }, 'בונים מסלול של משימות קטנות, משחקים והפסקות, ומשתפים קוד עם הכיתה. התלמידים מתקדמים בקצב שלהם, ואתם רואים בדיוק מי מתקדם ומי צריך עזרה.'),
+          h('div', { class: 'row wrap' },
+            h('a', { class: 'btn primary big', href: '#/register' }, 'פתיחת חשבון למורים'),
+            h('a', { class: 'btn secondary big', href: '#/join' }, '🎒 אני תלמיד – יש לי קוד')),
+          h('p', { class: 'muted small' }, '20 קרדיטים חינם בהרשמה · בלי כרטיס אשראי')),
+        mapMockup()),
+
+      h('section', { class: 'home-steps' },
+        h('h2', {}, 'איך זה עובד'),
+        h('ol', {},
+          h('li', {}, h('strong', {}, 'בונים מסלול'), h('span', {}, 'לבד, ממסלול לדוגמה, או עם המחולל. מוסיפים תמונות, הקלטות וניקוד.')),
+          h('li', {}, h('strong', {}, 'משתפים קוד'), h('span', {}, 'התלמידים נכנסים עם הקוד, שם וסיסמה מתמונות – בלי אימייל.')),
+          h('li', {}, h('strong', {}, 'עוקבים ומאשרים'), h('span', {}, 'טבלת התקדמות, בקשות עזרה, אישור מורה ונתונים על איפה נתקעים.')))),
+
+      h('section', { class: 'home-columns' },
+        h('div', {}, h('h2', {}, 'לתלמידים'), h('ul', { class: 'home-features' }, forStudents.map(card))),
+        h('div', {}, h('h2', {}, 'למורים'), h('ul', { class: 'home-features' }, forTeachers.map(card)))),
+
+      h('section', { class: 'home-cta' },
+        h('h2', {}, 'נסו עם הכיתה שלכם'),
+        h('p', {}, 'פתיחת חשבון לוקחת דקה. מקבלים 20 קרדיטים חינם – מספיק לכמה מסלולים מלאים.'),
+        h('a', { class: 'btn big home-cta-btn', href: '#/register' }, 'פתיחת חשבון חינם'))));
 }
 
 // ---------- auth ----------
@@ -106,7 +159,7 @@ export function forgotPage(app) {
         .then(() => mount(form,
           h('h1', {}, 'בדקו את תיבת הדואר 📬'),
           h('p', {}, `אם קיים חשבון עם הכתובת ${email.value}, שלחנו אליה קישור לבחירת סיסמה חדשה. הקישור תקף לשעה.`),
-          h('p', { class: 'muted small' }, 'לא הגיע? בדקו בתיקיית הספאם, או פנו למנהל/ת המערכת.'),
+          h('p', { class: 'muted small' }, 'לא הגיע? בדקו בתיקיית הספאם, או פנו להנהלת המערכת.'),
           h('a', { class: 'btn block', href: '#/login' }, 'חזרה לכניסה')))
         .catch((err) => toast(err.message, 'error')));
     },
@@ -146,7 +199,12 @@ export function resetPage(app, token) {
 
 export async function dashboardPage(app) {
   const list = h('div', { class: 'path-grid' }, h('p', { class: 'muted' }, 'טוען…'));
+  const summary = h('div', { class: 'dash-summary' });
+  const hour = new Date().getHours();
+  const hello = hour < 12 ? 'בוקר טוב' : hour < 17 ? 'צהריים טובים' : 'ערב טוב';
   mount(app, topbar(), h('main', { class: 'page' },
+    h('p', { class: 'dash-hello' }, DEMO ? `${hello}!` : `${hello}, ${session.teacher.name}!`),
+    summary,
     h('div', { class: 'page-head' },
       h('h1', {}, 'המסלולים שלי'),
       h('div', { class: 'row wrap' },
@@ -164,11 +222,24 @@ export async function dashboardPage(app) {
     return mount(list, h('div', { class: 'empty card' },
       h('div', { class: 'empty-icon', 'aria-hidden': 'true' }, '🗺️'),
       h('h2', {}, 'עוד אין מסלולים'),
-      h('p', {}, 'צרי את המסלול הראשון שלך – בעצמך, ממסלול לדוגמה, או עם מחולל המסלולים שבונה מסלול שלם מנושא ומטרות.'),
+      h('p', {}, 'צרו את המסלול הראשון – בעצמכם, ממסלול לדוגמה, או עם מחולל המסלולים שבונה מסלול שלם מנושא ומטרות.'),
       h('div', { class: 'row center wrap' },
         h('a', { class: 'btn secondary', href: '#/generate' }, '✨ מחולל מסלולים'),
         h('button', { class: 'btn primary', onclick: newPathDialog }, 'יצירת מסלול בעצמי'))));
   }
+  // What needs attention first: approvals and help requests, then the totals.
+  const total = (k) => paths.reduce((n, p) => n + (p[k] || 0), 0);
+  const waiting = total('pendingApproval');
+  const helpNow = total('openHelp');
+  const firstWith = (k) => paths.find((p) => p[k] > 0);
+  mount(summary,
+    waiting > 0 && h('a', { class: 'dash-stat alert', href: `#/path/${firstWith('pendingApproval').id}/progress` },
+      h('strong', {}, waiting), h('span', {}, '🧑‍🏫 ממתינים לאישור')),
+    helpNow > 0 && h('a', { class: 'dash-stat alert', href: `#/path/${firstWith('openHelp').id}/progress` },
+      h('strong', {}, helpNow), h('span', {}, '✋ בקשות עזרה')),
+    h('div', { class: 'dash-stat' }, h('strong', {}, paths.length), h('span', {}, 'מסלולים')),
+    h('div', { class: 'dash-stat' }, h('strong', {}, paths.filter((p) => p.published).length), h('span', {}, 'פורסמו')),
+    h('div', { class: 'dash-stat' }, h('strong', {}, total('studentCount')), h('span', {}, 'תלמידים במסלולים')));
   mount(list, paths.map((p) => {
     const card = h('a', { class: 'path-card', href: `#/path/${p.id}` },
       h('div', { class: 'path-card-banner' }, h('span', { class: 'path-card-icon' }, p.theme.icon)),
@@ -363,7 +434,7 @@ function tasksTab(body, state) {
         saveOrder(ids);
       },
     },
-      h('span', { class: 'drag-handle', 'aria-hidden': 'true', title: 'גררי כדי לשנות סדר' }, '⠿'),
+      h('span', { class: 'drag-handle', 'aria-hidden': 'true', title: 'גוררים כדי לשנות סדר' }, '⠿'),
       h('span', { class: 'task-num' }, i + 1),
       h('span', { class: 'task-emoji', 'aria-hidden': 'true' }, t.emoji || type.icon),
       h('div', { class: 'task-info' },
@@ -511,7 +582,7 @@ const DEFAULT_TEXT = {
 
 const TEXT_LABEL = { choice: 'שאלה', question: 'שאלה' };
 const TEXT_PLACEHOLDER = {
-  choice: 'השאלה', question: 'השאלה שהתלמיד/ה יענה/תענה עליה',
+  choice: 'השאלה', question: 'השאלה שהתלמידים יענו עליה',
 };
 
 // existing: the saved task being edited (or null for a new one). draft: values to show
@@ -537,7 +608,7 @@ function taskForm(state, type, existing, onDone, draft = null) {
   } else if (type === 'choice') {
     const opts = listEditor(c.options || [], { placeholder: 'תשובה', min: 2, max: 6, correct: { index: c.correct ?? 0 } });
     const explanation = h('input', { type: 'text', maxlength: 1000, value: c.explanation || '', placeholder: 'למשל: נכון! כי…' });
-    extra.push(field('תשובות – סמני את הנכונה', opts), field('הסבר אחרי תשובה נכונה (לא חובה)', explanation));
+    extra.push(field('תשובות – סמנו את הנכונה', opts), field('הסבר אחרי תשובה נכונה (לא חובה)', explanation));
     collect = () => ({ options: opts.getValues().filter((s) => s.trim()), correct: opts.getCorrect(), explanation: explanation.value });
   } else if (type === 'checklist') {
     const items = listEditor(c.items || [], { placeholder: 'צעד קטן', min: 1, max: 15 });
@@ -616,7 +687,7 @@ function taskForm(state, type, existing, onDone, draft = null) {
     h('div', { class: 'row wrap' }, field('זמן משוער (דקות)', est)),
     h('label', { class: 'toggle approval-toggle' }, approval, h('span', { class: 'toggle-ui', 'aria-hidden': 'true' }),
       h('span', {}, h('strong', {}, '🧑‍🏫 עצירה לאישור המורה'),
-        h('span', { class: 'muted small block' }, 'בסוף המשימה התלמיד/ה ממתין/ה עד שתקלידי את קוד האישור שלך על המסך שלו/ה (או תאשרי מטבלת ההתקדמות).'))),
+        h('span', { class: 'muted small block' }, 'בסוף המשימה התלמידים ממתינים עד שתקלידו את קוד האישור שלכם על המסך שלהם (או תאשרו מטבלת ההתקדמות).'))),
     field('סמל', emoji),
     h('div', { class: 'row end' }, h('button', { type: 'button', class: 'btn ghost', onclick: () => m.close() }, 'ביטול'), submit));
   form.prepend(h('div', { class: 'form-tools' }, nikudBar(form), improveBtn));
@@ -735,7 +806,7 @@ function designTab(body, state) {
         swatches('card', CARDS, (o) => [h('span', { class: `card-sample ${o.value}` }), h('span', { class: 'small' }, o.name)])),
       h('fieldset', {}, h('legend', {}, 'דמות מלווה'),
         swatches('buddy', BUDDIES.map((b) => ({ value: b, name: b || 'בלי דמות' })), (o) => h('span', { class: 'swatch-emoji' }, o.value || '🚫')),
-        h('p', { class: 'muted small' }, 'הדמות עומדת ליד התלמיד/ה במפה ומעודדת אחרי כל משימה.')),
+        h('p', { class: 'muted small' }, 'הדמות מלווה את התלמידים במפה ומעודדת אחרי כל משימה.')),
       h('fieldset', {}, h('legend', {}, 'התקדמות, חגיגות והפסקות'),
         h('div', { class: 'stack' },
           h('label', { class: 'toggle' },
@@ -746,8 +817,8 @@ function designTab(body, state) {
           toggle('celebrate', 'חגיגה בסיום משימה', 'אנימציה קצרה וכוכב על כל משימה שהושלמה'),
           h('fieldset', { disabled: !theme.celebrate },
             swatches('celebration', CELEBRATIONS, (o) => [h('span', { class: 'swatch-emoji' }, o.icon), h('span', { class: 'small' }, o.name)])),
-          toggle('readAloud', 'כפתור הקראה', 'התלמיד/ה יכול/ה לשמוע את ההוראות בקול'),
-          toggle('sound', 'צלילים', 'צליל קצר בהצלחה, בטעות, בתג חדש ובסיום. כל תלמיד/ה יכול/ה להשתיק במכשיר שלו/ה.'))));
+          toggle('readAloud', 'כפתור הקראה', 'התלמידים יכולים לשמוע את ההוראות בקול'),
+          toggle('sound', 'צלילים', 'צליל קצר בהצלחה, בטעות, בתג חדש ובסיום. אפשר להשתיק בכל מכשיר.'))));
   };
 
   const renderPreview = () => {
@@ -795,7 +866,7 @@ function pinCard(state, { compact = false } = {}) {
   draw();
   return h('div', { class: `card pin-card${compact ? ' compact' : ''}` },
     h('h3', {}, '🧑‍🏫 קוד אישור המורה'),
-    !compact && h('p', { class: 'muted' }, 'במשימות שסימנת "עצירה לאישור המורה", התלמיד/ה ממתין/ה עד שתקלידי את הקוד הזה על המסך שלו/ה. אל תגלי אותו לתלמידים.'),
+    !compact && h('p', { class: 'muted' }, 'במשימות שסימנתם "עצירה לאישור המורה", התלמידים ממתינים עד שתקלידו את הקוד הזה על המסך שלהם. לא לגלות אותו לתלמידים!'),
     h('div', { class: 'row center wrap' }, code, showBtn),
     !compact && h('div', { class: 'row center wrap pin-actions' },
       h('button', { class: 'btn small', onclick: () => set({}) }, '🔄 קוד חדש'),
@@ -806,12 +877,12 @@ function pinCard(state, { compact = false } = {}) {
 function demoShareTab(body, state) {
   mount(body,
     !state.path.published && h('div', { class: 'notice warn' },
-      '⚠️ המסלול עדיין בטיוטה. כדי לנסות אותו כמו תלמיד/ה, לחצי קודם על "פרסום לתלמידים" למעלה.'),
+      '⚠️ המסלול עדיין בטיוטה. כדי לנסות אותו כמו תלמידים, לחצו קודם על "פרסום לתלמידים" למעלה.'),
     h('div', { class: 'card center demo-share' },
       h('h3', {}, 'קוד המסלול'),
       h('div', { class: 'big-code', dir: 'ltr' }, state.path.code),
-      h('p', {}, 'בגרסה המלאה, תלמידים נכנסים מהמחשב או מהטלפון שלהם עם הקוד הזה. בגרסת ההדגמה את יכולה לשחק את התלמיד/ה בעצמך: ההתקדמות תופיע בלשונית "התקדמות".'),
-      h('a', { class: 'btn primary big', href: `#/s/${state.path.code}` }, '🎒 כניסה כתלמיד/ה')),
+      h('p', {}, 'בגרסה המלאה, תלמידים נכנסים מהמחשב או מהטלפון שלהם עם הקוד הזה. בגרסת ההדגמה אפשר לשחק את התלמיד בעצמכם: ההתקדמות תופיע בלשונית "התקדמות".'),
+      h('a', { class: 'btn primary big', href: `#/s/${state.path.code}` }, '🎒 כניסה כתלמיד')),
     pinCard(state));
 }
 
@@ -820,11 +891,11 @@ function shareTab(body, state) {
   const link = `${location.origin}/#/s/${state.path.code}`;
   const copy = (text, what) => navigator.clipboard?.writeText(text)
     .then(() => toast(`${what} הועתק`, 'ok'))
-    .catch(() => toast('לא הצלחנו להעתיק – סמני והעתיקי ידנית', 'error'));
+    .catch(() => toast('לא הצלחנו להעתיק – אפשר לסמן ולהעתיק ידנית', 'error'));
 
   mount(body,
     !state.path.published && h('div', { class: 'notice warn' },
-      '⚠️ המסלול עדיין בטיוטה – התלמידים לא יוכלו להיכנס עד שתפרסמי אותו (כפתור "פרסום לתלמידים" למעלה).'),
+      '⚠️ המסלול עדיין בטיוטה – התלמידים לא יוכלו להיכנס עד שתפרסמו אותו (כפתור "פרסום לתלמידים" למעלה).'),
     h('div', { class: 'share-grid' },
       h('div', { class: 'card center' },
         h('h3', {}, 'קוד המסלול'),
@@ -896,7 +967,7 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
   if (!students.length) {
     return mount(el, h('div', { class: 'empty card' },
       h('div', { class: 'empty-icon', 'aria-hidden': 'true' }, '👋'),
-      h('p', {}, 'עוד אף תלמיד/ה לא הצטרפ/ה. שתפי את קוד המסלול בלשונית "שיתוף".')));
+      h('p', {}, 'עוד אין תלמידים במסלול. שתפו את קוד המסלול בלשונית "שיתוף".')));
   }
   const studentName = (id) => students.find((s) => s.id === id)?.name || '';
   const task = (id) => tasks.find((t) => t.id === id);
@@ -914,9 +985,9 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
     const d = s.done[t.id];
     let answer = null;
     if (t.type === 'question') answer = h('blockquote', { class: 'answer' }, d.answer);
-    if (t.type === 'choice') answer = h('p', {}, 'ענה/תה: ', h('strong', {}, t.content.options[d.answer] ?? '—'));
+    if (t.type === 'choice') answer = h('p', {}, 'התשובה: ', h('strong', {}, t.content.options[d.answer] ?? '—'));
     const m = modal(`${s.name} · ${t.title}`, [
-      h('p', { class: 'muted' }, `${d.approved === false ? 'סיים/ה, מחכה לאישור' : 'הושלם'} · ${formatDate(d.completedAt)}`),
+      h('p', { class: 'muted' }, `${d.approved === false ? 'הסתיים, מחכה לאישור' : 'הושלם'} · ${formatDate(d.completedAt)}`),
       answer || h('p', {}, d.approved === false ? 'המשימה הושלמה ומחכה לאישור שלך.' : 'המשימה סומנה כהושלמה ✓'),
       d.approved === false && h('div', { class: 'row end' }, decisionButtons(s, t, () => m.close())),
     ]);
@@ -935,13 +1006,13 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
     pending.length > 0 && h('div', { class: 'help-box approval-box' },
       h('h3', {}, `🧑‍🏫 ממתינים לאישור (${pending.length})`),
       h('ul', {}, pending.map(({ s, t }) => h('li', {},
-        h('span', {}, h('strong', {}, s.name), ' סיים/ה את ', h('strong', {}, `"${t.title}"`),
+        h('span', {}, h('strong', {}, s.name), ' סיימו את ', h('strong', {}, `"${t.title}"`),
           h('span', { class: 'muted small' }, ` · ${formatDate(s.done[t.id].completedAt)}`)),
         h('span', { class: 'row' }, decisionButtons(s, t)))))),
     help.length > 0 && h('div', { class: 'help-box' },
       h('h3', {}, `✋ בקשות עזרה (${help.length})`),
       h('ul', {}, help.map((x) => h('li', {},
-        h('span', {}, h('strong', {}, studentName(x.studentId)), ' צריך/ה עזרה ב', h('strong', {}, `"${task(x.taskId)?.title}"`),
+        h('span', {}, h('strong', {}, studentName(x.studentId)), ' מבקשים עזרה ב', h('strong', {}, `"${task(x.taskId)?.title}"`),
           h('span', { class: 'muted small' }, ` · ${formatDate(x.createdAt)}`)),
         h('button', {
           class: 'btn small', onclick: () => api('POST', `/api/help/${x.id}/resolve`).then(reload).catch((err) => toast(err.message, 'error')),
@@ -953,7 +1024,7 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
     h('div', { class: 'table-wrap' },
       h('table', { class: 'progress-table' },
         h('thead', {}, h('tr', {},
-          h('th', { class: 'sticky' }, 'תלמיד/ה'),
+          h('th', { class: 'sticky' }, 'תלמידים'),
           h('th', {}, 'התקדמות'),
           tasks.map((t, i) => h('th', { title: t.title }, h('span', { class: 'th-task' }, `${i + 1}. ${t.emoji || TASK_TYPES[t.type].icon}`))),
           h('th', {}, 'פעילות אחרונה'),
@@ -980,21 +1051,21 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
                   class: 'cell-btn', title: `${hasAnswer ? 'הצגת התשובה' : 'הושלם'}${time}`, 'aria-label': `${t.title}: הושלם${time}`, onclick: () => showAnswer(s, t),
                 }, hasAnswer ? '💬' : '✓'), missBadge);
               }
-              return h('td', { class: `cell${needsHelp ? ' help' : ''}`, title: needsHelp ? 'מבקש/ת עזרה' : 'עוד לא' }, needsHelp ? '✋' : '', missBadge);
+              return h('td', { class: `cell${needsHelp ? ' help' : ''}`, title: needsHelp ? 'ביקשו עזרה' : 'עוד לא' }, needsHelp ? '✋' : '', missBadge);
             }),
             h('td', { class: 'small muted' }, formatDate(s.lastActive)),
             h('td', { class: 'row-actions' }, h('button', {
               class: 'icon-btn', 'aria-label': `איפוס הסיסמה הסודית של ${s.name}`, title: 'איפוס הסיסמה הסודית', disabled: !s.hasSecret,
               onclick: async () => {
-                if (!(await confirmDialog(`לאפס את הסיסמה הסודית של ${s.name}? בכניסה הבאה הוא/היא יבחר/תבחר סיסמה חדשה. ההתקדמות נשמרת.`, { okText: 'איפוס' }))) return;
+                if (!(await confirmDialog(`לאפס את הסיסמה הסודית של ${s.name}? בכניסה הבאה תיבחר סיסמה חדשה. ההתקדמות נשמרת.`, { okText: 'איפוס' }))) return;
                 api('POST', `/api/students/${s.id}/reset-secret`).then(() => { toast('הסיסמה אופסה', 'ok'); reload(); }).catch((err) => toast(err.message, 'error'));
               },
             }, '🔑'), h('button', {
               class: 'icon-btn', 'aria-label': `הסרת ${s.name}`, title: 'הסרה מהמסלול', onclick: async () => {
-                if (!(await confirmDialog(`להסיר את ${s.name} מהמסלול? ההתקדמות שלו/ה תימחק.`, { okText: 'הסרה', danger: true }))) return;
+                if (!(await confirmDialog(`להסיר את ${s.name} מהמסלול? כל ההתקדמות במסלול תימחק.`, { okText: 'הסרה', danger: true }))) return;
                 api('DELETE', `/api/students/${s.id}`).then(reload).catch((err) => toast(err.message, 'error'));
               },
             }, '🗑️')));
         })))),
-    h('p', { class: 'muted small' }, '✓ הושלם · 💬 יש תשובה (לחצי לצפייה) · ⏳ מחכה לאישור שלך · ✋ ביקש/ה עזרה · ✗ מספר ניסיונות שגויים'));
+    h('p', { class: 'muted small' }, '✓ הושלם · 💬 יש תשובה (לחיצה לצפייה) · ⏳ מחכה לאישור שלכם · ✋ ביקשו עזרה · ✗ מספר ניסיונות שגויים'));
 }

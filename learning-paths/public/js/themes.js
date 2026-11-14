@@ -92,7 +92,7 @@ export const TASK_EMOJIS = ['📖', '✏️', '🎧', '🎬', '🤔', '💬', '�
 export const TASK_TYPES = {
   read: { group: 'basic', name: 'קריאה / הסבר', icon: '📖', desc: 'טקסט הסבר או הוראות, עם תמונה אופציונלית' },
   link: { group: 'basic', name: 'סרטון / קישור', icon: '🎬', desc: 'סרטון יוטיוב (מוטמע) או קישור לאתר' },
-  question: { group: 'basic', name: 'שאלה פתוחה', icon: '💬', desc: 'התלמיד/ה כותב/ת תשובה שתגיע אלייך' },
+  question: { group: 'basic', name: 'שאלה פתוחה', icon: '💬', desc: 'התלמידים כותבים תשובה, והיא מגיעה אליכם' },
   choice: { group: 'basic', name: 'שאלה אמריקאית', icon: '🤔', desc: 'בחירה מכמה תשובות, עם משוב מיידי' },
   checklist: { group: 'basic', name: 'רשימת צעדים', icon: '✅', desc: 'פירוק משימה לצעדים קטנים לסימון' },
   timer: { group: 'basic', name: 'זמן עבודה מרוכז', icon: '⏱️', desc: 'שעון עצר לעבודה ממוקדת לזמן קצוב' },

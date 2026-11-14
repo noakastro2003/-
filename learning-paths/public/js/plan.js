@@ -84,7 +84,7 @@ function render(app, topbar, b) {
       canceled && h('p', {}, `המנוי לא יתחדש. הקרדיטים של החודש זמינים עד ${dateLabel(sub.periodEnd)}.`),
       sub.status === 'expired' && h('p', { class: 'muted' }, 'המנוי הקודם הסתיים.'),
       h('div', { class: 'row wrap' },
-        !active && (b.paymentsMode === 'test' ? subscribeBtn : h('p', { class: 'notice warn' }, 'התשלום המקוון עוד לא הופעל. כדי להצטרף למנוי, פני למנהל/ת המערכת.')),
+        !active && (b.paymentsMode === 'test' ? subscribeBtn : h('p', { class: 'notice warn' }, 'התשלום המקוון עוד לא הופעל. כדי להצטרף למנוי, פנו להנהלת המערכת.')),
         active && h('button', { class: 'btn ghost', onclick: (e) => cancel(e.currentTarget) }, 'ביטול חידוש המנוי')),
       b.paymentsMode === 'test' && !active && h('p', { class: 'muted small' }, '🧪 מצב בדיקה: ההצטרפות מפעילה מנוי בלי לחייב כרטיס אשראי.')),
 

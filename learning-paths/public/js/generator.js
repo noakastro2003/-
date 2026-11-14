@@ -140,10 +140,10 @@ export async function generatorPage(app, topbar) {
       h('span', { class: 'gen-hero-icon', 'aria-hidden': 'true' }, '✨'),
       h('div', {},
         h('h1', {}, 'מחולל מסלולים'),
-        h('p', { class: 'muted' }, 'מספרים על השיעור – והבינה המלאכותית בונה מסלול מלא: הסברים קצרים, משחקים, שאלות, זמני עבודה והפסקות. המסלול נשמר כטיוטה, ואת עוברת עליו ומתקנת לפני שהתלמידים רואים אותו.'))),
+        h('p', { class: 'muted' }, 'מספרים על השיעור – והבינה המלאכותית בונה מסלול מלא: הסברים קצרים, משחקים, שאלות, זמני עבודה והפסקות. המסלול נשמר כטיוטה, כדי שתעברו עליו ותתקנו לפני שהתלמידים רואים אותו.'))),
     !status.enabled && h('div', { class: 'notice warn' }, DEMO
-      ? '⚠️ המחולל זמין כשפותחים את ההדגמה ב-claude.ai כשאת מחוברת לחשבון.'
-      : '⚠️ המחולל עוד לא הופעל בשרת הזה. כדי להפעיל אותו, מנהל/ת המערכת צריך/ה להגדיר מפתח API של Anthropic במשתנה הסביבה ANTHROPIC_API_KEY ולהפעיל מחדש את השרת.'),
+      ? '⚠️ המחולל זמין כשפותחים את ההדגמה ב-claude.ai עם חשבון מחובר.'
+      : '⚠️ המחולל עוד לא הופעל בשרת הזה. כדי להפעיל אותו, הנהלת המערכת צריכה להגדיר מפתח API של Anthropic במשתנה הסביבה ANTHROPIC_API_KEY ולהפעיל מחדש את השרת.'),
     h('form', { class: 'card gen-form', onsubmit: onSubmit },
       field('על מה המסלול?', topic),
       h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'שכבת גיל'), gradeRow),
@@ -158,8 +158,8 @@ export async function generatorPage(app, topbar) {
       h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'חומרי לימוד (לא חובה)'), drop, fileInput, fileList),
       field('עוד משהו שכדאי לדעת?', notes),
       h('p', { class: 'muted small privacy' }, DEMO
-        ? '🔒 בגרסת ההדגמה המחולל משתמש בחשבון Claude שלך (claude.ai יבקש אישור בפעם הראשונה). אל תצרפי מידע אישי על תלמידים.'
-        : '🔒 הנושא והקבצים נשלחים לעיבוד אצל Anthropic (Claude). אל תצרפי מידע אישי על תלמידים.'),
+        ? '🔒 בגרסת ההדגמה המחולל משתמש בחשבון Claude שלך (claude.ai יבקש אישור בפעם הראשונה). אין לצרף מידע אישי על תלמידים.'
+        : '🔒 הנושא והקבצים נשלחים לעיבוד אצל Anthropic (Claude). אין לצרף מידע אישי על תלמידים.'),
       costLine,
       h('div', { class: 'row center' }, submit))));
   topic.focus();

@@ -276,8 +276,8 @@ function showMap(s) {
           h('span', { class: 'station-meta' }, `${t.estMinutes} דק׳`,
             pending ? ' · 🧑‍🏫 מחכה לאישור המורה' : needsHelp ? ' · ✋ ביקשתי עזרה' : ''))),
       current && (s.theme.buddy
-        ? h('span', { class: 'buddy-here', 'aria-hidden': 'true', title: 'את/ה כאן!' }, s.theme.buddy)
-        : h('span', { class: 'you-are-here', 'aria-hidden': 'true' }, 'את/ה כאן!')));
+        ? h('span', { class: 'buddy-here', 'aria-hidden': 'true', title: 'אתם כאן!' }, s.theme.buddy)
+        : h('span', { class: 'you-are-here', 'aria-hidden': 'true' }, 'אתם כאן!')));
   });
 
   frame(s,
@@ -419,7 +419,7 @@ function showTask(s, i) {
         toast(err.message, 'error');
       }
     },
-  }, s.help.includes(t.id) ? '✋ המורה קיבלה את הבקשה' : '✋ צריך/ה עזרה');
+  }, s.help.includes(t.id) ? '✋ המורה קיבלה את הבקשה' : '✋ צריכים עזרה');
 
   finishBtn.onclick = async () => {
     if (!canFinish()) return;
@@ -566,7 +566,7 @@ function showApproval(s, i, explanation) {
       pin = '';
       draw();
       message.className = 'pin-message wrong';
-      message.textContent = err.status === 403 ? 'הקוד לא נכון. נסי שוב.' : err.message;
+      message.textContent = err.status === 403 ? 'הקוד לא נכון. אפשר לנסות שוב.' : err.message;
     }
   }
 
@@ -608,7 +608,7 @@ function showApproval(s, i, explanation) {
             h('button', { class: 'btn primary big', onclick: () => { s.pending = s.pending.filter((x) => x !== t.id); s.done[t.id] = { answer: null }; s.sinceBreak++; showWellDone(s, i, explanation); } }, 'המשך ←')]
           : [callBtn,
             h('div', { class: 'pin-box' },
-              h('p', { class: 'pin-label' }, 'למורה: הקלידי את קוד האישור'),
+              h('p', { class: 'pin-label' }, 'למורה: להקליד כאן את קוד האישור'),
               dots, message, keypad,
               h('div', { class: 'stack' }, approveBtn, redoBtn))],
         h('button', { class: 'btn ghost small', onclick: () => { document.removeEventListener('keydown', onKey); showMap(s); } }, 'חזרה למפה'))));
@@ -617,7 +617,7 @@ function showApproval(s, i, explanation) {
 
 // ----- rewards & breaks -----
 
-const CHEERS = ['איזה יופי! ממשיכים יחד?', 'ידעתי שתצליח/י!', 'עוד צעד קדימה במסלול!', 'אני גאה בך!', 'וואו, איזו עבודה!'];
+const CHEERS = ['איזה יופי! ממשיכים יחד?', 'ידעתי שתצליחו!', 'עוד צעד קדימה במסלול!', 'אני גאה בך!', 'וואו, איזו עבודה!'];
 
 function buddySays(s, text) {
   return h('div', { class: 'buddy-say' },

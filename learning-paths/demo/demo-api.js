@@ -58,7 +58,7 @@ function createPath({ title, description = '', theme = v.THEME_DEFAULTS, tasks =
 }
 
 const ready = (async () => {
-  store = await openStore(() => toast('השמירה נכשלה. בדקי את החיבור לאינטרנט.', 'error'));
+  store = await openStore(() => toast('השמירה נכשלה. בדקו את החיבור לאינטרנט.', 'error'));
   meta = store.docs.meta || { nextId: 1 };
   for (const [id, body] of Object.entries(store.docs)) {
     if (id.startsWith('path-')) paths.set(body.id, { approvalPin: randomPin(), ...body });
@@ -216,18 +216,18 @@ async function readFiles(files) {
 const SAMPLE_ERRORS = {
   not_granted: [403, 'כדי להשתמש במחולל צריך לאשר ל-claude.ai להשתמש ב-Claude בעמוד הזה.'],
   sampling_disabled: [403, 'Claude לא זמין בחשבון הזה.'],
-  rate_limited: [429, 'הגעת למגבלת השימוש ב-Claude כרגע. נסי שוב מאוחר יותר.'],
-  refused: [422, 'המחולל לא יכול ליצור מסלול לבקשה הזו. נסי לנסח את הנושא אחרת.'],
-  invalid_json: [502, 'המחולל החזיר תשובה לא תקינה. נסי שוב.'],
-  prompt_too_large: [400, 'החומרים ארוכים מדי. נסי קבצים קצרים יותר.'],
-  images_unavailable: [400, 'בתצוגה הזו אי אפשר לשלוח תמונות. נסי בלי תמונות.'],
-  image_rejected: [400, 'אחת התמונות לא נקראה. נסי תמונה אחרת.'],
+  rate_limited: [429, 'הגעתם למגבלת השימוש ב-Claude כרגע. נסו שוב מאוחר יותר.'],
+  refused: [422, 'המחולל לא יכול ליצור מסלול לבקשה הזו. נסו לנסח את הנושא אחרת.'],
+  invalid_json: [502, 'המחולל החזיר תשובה לא תקינה. נסו שוב.'],
+  prompt_too_large: [400, 'החומרים ארוכים מדי. נסו קבצים קצרים יותר.'],
+  images_unavailable: [400, 'בתצוגה הזו אי אפשר לשלוח תמונות. נסו בלי תמונות.'],
+  image_rejected: [400, 'אחת התמונות לא נקראה. נסו תמונה אחרת.'],
   session_expired: [401, 'צריך להתחבר שוב ל-claude.ai.'],
 };
 
 async function generate(body) {
   const sample = await getSample();
-  if (!sample) throw new HttpError(503, 'המחולל זמין כשפותחים את ההדגמה ב-claude.ai כשאת מחוברת לחשבון.');
+  if (!sample) throw new HttpError(503, 'המחולל זמין כשפותחים את ההדגמה ב-claude.ai עם חשבון מחובר.');
   const input = parseAiInput(body);
   const taken = charge('aiGenerate', input.topic);
   try {
@@ -259,7 +259,7 @@ async function generateWith(sample, input) {
   try {
     raw = await sample.json(prompt, { modelTier: 'complex', cache: false, ...(images.length ? { images } : {}) });
   } catch (e) {
-    const [status, message] = SAMPLE_ERRORS[e?.code] || [502, 'המחולל לא זמין כרגע. נסי שוב בעוד כמה דקות.'];
+    const [status, message] = SAMPLE_ERRORS[e?.code] || [502, 'המחולל לא זמין כרגע. נסו שוב בעוד כמה דקות.'];
     throw new HttpError(status, message);
   }
   const { title, description, theme, tasks, skipped } = pathFromAi(raw, input);
@@ -417,7 +417,7 @@ route('POST', '/api/students/:id/reset-secret', ({ params }) => {
     save(p, { touch: false });
     return { ok: true };
   }
-  throw new HttpError(404, 'התלמיד/ה לא נמצא/ה');
+  throw new HttpError(404, 'התלמיד לא נמצא');
 });
 
 route('DELETE', '/api/students/:id', ({ params }) => {
@@ -430,7 +430,7 @@ route('DELETE', '/api/students/:id', ({ params }) => {
     save(p);
     return { ok: true };
   }
-  throw new HttpError(404, 'התלמיד/ה לא נמצא/ה');
+  throw new HttpError(404, 'התלמיד לא נמצא');
 });
 
 route('POST', '/api/help/:id/resolve', ({ params }) => {
@@ -449,7 +449,7 @@ route('GET', '/api/ai/status', async () => ({ enabled: Boolean(await getSample()
 // A paid AI action through the viewer's own Claude account: credits back if it fails.
 async function withCredits(action, note, fn) {
   const sample = await getSample();
-  if (!sample) throw new HttpError(503, 'הבינה המלאכותית זמינה כשפותחים את ההדגמה ב-claude.ai כשאת מחוברת לחשבון.');
+  if (!sample) throw new HttpError(503, 'הבינה המלאכותית זמינה כשפותחים את ההדגמה ב-claude.ai עם חשבון מחובר.');
   const taken = charge(action, note);
   try {
     return await fn(sample);
@@ -457,7 +457,7 @@ async function withCredits(action, note, fn) {
     billing.refund(meta.account, taken);
     record(taken.cost, 'refund', note);
     if (err instanceof HttpError) throw err;
-    const [status, message] = SAMPLE_ERRORS[err?.code] || [502, 'השירות לא זמין כרגע. נסי שוב בעוד כמה דקות.'];
+    const [status, message] = SAMPLE_ERRORS[err?.code] || [502, 'השירות לא זמין כרגע. נסו שוב בעוד כמה דקות.'];
     throw new HttpError(status, message);
   }
 }
@@ -483,7 +483,7 @@ route('POST', '/api/ai/improve-task', async ({ body }) => {
       improvePrompt(original, { kind, custom }), 'Reply with only the one task as a JSON object.',
     ].join('\n\n'), { modelTier: 'complex', cache: false });
     const t = taskFromAi(raw);
-    if (t.type !== original.type) throw new HttpError(502, 'התקבלה משימה מסוג אחר. נסי שוב.');
+    if (t.type !== original.type) throw new HttpError(502, 'התקבלה משימה מסוג אחר. נסו שוב.');
     return t;
   });
   if (original.content.image) improved.content.image = original.content.image;
@@ -612,7 +612,7 @@ route('POST', '/api/students/:id/tasks/:taskId/decision', ({ params, body }) => 
     decide(p, s, studentTask(p, params.taskId), body.decision);
     return { ok: true };
   }
-  throw new HttpError(404, 'התלמיד/ה לא נמצא/ה');
+  throw new HttpError(404, 'התלמיד לא נמצא');
 });
 
 route('PUT', '/api/paths/:id/pin', ({ params, body }) => {

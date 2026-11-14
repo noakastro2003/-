@@ -134,7 +134,7 @@ async function callClaude(client, params, kind) {
     message = await stream.finalMessage();
   } catch (err) {
     if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
-      throw new HttpError(503, 'הבינה המלאכותית לא מוגדרת כראוי (מפתח API שגוי). פנו למנהל/ת המערכת.');
+      throw new HttpError(503, 'הבינה המלאכותית לא מוגדרת כראוי (מפתח API שגוי). פנו להנהלת המערכת.');
     }
     if (err instanceof Anthropic.RateLimitError) throw new HttpError(429, 'השירות עמוס כרגע. נסו שוב בעוד דקה.');
     if (err instanceof Anthropic.BadRequestError) {

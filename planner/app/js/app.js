@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 64; // keep in step with CACHE in sw.js
+const APP_V = 66; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -170,7 +170,12 @@ function setCk(w, k, v) {
   if (v) state.checks[w.id][k] = 1; else delete state.checks[w.id][k];
   save();
 }
-const LOG = { done: ['✅', 'הספקנו'], part: ['🌗', 'חלקית'], skip: ['⏭', 'לא הספקנו'] };
+const LOGMARK = {
+  done: '<svg class="lgm done" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9"/><path d="M6 10.4l2.6 2.6L14 7.6" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  part: '<svg class="lgm part" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.2" fill="none" stroke-width="1.8"/><path d="M10 1.8a8.2 8.2 0 0 1 0 16.4z"/></svg>',
+  skip: '<svg class="lgm skip" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.2" fill="none" stroke-width="1.8"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke-width="1.8" stroke-linecap="round"/></svg>',
+};
+const LOG = { done: [LOGMARK.done, 'הספקנו'], part: [LOGMARK.part, 'חלקית'], skip: [LOGMARK.skip, 'לא הספקנו'] };
 const getLog = (w, id) => (state.logs[w.id] || {})[id];
 function setLog(w, id, v) {
   state.logs[w.id] = state.logs[w.id] || {};
@@ -251,15 +256,15 @@ function top(title, sub, illus, opts = {}) {
   const dot = state.todos.some(todoDue) || bdOn(now()).length;
   return `<header class="top">
     <div class="brandrow">
-      <div class="brand">${opts.back ? `<button class="back" data-go="${opts.back}" aria-label="חזרה">${ic('chevR')}</button>` : ''}${logo('blogo')}<span>הכיתה שלי${spark('b')}${squiggle('s')}</span>${syncDot()}</div>
+      <div class="brand">${opts.back ? `<button class="back" data-go="${opts.back}" aria-label="חזרה">${ic('chevR')}</button>` : ''}${logo('blogo')}<span>הכיתה שלי${squiggle('s')}</span>${syncDot()}</div>
       <div class="hbtns">
         <button class="hb" data-day="all" aria-label="מערכת">${ic('calendar')}</button>
         <button class="hb" data-go="todos" aria-label="תזכורות">${ic('bell')}${dot ? '<i class="dot"></i>' : ''}</button>
       </div>
     </div>
     <div class="titlerow">
-      <div class="tt"><h1>${title}</h1>${squiggle('t')}<p>${ic('heart', 'h')}<span>${sub}</span></p></div>
-      ${illus ? `<div class="illus">${art(illus, 'bob')}${spark('i')}</div>` : ''}
+      <div class="tt"><h1>${noEmoji(title)}</h1>${squiggle('t')}<p>${ic('heart', 'h')}<span>${sub}</span></p></div>
+      ${illus ? `<div class="illus">${art(illus, 'bob')}</div>` : ''}
     </div>
   </header>`;
 }
@@ -403,7 +408,7 @@ function nowCard(w, day, p, ph) {
     </div>
     <div class="secpanel">${esc(secs[si].text)}</div>` : ''}
     ${needs || files ? `<div class="nc-cols ${needs && files ? 'two' : ''}">
-      ${needs ? `<div class="sub">${cardHead('check', 'מה צריך?', spark())}${needs}</div>` : ''}
+      ${needs ? `<div class="sub">${cardHead('check', 'מה צריך?')}${needs}</div>` : ''}
       ${files ? `<div class="sub">${cardHead('folder', 'קבצים')}${files}</div>` : ''}
     </div>` : ''}
     ${p.homework.length ? `<div class="hw">${ic('homework')}<div><b>שיעורי בית</b>${p.homework.map(x => `<div>${esc(x)}</div>`).join('')}</div></div>` : ''}
@@ -439,7 +444,7 @@ function tomorrowCard(w, nd) {
   const isTomorrow = sameDay(dayDate(w, nd), addDays(now(), 1));
   const row = (icon, label, val, attrs, hue) => `<button class="trow ${hue}${hue === 'hue-lav' ? ' lead' : ''}" ${attrs}><span class="tri">${icon}</span><span class="grow">${label} ${val}</span>${ic('chevL', 'chev')}</button>`;
   return `<div class="card tmrw hue-lav">
-    ${cardHead('calendar', isTomorrow ? 'מחר מחכה לך' : `יום ${nd.name} מחכה לך`, spark())}
+    ${cardHead('calendar', isTomorrow ? 'מחר מחכה לך' : `יום ${nd.name} מחכה לך`)}
     ${first ? row(ic('alarm'), `<span class="tpill">${esc(first.start)}</span>`, esc(first.title), `data-goto="${nd.dow}|${esc(first.label)}" data-gowk="${w.id}"`, 'hue-lav') : ''}
     ${pr && pr.items.length ? row(ic('printer'), '<b>להדפיס בבוקר:</b>', `${pr.items.length} פריטים`, `data-pday="${nd.dow}" data-gowk="${w.id}"`, 'hue-blue') : ''}
     ${br && br.items.length ? row(ic('backpack'), '<b>להביא:</b>', esc(br.items.slice(0, 2).map(i => i.text.split('–')[0].trim()).join(', ')) + (br.items.length > 2 ? ` ועוד ${br.items.length - 2}` : ''), `data-pday="${nd.dow}" data-gowk="${w.id}"`, 'hue-sage') : ''}
@@ -690,7 +695,7 @@ function viewFiles(w) {
   }
   // ---- pinned
   const pinned = Object.entries(state.pins).map(([url, text]) => files.find(f => f.url === url) || { url, text, uses: [] });
-  if (pinned.length) h += `<div class="card pinned">${cardHead('starFill', 'תמיד בשלוף', spark())}${pinned.map(f => fileRow(f)).join('')}</div>`;
+  if (pinned.length) h += `<div class="card pinned">${cardHead('starFill', 'תמיד בשלוף')}${pinned.map(f => fileRow(f)).join('')}</div>`;
   // ---- groups
   h += `<div class="seg fseg">${[['day', 'calendar', 'לפי יום'], ['subj', 'books', 'לפי מקצוע'], ['print', 'printer', 'להדפסה']].map(([v, i, l]) => `<button class="${mode === v ? 'on' : ''}" data-fgroup="${v}">${ic(i)}${l}</button>`).join('')}</div>`;
   const groups = []; // {key, title, sub, rows:[html]}
@@ -762,7 +767,7 @@ const diagText = d => d ? `קובץ: ${d.name} · ${d.type} · ${Math.round(d.si
 // ================================================================ dictation: shuffle the word order
 const isDict = p => /הכתבה/.test(`${p.title} ${p.subtitle} ${p.sections.map(s => s.label + ' ' + s.text).join(' ')}`);
 const splitWords = t => String(t || '').split(/[,،·\n]+|\s[–-]\s/).map(x => x.trim().replace(/^["״']|["״']$/g, '')).filter(x => x && x.length < 40);
-const dictBtn = (day, p) => `<button class="cta soft dictbtn" data-dict="${esc(day.dow + '|' + p.label)}">🎲 הגרלת סדר המילים להכתבה</button>`;
+const dictBtn = (day, p) => `<button class="cta soft dictbtn" data-dict="${esc(day.dow + '|' + p.label)}">${ic('dice')} הגרלת סדר המילים להכתבה</button>`;
 function dictSource(w, dow, label) {
   const k = `${w.id}:${dow}:${label}`;
   if (state.dict[k]) return state.dict[k];
@@ -787,7 +792,7 @@ function dictSheet(k, words, order) {
     <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
     <div class="ovh">${ic('text')}<h2>סדר המילים להכתבה</h2></div>
     ${order && order.length ? `<ol class="dlist" style="grid-template-rows:repeat(${Math.ceil(order.length / 2)},auto);grid-auto-flow:column">${order.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : `<p class="dim">${words.length ? `${words.length} מילים מוכנות להגרלה` : 'כותבים את המילים כאן (פסיק או שורה חדשה בין מילה למילה)'}</p>`}
-    <button class="cta" data-act="dictshuffle">🎲 ${order && order.length ? 'הגרלה חדשה' : 'להגריל סדר'}</button>
+    <button class="cta" data-act="dictshuffle">${ic('dice')} ${order && order.length ? 'הגרלה חדשה' : 'להגריל סדר'}</button>
     ${order && order.length ? `<button class="cta soft" data-act="projdict">${ic('screen')} הקרנה ללוח</button>` : ''}
     <label class="field">המילים<textarea id="dictIn" rows="4" placeholder="חבר, חברה, חברים…">${esc(words.join(', '))}</textarea></label>
   </div>`);
@@ -891,9 +896,9 @@ function viewMsgs(w) {
   }
   if (P.type === 'personal') {
     const kids = state.kids;
-    f = kids.length ? `<p class="pmlbl">לאיזה הורה?</p><div class="fchips">${kids.map(k => `<button class="fc ${o.kid === k.name ? 'on' : ''}" data-pmkid="${esc(k.name)}">${esc(k.name)}${k.phone ? ' 📞' : ''}</button>`).join('')}</div>`
+    f = kids.length ? `<p class="pmlbl">לאיזה הורה?</p><div class="fchips">${kids.map(k => `<button class="fc ${o.kid === k.name ? 'on' : ''}" data-pmkid="${esc(k.name)}">${esc(k.name)}${k.phone ? ' ' + ic('phone2') : ''}</button>`).join('')}</div>`
       : `<p class="hint">צריך קודם רשימת ילדים (עוד ← הכיתה שלי). עם טלפון של הורה – ההודעה תישלח ישר אליו.</p>`;
-    f += `<div class="seg pmscope"><button class="${o.kind === 'star' ? 'on' : ''}" data-pmkind="star">🌟 מילה טובה</button><button class="${o.kind !== 'star' ? 'on' : ''}" data-pmkind="update">${ic('phone2')} עדכון</button></div>`;
+    f += `<div class="seg pmscope"><button class="${o.kind === 'star' ? 'on' : ''}" data-pmkind="star">${ic('star')} מילה טובה</button><button class="${o.kind !== 'star' ? 'on' : ''}" data-pmkind="update">${ic('phone2')} עדכון</button></div>`;
     if (o.kid) {
       const ns = state.cnotes.filter(n => (n.kids || []).includes(o.kid)).slice(-8).reverse();
       if (ns.length) f += `<p class="pmlbl">מתוך יומן הכיתה:</p><div class="pmnotes">${ns.map(n => `<button class="${(o.noteIds || []).includes(n.id) ? 'on' : ''}" data-pmnote="${n.id}"><span>${(TAGS[n.tag] || TAGS.note)[0]}</span><span class="grow">${esc(n.text || TAGS[n.tag][1])}</span><small>${new Date(n.at).getDate()}.${new Date(n.at).getMonth() + 1}</small></button>`).join('')}</div>`;
@@ -924,7 +929,7 @@ function viewMsgs(w) {
   }
   if (P.type === 'mine') {
     f = state.pmtpl.length ? `<div class="pmnotes">${state.pmtpl.map(x => `<div class="pmtpl"><button data-pmtpl="${x.id}"><span>⭐</span><span class="grow">${esc(x.name)}</span></button><button class="iconbtn" data-pmtpldel="${x.id}" aria-label="מחיקה">${ic('trash')}</button></div>`).join('')}</div>`
-      : `<p class="hint">עוד אין תבניות. כותבים הודעה בכל סוג אחר ולוחצים "⭐ שמירה כתבנית".</p>`;
+      : `<p class="hint">עוד אין תבניות. כותבים הודעה בכל סוג אחר ולוחצים "${ic('star')} שמירה כתבנית".</p>`;
   }
   if (P.type === 'today') f = dayPick() + `<div class="fchips">${tog('learned', 'מה למדנו')}${tog('hw', 'שיעורי בית')}${tog('help', '"כאן לעזרה"')}</div>`;
   if (P.type === 'week') f = `<div class="fchips">${tog('learn', 'מה נלמד')}${tog('hw', 'שיעורי בית')}${tog('events', 'אירועים וימי הולדת')}</div>` + ta('gear', 'ציוד להביא השבוע (שורה לכל פריט, לא חובה)', 'מרקרים בארבעה צבעים');
@@ -1212,7 +1217,7 @@ function viewClass() {
   const wk = weekKey();
   const kings = Object.entries(state.kings || {}).map(([n, v]) => [n, v[wk] || 0, Object.values(v).reduce((a, b) => a + b, 0)]);
   h += `<div class="card">${cardHead('star', 'מלך שיעור 👑', `<span class="cnt">השבוע</span>`)}
-    ${state.kids.length ? `<div class="fchips wrap">${state.kids.map(k => { const r = kings.find(x => x[0] === k.name); return `<button class="fc ${r && r[1] ? 'on' : ''}" data-king="${esc(k.name)}">${esc(k.name)}${r && r[1] ? ` 👑${r[1] > 1 ? r[1] : ''}` : ''}</button>`; }).join('')}</div><p class="hint">לחיצה = עוד כתר השבוע · לחיצה ארוכה = ביטול כתר</p>${state._lastKing ? `<button class="linkbtn" data-unking="${esc(state._lastKing)}">↩︎ ביטול הכתר האחרון (${esc(state._lastKing)})</button>` : ''}` : '<p class="hint">צריך רשימת ילדים (עוד ← הכיתה שלי).</p>'}
+    ${state.kids.length ? `<div class="fchips wrap">${state.kids.map(k => { const r = kings.find(x => x[0] === k.name); return `<button class="fc ${r && r[1] ? 'on' : ''}" data-king="${esc(k.name)}">${esc(k.name)}${r && r[1] ? ` ${ic('crown')}${r[1] > 1 ? r[1] : ''}` : ''}</button>`; }).join('')}</div><p class="hint">לחיצה = עוד כתר השבוע · לחיצה ארוכה = ביטול כתר</p>${state._lastKing ? `<button class="linkbtn" data-unking="${esc(state._lastKing)}">↩︎ ביטול הכתר האחרון (${esc(state._lastKing)})</button>` : ''}` : '<p class="hint">צריך רשימת ילדים (עוד ← הכיתה שלי).</p>'}
   </div>`;
   return h;
 }
@@ -1677,7 +1682,7 @@ function tagClasses(wk) {
     if (c) p.cls = c.name;
   }
 }
-const clsChips = (sel, attr = 'data-cls') => `<div class="fchips clschips">${state.classes.map(c => `<button class="fc ${c.id === sel ? 'on' : ''}" ${attr}="${c.id}">${c.home ? '🏠 ' : ''}${esc(c.name)}</button>`).join('')}</div>`;
+const clsChips = (sel, attr = 'data-cls') => `<div class="fchips clschips">${state.classes.map(c => `<button class="fc ${c.id === sel ? 'on' : ''}" ${attr}="${c.id}">${c.home ? ic('home') + ' ' : ''}${esc(c.name)}</button>`).join('')}</div>`;
 function classesSheet() {
   syncCls();
   openOverlay(`<div class="ov sheet">
@@ -2063,7 +2068,7 @@ function viewTools() {
   const c = state.tcat;
   const list = BANK.filter(b => !c || (c === 'saved' ? state.tsaved.includes(b.id) : b.cat === c));
   let h = top('שיטות וטיפים', 'מה באמת עובד בכיתה – כל רעיון כאן נשען על מחקר, עם מקור', 'star', { back: 'more' });
-  h += `<button class="cta tkrand" data-act="tiprand">🎲 ${g('תני', 'תן')} לי רעיון לשיעור הבא</button>`;
+  h += `<button class="cta tkrand" data-act="tiprand">${ic('dice')} ${g('תני', 'תן')} לי רעיון לשיעור הבא</button>`;
   h += `<div class="fchips tkchips"><button class="fc ${!c ? 'on' : ''}" data-tcat="">${ic('layers')}הכל</button>${Object.entries(CATS).map(([k, [n, i]]) => `<button class="fc ${c === k ? 'on' : ''}" data-tcat="${k}">${ic(i)}${n}</button>`).join('')}<button class="fc ${c === 'saved' ? 'on' : ''}" data-tcat="saved">${ic('heart')}שמרתי</button></div>`;
   const groups = c ? [[c, list]] : Object.keys(CATS).map(k => [k, list.filter(b => b.cat === k)]);
   for (const [k, items] of groups) {
@@ -2088,7 +2093,7 @@ function tipSheet(id) {
       <p class="tksrc">${ic('book')} ${b.src[1] ? `<a href="${esc(b.src[1])}" target="_blank" rel="noopener">${esc(b.src[0])}</a>` : esc(b.src[0])}</p></div>
     <div class="btnrow">
       <button class="cta soft" data-tsave="${b.id}">${ic(saved ? 'heart' : 'heart')} ${saved ? 'שמור ♥' : 'לשמור'}</button>
-      ${b.act ? `<button class="cta" data-act="${b.act}">${ic('dice')} מי עונה?</button>` : `<button class="cta" data-act="tiprand">🎲 עוד רעיון</button>`}
+      ${b.act ? `<button class="cta" data-act="${b.act}">${ic('dice')} מי עונה?</button>` : `<button class="cta" data-act="tiprand">${ic('dice')} עוד רעיון</button>`}
     </div>
   </div>`);
 }
@@ -2156,7 +2161,7 @@ function viewSettings(w) {
     <details class="howto"><summary>איך מתקינים? (פעם אחת)</summary>
       <ol>
         <li>מתקינים מה־App Store את <b>Scriptable</b> (חינם).</li>
-        <li><button class="linkbtn" data-act="widgetcode">העתקת קוד הווידג׳ט 📋</button></li>
+        <li><button class="linkbtn" data-act="widgetcode">${ic('link')} העתקת קוד הווידג׳ט</button></li>
         <li>ב־Scriptable: ＋ ← מדביקים ← קוראים לסקריפט <b>הכיתה שלי</b>.</li>
         <li>במסך הבית: לחיצה ארוכה ← ＋ ← Scriptable ← בוחרים גודל ← עורכים את הווידג׳ט ← Script: <b>הכיתה שלי</b>.</li>
         <li>חוזרים לכאן ולוחצים "עדכון הווידג׳ט וההתראות". בפעם הראשונה האייפון ישאל אם לאשר התראות – מאשרים.</li>
@@ -2227,7 +2232,7 @@ function viewSummary(w) {
     ${tile(S.skip, '⏭ לא הספקנו')}${tile(`${S.pd}/${S.pt}`, '✂️ הכנות')}${tile(bds.length, '🎂 ימי הולדת')}
   </div>
   ${unmarked > 0 ? `<p class="hint">${unmarked} שיעורים עוד בלי סימון – אפשר לסמן ב"השבוע" או ב"מערכת".</p>` : ''}
-  <div class="card">${cardHead('arrowR', 'עובר לשבוע הבא', S.carry.length ? '<button class="linkbtn" data-act="copycarry">העתקה 📋</button>' : '')}
+  <div class="card">${cardHead('arrowR', 'עובר לשבוע הבא', S.carry.length ? `<button class="linkbtn" data-act="copycarry">${ic('link')} העתקה</button>` : '')}
     ${S.carry.length ? S.carry.map(x => `<div class="note"><b>${LOG[S.logs[x.id].s][0]} ${esc(x.p.title)} · יום ${esc(x.d.name)}</b><span>${esc(S.logs[x.id].note || '')}</span></div>`).join('') : '<p class="dim">כלום! הכל הספקתם 🎉</p>'}
   </div>
   ${bds.length ? `<div class="card">${cardHead('cake', 'חגגנו השבוע')}<p>${esc(names(bds))}</p></div>` : ''}`;
@@ -2485,7 +2490,7 @@ function tick() {
     const msg = t => { const m = $('#tMsg'); if (m) { m.textContent = t; m.classList.remove('pop'); void m.offsetWidth; m.classList.add('pop'); } };
     if (T.between) { T.between = false; T.round++; T.total = T.setMin * 60; T.endAt = Date.now() + T.total * 1000; bell(1); msg(''); castTimer(); }
     else if (T.round < T.rounds) { bell(3); T.between = true; T.total = 15; T.endAt = Date.now() + 15000; msg('עוברים תחנה! 🔔'); castTimer('עוברים תחנה!'); }
-    else { bell(3); T.running = false; clearInterval(tInt); if (!wantAwake) wakeOff(); msg('הזמן נגמר! 🎉'); confetti(); }
+    else { bell(3); T.running = false; clearInterval(tInt); if (!wantAwake) wakeOff(); msg('הזמן נגמר!'); }
   }
 }
 function renderTimerPill() {
@@ -2738,7 +2743,7 @@ async function saveAssign(form) {
   });
   state._pending = null;
   save(); closeOverlay(); rerender();
-  if (!existing) { toast(pending.length > 1 ? `${pending.length} קבצים נשמרו 📎` : 'הקובץ נשמר 📎'); confetti(); state.files.filter(f => !f.cloud).forEach(f => uploadCloud(f)); }
+  if (!existing) { toast(pending.length > 1 ? `${pending.length} קבצים נשמרו 📎` : 'הקובץ נשמר 📎'); state.files.filter(f => !f.cloud).forEach(f => uploadCloud(f)); }
   else toast('עודכן ✓');
 }
 async function cancelUpload() {
@@ -3090,7 +3095,6 @@ function saveNote(f) {
   state.cnotes.push({ id: uid(), w: N.ref ? w.id : null, dow: N.ref ? +dow : null, label: label || null, tag: N.tag, kids, text, at: new Date().toISOString(), done: false });
   save(); closeOverlay(); rerender();
   toast(N.tag === 'star' ? 'נשמר ⭐ איזה כיף!' : 'נשמר ✓');
-  if (N.tag === 'star') confetti();
 }
 function viewJournal() {
   const f = state.jfilter || '';
@@ -3741,7 +3745,7 @@ document.addEventListener('click', async e => {
     case 'stepsopen': state._stepsOpen = !state._stepsOpen; rerender(); break;
     case 'stepsback': state.prefs.stepsDone = false; save(); go('now'); break;
     case 'sharecode': { const c = soc.data && soc.data.me.code; if (!c) break; const tx = `היי! אני משתמשת באפליקציה "הכיתה שלי" לתכנון השבועי 💜\nבואי נהיה חברות שם ונשתף שיעורים – הקוד שלי: ${c}\nhttps://noa-hakita.netlify.app`; if (navigator.share) navigator.share({ text: tx }).catch(() => {}); else navigator.clipboard.writeText(tx).then(() => toast('הועתק 📋')); break; }
-    case 'shsend': { const S2 = state._share; socApi('send', { to: S2.to, kind: S2.kind, title: S2.title, data: S2.data }).then(r => { closeOverlay(); toast(`נשלח ל־${r.sent} ✓`); confetti(); }).catch(e => toast(e.code === 'too-big' ? 'השבוע גדול מדי לשליחה – שולחים כקובץ' : 'לא הצלחתי לשלוח 😕')); break; }
+    case 'shsend': { const S2 = state._share; socApi('send', { to: S2.to, kind: S2.kind, title: S2.title, data: S2.data }).then(r => { closeOverlay(); toast(`נשלח ל־${r.sent} ✓`); }).catch(e => toast(e.code === 'too-big' ? 'השבוע גדול מדי לשליחה – שולחים כקובץ' : 'לא הצלחתי לשלוח 😕')); break; }
     case 'shpub': { const S2 = state._share; socApi('publish', { title: S2.title, data: S2.data }).then(() => { closeOverlay(); toast('השיעור בספרייה שלך – כל החברות רואות אותו ⭐'); }).catch(() => toast('לא הצלחתי לשתף 😕')); break; }
     case 'shfile': closeOverlay(); shareWeek(state._share.data); break;
     case 'intakelesson': { const it = state._inbox; takeLesson(it.data, it.fromName); socApi('inbox-del', { id: it.id }).then(() => socLoad(true)); closeOverlay(); break; }
@@ -3924,7 +3928,7 @@ document.addEventListener('submit', e => {
   if (f.matches('[data-clsform]')) { e.preventDefault(); const c = state.classes.find(x => x.id === f.dataset.clsform); c.name = f.name.value.trim() || c.name; c.size = +f.size.value || 0; c.subject = f.subject.value.trim(); c.home = !c.subject; if (c.id === state.curClass) { state.prefs.cls = c.name; state.prefs.classSize = c.size || ''; } save(); classesSheet(); rerender(); toast('נשמר ✓'); return; }
   if (f.matches('[data-tplname]')) { e.preventDefault(); state.pmtpl.push({ id: uid(), name: f.n.value.trim() || 'תבנית', text: state._tplText }); save(); closeOverlay(); toast('נשמר בתבניות שלי ⭐'); return; }
   if (f.matches('[data-clsnew]')) { e.preventDefault(); syncCls(); state.classes.push({ id: 'c' + uid(), name: f.name.value.trim(), size: +f.size.value || 0, kids: [], home: false, subject: f.subject.value.trim() }); if (state.prefs.role === 'home') state.prefs.role = 'both'; save(); classesSheet(); rerender(); return; }
-  if (f.matches('[data-friendadd]')) { e.preventDefault(); const c = f.code.value.trim(); if (!c) return; socApi('add', { code: c }).then(r => { if (r.pending) toast(`נשלחה בקשה ל${r.friend.name || 'חברה'} – כשהיא תאשר, תהיו חברות`, 4000); else { toast(`${r.friend.name || 'החברה'} נוספה ✓`); confetti(); } f.code.value = ''; socLoad(true); }).catch(x => toast(x.code === 'no-such-code' ? 'לא מצאתי את הקוד – כדאי לבדוק שוב' : x.code === 'self' ? 'זה הקוד שלך 🙂' : 'לא הצלחתי להוסיף 😕')); return; }
+  if (f.matches('[data-friendadd]')) { e.preventDefault(); const c = f.code.value.trim(); if (!c) return; socApi('add', { code: c }).then(r => { if (r.pending) toast(`נשלחה בקשה ל${r.friend.name || 'חברה'} – כשהיא תאשר, תהיו חברות`, 4000); else { toast(`${r.friend.name || 'החברה'} נוספה ✓`); } f.code.value = ''; socLoad(true); }).catch(x => toast(x.code === 'no-such-code' ? 'לא מצאתי את הקוד – כדאי לבדוק שוב' : x.code === 'self' ? 'זה הקוד שלך 🙂' : 'לא הצלחתי להוסיף 😕')); return; }
   if (f.matches('[data-profile]')) { e.preventDefault(); socApi('profile', { name: f.name.value, school: f.school.value, subjects: f.subjects.value }).then(() => { toast('נשמר ✓'); socLoad(true); }); return; }
   if (f.matches('[data-ptnew]')) { e.preventDefault(); const t = f.t.value.trim(); if (!t) return; state.points.push({ name: t, pts: 0 }); save(); rerender(); return; }
   if (f.matches('[data-gnew]')) { e.preventDefault(); const id = uid(); state.grades.push({ id, title: f.title.value.trim(), kind: f.kind.value === 'אחר' ? (f.kindOther.value.trim() || 'אחר') : f.kind.value, max: +f.max.value || 100, date: isoDay(now()), scores: {} }); state.gOpen = id; save(); rerender(); return; }
@@ -3987,7 +3991,7 @@ document.addEventListener('submit', e => {
     (mode === 'signup' ? ID.signup(em, pw, { full_name: state.name }) : ID.login(em, pw))
       .then(async u => {
         if (mode === 'signup' && !u.confirmedAt) { err.textContent = ''; toast('שלחתי לך מייל אישור 📧 לוחצים על הקישור – ואת בפנים', 5000); f.classList.remove('busy'); return; }
-        sync.user = u; repMe(); toast('התחברת 💜 מסנכרנת…'); await pull(true); rerender(); confetti();
+        sync.user = u; repMe(); toast('התחברת 💜 מסנכרנת…'); await pull(true); rerender();
       })
       .catch(x => { err.textContent = authError(x); f.classList.remove('busy'); });
     return;
@@ -4129,7 +4133,10 @@ async function copyWidgetCode() {
 
 // ================================================================ toys
 let toastT;
+// system messages speak in words: emoji are stripped here (✓ is a glyph, it stays)
+const noEmoji = m => String(m).replace(/(?![✓✔])[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, '').replace(/\s{2,}/g, ' ').replace(/\s+([.,!?…])/g, '$1').trim();
 function toast(msg, ms = 2800, action) {
+  msg = noEmoji(msg);
   const t = $('#toast'); t.innerHTML = esc(msg) + (action ? ` <button class="tact" data-act="undo">${esc(action)}</button>` : ''); t.classList.toggle('hasact', !!action); t.classList.add('show');
   if (!action) state._undo = null;
   clearTimeout(toastT); if (ms) toastT = setTimeout(() => t.classList.remove('show'), ms);

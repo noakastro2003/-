@@ -1763,3 +1763,15 @@ html[data-skin=luxe] .ill img[src$=".webp"] { -webkit-mask-image: none !importan
 .dchips { padding-top: 14px !important; }
 .dcake { top: -11px !important; left: -6px !important; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 14px !important; line-height: 1;
   background: var(--card); box-shadow: 0 4px 8px -3px rgba(96, 70, 44, .4), inset 0 1.5px 1px rgba(255, 255, 255, .95), inset 0 -2px 4px rgba(122, 92, 60, .12); z-index: 2; }
+
+/* ================================================================ v75 · page switch: quick and light (no blur, short stagger) – a tab switch happens
+   many times a day, so it should feel instant and never stutter */
+html[data-skin=luxe] #view.enter > *, #view.enter > * {
+  animation: viewIn .28s cubic-bezier(.23, 1, .32, 1) both !important; animation-delay: calc(min(var(--i, 0), 5) * 22ms) !important; filter: none !important; }
+#view.enter > .top, html[data-skin=luxe] #view.enter > .top { animation: viewFade .2s ease-out both !important; animation-delay: 0ms !important; }
+@keyframes viewIn { from { opacity: 0; transform: translate3d(calc(var(--sx, 0px) * .4), 8px, 0); } }
+@keyframes viewFade { from { opacity: 0; } }
+/* cards further down: a soft rise when scrolled to, no blur */
+.rv:not(circle), html[data-skin=luxe] .rv:not(circle) { filter: none !important; opacity: 0; transform: translate3d(0, 12px, 0); }
+.rv.in:not(circle), html[data-skin=luxe] .rv.in:not(circle) { opacity: 1; transform: none; transition: opacity .35s ease-out, transform .45s cubic-bezier(.23, 1, .32, 1) !important; }
+@media (prefers-reduced-motion: reduce) { #view.enter > *, html[data-skin=luxe] #view.enter > * { animation: viewFade .15s both !important; } }

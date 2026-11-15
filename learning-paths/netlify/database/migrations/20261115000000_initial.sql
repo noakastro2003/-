@@ -176,3 +176,19 @@ CREATE TABLE IF NOT EXISTS rate_hits (
   at BIGINT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS rate_hits_bucket ON rate_hits(bucket, at);
+
+-- AI path generation runs as a background job: the request returns at once and the
+-- page checks the job until it is done.
+CREATE TABLE IF NOT EXISTS ai_jobs (
+  id TEXT PRIMARY KEY,
+  teacher_id BIGINT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'queued',   -- queued | running | done | failed
+  input TEXT NOT NULL,                     -- the request, JSON (with files)
+  taken TEXT NOT NULL,                     -- credits taken, JSON, for a refund on failure
+  result TEXT,                             -- the response body, JSON
+  error TEXT,
+  error_status BIGINT,
+  created_at BIGINT NOT NULL,
+  updated_at BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ai_jobs_teacher ON ai_jobs(teacher_id, created_at);

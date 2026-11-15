@@ -122,7 +122,9 @@ export async function generatorPage(app, topbar) {
         taskCount: Number(count.value), types: [...selectedTypes], nikud: nikud.checked,
         files: await Promise.all(files.map(async (f) => ({ name: f.name, type: f.type, data: await readAsBase64(f) }))),
       };
-      const r = await api('POST', '/api/ai/generate', payload);
+      let r = await api('POST', '/api/ai/generate', payload);
+      // On the hosted site the path is built in the background: check on it until it is ready.
+      if (r.jobId) r = await waitForJob(r.jobId);
       overlay.done();
       setCredits(r.credits);
       toast(`המסלול מוכן – ${r.taskCount} משימות! עברו עליו לפני הפרסום 🎉`, 'ok');
@@ -182,4 +184,21 @@ function loadingOverlay() {
     [icon.textContent, text.textContent] = LOADING_STEPS[i];
   }, 5000);
   return { done: () => { clearInterval(timer); overlay.remove(); } };
+}
+
+async function waitForJob(id) {
+  const started = Date.now();
+  for (;;) {
+    await new Promise((res) => setTimeout(res, 3000));
+    let job;
+    try {
+      job = await api('GET', `/api/ai/jobs/${id}`);
+    } catch (err) {
+      if (err.status >= 500 || !err.status) continue; // a network hiccup: keep waiting
+      throw err;
+    }
+    if (job.status === 'done') return job.result;
+    if (job.status === 'failed') throw Object.assign(new Error(job.error || 'היצירה נכשלה'), { status: job.errorStatus });
+    if (Date.now() - started > 16 * 60 * 1000) throw new Error('היצירה לוקחת יותר מדי זמן. נסו לרענן את הדף בעוד כמה דקות.');
+  }
 }

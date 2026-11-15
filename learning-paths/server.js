@@ -198,6 +198,13 @@ export function whenText(ms) {
 
 export function createApp(db, {
   ai, billingCfg = billingConfig(), mailer = createMailer(), dicta = callDicta,
+  // startJob(id): runs a generation job elsewhere (Netlify: a background function). When
+  // unset, generation runs inside the request.
+  startJob = null,
+  // mediaStore: { put(id, buffer, mime), get(id) → Buffer | null } for uploaded files.
+  // When unset, the bytes are kept in the database.
+  mediaStore = null,
+  mediaMaxBytes = MEDIA_MAX_BYTES,
   // Teachers whose email is listed here manage promo codes (comma-separated ADMIN_EMAILS).
   adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean),
 } = {}) {
@@ -355,6 +362,11 @@ export function createApp(db, {
     setPromoActive: db.prepare('UPDATE promo_codes SET active = ? WHERE code = ?'),
     usePromo: db.prepare('UPDATE promo_codes SET uses = uses + 1 WHERE code = ?'),
     redeemOnce: db.prepare('INSERT INTO promo_redemptions (code, teacher_id) VALUES (?, ?) ON CONFLICT DO NOTHING'),
+    insertJob: db.prepare(`INSERT INTO ai_jobs (id, teacher_id, input, taken, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`),
+    jobById: db.prepare('SELECT * FROM ai_jobs WHERE id = ?'),
+    claimJob: db.prepare("UPDATE ai_jobs SET status = 'running', updated_at = ? WHERE id = ? AND status = 'queued' RETURNING *"),
+    finishJob: db.prepare('UPDATE ai_jobs SET status = ?, result = ?, error = ?, error_status = ?, updated_at = ?, input = \'{}\' WHERE id = ?'),
+    claimStale: db.prepare("UPDATE ai_jobs SET status = 'failed', error = 'timeout', updated_at = ? WHERE id = ? AND status = ?"),
     setDiscount: db.prepare('UPDATE teachers SET discount_percent = ?, discount_code = ? WHERE id = ?'),
   };
 
@@ -558,6 +570,15 @@ export function createApp(db, {
     else if (decision === 'approve') await q.approveProgress.run(studentId, taskId);
     else throw new HttpError(400, 'החלטה לא תקינה');
     await q.resolveHelpForTask.run(studentId, taskId);
+  }
+
+  // ----- uploaded files -----
+
+  // The row (owner, type, size for the quota) is always in the database; the bytes go to
+  // the media store when there is one (Netlify Blobs), else into the row.
+  async function saveMedia(id, teacherId, mime, buf) {
+    if (mediaStore) await mediaStore.put(id, buf, mime);
+    await q.insertMedia.run(id, teacherId, mime, buf.length, mediaStore ? null : buf);
   }
 
   // ----- promo codes -----
@@ -894,14 +915,14 @@ export function createApp(db, {
     const teacher = requireTeacher(ctx);
     const buf = Buffer.from(typeof ctx.body.data === 'string' ? ctx.body.data : '', 'base64');
     if (!buf.length) throw new HttpError(400, 'הקובץ ריק');
-    if (buf.length > MEDIA_MAX_BYTES) throw new HttpError(413, 'הקובץ גדול מדי (עד 5MB)');
+    if (buf.length > mediaMaxBytes) throw new HttpError(413, `הקובץ גדול מדי (עד ${Math.floor(mediaMaxBytes / 1048576)}MB)`);
     const mime = sniffMedia(buf);
     if (!mime) throw new HttpError(400, 'אפשר להעלות תמונה (PNG, JPG, GIF, WebP) או הקלטה (WebM, OGG, MP3, M4A, WAV)');
     if ((await q.mediaUsage.get(teacher.id)).total + buf.length > MEDIA_QUOTA_BYTES) {
       throw new HttpError(413, 'נגמר המקום לקבצים בחשבון (200MB)');
     }
     const id = crypto.randomBytes(16).toString('hex');
-    await q.insertMedia.run(id, teacher.id, mime, buf.length, buf);
+    await saveMedia(id, teacher.id, mime, buf);
     return [201, { url: `/api/media/${id}`, mime }];
   }, { maxBody: 8 * 1024 * 1024 });
 
@@ -912,6 +933,25 @@ export function createApp(db, {
     return { enabled: aiEnabled, grades: GRADES, types: AI_TASK_TYPES, costs: billingCfg.costs };
   });
 
+  // The slow part of generating a path: the model, then saving the path. Refunds on failure.
+  async function generateInto(teacherId, input, taken) {
+    let result;
+    try {
+      result = pathFromAi(await aiTools().generatePath(input), input);
+    } catch (err) {
+      await refundCharge(teacherId, taken, input.topic);
+      throw err;
+    }
+    const { title, description, theme, tasks, skipped } = result;
+    const id = await tx(db, async () => {
+      const r = await insertPath(teacherId, title, description, await newCode(), JSON.stringify(theme));
+      const pathId = Number(r.lastInsertRowid);
+      for (const t of tasks) await insertTask(pathId, t);
+      return pathId;
+    });
+    return { path: pathOut(await q.pathById.get(id)), taskCount: tasks.length, skipped, credits: await availableCredits(teacherId) };
+  }
+
   route('POST', '/api/ai/generate', async (ctx) => {
     const teacher = requireTeacher(ctx);
     if (!aiEnabled) throw new HttpError(503, 'מחולל המסלולים עוד לא הופעל בשרת הזה (חסר מפתח API).');
@@ -921,22 +961,36 @@ export function createApp(db, {
     // Credits are taken before the (slow) generation so two requests can't both spend
     // the last ones, and handed back if no path comes out of it.
     const taken = await tx(db, async () => await charge(teacher.id, 'aiGenerate', input.topic));
-    let result;
+    if (!startJob) return [201, await generateInto(teacher.id, input, taken)];
+
+    // Hosted on Netlify: requests may not run long, so a background function does the work.
+    const id = crypto.randomBytes(16).toString('hex');
+    await q.insertJob.run(id, teacher.id, JSON.stringify(input), JSON.stringify(taken), Date.now(), Date.now());
     try {
-      result = pathFromAi(await aiTools().generatePath(input), input);
+      await startJob(id);
     } catch (err) {
+      await q.finishJob.run('failed', null, 'לא הצלחנו להתחיל את היצירה. נסו שוב.', 500, Date.now(), id);
       await refundCharge(teacher.id, taken, input.topic);
       throw err;
     }
-    const { title, description, theme, tasks, skipped } = result;
-    const id = await tx(db, async () => {
-      const r = await insertPath(teacher.id, title, description, await newCode(), JSON.stringify(theme));
-      const pathId = Number(r.lastInsertRowid);
-      for (const t of tasks) await insertTask(pathId, t);
-      return pathId;
-    });
-    return [201, { path: pathOut(await q.pathById.get(id)), taskCount: tasks.length, skipped, credits: await availableCredits(teacher.id) }];
+    return [202, { jobId: id }];
   }, { maxBody: MAX_UPLOAD_BODY });
+
+  route('GET', '/api/ai/jobs/:id', async (ctx) => {
+    const teacher = requireTeacher(ctx);
+    const job = await q.jobById.get(String(ctx.params.id));
+    if (!job || job.teacher_id !== teacher.id) throw new HttpError(404, 'לא מצאנו את היצירה');
+    // A job that never finished (the background run died) counts as failed after 15 minutes.
+    if ((job.status === 'queued' || job.status === 'running') && Date.now() - job.updated_at > 15 * 60 * 1000) {
+      if ((await q.claimStale.run(Date.now(), job.id, job.status)).changes) {
+        await refundCharge(teacher.id, JSON.parse(job.taken), 'יצירה שלא הסתיימה');
+      }
+      return { status: 'failed', error: 'היצירה לקחה יותר מדי זמן. הקרדיטים הוחזרו, נסו שוב.' };
+    }
+    if (job.status === 'done') return { status: 'done', result: JSON.parse(job.result) };
+    if (job.status === 'failed') return { status: 'failed', error: job.error, errorStatus: job.error_status };
+    return { status: job.status };
+  });
 
   route('PUT', '/api/paths/:id/order', async (ctx) => {
     const p = await ownPath(ctx, ctx.params.id);
@@ -1395,7 +1449,7 @@ export function createApp(db, {
       throw new HttpError(413, 'אין מקום להקלטות כרגע. ספרו למורה.');
     }
     const id = crypto.randomBytes(16).toString('hex');
-    await q.insertMedia.run(id, p.teacher_id, mime, buf.length, buf);
+    await saveMedia(id, p.teacher_id, mime, buf);
     return [201, { url: `/api/media/${id}` }];
   }, { maxBody: 6 * 1024 * 1024 });
 
@@ -1459,7 +1513,23 @@ export function createApp(db, {
 
   // ----- dispatcher -----
 
-  return async function handler(req, res) {
+  // Runs a queued generation job (from the background function). Safe to call twice.
+  async function runJob(id) {
+    const job = await q.claimJob.get(Date.now(), String(id));
+    if (!job) return;
+    const taken = JSON.parse(job.taken);
+    try {
+      const result = await generateInto(job.teacher_id, JSON.parse(job.input), taken);
+      await q.finishJob.run('done', JSON.stringify(result), null, null, Date.now(), job.id);
+    } catch (err) {
+      // generateInto already refunded the credits.
+      const known = err instanceof HttpError;
+      if (!known) console.error(err);
+      await q.finishJob.run('failed', null, known ? err.message : 'שגיאה ביצירת המסלול. הקרדיטים הוחזרו, נסו שוב.', known ? err.status : 500, Date.now(), job.id);
+    }
+  }
+
+  const handler = async function handler(req, res) {
     res.setHeader('Content-Security-Policy', CSP);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
@@ -1472,7 +1542,8 @@ export function createApp(db, {
       const media = /^\/api\/media\/([0-9a-f]{32})$/.exec(pathname);
       if (media && req.method === 'GET') {
         const m = await q.mediaById.get(media[1]);
-        if (!m) throw new HttpError(404, 'הקובץ לא נמצא');
+        if (m && !m.data && mediaStore) m.data = await mediaStore.get(media[1]);
+        if (!m?.data) throw new HttpError(404, 'הקובץ לא נמצא');
         res.writeHead(200, {
           'Content-Type': m.mime,
           'Content-Length': m.data.length,
@@ -1504,6 +1575,8 @@ export function createApp(db, {
       send(res, 500, { error: 'שגיאת שרת' });
     }
   };
+  handler.runJob = runJob;
+  return handler;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {

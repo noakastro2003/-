@@ -78,7 +78,9 @@ export const tx = (db, fn) => db.transaction(fn);
 function pgliteBackend(dataDir) {
   let pg;
   const ready = (async () => {
-    const { PGlite } = await import('@electric-sql/pglite');
+    // Not a literal import: the hosted build must not bundle PGlite (it is for local runs only).
+    const pkg = '@electric-sql/pglite';
+    const { PGlite } = await import(pkg);
     pg = new PGlite(dataDir || undefined, { parsers: { [INT8]: Number, [NUMERIC]: Number } });
     await pg.waitReady;
     for (const f of migrationFiles()) await pg.exec(fs.readFileSync(f, 'utf8'));

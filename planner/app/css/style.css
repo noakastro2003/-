@@ -1685,3 +1685,5 @@ html[data-skin=luxe] .tab .ic { transition: transform .5s cubic-bezier(.3, 1.9, 
 html[data-skin=luxe] .nowc .segind { top: 4px !important; bottom: 4px !important; height: auto !important; right: 4px; width: calc((100% - 8px) / var(--n)) !important; border-radius: 999px !important; }
 html[data-skin=luxe] .nowc .segtabs button.on { color: var(--ink); font-weight: 700; }
 html[data-skin=luxe] .nowc .segtabs { border-radius: 999px !important; overflow: hidden; }
+html[data-skin=luxe] .nowc .segtabs { padding: 4px !important; } html[data-skin=luxe] .nowc .segtabs button { border-radius: 999px; padding: 9px 4px; }
+html[data-skin=luxe] .nowc .ring svg { overflow: visible; } html[data-skin=luxe] .nowc .ring circle { r: 42px; stroke-width: 10; }

@@ -17,6 +17,8 @@ for (const f of ['demo-api.js', 'store.js', 'api.js']) {
   fs.copyFileSync(path.join(root, 'demo', f), path.join(out, 'js', f));
 }
 fs.writeFileSync(path.join(out, 'js', 'env.js'), 'export const DEMO = true;\n');
+fs.mkdirSync(path.join(out, 'content'));
+fs.copyFileSync(path.join(root, 'content', 'library-data.js'), path.join(out, 'content', 'library-data.js'));
 
 // The page itself: the artifact host adds doctype/head/body, so no wrapper tags here.
 fs.writeFileSync(path.join(out, 'index.html'), `<title>מסלולי למידה</title>

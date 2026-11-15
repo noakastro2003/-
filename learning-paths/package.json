@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node --no-warnings server.js",
     "test": "node --no-warnings --test test/*.test.js",
-    "admin": "node --no-warnings admin.js"
+    "admin": "node --no-warnings admin.js",
+    "content": "node --no-warnings scripts/content.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.135.0"

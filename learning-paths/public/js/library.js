@@ -93,21 +93,24 @@ export async function libraryPage(app, topbar) {
   const search = h('input', { type: 'search', placeholder: 'חיפוש: שברים, חגים, אותיות…', 'aria-label': 'חיפוש' });
   const grade = h('select', { 'aria-label': 'שכבת גיל' }, h('option', { value: '' }, 'כל הגילים'), GRADES.map((g) => h('option', { value: g }, g)));
   const subject = h('select', { 'aria-label': 'מקצוע' }, h('option', { value: '' }, 'כל המקצועות'), SUBJECTS.map((x) => h('option', { value: x }, x)));
+  const source = h('select', { 'aria-label': 'מקור' },
+    [['', 'כל המסלולים'], ['ready', '⭐ מסלולים מוכנים'], ['shared', '👩‍🏫 ששיתפו מורים']].map(([val, label]) => h('option', { value: val }, label)));
   const list = h('div', { class: 'lib-grid' });
   const draw = () => {
     const q = search.value.trim();
-    const shown = items.filter((x) => (!q || `${x.title} ${x.description} ${x.subject}`.includes(q))
-      && (!grade.value || x.grade === grade.value) && (!subject.value || x.subject === subject.value));
+    const shown = items.filter((x) => (!q || `${x.title} ${x.description} ${x.subject} ${x.curriculum || ''}`.includes(q))
+      && (!grade.value || x.grade === grade.value) && (!subject.value || x.subject === subject.value)
+      && (!source.value || (source.value === 'ready') === Boolean(x.ready)));
     mount(list, shown.length ? shown.map((x) => libCard(x)) : h('p', { class: 'muted' },
       items.length ? 'לא נמצאו מסלולים. נסו חיפוש אחר.' : 'הספרייה עוד ריקה. אפשר להיות הראשונים לשתף: בלשונית "שיתוף" של מסלול.'));
   };
-  [search, grade, subject].forEach((el) => el.addEventListener('input', draw));
+  [search, grade, subject, source].forEach((el) => el.addEventListener('input', draw));
   mount(app, topbar(), h('main', { class: 'page' },
     h('a', { class: 'back', href: '#/dashboard' }, '→ המסלולים שלי'),
     h('div', { class: 'page-head' }, h('h1', {}, '📚 ספריית המסלולים'),
-      h('p', { class: 'muted' }, 'מסלולים שמורות ומורים שיתפו. מוצאים, מציצים, ומעתיקים עותק משלכם לעריכה.')),
-    DEMO && h('p', { class: 'notice' }, 'בגרסת ההדגמה רואים כאן רק מסלולים ששיתפתם בעצמכם.'),
-    h('div', { class: 'row wrap lib-filters' }, search, grade, subject),
+      h('p', { class: 'muted' }, 'מסלולים מוכנים לפי תוכנית הלימודים, ומסלולים שמורות ומורים שיתפו. מוצאים, מציצים, ומעתיקים עותק משלכם לעריכה.')),
+    DEMO && h('p', { class: 'notice' }, 'בגרסת ההדגמה רואים כאן את המסלולים המוכנים ואת מה ששיתפתם בעצמכם.'),
+    h('div', { class: 'row wrap lib-filters' }, search, source, subject, grade),
     list));
   draw();
 }
@@ -119,7 +122,9 @@ function libCard(x) {
       h('div', {}, h('h3', {}, x.title), h('p', { class: 'small muted' }, [x.grade && `כיתה ${x.grade}`.replace('כיתה גן', 'גן'), x.subject, `${x.taskCount} משימות`].filter(Boolean).join(' · ')))),
     x.description && h('p', { class: 'lib-desc' }, x.description),
     h('p', { class: 'small', 'aria-label': 'סוגי משימות' }, types),
-    h('p', { class: 'small muted' }, x.mine ? 'שלכם' : `שיתף/ה: ${x.author || 'מורה'}`, x.copies ? ` · הועתק ${x.copies} פעמים` : ''),
+    x.curriculum && h('p', { class: 'small lib-curriculum' }, `📘 ${x.curriculum}`),
+    h('p', { class: 'small muted' }, x.ready ? h('span', { class: 'chip chip-ready' }, '⭐ מסלול מוכן של האתר')
+      : [x.mine ? 'שלכם' : `שיתף/ה: ${x.author || 'מורה'}`, x.copies ? ` · הועתק ${x.copies} פעמים` : '']),
     h('div', { class: 'row' },
       h('button', { class: 'btn small secondary', onclick: () => previewLib(x) }, '👀 הצצה'),
       h('button', { class: 'btn small primary', onclick: (e) => copyLib(x, e.currentTarget) }, '📥 העתקה אליי')));
@@ -134,6 +139,8 @@ async function previewLib(x) {
   }
   const m = modal(`${x.theme.icon} ${d.title}`, [
     d.description && h('p', {}, d.description),
+    x.curriculum && h('p', { class: 'small muted' }, `📘 בתוכנית הלימודים: ${x.curriculum}${x.grade ? ` · כיתה ${x.grade}` : ''}`),
+    x.ready && h('p', { class: 'notice small' }, 'אחרי ההעתקה המסלול שלכם: אפשר לערוך, להוסיף ניקוד, תמונות והקלטות, ולהתאים לכיתה.'),
     h('ol', { class: 'lib-tasks' }, d.tasks.map((t) => h('li', {},
       h('span', { 'aria-hidden': 'true' }, t.emoji || TASK_TYPES[t.type].icon), ' ', h('strong', {}, t.title),
       h('span', { class: 'small muted' }, ` · ${TASK_TYPES[t.type].name} · ${t.estMinutes} דק׳`),

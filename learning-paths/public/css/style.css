@@ -1062,3 +1062,5 @@ a.icon-btn { display: inline-grid; place-items: center; text-decoration: none; }
   .report-notes textarea { border: 1px solid #ccc; resize: none; }
   .report-notes textarea:placeholder-shown { color: transparent; }
 }
+.chip-ready { background: #fff3bf; color: #7a5b00; }
+.lib-curriculum { color: var(--accent); font-weight: 500; }

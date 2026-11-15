@@ -3,6 +3,7 @@
 import * as v from '../validate.js';
 import { HttpError } from '../validate.js';
 import { TEMPLATES } from '../templates.js';
+import READY_PATHS from '../content/library-data.js';
 import { studentContent, gradeAnswer, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS, GRADED_TYPES, keepTeacherParts, moodInput } from '../logic.js';
 import { SYSTEM_PROMPT, GRADES, AI_TASK_TYPES, buildRequestText, jsonFormatInstructions, NIKUD_SYSTEM, improvePrompt } from '../ai-prompt.js';
 import { docxToText } from '../docx.js';
@@ -891,20 +892,26 @@ route('PUT', '/api/paths/:id/share', ({ params, body }) => {
 });
 
 route('GET', '/api/library', () => ({
-  items: [...paths.values()].filter((p) => p.shared).map((p) => ({
+  items: [...READY_PATHS.map((x) => ({
+    id: `site-${x.slug}`, title: x.title, description: x.description, theme: x.theme, grade: x.grade, subject: x.subject,
+    curriculum: x.curriculum, order: x.order, taskCount: x.tasks.length, types: [...new Set(x.tasks.map((t) => t.type))],
+    author: '', copies: 0, mine: false, ready: true,
+  })), ...[...paths.values()].filter((p) => p.shared).map((p) => ({
     id: p.id, title: p.title, description: p.description, theme: v.theme(p.theme), grade: p.sharedGrade || '', subject: p.sharedSubject || '',
     taskCount: p.tasks.length, types: [...new Set(p.tasks.map((t) => t.type))], author: teacher().name, copies: p.copies || 0, mine: true,
-  })),
+  }))],
 }));
 
 const sharedPath = (id) => {
+  const ready = READY_PATHS.find((x) => `site-${x.slug}` === id);
+  if (ready) return { title: ready.title, description: ready.description, theme: ready.theme, tasks: ready.tasks };
   const p = paths.get(Number(id));
   if (!p || !p.shared) throw new HttpError(404, 'המסלול לא נמצא בספרייה');
   return p;
 };
 route('GET', '/api/library/:id', ({ params }) => {
   const p = sharedPath(params.id);
-  return { title: p.title, description: p.description, theme: v.theme(p.theme), tasks: p.tasks.map((t) => taskOut(t)) };
+  return { title: p.title, description: p.description, theme: v.theme(p.theme), tasks: p.tasks.map((t, i) => ({ id: t.id ?? i + 1, ...clone(t) })) };
 });
 route('POST', '/api/library/:id/copy', ({ params }) => {
   const p = sharedPath(params.id);

@@ -8,6 +8,7 @@ import * as v from './validate.js';
 import { HttpError } from './validate.js';
 import { TEMPLATES } from './templates.js';
 import { createAiTools, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
+import READY_PATHS from './content/library-data.js';
 import { stripNikud } from './validate.js';
 import {
   studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS, GRADED_TYPES, keepTeacherParts, moodInput,
@@ -1172,6 +1173,11 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     return { path: pathOut(q.pathById.get(p.id)) };
   });
 
+  const readyItem = (x) => ({
+    id: `site-${x.slug}`, title: x.title, description: x.description, theme: x.theme, grade: x.grade, subject: x.subject,
+    curriculum: x.curriculum, order: x.order, taskCount: x.tasks.length, types: [...new Set(x.tasks.map((t) => t.type))],
+    author: '', copies: 0, mine: false, ready: true,
+  });
   const libraryItem = (p, teacherId) => ({
     id: p.id, title: p.title, description: p.description, theme: v.theme(JSON.parse(p.theme)),
     grade: p.shared_grade, subject: p.shared_subject, taskCount: p.task_count,
@@ -1181,35 +1187,40 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
 
   route('GET', '/api/library', (ctx) => {
     const teacher = requireTeacher(ctx);
-    return { items: q.library.all().map((p) => libraryItem(p, teacher.id)) };
+    return { items: [...READY_PATHS.map(readyItem), ...q.library.all().map((p) => libraryItem(p, teacher.id))] };
   });
 
-  const sharedPath = (id) => {
-    const p = q.pathById.get(Number(id));
+  // A library entry: a ready-made path of the site ("site-<slug>") or a path a teacher shared (its id).
+  // Returns { title, description, theme (object), tasks (validated task objects), row? }.
+  function libraryEntry(id) {
+    const ready = READY_PATHS.find((x) => `site-${x.slug}` === id);
+    if (ready) return { ...ready, tasks: ready.tasks };
+    const p = /^\d+$/.test(id) ? q.pathById.get(Number(id)) : null;
     if (!p || !p.shared) throw new HttpError(404, 'המסלול לא נמצא בספרייה');
-    return p;
-  };
+    return {
+      title: p.title, description: p.description, theme: v.theme(JSON.parse(p.theme)), row: p,
+      tasks: q.tasks.all(p.id).map((t) => ({
+        type: t.type, title: t.title, emoji: t.emoji, estMinutes: t.est_minutes,
+        needsApproval: Boolean(t.needs_approval), content: JSON.parse(t.content),
+      })),
+    };
+  }
 
   route('GET', '/api/library/:id', (ctx) => {
     requireTeacher(ctx);
-    const p = sharedPath(ctx.params.id);
-    return { title: p.title, description: p.description, theme: v.theme(JSON.parse(p.theme)), tasks: q.tasks.all(p.id).map((t) => taskOut(t)) };
+    const e = libraryEntry(ctx.params.id);
+    return { title: e.title, description: e.description, theme: e.theme, tasks: e.tasks.map((t, i) => ({ id: i + 1, ...t })) };
   });
 
   route('POST', '/api/library/:id/copy', (ctx) => {
     const teacher = requireTeacher(ctx);
-    const p = sharedPath(ctx.params.id);
+    const e = libraryEntry(ctx.params.id);
     const id = tx(db, () => {
-      charge(teacher.id, 'createPath', p.title);
-      const r = insertPath(teacher.id, p.title, p.description, newCode(), p.theme);
+      charge(teacher.id, 'createPath', e.title);
+      const r = insertPath(teacher.id, e.title, e.description, newCode(), JSON.stringify(e.theme));
       const newId = Number(r.lastInsertRowid);
-      for (const t of q.tasks.all(p.id)) {
-        insertTask(newId, {
-          type: t.type, title: t.title, emoji: t.emoji, estMinutes: t.est_minutes,
-          needsApproval: Boolean(t.needs_approval), content: JSON.parse(t.content),
-        });
-      }
-      if (p.teacher_id !== teacher.id) q.addCopy.run(p.id);
+      for (const t of e.tasks) insertTask(newId, structuredClone(t));
+      if (e.row && e.row.teacher_id !== teacher.id) q.addCopy.run(e.row.id);
       return newId;
     });
     return [201, { path: pathOut(q.pathById.get(id)), credits: availableCredits(teacher.id) }];

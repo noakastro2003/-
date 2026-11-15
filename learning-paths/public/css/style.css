@@ -1079,3 +1079,5 @@ a.icon-btn { display: inline-grid; place-items: center; text-decoration: none; }
   .topbar .btn.small { padding-inline: .5rem; }
   .topbar .brand { font-size: 1rem; gap: .35rem; white-space: nowrap; }
 }
+.promo-code-cell { white-space: nowrap; }
+.promo-code-cell code { margin-inline-end: .4rem; }

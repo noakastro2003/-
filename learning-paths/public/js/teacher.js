@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { h, mount, toast, modal, confirmDialog, field, busy, formatDate, debounce } from './ui.js';
+import { h, mount, toast, modal, confirmDialog, field, busy, formatDate, debounce, copyText } from './ui.js';
 import { session, go } from './app.js';
 import {
   COLORS, BACKGROUNDS, FONTS, MAPS, ICONS, TASK_EMOJIS, TASK_TYPES, TASK_GROUPS, MODES, STATIONS, CARDS, CELEBRATIONS,
@@ -1033,9 +1033,7 @@ function demoShareTab(body, state) {
 function shareTab(body, state) {
   if (DEMO) return demoShareTab(body, state);
   const link = `${location.origin}/#/s/${state.path.code}`;
-  const copy = (text, what) => navigator.clipboard?.writeText(text)
-    .then(() => toast(`${what} הועתק`, 'ok'))
-    .catch(() => toast('לא הצלחנו להעתיק – אפשר לסמן ולהעתיק ידנית', 'error'));
+  const copy = (text, what) => copyText(text, `${what} הועתק`);
 
   mount(body,
     !state.path.published && h('div', { class: 'notice warn' },

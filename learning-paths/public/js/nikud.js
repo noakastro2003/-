@@ -1,4 +1,4 @@
-import { h, toast, storage } from './ui.js';
+import { h, toast, storage, copyText } from './ui.js';
 import { NIKUD, stripNikud } from './themes.js';
 import { api } from './api.js';
 import { cost, creditWord, setCredits, showError } from './credits.js';
@@ -84,8 +84,7 @@ export function nikudBar(scope) {
   dictaBtn.onclick = autoNikud(dictaBtn, '✨ ניקוד אוטומטי', '/api/nikud/dicta', (err, field) => {
     // Where the app can't reach Dicta itself (the demo), the teacher can still use Dicta's site.
     if (err.status === 503 || err.status === 404) {
-      navigator.clipboard?.writeText(stripNikud(field.value)).catch(() => {});
-      toast('אין כאן חיבור ישיר לדיקטה. הטקסט הועתק – פתחו את "אתר דיקטה", הדביקו, והעתיקו את התוצאה בחזרה.', 'info');
+      copyText(stripNikud(field.value), 'אין כאן חיבור ישיר לדיקטה. הטקסט הועתק – פתחו את "אתר דיקטה", הדביקו, והעתיקו את התוצאה בחזרה.');
     } else showError(err);
   });
 
@@ -115,9 +114,7 @@ export function nikudBar(scope) {
       title: 'מעתיק את הטקסט ופותח את המנקד האוטומטי של דיקטה',
       onclick: () => {
         if (!target?.isConnected || !target.value.trim()) return;
-        navigator.clipboard?.writeText(stripNikud(target.value))
-          .then(() => toast('הטקסט הועתק – הדביקו אותו בדיקטה, ואז העתיקו את הטקסט המנוקד בחזרה לשדה', 'ok'))
-          .catch(() => {});
+        copyText(stripNikud(target.value), 'הטקסט הועתק – הדביקו אותו בדיקטה, ואז העתיקו את הטקסט המנוקד בחזרה לשדה');
       },
     }, '↗ אתר דיקטה'));
 

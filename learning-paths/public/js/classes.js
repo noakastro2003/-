@@ -1,6 +1,6 @@
 // Classes on the teacher's side: one code and one roster for several paths.
 import { api } from './api.js';
-import { h, mount, toast, modal, confirmDialog, field, busy, formatDate } from './ui.js';
+import { h, mount, toast, modal, confirmDialog, field, busy, formatDate, copyText } from './ui.js';
 import { go } from './app.js';
 
 export async function classesSection(el) {
@@ -67,7 +67,7 @@ export async function classAdminPage(app, id, topbar) {
       h('span', {}, `${p.theme.icon} ${p.title}`, !p.published && h('span', { class: 'chip', style: { marginInlineStart: '.4rem' } }, 'טיוטה – התלמידים לא יראו'))));
   }));
 
-  const copy = () => navigator.clipboard?.writeText(c.code).then(() => toast('הקוד הועתק', 'ok')).catch(() => {});
+  const copy = () => copyText(c.code, 'הקוד הועתק');
   const roster = data.members.length
     ? h('div', { class: 'table-wrap' }, h('table', { class: 'progress-table' },
       h('thead', {}, h('tr', {},

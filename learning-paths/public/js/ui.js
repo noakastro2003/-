@@ -105,3 +105,34 @@ export function storage(key, value) {
   } catch { /* storage unavailable */ }
   return null;
 }
+
+// Copies text, even where the clipboard API is missing (in-app browsers, some phones):
+// first the modern API, then the older select-and-copy, and if both fail a dialog with
+// the text selected so it can be copied by hand. Resolves true when it was copied.
+export async function copyText(text, done = 'הועתק') {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      toast(done, 'ok');
+      return true;
+    }
+  } catch { /* try the next way */ }
+  const area = h('textarea', { readonly: true, style: { position: 'fixed', top: '0', left: '0', width: '1px', height: '1px', opacity: '0' } });
+  area.value = text;
+  document.body.append(area);
+  area.focus();
+  area.select();
+  area.setSelectionRange(0, text.length);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch { ok = false; }
+  area.remove();
+  if (ok) {
+    toast(done, 'ok');
+    return true;
+  }
+  const box = h('input', { type: 'text', readonly: true, dir: 'ltr', value: text, class: 'link-box', onfocus: (e) => e.target.select() });
+  modal('העתקה', [h('p', {}, 'לחצו לחיצה ארוכה על הטקסט ובחרו "העתקה":'), box]);
+  box.focus();
+  box.select();
+  return false;
+}

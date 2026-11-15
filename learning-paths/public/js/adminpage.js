@@ -1,6 +1,6 @@
 // The site owner's page: promo codes (free months, credits, discounts).
 import { api } from './api.js';
-import { h, mount, toast, field, busy, formatDate } from './ui.js';
+import { h, mount, toast, field, busy, formatDate, copyText } from './ui.js';
 import { go, session } from './app.js';
 
 const KIND_TEXT = {
@@ -23,8 +23,9 @@ export async function adminPage(app, topbar) {
   const drawList = () => mount(list, data.codes.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'promo-table' },
     h('thead', {}, h('tr', {}, ['קוד', 'הטבה', 'שימושים', 'תוקף', 'הערה', ''].map((x) => h('th', {}, x)))),
     h('tbody', {}, data.codes.map((c) => h('tr', { class: c.active ? '' : 'off' },
-      h('td', { dir: 'ltr' }, h('code', {}, c.code), ' ',
-        h('button', { class: 'icon-btn', title: 'העתקת קישור הרשמה עם הקוד', 'aria-label': `העתקת קישור עם ${c.code}`, onclick: () => copyLink(c.code) }, '🔗')),
+      h('td', { dir: 'ltr', class: 'promo-code-cell' }, h('code', {}, c.code),
+        h('button', { class: 'btn small ghost', title: 'העתקת הקוד', 'aria-label': `העתקת הקוד ${c.code}`, onclick: () => copyText(c.code, `הקוד ${c.code} הועתק`) }, '📋 קוד'),
+        h('button', { class: 'btn small ghost', title: 'העתקת קישור הרשמה שהקוד כבר בתוכו', 'aria-label': `העתקת קישור עם ${c.code}`, onclick: () => copyLink(c.code) }, '🔗 קישור')),
       h('td', {}, KIND_TEXT[c.kind](c.amount)),
       h('td', {}, c.maxUses ? `${c.uses} / ${c.maxUses}` : `${c.uses} (ללא הגבלה)`),
       h('td', { class: 'small' }, c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('he-IL') : 'ללא'),
@@ -38,8 +39,7 @@ export async function adminPage(app, topbar) {
 
   const copyLink = (code) => {
     const link = `${location.origin}/#/register?code=${encodeURIComponent(code)}`;
-    navigator.clipboard?.writeText(link).then(() => toast('קישור ההרשמה הועתק. מי שנרשם דרכו מקבל את ההטבה.', 'ok'))
-      .catch(() => toast(link, 'info'));
+    copyText(link, 'קישור ההרשמה הועתק. מי שנרשמת דרכו מקבלת את ההטבה.');
   };
 
   const code = h('input', { type: 'text', dir: 'ltr', required: true, maxlength: 24, value: randomCode() });
@@ -90,7 +90,7 @@ export async function adminPage(app, topbar) {
   mount(app, topbar(), h('main', { class: 'page narrow-page' },
     h('a', { class: 'back-link', href: '#/dashboard' }, '→ כל המסלולים'),
     h('h1', {}, '🛠️ ניהול האתר: קודי הטבה'),
-    h('p', { class: 'muted' }, 'מורות מזינות את הקוד בהרשמה או בדף "הקרדיטים שלי". אפשר גם לשלוח קישור הרשמה שהקוד כבר בתוכו (🔗).'),
+    h('p', { class: 'muted' }, 'מורות מזינות את הקוד בהרשמה או בדף "הקרדיטים שלי". ליד כל קוד: 📋 מעתיק את הקוד, ו-🔗 מעתיק קישור הרשמה שהקוד כבר בתוכו.'),
     form,
     h('section', { class: 'card' }, h('h2', {}, 'הקודים'), list)));
   drawList();

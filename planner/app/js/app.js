@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 76; // keep in step with CACHE in sw.js
+const APP_V = 77; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -4359,3 +4359,35 @@ function searchRun(q) {
     : `<p class="hint gs-hint">לא מצאתי "${esc(q)}". אולי בכתיב אחר?</p>`;
 }
 document.addEventListener('input', e => { if (e.target.id === 'gsq') searchRun(e.target.value); });
+
+// ---- pull a sheet down to close it (from its top, or anywhere once its content is scrolled to the top)
+const dr = { ov: null, y0: 0, t0: 0, dy: 0, on: false, top: 0 };
+document.addEventListener('touchstart', e => {
+  const ov = e.target.closest('#overlay.show .ov'); dr.ov = null;
+  if (!ov || e.target.closest('input, textarea, select, [data-sw]')) return;
+  Object.assign(dr, { ov, y0: e.touches[0].clientY, x0: e.touches[0].clientX, t0: performance.now(), dy: 0, on: false, top: ov.scrollTop });
+}, { passive: true });
+document.addEventListener('touchmove', e => {
+  const ov = dr.ov; if (!ov) return;
+  const dy = e.touches[0].clientY - dr.y0, dx = e.touches[0].clientX - dr.x0;
+  if (!dr.on) {
+    if (dy < 6 || ov.scrollTop > 0 || dr.top > 0 || Math.abs(dx) > dy) { if (Math.abs(dy) > 6 || Math.abs(dx) > 6) dr.ov = null; return; }
+    dr.on = true; ov.style.transition = 'none';
+  }
+  e.preventDefault();
+  dr.dy = Math.max(0, dy);
+  ov.style.transform = `translate(-50%, ${dr.dy}px)`;
+  const bg = $('#overlay .ovbg'); if (bg) bg.style.opacity = String(Math.max(0, 1 - dr.dy / (ov.offsetHeight * .9)));
+}, { passive: false });
+document.addEventListener('touchend', () => {
+  const ov = dr.ov; dr.ov = null; if (!ov || !dr.on) return;
+  const v = dr.dy / Math.max(1, performance.now() - dr.t0), bg = $('#overlay .ovbg');
+  ov.style.transition = '';
+  if (dr.dy > Math.min(140, ov.offsetHeight * .3) || (v > .5 && dr.dy > 40)) {
+    ov.style.transition = 'transform .25s cubic-bezier(.4, 0, 1, 1)'; ov.style.transform = 'translate(-50%, 105%)';
+    if (bg) { bg.style.transition = 'opacity .25s'; bg.style.opacity = '0'; }
+    setTimeout(() => { closeOverlay(); ov.style.transition = ''; ov.style.transform = ''; if (bg) { bg.style.transition = ''; bg.style.opacity = ''; } }, 240);
+  } else {
+    ov.style.transform = ''; if (bg) bg.style.opacity = '';
+  }
+});

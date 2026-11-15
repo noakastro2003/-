@@ -18,8 +18,8 @@ import * as billing from './billing.js';
 import { createMailer } from './mailer.js';
 import { DICTA_URL, dictaRequest, dictaToText } from './dicta.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PUBLIC_DIR = path.join(__dirname, 'public');
+const APP_DIR = path.dirname(fileURLToPath(import.meta.url)); // not __dirname: bundlers define that name themselves
+const PUBLIC_DIR = path.join(APP_DIR, 'public');
 const SESSION_MS = 30 * 24 * 3600 * 1000;
 const MAX_BODY = 256 * 1024;
 const MAX_UPLOAD_BODY = 30 * 1024 * 1024; // AI generator: files arrive base64-encoded
@@ -1581,7 +1581,7 @@ export function createApp(db, {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   // DATABASE_URL: a Postgres server. Otherwise a local Postgres (PGlite) kept in data/pg.
-  const dbDir = process.env.DB_FILE || path.join(__dirname, 'data', 'pg');
+  const dbDir = process.env.DB_FILE || path.join(APP_DIR, 'data', 'pg');
   if (!process.env.DATABASE_URL) fs.mkdirSync(dbDir, { recursive: true });
   const db = openDb(process.env.DATABASE_URL ? { url: process.env.DATABASE_URL } : dbDir);
   const port = Number(process.env.PORT) || 3000;

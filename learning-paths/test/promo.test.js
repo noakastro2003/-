@@ -102,3 +102,15 @@ test('expired codes are refused', async () => {
   const b2 = await login('boss@x.org');
   assert.equal((await b2('POST', '/api/admin/promo', { code: 'OLD1', kind: 'credits', amount: 5, expiresAt: Date.now() - 1000 })).status, 400);
 });
+
+test('account settings: name and password', async () => {
+  const t = await teacher('settings@x.org');
+  assert.equal((await t('PUT', '/api/auth/me', { name: 'רונית' })).body.teacher.name, 'רונית');
+  assert.equal((await t('GET', '/api/auth/me')).body.teacher.name, 'רונית');
+  assert.equal((await t('POST', '/api/auth/password', { current: 'wrong', password: 'newpassword1' })).status, 403);
+  assert.equal((await t('POST', '/api/auth/password', { current: 'password123', password: 'short' })).status, 400);
+  assert.equal((await t('POST', '/api/auth/password', { current: 'password123', password: 'newpassword1' })).status, 200);
+  assert.equal((await t('GET', '/api/auth/me')).body.teacher.name, 'רונית', 'still signed in here');
+  const again = client();
+  assert.equal((await again('POST', '/api/auth/login', { email: 'settings@x.org', password: 'newpassword1' })).status, 200);
+});

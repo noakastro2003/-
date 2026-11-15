@@ -1073,3 +1073,9 @@ a.icon-btn { display: inline-grid; place-items: center; text-decoration: none; }
 .promo-table tr.off { opacity: .5; }
 .promo-table code { font-size: 1rem; font-weight: 700; }
 .table-wrap { overflow-x: auto; }
+.settings-status p { margin: .5rem 0 0; }
+@media (max-width: 420px) {
+  .topbar-actions { gap: .3rem; }
+  .topbar .btn.small { padding-inline: .5rem; }
+  .topbar .brand { font-size: 1rem; gap: .35rem; white-space: nowrap; }
+}

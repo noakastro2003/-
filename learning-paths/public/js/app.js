@@ -8,6 +8,7 @@ import { classPage } from './classroom.js';
 import { classAdminPage } from './classes.js';
 import { libraryPage, reportPage } from './library.js';
 import { adminPage } from './adminpage.js';
+import { settingsPage } from './settings.js';
 
 const app = document.getElementById('app');
 export const session = { teacher: null, loaded: false };
@@ -33,6 +34,7 @@ const routes = [
   [/^#?\/?$/, () => (session.teacher ? go('#/dashboard') : homePage(app))],
   [/^#\/login$/, () => authPage(app, 'login')],
   [/^#\/register(?:\?.*)?$/, () => authPage(app, 'register')],
+  [/^#\/settings$/, () => needTeacher(() => settingsPage(app, topbar))],
   [/^#\/admin$/, () => needTeacher(() => adminPage(app, topbar))],
   [/^#\/forgot$/, () => forgotPage(app)],
   [/^#\/reset\/([0-9a-f]{64})$/, (m) => resetPage(app, m[1])],

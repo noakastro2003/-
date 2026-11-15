@@ -27,7 +27,8 @@ export function topbar(...extra) {
       extra,
       creditBadge(),
       DEMO && h('span', { class: 'chip chip-warn', title: 'הנתונים נשמרים רק אצלך' }, 'גרסת הדגמה'),
-      session.teacher?.isAdmin && !DEMO && h('a', { class: 'btn ghost small', href: '#/admin' }, '🛠️ ניהול'),
+      session.teacher?.isAdmin && !DEMO && h('a', { class: 'btn ghost small', href: '#/admin', title: 'ניהול', 'aria-label': 'ניהול' }, '🛠️', h('span', { class: 'hide-sm' }, ' ניהול')),
+      session.teacher && h('a', { class: 'btn ghost small', href: '#/settings', title: 'הגדרות וקוד הטבה', 'aria-label': 'הגדרות' }, '⚙️', h('span', { class: 'hide-sm' }, ' הגדרות')),
       session.teacher && !DEMO && h('span', { class: 'muted hide-sm' }, `שלום, ${session.teacher.name}`),
       session.teacher && !DEMO && h('button', { class: 'btn ghost small', onclick: logout }, 'יציאה')));
 }

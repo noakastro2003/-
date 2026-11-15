@@ -241,6 +241,7 @@ export function createApp(db, {
     insertReset: db.prepare('INSERT INTO password_resets (token_hash, teacher_id, expires_at) VALUES (?, ?, ?)'),
     resetByHash: db.prepare('SELECT * FROM password_resets WHERE token_hash = ?'),
     useReset: db.prepare('UPDATE password_resets SET used = 1 WHERE token_hash = ?'),
+    setTeacherName: db.prepare('UPDATE teachers SET name = ? WHERE id = ?'),
     setPassword: db.prepare('UPDATE teachers SET password_hash = ? WHERE id = ?'),
     purgeSessions: db.prepare('DELETE FROM sessions WHERE expires_at <= ?'),
 
@@ -699,6 +700,30 @@ export function createApp(db, {
     });
     const t = await q.teacherById.get(r.teacher_id);
     return [200, { teacher: { id: t.id, name: t.name, email: t.email } }, { 'Set-Cookie': await startSession(ctx.req, t.id) }];
+  });
+
+  // Account settings: change the display name.
+  route('PUT', '/api/auth/me', async (ctx) => {
+    const teacher = requireTeacher(ctx);
+    const name = v.str(ctx.body.name, { max: 80, required: true, field: 'שם' });
+    await q.setTeacherName.run(name, teacher.id);
+    return { teacher: { ...teacher, name } };
+  });
+
+  // Change the password: needs the current one; other devices are signed out.
+  route('POST', '/api/auth/password', async (ctx) => {
+    const teacher = requireTeacher(ctx);
+    await loginLimit(teacher.email);
+    const row = await q.teacherById.get(teacher.id);
+    if (!checkPassword(typeof ctx.body.current === 'string' ? ctx.body.current : '', row.password_hash)) {
+      throw new HttpError(403, 'הסיסמה הנוכחית לא נכונה');
+    }
+    const pw = v.password(ctx.body.password);
+    await tx(db, async () => {
+      await q.setPassword.run(hashPassword(pw), teacher.id);
+      await q.deleteTeacherSessions.run(teacher.id);
+    });
+    return [200, { ok: true }, { 'Set-Cookie': await startSession(ctx.req, teacher.id) }];
   });
 
   route('POST', '/api/auth/logout', async (ctx) => {

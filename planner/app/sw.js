@@ -1,5 +1,5 @@
 // Offline cache: the app works in class even without reception.
-const CACHE = 'noa-planner-v70';
+const CACHE = 'noa-planner-v71';
 const FILES = [
   './', 'index.html', 'css/style.css', 'css/luxe.css', 'fonts/assistant-hebrew-200-normal.woff2', 'fonts/varela-round-hebrew-400-normal.woff2', 'fonts/playpen-sans-hebrew-hebrew-300-normal.woff2', 'fonts/playpen-sans-hebrew-hebrew-400-normal.woff2', 'fonts/assistant-hebrew-300-normal.woff2', 'fonts/assistant-hebrew-400-normal.woff2', 'fonts/assistant-hebrew-600-normal.woff2', 'img/night.jpg', 'fonts/heebo-hebrew-300-normal.woff2', 'js/app.js', 'js/planparse.js', 'js/pdftext.js', 'js/icons.js', 'js/files.js', 'js/genparse.js', 'js/toolkit.js', 'js/printweek.js', 'js/parentmsg.js', 'js/cast.js', 'vendor/identity.mjs',
   'vendor/pdf.min.mjs', 'vendor/keepawake.mp4', 'vendor/pdf.worker.min.mjs', 'manifest.webmanifest',
@@ -7,7 +7,7 @@ const FILES = [
   'fonts/heebo-latin-400-normal.woff2', 'fonts/heebo-latin-500-normal.woff2', 'fonts/heebo-latin-700-normal.woff2',
   'fonts/rubik-hebrew-400-normal.woff2', 'fonts/rubik-hebrew-500-normal.woff2', 'fonts/rubik-hebrew-700-normal.woff2',
   'fonts/rubik-latin-400-normal.woff2', 'fonts/rubik-latin-500-normal.woff2', 'fonts/rubik-latin-700-normal.woff2',
-  'icons/icon-192.png', 'icons/apple-touch-icon.png', 'img/logo.png', 'img/ill/desk.jpg', 'img/ill/week.jpg', 'img/ill/prep.jpg', 'img/ill/class.jpg', 'img/ill/tools.jpg', 'img/ill/school.jpg', 'img/ill/notebook.jpg', 'img/ill/medal.jpg',
+  'icons/icon-192.png', 'icons/apple-touch-icon.png', 'img/logo.png', 'img/ill/desk.jpg', 'img/ill/week.jpg', 'img/ill/prep.jpg', 'img/ill/class.jpg', 'img/ill/tools.jpg', 'img/ill/school.jpg', 'img/ill/notebook.jpg', 'img/ill/medal.jpg', 'img/ill/e-todos.jpg', 'img/ill/e-grades.jpg', 'img/ill/e-files.jpg', 'img/ill/e-kids.jpg', 'img/ill/e-journal.jpg',
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

@@ -1809,3 +1809,24 @@ html[data-skin=luxe] .rolepick button.on { box-shadow: 0 0 0 2.5px #5B4190, var(
 /* "how to start" cards: the same dough-ball icons */
 html[data-skin=luxe] .onb-start button { border: 0 !important; box-shadow: var(--clay) !important; border-radius: 24px; }
 .onb-start .ic { width: 46px !important; height: 46px !important; padding: 12px; border-radius: 50%; background: var(--dough, #EEE4F6); color: var(--accent-ink) !important; box-shadow: var(--clay-sm, none); box-sizing: border-box; }
+
+/* ================================================================ v81 · NIGHT + one "picked" look
+   picked chips / tags / kinds: plum clay with white text, day and night (no more ink-black by day or cream by night) */
+html[data-skin=luxe] :is(.fc.on, .kc.pick.on, .tp.on, .gkinds input:checked + span) {
+  background: #5B4190 !important; color: #fff !important; border-color: transparent !important;
+  box-shadow: 0 8px 14px -8px rgba(74, 53, 102, .7), inset 0 2px 2px rgba(255, 255, 255, .25), inset 0 -4px 6px rgba(30, 18, 50, .3) !important; }
+html[data-skin=luxe] :is(.tp.on .qi, .tp.on small, .tp.on .ic, .fc.on .ic) { color: #fff !important; }
+html[data-skin=luxe][data-theme=dark] :is(.fc.on, .kc.pick.on, .tp.on, .gkinds input:checked + span) { background: #6E52A8 !important; }
+
+/* night: the illustrations sit on a round cream plate (no bright squares) */
+html[data-skin=luxe][data-theme=dark] .ill { border-radius: 50% !important; background: #F6F0E8; overflow: hidden;
+  box-shadow: 0 14px 26px -14px rgba(0, 0, 0, .8), inset 0 2px 2px rgba(255, 255, 255, .6) !important; }
+html[data-skin=luxe][data-theme=dark] .ill img { transform: scale(1.04); filter: brightness(.94); mix-blend-mode: normal !important; -webkit-mask-image: none !important; mask-image: none !important; }
+html[data-skin=luxe][data-theme=dark] .ill img[src$=".webp"] { filter: none; }
+html[data-skin=luxe][data-theme=dark] .estate .ill, html[data-skin=luxe][data-theme=dark] .ill.wl { background: radial-gradient(circle at 50% 40%, #FBF6EF, #EDE3D6); }
+
+/* night: fields are clearly visible wells, a touch darker than the card with a soft rim */
+html[data-skin=luxe][data-theme=dark] :is(.field input, .field select, textarea, .addtodo input, .search, .srch .search, .gnew input) {
+  background: #19141F !important; color: var(--ink) !important;
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .07) !important; }
+html[data-skin=luxe][data-theme=dark] :is(.field input, textarea, .addtodo input, .search input)::placeholder { color: rgba(255, 255, 255, .38); }

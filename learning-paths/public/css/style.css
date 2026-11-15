@@ -962,3 +962,49 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .spot-editor { display: flex; flex-direction: column; gap: .5rem; }
 .hl-word.glued { padding-inline-start: 0; border-start-start-radius: 0; border-end-start-radius: 0; }
 .hl-word.glued-next { padding-inline-end: 0; border-start-end-radius: 0; border-end-end-radius: 0; }
+
+/* how do I feel? */
+.mood-card h1 { font-size: 1.6rem; }
+.mood-row { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin: 1rem 0; }
+.mood-btn { display: flex; flex-direction: column; align-items: center; gap: .2rem; width: 84px; padding: .6rem .2rem; border-radius: 18px; border: 3px solid var(--k-line); background: var(--k-surface); color: var(--k-text); cursor: pointer; }
+.mood-btn:hover, .mood-btn:focus-visible { border-color: var(--accent); transform: translateY(-3px); }
+.mood-emoji { font-size: 2.6rem; line-height: 1; }
+.mood-name { font-size: .95rem; }
+.mood-end { margin: 1rem 0; padding: .8rem; border-radius: 18px; background: var(--k-surface-2); }
+
+/* sticker album */
+.album-btn { display: block; margin: .3rem auto .8rem; }
+.album { list-style: none; padding: 0; margin: 1rem 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: .8rem; }
+.album-slot { display: flex; flex-direction: column; align-items: center; gap: .3rem; padding: .7rem .3rem; border-radius: 18px; border: 3px dashed var(--k-line); background: var(--k-surface-2); text-align: center; }
+.album-slot .album-sticker { font-size: 2.6rem; color: var(--k-muted); opacity: .45; font-weight: 700; }
+.album-slot.on { border-style: solid; border-color: var(--accent); background: var(--k-surface); transform: rotate(var(--tilt)); box-shadow: 0 4px 10px rgb(0 0 0 / .1); }
+.album-slot.on .album-sticker { opacity: 1; filter: drop-shadow(0 3px 0 #fff) drop-shadow(0 0 2px rgb(0 0 0 / .3)); }
+.album-label { font-size: .85rem; line-height: 1.2; }
+.new-sticker { display: flex; align-items: center; justify-content: center; gap: .6rem; margin: .5rem 0; }
+.new-sticker .album-sticker { font-size: 3rem; display: inline-block; filter: drop-shadow(0 3px 0 #fff) drop-shadow(0 0 2px rgb(0 0 0 / .3)); }
+
+/* guided breaks */
+.break-emoji { font-size: 6rem; line-height: 1.2; margin: .5rem 0; display: inline-block; }
+.anim-bounce { animation: b-bounce .6s ease-in-out infinite; }
+.anim-grow { animation: b-grow 1.6s ease-in-out infinite alternate; }
+.anim-shrink { animation: b-shrink 1.6s ease-in-out infinite alternate; }
+.anim-spin { animation: b-spin 1s linear infinite; }
+.anim-sway { animation: b-sway 1.4s ease-in-out infinite alternate; }
+.anim-inflate { animation: b-inflate 4s ease-in-out forwards; }
+.anim-deflate { animation: b-deflate 4s ease-in-out forwards; }
+@keyframes b-bounce { 50% { transform: translateY(-28px); } }
+@keyframes b-grow { to { transform: scale(1.3) translateY(-10px); } }
+@keyframes b-shrink { to { transform: scale(.75) translateY(14px); } }
+@keyframes b-spin { to { transform: rotate(360deg); } }
+@keyframes b-sway { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
+@keyframes b-inflate { from { transform: scale(.7); } to { transform: scale(1.4); } }
+@keyframes b-deflate { from { transform: scale(1.4); } to { transform: scale(.7); } }
+.break-dots { display: flex; justify-content: center; gap: .35rem; margin: .5rem 0; }
+.break-dots span { width: 12px; height: 12px; border-radius: 50%; background: var(--k-line); }
+.break-dots span.done { background: var(--ok); }
+.break-dots span.now { background: var(--accent); transform: scale(1.3); }
+.buddy-line { display: flex; align-items: center; justify-content: center; gap: .5rem; font-size: 1.1rem; }
+.buddy-line > span { font-size: 2rem; }
+@media (prefers-reduced-motion: reduce) { .break-emoji { animation: none !important; } }
+.row-mood { margin-inline-start: .35rem; font-size: 1rem; }
+.mood-box { background: #fff8e1; border-color: #ffd43b; }

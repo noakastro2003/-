@@ -85,6 +85,9 @@ export const THEME_DEFAULTS = Object.freeze({
   card: 'soft',           // style of the task cards
   celebration: 'confetti',
   buddy: '',              // a companion emoji that cheers the student on ('' = none)
+  breakStyle: 'move',     // 'move' = guided movement, 'calm' = breathing, 'simple' = a tip and a clock
+  moods: true,            // "how do I feel?" at the start and the end
+  stickers: true,         // a sticker for every finished task, collected in an album
 });
 
 const ONE_OF = {
@@ -96,6 +99,7 @@ const ONE_OF = {
   stations: ['circle', 'rounded', 'hex'],
   card: ['soft', 'bold', 'glass'],
   celebration: ['confetti', 'stars', 'balloons', 'hearts', 'bubbles'],
+  breakStyle: ['move', 'calm', 'simple'],
 };
 
 export function theme(input = {}, base = THEME_DEFAULTS) {
@@ -115,7 +119,7 @@ export function theme(input = {}, base = THEME_DEFAULTS) {
   if (input.buddy !== undefined) t.buddy = str(input.buddy, { max: 16, field: 'דמות מלווה' });
   if (input.breakEvery !== undefined) t.breakEvery = int(input.breakEvery, { min: 0, max: 20, def: t.breakEvery });
   if (input.breakMinutes !== undefined) t.breakMinutes = int(input.breakMinutes, { min: 1, max: 15, def: t.breakMinutes });
-  for (const key of ['celebrate', 'readAloud', 'sound']) {
+  for (const key of ['celebrate', 'readAloud', 'sound', 'moods', 'stickers']) {
     if (input[key] !== undefined) t[key] = Boolean(input[key]);
   }
   return t;

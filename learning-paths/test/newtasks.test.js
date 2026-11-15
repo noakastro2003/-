@@ -143,3 +143,26 @@ test('photo and drawing answers must be uploaded pictures', () => {
   assert.deepEqual(gradeAnswer('photo', p.content, { answer: REC }).answer, { image: REC });
   assert.throws(() => gradeAnswer('draw', p.content, { answer: 'https://evil.example/x.png' }));
 });
+
+test('the browser\'s mood list matches the server\'s', async () => {
+  const { MOODS } = await import('../logic.js');
+  const src = (await import('node:fs')).readFileSync(new URL('../public/js/themes.js', import.meta.url), 'utf8');
+  for (const m of MOODS) assert.ok(src.includes(`{ e: '${m.e}', name: '${m.name}'${m.worry ? ', worry: true' : ''} }`), m.name);
+});
+
+test('a student\'s mood reaches the teacher', async () => {
+  const t = client();
+  await t('POST', '/api/auth/register', { name: 'מורה', email: `m${Math.random()}@x.org`, password: 'password123' });
+  const { body: { path } } = await t('POST', '/api/paths', { title: 'מצב רוח' });
+  await t('PUT', `/api/paths/${path.id}`, { published: true });
+  const kid = client();
+  const { body: { token, moods } } = await kid('POST', `/api/s/${path.code}/join`, { name: 'רון', secret: SECRET });
+  assert.deepEqual(moods, {});
+  const auth = { 'X-Student-Token': token };
+  assert.equal((await kid('POST', `/api/s/${path.code}/mood`, { kind: 'start', mood: '🤡' }, auth)).status, 400);
+  await kid('POST', `/api/s/${path.code}/mood`, { kind: 'start', mood: '😢' }, auth);
+  const r = await kid('POST', `/api/s/${path.code}/mood`, { kind: 'end', mood: '😄' }, auth);
+  assert.deepEqual([r.body.moods.start.mood, r.body.moods.end.mood], ['😢', '😄']);
+  const prog = (await t('GET', `/api/paths/${path.id}/progress`)).body;
+  assert.equal(prog.students[0].moods.start.mood, '😢');
+});

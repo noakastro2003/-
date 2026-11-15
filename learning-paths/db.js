@@ -114,6 +114,14 @@ CREATE TABLE IF NOT EXISTS help_requests (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   resolved INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS moods (
+  id INTEGER PRIMARY KEY,
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,          -- 'start' or 'end' of a session
+  mood TEXT NOT NULL,
+  at INTEGER NOT NULL          -- ms since epoch
+);
+CREATE INDEX IF NOT EXISTS moods_student ON moods(student_id, at);
 `;
 
 export function openDb(file) {
@@ -151,6 +159,17 @@ function migrate(db) {
   // Student secret password (hash) and avatar.
   if (!has('students', 'secret_hash')) db.exec('ALTER TABLE students ADD COLUMN secret_hash TEXT');
   if (!has('students', 'avatar')) db.exec("ALTER TABLE students ADD COLUMN avatar TEXT NOT NULL DEFAULT ''");
+  // Per-student adaptation: tasks hidden from this student, and their own break rhythm.
+  if (!has('students', 'hidden_tasks')) db.exec("ALTER TABLE students ADD COLUMN hidden_tasks TEXT NOT NULL DEFAULT '[]'");
+  if (!has('students', 'break_every')) db.exec('ALTER TABLE students ADD COLUMN break_every INTEGER');
+  // Scheduling (ms since epoch) and the shared library.
+  if (!has('paths', 'opens_at')) db.exec('ALTER TABLE paths ADD COLUMN opens_at INTEGER');
+  if (!has('paths', 'closes_at')) db.exec('ALTER TABLE paths ADD COLUMN closes_at INTEGER');
+  if (!has('paths', 'shared')) db.exec('ALTER TABLE paths ADD COLUMN shared INTEGER NOT NULL DEFAULT 0');
+  if (!has('paths', 'shared_grade')) db.exec("ALTER TABLE paths ADD COLUMN shared_grade TEXT NOT NULL DEFAULT ''");
+  if (!has('paths', 'shared_subject')) db.exec("ALTER TABLE paths ADD COLUMN shared_subject TEXT NOT NULL DEFAULT ''");
+  if (!has('paths', 'shared_at')) db.exec('ALTER TABLE paths ADD COLUMN shared_at INTEGER');
+  if (!has('paths', 'copies')) db.exec('ALTER TABLE paths ADD COLUMN copies INTEGER NOT NULL DEFAULT 0');
   if (!has('paths', 'approval_pin')) {
     db.exec('ALTER TABLE paths ADD COLUMN approval_pin TEXT');
     const set = db.prepare('UPDATE paths SET approval_pin = ? WHERE id = ?');

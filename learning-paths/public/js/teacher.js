@@ -4,6 +4,7 @@ import { session, go } from './app.js';
 import {
   COLORS, BACKGROUNDS, FONTS, MAPS, ICONS, TASK_EMOJIS, TASK_TYPES, TASK_GROUPS, MODES, STATIONS, CARDS, CELEBRATIONS,
   BUDDIES, PRESETS, applyTheme, fontFamily,
+  MOODS,
 } from './themes.js';
 import { celebrate } from './student.js';
 
@@ -900,7 +901,7 @@ function designTab(body, state) {
     const custom = h('input', { type: 'color', value: theme.color, 'aria-label': 'צבע מותאם', onchange: (e) => set('color', e.target.value) });
     const breakEvery = h('select', { onchange: (e) => set('breakEvery', Number(e.target.value)) },
       [0, 2, 3, 4, 5].map((n) => h('option', { value: n, selected: theme.breakEvery === n }, n ? `אחרי כל ${n} משימות` : 'בלי הפסקות')));
-    const breakMinutes = h('select', { disabled: !theme.breakEvery, onchange: (e) => set('breakMinutes', Number(e.target.value)) },
+    const breakMinutes = h('select', { disabled: !theme.breakEvery || theme.breakStyle !== 'simple', title: 'בהפסקה מסוג "רעיון ושעון"', onchange: (e) => set('breakMinutes', Number(e.target.value)) },
       [1, 2, 3, 5].map((n) => h('option', { value: n, selected: theme.breakMinutes === n }, `${n} דק׳`)));
     const toggle = (key, label, hint) => h('label', { class: 'toggle' },
       h('input', { type: 'checkbox', checked: theme[key], onchange: (e) => set(key, e.target.checked) }),
@@ -940,7 +941,11 @@ function designTab(body, state) {
             h('input', { type: 'checkbox', checked: theme.order === 'sequential', onchange: (e) => set('order', e.target.checked ? 'sequential' : 'free') }),
             h('span', { class: 'toggle-ui', 'aria-hidden': 'true' }),
             h('span', {}, h('strong', {}, 'משימה אחרי משימה'), h('span', { class: 'muted small block' }, 'המשימה הבאה נפתחת רק אחרי שמסיימים את הקודמת – פחות החלטות, יותר מיקוד'))),
-          h('div', { class: 'row wrap' }, field('הפסקת תנועה', breakEvery), field('אורך ההפסקה', breakMinutes)),
+          h('div', { class: 'row wrap' }, field('הפסקת תנועה', breakEvery), field('אורך ההפסקה', breakMinutes),
+            field('סוג ההפסקה', h('select', { disabled: !theme.breakEvery, onchange: (e) => set('breakStyle', e.target.value) },
+              [['move', '🤸 תנועה מודרכת'], ['calm', '🎈 נשימות והרגעה'], ['simple', '⏱️ רעיון ושעון']].map(([val, label]) => h('option', { value: val, selected: theme.breakStyle === val }, label))))),
+          toggle('moods', 'איך אני מרגיש?', 'בתחילת המסלול ובסופו התלמידים בוחרים פרצוף, ואתם רואים את זה בטבלת ההתקדמות'),
+          toggle('stickers', 'אלבום מדבקות', 'על כל משימה התלמידים מקבלים מדבקה לאלבום שלהם'),
           toggle('celebrate', 'חגיגה בסיום משימה', 'אנימציה קצרה וכוכב על כל משימה שהושלמה'),
           h('fieldset', { disabled: !theme.celebrate },
             swatches('celebration', CELEBRATIONS, (o) => [h('span', { class: 'swatch-emoji' }, o.icon), h('span', { class: 'small' }, o.name)])),
@@ -1136,7 +1141,15 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
   const done = (s) => tasks.filter((t) => s.done[t.id] && s.done[t.id].approved !== false).length;
   const pending = students.flatMap((s) => tasks.filter((t) => s.done[t.id]?.approved === false).map((t) => ({ s, t })));
   const stuck = stuckTasks(tasks, students, wrong);
+  // Students who said today that they feel worried, sad or angry.
+  const today = (ms) => ms && new Date(ms).toDateString() === new Date().toDateString();
+  const worried = students.flatMap((s) => ['end', 'start']
+    .map((k) => s.moods?.[k]).filter((m) => m && today(m.at) && MOODS.find((x) => x.e === m.mood)?.worry)
+    .slice(0, 1).map((m) => ({ s, m })));
   mount(el,
+    worried.length > 0 && h('div', { class: 'help-box mood-box' },
+      h('h3', {}, '💛 כדאי לבדוק מה שלומם'),
+      h('ul', {}, worried.map(({ s, m }) => h('li', {}, h('span', {}, h('strong', {}, s.name), ` · היום: ${m.mood} ${MOODS.find((x) => x.e === m.mood).name}`))))),
     tasks.some((t) => t.needsApproval) && state && pinCard(state, { compact: true }),
     stuck.length > 0 && h('div', { class: 'help-box stuck-box' },
       h('h3', {}, '🔎 איפה נתקעים'),
@@ -1172,7 +1185,10 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
         h('tbody', {}, students.map((s) => {
           const pct = tasks.length ? Math.round((done(s) / tasks.length) * 100) : 0;
           return h('tr', {},
-            h('th', { class: 'sticky', scope: 'row' }, s.avatar && h('span', { class: 'row-avatar', 'aria-hidden': 'true' }, s.avatar), s.name),
+            h('th', { class: 'sticky', scope: 'row' }, s.avatar && h('span', { class: 'row-avatar', 'aria-hidden': 'true' }, s.avatar), s.name,
+              (s.moods?.start || s.moods?.end) && h('span', {
+                class: 'row-mood', title: `איך הרגיש/ה: ${[s.moods.start && `בהתחלה ${s.moods.start.mood}`, s.moods.end && `בסוף ${s.moods.end.mood}`].filter(Boolean).join(', ')}`,
+              }, [s.moods.start?.mood, s.moods.end?.mood].filter(Boolean).join('→'))),
             h('td', {}, h('div', { class: 'mini-progress', title: `${pct}%` }, h('span', { style: { width: `${pct}%` } })), h('span', { class: 'small muted' }, `${done(s)}/${tasks.length}`)),
             tasks.map((t) => {
               const d = s.done[t.id];

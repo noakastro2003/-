@@ -26,6 +26,17 @@ export function secretString(picks) {
   return picks.join('|');
 }
 
+// "How do I feel?" at the start and end of a session. worry: worth a word from the teacher.
+export const MOODS = [
+  { e: '😄', name: 'שמח' }, { e: '🙂', name: 'בסדר' }, { e: '😐', name: 'ככה ככה' }, { e: '😴', name: 'עייף' },
+  { e: '😟', name: 'מודאג', worry: true }, { e: '😢', name: 'עצוב', worry: true }, { e: '😠', name: 'כועס', worry: true },
+];
+export function moodInput(body) {
+  if (!['start', 'end'].includes(body?.kind)) throw new HttpError(400, 'סוג לא תקין');
+  if (!MOODS.some((m) => m.e === body.mood)) throw new HttpError(400, 'בחרו איך אתם מרגישים');
+  return { kind: body.kind, mood: body.mood };
+}
+
 // The 4-digit code a teacher types on a student's screen to approve their work.
 export const randomPin = () => String(randomInt(10000)).padStart(4, '0');
 

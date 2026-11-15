@@ -1,7 +1,7 @@
 import { api } from './api.js';
 import { h, mount, toast, storage } from './ui.js';
 import { go } from './app.js';
-import { TASK_TYPES, BREAK_IDEAS, applyTheme, youtubeEmbed } from './themes.js';
+import { TASK_TYPES, BREAK_IDEAS, MOVE_BREAKS, CALM_BREAKS, MOODS, stickerFor, applyTheme, youtubeEmbed } from './themes.js';
 import { GAMES, gameSpeech } from './games.js';
 import { DEMO } from './env.js';
 import { play, setPathSound, muted, setMuted } from './sound.js';
@@ -82,7 +82,7 @@ export async function studentPage(app, code) {
   if (s.token) {
     try {
       applyState(s, await api('GET', `/api/s/${code}/me`, undefined, auth(s)));
-      return showMap(s);
+      return enterPath(s);
     } catch (err) {
       if (err.status !== 401) toast(err.message, 'error');
       storage(tokenKey(code), null);
@@ -101,6 +101,7 @@ function applyState(s, st) {
   s.help = st.help;
   s.pending = st.pending || [];
   s.firstTry = st.firstTry || 0;
+  s.moods = st.moods || {};
   s.badgesShown ||= new Set(earnedBadges(s)); // a returning student isn't re-congratulated
 }
 
@@ -206,7 +207,7 @@ function showSecret(s, name, mode) {
       s.token = r.token;
       storage(tokenKey(s.code), r.token);
       applyState(s, r);
-      showMap(s);
+      enterPath(s);
     } catch (err) {
       picks = [];
       draw();
@@ -261,6 +262,56 @@ function kidHeader(s, extra) {
     extra);
 }
 
+// ----- how do I feel? -----
+
+const sameDay = (ms) => ms && new Date(ms).toDateString() === new Date().toDateString();
+const wantsMood = (s, kind) => s.theme.moods !== false && !s.preview && !sameDay(s.moods?.[kind]?.at);
+
+// First screen of the day: a quick "how do I feel?", then the map.
+function enterPath(s) {
+  if (!wantsMood(s, 'start') || s.moodSkipped) return showMap(s);
+  frame(s, kidHeader(s), h('main', { class: 'center-page kid' },
+    h('div', { class: 'card narrow center mood-card' },
+      h('h1', { class: 'path-font' }, `איך ההרגשה עכשיו, ${s.name}?`),
+      moodPicker(s, 'start', () => showMap(s)),
+      h('button', { class: 'btn ghost small', onclick: () => { s.moodSkipped = true; showMap(s); } }, 'דילוג'))));
+}
+
+function moodPicker(s, kind, after) {
+  const row = h('div', { class: 'mood-row', role: 'group', 'aria-label': 'איך אני מרגיש' }, MOODS.map((m) => h('button', {
+    class: 'mood-btn', 'aria-label': m.name,
+    onclick: async () => {
+      row.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+      try {
+        s.moods = (await api('POST', `/api/s/${s.code}/mood`, { kind, mood: m.e }, auth(s))).moods;
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+      after(m);
+    },
+  }, h('span', { class: 'mood-emoji', 'aria-hidden': 'true' }, m.e), h('span', { class: 'mood-name' }, m.name))));
+  return row;
+}
+
+// ----- sticker album -----
+
+const stickersOn = (s) => s.theme.stickers !== false && !s.preview;
+
+function showAlbum(s) {
+  window.scrollTo(0, 0);
+  const got = s.tasks.filter((t) => isDone(s, t)).length;
+  frame(s, kidHeader(s), h('main', { class: 'kid-main' },
+    h('h1', { class: 'path-title path-font' }, '📒 האלבום שלי'),
+    h('p', { class: 'center' }, got === s.tasks.length ? 'אספת את כל המדבקות! 🎉' : `אספת ${got} מתוך ${s.tasks.length} מדבקות. כל משימה = מדבקה חדשה!`),
+    h('ul', { class: 'album' }, s.tasks.map((t, i) => {
+      const on = isDone(s, t);
+      return h('li', { class: `album-slot${on ? ' on' : ''}`, style: { '--tilt': `${((i * 37) % 13) - 6}deg` } },
+        h('span', { class: 'album-sticker', 'aria-hidden': 'true' }, on ? stickerFor(s.code, i) : '?'),
+        h('span', { class: 'album-label' }, on ? t.title : `משימה ${i + 1}`));
+    })),
+    h('div', { class: 'center' }, h('button', { class: 'btn primary', onclick: () => showMap(s) }, 'חזרה למפה'))));
+}
+
 // ----- map -----
 
 function showMap(s) {
@@ -298,6 +349,8 @@ function showMap(s) {
       h('h1', { class: 'path-title path-font' }, s.path.title),
       progressBar(s),
       !s.preview && badgeRow(s),
+      stickersOn(s) && h('button', { class: 'btn ghost small album-btn', onclick: () => showAlbum(s) },
+        `📒 האלבום שלי · ${doneCount(s)}/${s.tasks.length}`),
       allDone
         ? h('div', { class: 'card center finish-mini' }, h('span', { class: 'big-emoji' }, '🏆'), h('p', {}, 'סיימת את כל המסלול! איזה כיף!'))
         : h('button', { class: 'btn primary big go-btn', onclick: () => openTask(s, next) },
@@ -717,6 +770,9 @@ function showWellDone(s, i, explanation) {
         h('p', {}, 'סיימת את ', h('strong', {}, t.title)),
         explanation && h('p', { class: 'explanation path-font' }, explanation),
         s.theme.buddy && buddySays(s, CHEERS[Math.floor(Math.random() * CHEERS.length)]),
+        stickersOn(s) && h('div', { class: 'new-sticker' },
+          h('span', { class: 'album-sticker pop', 'aria-hidden': 'true' }, stickerFor(s.code, i)),
+          h('span', {}, h('strong', {}, 'מדבקה חדשה!'), ' נכנסה לאלבום שלך')),
         fresh.length > 0 && h('div', { class: 'new-badge pop' },
           h('span', { class: 'new-badge-icon', 'aria-hidden': 'true' }, fresh.map((b) => b.icon).join(' ')),
           h('span', {}, h('strong', {}, fresh.length > 1 ? 'תגים חדשים!' : 'תג חדש!'), ' ', fresh.map((b) => b.name).join(', '))),
@@ -729,6 +785,74 @@ function showWellDone(s, i, explanation) {
 
 function showBreak(s, next) {
   s.sinceBreak = 0;
+  const style = s.theme.breakStyle || 'move';
+  if (style === 'simple') return simpleBreak(s, next);
+  const list = style === 'calm' ? CALM_BREAKS : MOVE_BREAKS;
+  s.lastBreak = ((s.lastBreak ?? Math.floor(Math.random() * list.length)) + 1) % list.length;
+  guidedBreak(s, next, list[s.lastBreak], list);
+}
+
+// One activity, step by step, with a big moving emoji and a count.
+function guidedBreak(s, next, act, list) {
+  let stepIdx = 0;
+  let tick = 0;
+  let timer = null;
+  const emoji = h('div', { class: 'break-emoji', 'aria-hidden': 'true' }, act.icon);
+  const text = h('p', { class: 'break-idea path-font', role: 'status' });
+  const num = h('div', { class: 'break-time', 'aria-hidden': 'true' });
+  const dots = h('div', { class: 'break-dots', 'aria-hidden': 'true' });
+  const actions = h('div', { class: 'stack' });
+  const go = () => { clearInterval(timer); openTask(s, next); };
+  const say = (words) => {
+    if (!s.theme.readAloud || muted() || !('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(words);
+    u.lang = 'he-IL';
+    speechSynthesis.speak(u);
+  };
+  const showStep = () => {
+    const st = act.steps[stepIdx];
+    text.textContent = st.text;
+    emoji.className = `break-emoji anim-${st.anim || 'none'}`;
+    emoji.style.animationDuration = st.anim === 'inflate' || st.anim === 'deflate' ? `${st.secs}s` : '';
+    mount(dots, act.steps.map((_, k) => h('span', { class: k < stepIdx ? 'done' : k === stepIdx ? 'now' : '' })));
+    tick = 0;
+    num.textContent = st.count ? '0' : String(st.secs);
+    say(st.text);
+  };
+  const finish = () => {
+    clearInterval(timer);
+    play('chime');
+    emoji.className = 'break-emoji anim-bounce';
+    emoji.textContent = '💪';
+    text.textContent = 'כל הכבוד! הגוף התעורר, אפשר להמשיך.';
+    num.textContent = '';
+    mount(dots);
+    mount(actions,
+      h('button', { class: 'btn primary big', onclick: go }, 'מוכנים להמשיך ←'),
+      h('button', { class: 'btn ghost', onclick: () => guidedBreak(s, next, list[(list.indexOf(act) + 1) % list.length], list) }, 'עוד תרגיל אחד 🔁'));
+  };
+  timer = setInterval(() => {
+    if (!emoji.isConnected) return clearInterval(timer);
+    const st = act.steps[stepIdx];
+    tick++;
+    num.textContent = st.count ? String(tick) : String(Math.max(0, st.secs - tick));
+    if (tick >= (st.count || st.secs)) {
+      stepIdx++;
+      if (stepIdx >= act.steps.length) return finish();
+      showStep();
+    }
+  }, 1000);
+  showStep();
+  mount(actions, h('button', { class: 'btn ghost', onclick: go }, 'דילוג על ההפסקה'));
+  frame(s, h('main', { class: 'center-page kid' },
+    h('div', { class: 'card narrow center break-card' },
+      h('h1', { class: 'path-font' }, `הפסקה: ${act.title}`),
+      emoji, s.theme.buddy ? h('div', { class: 'buddy-line' }, h('span', { 'aria-hidden': 'true' }, s.theme.buddy), text) : text,
+      num, dots, actions)));
+}
+
+function simpleBreak(s, next) {
   const idea = BREAK_IDEAS[Math.floor(Math.random() * BREAK_IDEAS.length)];
   let left = s.theme.breakMinutes * 60;
   const label = h('div', { class: 'break-time', role: 'timer' });
@@ -749,6 +873,12 @@ function showBreak(s, next) {
       h('button', { class: 'btn primary big', onclick: () => { clearInterval(timer); openTask(s, next); } }, 'מוכנים להמשיך ←'))));
 }
 
+function endMood(s) {
+  const box = h('div', { class: 'mood-end' }, h('p', {}, h('strong', {}, 'איך הרגשת במסלול?')));
+  box.append(moodPicker(s, 'end', (m) => mount(box, h('p', {}, `${m.e} תודה ששיתפת! המורה תשמח לדעת.`))));
+  return box;
+}
+
 function showFinish(s) {
   frame(s,
     kidHeader(s),
@@ -759,6 +889,8 @@ function showFinish(s) {
         h('p', {}, `השלמת ${s.tasks.length} משימות וצברת ${doneCount(s)} כוכבים.`),
         h('p', { class: 'big-stars', 'aria-hidden': 'true' }, '⭐'.repeat(Math.min(doneCount(s), 12))),
         !s.preview && badgeRow(s),
+        wantsMood(s, 'end') && endMood(s),
+        stickersOn(s) && h('button', { class: 'btn secondary', onclick: () => showAlbum(s) }, '📒 לאלבום המדבקות'),
         h('button', { class: 'btn primary', onclick: () => showMap(s) }, 'לראות את המפה'))));
   if (!s.preview) newBadges(s);
   play('fanfare');

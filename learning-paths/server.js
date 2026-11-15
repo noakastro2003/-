@@ -10,7 +10,7 @@ import { TEMPLATES } from './templates.js';
 import { createAiTools, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
 import { stripNikud } from './validate.js';
 import {
-  studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS, GRADED_TYPES, keepTeacherParts,
+  studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS, GRADED_TYPES, keepTeacherParts, moodInput,
 } from './logic.js';
 import * as billing from './billing.js';
 import { createMailer } from './mailer.js';
@@ -286,8 +286,10 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     setAvatar: db.prepare('UPDATE students SET avatar = ? WHERE id = ?'),
     touchStudent: db.prepare("UPDATE students SET last_active = datetime('now') WHERE id = ?"),
     deleteStudent: db.prepare('DELETE FROM students WHERE id = ?'),
-    studentsOfPath: db.prepare(`SELECT id, name, avatar, secret_hash IS NOT NULL AS has_secret, created_at, last_active
-                                FROM students WHERE path_id = ? ORDER BY name`),
+    studentsOfPath: db.prepare(`SELECT id, name, avatar, secret_hash IS NOT NULL AS has_secret, created_at, last_active,
+                                hidden_tasks, break_every FROM students WHERE path_id = ? ORDER BY name`),
+    addMood: db.prepare('INSERT INTO moods (student_id, kind, mood, at) VALUES (?, ?, ?, ?)'),
+    recentMoods: db.prepare('SELECT kind, mood, at FROM moods WHERE student_id = ? ORDER BY at DESC, id DESC LIMIT 20'),
 
     progressOfStudent: db.prepare('SELECT task_id, answer, completed_at, approved FROM progress WHERE student_id = ?'),
     progressOfPath: db.prepare(`SELECT p.student_id, p.task_id, p.answer, p.completed_at, p.approved, p.duration_sec FROM progress p
@@ -488,8 +490,19 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
       done[r.task_id] = { answer: r.answer == null ? null : JSON.parse(r.answer), completedAt: r.completed_at };
     }
     const help = q.openHelpForStudent.all(s.id).map((r) => r.task_id);
-    return { student: { id: s.id, name: s.name, avatar: s.avatar || '' }, done, pending, help, firstTry: q.firstTry.get(s.id).n };
+    return {
+      student: { id: s.id, name: s.name, avatar: s.avatar || '' }, done, pending, help, firstTry: q.firstTry.get(s.id).n,
+      moods: latestMoods(s.id), adapt: adaptOf(s),
+    };
   }
+
+  // The latest "how do I feel" at the start and at the end of a session.
+  function latestMoods(studentId) {
+    const out = {};
+    for (const m of q.recentMoods.all(studentId)) out[m.kind] ||= { mood: m.mood, at: m.at };
+    return out;
+  }
+  const adaptOf = (s) => ({ hidden: JSON.parse(s.hidden_tasks || '[]'), breakEvery: s.break_every ?? null });
 
   // The teacher's decision on a pending task: approve, or send it back to redo.
   function decide(studentId, taskId, decision) {
@@ -819,6 +832,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     const students = q.studentsOfPath.all(p.id).map((s) => ({
       id: s.id, name: s.name, avatar: s.avatar, hasSecret: Boolean(s.has_secret),
       joinedAt: s.created_at, lastActive: s.last_active, done: {},
+      moods: latestMoods(s.id), adapt: adaptOf(s),
     }));
     const byId = new Map(students.map((s) => [s.id, s]));
     for (const r of q.progressOfPath.all(p.id)) {
@@ -1105,6 +1119,14 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     const s = currentStudent(ctx.req, p);
     q.touchStudent.run(s.id);
     return studentState(s);
+  });
+
+  route('POST', '/api/s/:code/mood', (ctx) => {
+    const p = publicPath(ctx, ctx.params.code);
+    const s = currentStudent(ctx.req, p);
+    const { kind, mood } = moodInput(ctx.body);
+    q.addMood.run(s.id, kind, mood, Date.now());
+    return { moods: latestMoods(s.id) };
   });
 
   // Grade without saving (used by teacher preview).

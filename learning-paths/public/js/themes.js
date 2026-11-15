@@ -140,6 +140,64 @@ export const NIKUD = [
 
 export const stripNikud = (s) => String(s).replace(/[\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7]/g, '');
 
+// Keep in step with MOODS in logic.js (a test checks it).
+export const MOODS = [
+  { e: '😄', name: 'שמח' }, { e: '🙂', name: 'בסדר' }, { e: '😐', name: 'ככה ככה' }, { e: '😴', name: 'עייף' },
+  { e: '😟', name: 'מודאג', worry: true }, { e: '😢', name: 'עצוב', worry: true }, { e: '😠', name: 'כועס', worry: true },
+];
+
+// Guided breaks. A step either counts up to `count` (one a second) or runs for `secs`.
+// anim: how the big emoji moves (bounce, grow, shrink, spin, sway, inflate, deflate).
+export const MOVE_BREAKS = [
+  { icon: '🦘', title: 'קפיצות קנגורו', steps: [{ text: 'קופצים במקום!', count: 10, anim: 'bounce' }] },
+  { icon: '🙆', title: 'מתיחה גדולה', steps: [
+    { text: 'ידיים למעלה, הכי גבוה שאפשר', secs: 5, anim: 'grow' },
+    { text: 'עכשיו מתכופפים ונוגעים בבהונות', secs: 5, anim: 'shrink' },
+    { text: 'ושוב ידיים למעלה!', secs: 5, anim: 'grow' }] },
+  { icon: '🤸', title: 'סיבובי כתפיים', steps: [
+    { text: 'מסובבים כתפיים קדימה', count: 5, anim: 'spin' },
+    { text: 'ועכשיו אחורה', count: 5, anim: 'spin' }] },
+  { icon: '🦩', title: 'פלמינגו', steps: [
+    { text: 'עומדים על רגל אחת', secs: 10, anim: 'sway' },
+    { text: 'ועכשיו על הרגל השנייה', secs: 10, anim: 'sway' }] },
+  { icon: '🤖', title: 'הרובוט אומר', steps: [
+    { text: 'יד על הראש', secs: 3, anim: 'bounce' }, { text: 'יד על האף', secs: 3, anim: 'bounce' },
+    { text: 'ידיים על הכתפיים', secs: 3, anim: 'bounce' }, { text: 'ידיים על הברכיים', secs: 3, anim: 'bounce' },
+    { text: 'מוחאים כפיים!', count: 5, anim: 'bounce' }] },
+  { icon: '🏃', title: 'ריצה במקום', steps: [{ text: 'רצים במקום, ברכיים גבוה!', secs: 15, anim: 'bounce' }] },
+];
+const BREATH = [
+  { text: 'שואפים לאט… הבלון מתנפח', secs: 4, anim: 'inflate' },
+  { text: 'נושפים לאט… הבלון מתרוקן', secs: 4, anim: 'deflate' },
+];
+export const CALM_BREAKS = [
+  { icon: '🎈', title: 'נשימת בלון', steps: [...BREATH, ...BREATH, ...BREATH, ...BREATH] },
+  { icon: '👀', title: '5 דברים', steps: [
+    { text: 'מצאו 5 דברים שאתם רואים', secs: 10 }, { text: 'מצאו 4 דברים שאפשר לגעת בהם', secs: 8 },
+    { text: 'הקשיבו ל-3 צלילים', secs: 8 }, { text: 'נשימה עמוקה אחת', secs: 4, anim: 'inflate' }] },
+  { icon: '💧', title: 'שתיית מים', steps: [{ text: 'שותים כמה לגימות מים', secs: 15 }] },
+  { icon: '🐢', title: 'צב רגוע', steps: [
+    { text: 'עוצמים עיניים ומכווצים את כל הגוף כמו צב בשריון', secs: 5, anim: 'shrink' },
+    { text: 'משחררים לאט', secs: 5, anim: 'grow' },
+    { text: 'עוד פעם: מכווצים…', secs: 5, anim: 'shrink' },
+    { text: 'ומשחררים', secs: 5, anim: 'grow' }] },
+];
+
+// Stickers for the album: one per task, in an order that depends on the path.
+export const STICKERS = ['🦄', '🐉', '🦋', '🐬', '🦊', '🐼', '🦁', '🐸', '🐙', '🦕', '🐝', '🦜', '🌈', '🌵', '🍉', '🍩',
+  '🧁', '🍭', '🚀', '🛸', '🎸', '🎨', '⚽', '🏀', '🎯', '🧩', '🪁', '🎠', '🏰', '🌋', '🌻', '🍄', '🐳', '🦒', '🦔', '🐧',
+  '🦉', '🐞', '🍓', '🥨', '🎪', '🚂', '⛵', '🪐', '⭐', '💎', '👑', '🎁'];
+export function stickerFor(code, index) {
+  let seed = [...String(code)].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  const list = [...STICKERS];
+  for (let i = list.length - 1; i > 0; i--) {
+    seed = (seed * 1103515245 + 12345) >>> 0;
+    const j = seed % (i + 1);
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list[index % list.length];
+}
+
 export const BREAK_IDEAS = [
   { icon: '🙆', text: 'מתיחה גדולה – ידיים למעלה!' },
   { icon: '💧', text: 'לשתות כמה לגימות מים' },

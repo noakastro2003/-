@@ -1713,3 +1713,49 @@ html[data-skin=luxe] .ill.wl img, html[data-skin=luxe] .card.empty > .ill img { 
 @media (prefers-reduced-motion: reduce) { .nl[data-l=r] .r { animation: none; } }
 .pj-shh .bub { background: #FFFAF3; color: #4A3566; box-shadow: 0 2vmin 4vmin -1vmin rgba(0, 0, 0, .35), inset 0 .6vmin .4vmin #fff, inset 0 -1vmin 1.6vmin rgba(122, 92, 60, .14); }
 html[data-skin=luxe] input[type=range] { accent-color: #5B4190; }
+
+/* ================================================================ v74 · voice notes */
+.micbtn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 10px 0 4px; padding: 12px 14px; border-radius: 999px; border: 0;
+  background: color-mix(in srgb, var(--accent-ink) 9%, var(--card)); color: var(--accent-ink); font: inherit; font-size: var(--fs-sm); font-weight: 600; box-shadow: var(--clay-sm, none); cursor: pointer; }
+.micbtn .ic { width: 20px; height: 20px; }
+.micbtn.wide { margin-top: 14px; font-weight: 500; }
+.micbtn.on { background: #5B4190; color: #fff; animation: micPulse 1.3s ease-in-out infinite; }
+@keyframes micPulse { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, #5B4190 18%, transparent); } }
+.minvite { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.minvite .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.minvite small { color: var(--soft); font-size: var(--fs-note); line-height: 1.4; }
+.mi-btns { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.minvite .cta { width: auto; padding: 9px 16px; margin: 0; font-size: var(--fs-sm); }
+.minvite .iconbtn { width: 30px; height: 30px; }
+/* v74 · swipe to mark done */
+[data-sw] { transition: transform .3s cubic-bezier(.3, 1.4, .45, 1), opacity .2s, background-color .2s; touch-action: pan-y; position: relative; }
+[data-sw].swiping { transition: none; background-color: color-mix(in srgb, #5CC983 calc(var(--sw, 0) * 28%), var(--card)); border-radius: 16px; }
+[data-sw].gone { opacity: 0; transition: transform .2s ease-in, opacity .2s; }
+/* v74 · search everything */
+.srch .search { display: flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: 999px; margin: 6px 0 12px; }
+.srch .search .ic { width: 20px; height: 20px; color: var(--soft); }
+.srch .search input { flex: 1; border: 0; background: transparent; font: inherit; font-size: var(--fs-body); padding: 13px 0; color: var(--ink); outline: none; }
+.gsg { margin: 4px 0 14px; }
+.gsh { display: flex; align-items: center; gap: 6px; font-size: var(--fs-note); color: var(--soft); margin: 0 6px 6px; font-weight: 600; }
+.gsh .ic { width: 15px; height: 15px; }
+.gsrow { display: flex; align-items: center; gap: 10px; width: 100%; text-align: start; padding: 11px 14px; margin-bottom: 6px; border: 0; border-radius: 18px; background: var(--card); color: var(--ink); font: inherit; text-decoration: none; box-shadow: var(--clay-sm, 0 1px 3px rgba(0,0,0,.08)); }
+.gsrow .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gsrow b { font-weight: 600; font-size: var(--fs-body); }
+.gsrow small { color: var(--soft); font-size: var(--fs-note); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gsrow .chev { width: 16px; color: var(--soft); flex: none; }
+.gsrow mark { background: color-mix(in srgb, #F7C64B 45%, transparent); color: inherit; border-radius: 4px; padding: 0 1px; }
+.gs-hint { text-align: center; padding: 14px 10px; }
+/* v74 · upload: a bobbing picture and steps that tick off */
+#loader { background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.ld-ill .ill.md { width: 132px; height: 132px; margin: 0 auto 6px; animation: ldBob 1.8s ease-in-out infinite; }
+@keyframes ldBob { 50% { transform: translateY(-8px) rotate(-2deg); } }
+.ld-steps { list-style: none; margin: 10px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 8px; text-align: start; }
+.ld-steps li { display: flex; align-items: center; gap: 10px; color: var(--soft); font-size: var(--fs-sm); transition: color .3s; }
+.ld-steps li .ic { width: 22px; height: 22px; padding: 4px; border-radius: 50%; background: var(--dough, #EEE4F6); color: transparent; box-shadow: var(--clay-pressed, none); transition: background .3s, color .3s; flex: none; }
+.ld-steps li.now { color: var(--ink); font-weight: 600; }
+.ld-steps li.now .ic { animation: micPulse 1.2s ease-in-out infinite; }
+.ld-steps li.done { color: var(--ink); }
+.ld-steps li.done .ic { background: #5CC983; color: #fff; box-shadow: var(--clay-sm, none); }
+@media (prefers-reduced-motion: reduce) { .ld-ill .ill.md { animation: none; } }
+html[data-skin=luxe] .ill img[src$=".webp"] { mix-blend-mode: normal !important; }
+html[data-skin=luxe] .ill img[src$=".webp"] { -webkit-mask-image: none !important; mask-image: none !important; }

@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 73; // keep in step with CACHE in sw.js
+const APP_V = 74; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -241,7 +241,7 @@ function remindersCard(w, full) {
   return `<div class="card notes">
     ${cardHead('pin', 'לא לשכוח', !full ? `<button class="linkbtn" data-go="todos">הכל</button>` : '')}
     ${full && !list.length ? estate('e-todos', 'אין תזכורות', 'כותבים כאן משהו קטן שלא רוצים לשכוח. עם תאריך – זה יופיע ב"עכשיו" ביום הזה.') : ''}
-    ${list.map(t => `<div class="todo">
+    ${list.map(t => `<div class="todo" ${t.done ? '' : `data-sw="todo:${t.id}"`}>
       <label class="chk ${t.done ? 'on' : ''}"><input type="checkbox" data-todo="${t.id}" ${t.done ? 'checked' : ''}><span class="box">${ic('check')}</span><span class="ct">${esc(t.text)}${t.date ? ` <small class="tpill">${esc(fmtDate(t.date))}</small>` : ''}</span></label>
       ${full ? `<button class="iconbtn" data-deltodo="${t.id}" aria-label="מחיקה">${ic('trash')}</button>` : ''}
     </div>`).join('')}
@@ -268,7 +268,8 @@ const illFile = name => ILLF.has(name) ? name : ILL[name];
 const illImg = (name, cls = '') => illFile(name) ? `<span class="ill ${cls}"><img src="img/ill/${illFile(name)}.jpg" alt="" decoding="async"></span>` : '';
 // pictures for empty screens. Until a picture of its own is added to img/ill/, each one falls back to a family picture.
 const SLOT_FB = { 'e-todos': 'notebook', 'e-grades': 'medal', 'e-journal': 'notebook', 'e-kids': 'class', 'e-files': 'tools', welcome: 'school' };
-const slotImg = (slot, cls = 'md') => `<span class="ill ${cls}"><img src="img/ill/${slot}.jpg" data-fb="img/ill/${SLOT_FB[slot]}.jpg" alt="" decoding="async"></span>`;
+const SLOT_EXT = { welcome: 'webp' };
+const slotImg = (slot, cls = 'md') => `<span class="ill ${cls}"><img src="img/ill/${slot}.${SLOT_EXT[slot] || 'jpg'}" data-fb="img/ill/${SLOT_FB[slot]}.jpg" alt="" decoding="async"></span>`;
 document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.dataset.fb && !t.src.endsWith(t.dataset.fb)) t.src = t.dataset.fb; }, true);
 const estate = (slot, title, text, extra = '') => `<div class="estate">${slotImg(slot)}<b>${title}</b>${text ? `<span>${text}</span>` : ''}${extra}</div>`;
 function top(title, sub, illus, opts = {}) {
@@ -277,6 +278,7 @@ function top(title, sub, illus, opts = {}) {
     <div class="brandrow">
       <div class="brand">${opts.back ? `<button class="back" data-go="${opts.back}" aria-label="חזרה">${ic('chevR')}</button>` : ''}${logo('blogo')}<span>הכיתה שלי${squiggle('s')}</span>${syncDot()}</div>
       <div class="hbtns">
+        <button class="hb" data-act="search" aria-label="חיפוש">${ic('search')}</button>
         <button class="hb" data-day="all" aria-label="מערכת">${ic('calendar')}</button>
         <button class="hb" data-go="todos" aria-label="תזכורות">${ic('bell')}${dot ? '<i class="dot"></i>' : ''}</button>
       </div>
@@ -370,11 +372,11 @@ function viewNow(w) {
   } else if (ph.kind === 'before') {
     h += top(hello(), `יום ${day.name} · מתחילים ב־${ph.next.start}`, 'books') + firstSteps();
     h += birthdayBanner();
-    h += attLine() + prepCards(w, day, 'today');
+    h += morningInvite() + attLine() + prepCards(w, day, 'today');
     h += nextCard(day, ph.next, ph.inMin, 'השיעור הראשון') + tipCard();
   } else if (ph.kind === 'after') {
     h += top('סיימת את היום 🎉', line(), 'books');
-    h += birthdayBanner() + teaser;
+    h += birthdayBanner() + teaser + morningInvite();
     const S = dayStats(w, day);
     h += `<div class="card bravo hue-gold"><div class="grow"><b>היום הסתיים</b><span>סיימת ${day.periods.length} שיעורים${S.total ? ` ו־${S.done} מתוך ${S.total} משימות` : ''}</span></div>${illImg('medal', 'sm')}</div>`;
     const ng = nextDayGlobal();
@@ -399,6 +401,12 @@ function viewNow(w) {
   return h;
 }
 
+function morningInvite() {
+  if (state.prefs.mInvite || !wpush.supported || !wpush.checked || wpush.sub) return '';
+  const m = autos().find(a => a.kind === 'morning'); if (!m || !m.on) return '';
+  return `<div class="card minvite"><span class="chi">${ic('sun')}</span><span class="grow"><b>"בוקר טוב" לטלפון כל בוקר</b><small>ב־${esc(m.time)}: כמה שיעורים, מה להדפיס, מה להביא וימי הולדת – בלי לפתוח את האפליקציה</small></span>
+    <span class="mi-btns"><button class="cta" data-act="pushon">הפעלה</button><button class="iconbtn" data-act="minviteno" aria-label="לא עכשיו">${ic('x')}</button></span></div>`;
+}
 function quickTools() {
   return `<div class="quick q4">
     <button data-act="classmode">${ic('screen')}מצב בכיתה</button>
@@ -2207,7 +2215,7 @@ function viewSettings(w) {
 
 function viewTodos(w) {
   return top('תזכורות', 'הדברים הקטנים שלא רוצים לשכוח', 'notepad', { back: 'more' }) + remindersCard(w, true) +
-    `<p class="hint">תזכורת עם תאריך תופיע ב"עכשיו" מהיום הזה. בלי תאריך – תמיד.</p>` +
+    `<p class="hint">תזכורת עם תאריך תופיע ב"עכשיו" מהיום הזה. בלי תאריך – תמיד. החלקה הצידה על תזכורת מסמנת שבוצעה.</p>` +
     (state.todos.some(t => t.done) ? `<button class="cta soft" data-act="cleartodos">לנקות את מה שסימנתי ✓</button>` : '');
 }
 
@@ -3032,7 +3040,7 @@ async function initAuth() {
   try { sync.user = await ID.getUser(); } catch { sync.user = null; }
   repMe();
   sync.ready = true;
-  pushState().then(() => { if (state.tab === 'autos') rerender(); });
+  pushState().then(() => { if (state.tab === 'autos' || (state.tab === 'now' && !wpush.sub)) rerender(); });
   if (sync.user) { await pull(true); rerender(); } else if (state.tab === 'settings') rerender();
 }
 function accountCard() {
@@ -3079,7 +3087,7 @@ function noteRow(n, withLesson) {
   const [e, t, c] = TAGS[n.tag] || TAGS.note;
   const L = withLesson && n.w && state.weeks[n.w] ? findPeriodIn(state.weeks[n.w], n.dow, n.label) : null;
   const when = new Date(n.at);
-  return `<div class="nrow ${n.done ? 'done' : ''}" style="--c:${c}">
+  return `<div class="nrow ${n.done ? 'done' : ''}" style="--c:${c}" ${ACTION.includes(n.tag) && !n.done ? `data-sw="note:${n.id}"` : ''}>
     ${ACTION.includes(n.tag) ? `<button class="nchk ${n.done ? 'on' : ''}" data-cdone="${n.id}" aria-label="טופל">${ic('check')}</button>` : `<span class="nemo">${tagMark(n.tag)}</span>`}
     <span class="grow"><b>${ACTION.includes(n.tag) ? e + ' ' : ''}${esc(n.kids.join(', ') || t)}</b>${n.text ? `<span>${esc(n.text)}</span>` : ''}
       <small>${t}${L ? ' · ' + esc(L.title) : ''} · ${when.getDate()}.${when.getMonth() + 1} ${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}</small></span>
@@ -3095,18 +3103,59 @@ function lessonNotes(w, day, p) {
 }
 function noteSheet(ref, tag) {
   const kids = state.kids.map(k => k.name);
-  state._note = { ref, tag, kids: [] };
+  state._note = { ref, tag, kids: [], tagSet: !!tag && tag !== 'note' };
   openOverlay(`<form class="ov sheet notesheet" data-noteform>
     <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
     <div class="ovh">${ic('pencil')}<h2>הערה מהירה</h2></div>
     <div class="tagpick">${Object.entries(TAGS).map(([k, [e, t, c]]) => `<button type="button" class="tp ${k === tag ? 'on' : ''}" style="--c:${c}" data-picktag="${k}">${tagMark(k)}<small>${t}</small></button>`).join('')}</div>
     ${kids.length ? `<div class="mh">על מי? (אפשר כמה)</div><div class="kchips">${kids.map(n => `<button type="button" class="kc pick" data-pickkid="${esc(n)}">${esc(n)}</button>`).join('')}</div>`
       : `<label class="field">על מי?<input name="who" placeholder="שם הילד/ה (לא חובה)"></label>`}
+    <button type="button" class="micbtn" data-act="notemic">${ic('mic')}<span>לומר בקול</span></button>
     <label class="field">מה קרה? (לא חובה)<textarea name="text" rows="2" placeholder="למשל: עזר לחבר בלי שביקשו ממנו"></textarea></label>
     <div class="btnrow"><button class="cta">${ic('check')} שמירה</button></div>
   </form>`);
 }
+// ---- saying a note instead of typing: the app picks the child and the kind from the words
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const TAG_WORDS = [
+  ['parent', /להתקשר|לדבר עם (ה)?(אמא|אבא|הורים)|(אמא|אבא|ההורים|הורים) של|לעדכן (את )?ההורים|שיחה עם/],
+  ['disrupt', /הפריע|הפרעה|צעק|הרביץ|דחף|קילל|לא הקשיב|השתולל|חוצפ|הציק/],
+  ['star', /הצטיינ|עזר|כל הכבוד|מצוין|מצויין|נהדר|יפה מאוד|השתפר|התנדב|מקסים|גאה/],
+  ['care', /לבדוק|לטפל|עצוב|בכה|בוכה|נפגע|כואב|לשים לב|מתקשה|פרטני|נעלב|לבד בהפסקה/],
+];
+function noteGuess(text) {
+  const N = state._note; if (!N) return;
+  const t = ' ' + text.replace(/[.,!?״"'׳:;()]/g, ' ').replace(/\s+/g, ' ') + ' ';
+  const firsts = {}; for (const k of state.kids) { const f = k.name.split(' ')[0]; firsts[f] = (firsts[f] || 0) + 1; }
+  const has = w => new RegExp(` (ו|ל|ב|ש|ה|מ|כש|של|את|עם)?${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} `).test(t);
+  for (const k of state.kids) {
+    if (N.kids.includes(k.name)) continue;
+    const f = k.name.split(' ')[0];
+    if (has(k.name) || (firsts[f] === 1 && has(f))) {
+      N.kids.push(k.name);
+      const b = [...document.querySelectorAll('.kc.pick')].find(x => x.dataset.pickkid === k.name); if (b) b.classList.add('on');
+    }
+  }
+  if (!N.tagSet) for (const [tag, re] of TAG_WORDS) if (re.test(t)) {
+    N.tag = tag; document.querySelectorAll('.tp').forEach(b => b.classList.toggle('on', b.dataset.picktag === tag)); break;
+  }
+}
+const voice = { r: null };
+function noteMic() {
+  const ta = $('.notesheet textarea'), btn = $('.notesheet .micbtn'); if (!ta || !btn) return;
+  if (!SR) { ta.focus(); toast('לוחצים על המיקרופון שבמקלדת ומדברים – אני אזהה את הילד ואת סוג ההערה', 4200); return; }
+  if (voice.r) { voice.r.stop(); return; }
+  const r = new SR(); r.lang = 'he-IL'; r.interimResults = true; r.continuous = false;
+  const base = ta.value.trim() ? ta.value.trim() + ' ' : '';
+  r.onresult = e => { let x = ''; for (const res of e.results) x += res[0].transcript; ta.value = base + x; noteGuess(ta.value); };
+  r.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { toast('לוחצים על המיקרופון שבמקלדת ומדברים', 3500); ta.focus(); } };
+  r.onend = () => { voice.r = null; const b = $('.notesheet .micbtn'); if (b) { b.classList.remove('on'); b.querySelector('span').textContent = 'לומר בקול'; } };
+  try { r.start(); voice.r = r; btn.classList.add('on'); btn.querySelector('span').textContent = 'מקשיבה… לחיצה לסיום'; }
+  catch { ta.focus(); toast('לוחצים על המיקרופון שבמקלדת ומדברים', 3500); }
+}
+document.addEventListener('input', e => { if (e.target.matches && e.target.matches('.notesheet textarea')) noteGuess(e.target.value); });
 function saveNote(f) {
+  if (voice.r) try { voice.r.stop(); } catch { /* fine */ }
   const N = state._note; if (!N) return;
   const kids = N.kids.length ? N.kids : (f.who && f.who.value.trim() ? [f.who.value.trim()] : []);
   const text = f.text.value.trim();
@@ -3126,7 +3175,8 @@ function viewJournal() {
   const n = openActions().length;
   const quick = Object.entries(TAGS).map(([k, [, t, c]]) => `<button class="jq" data-cnote="" data-tag="${k}" style="--tc:${c}"><span>${ic(TAG_IC[k])}</span>${t}</button>`).join('');
   return top('יומן כיתה', 'כל מה שרשמת בשיעורים – במקום אחד', 'notepad', { back: 'cls' }) + `
-  <div class="card jquick">${cardHead('plus', 'רישום מהיר')}<div class="jqgrid">${quick}</div></div>
+  <div class="card jquick">${cardHead('plus', 'רישום מהיר')}<div class="jqgrid">${quick}</div>
+    <button class="micbtn wide" data-act="voicenote">${ic('mic')}<span>רישום בקול – אומרים ״יואב עזר לחבר״ והכל מתמלא לבד</span></button></div>
   ${state.cnotes.length ? `<div class="fchips jf">${[['', 'הכל'], ['open', n ? `פתוחים · ${n}` : 'פתוחים'], ...Object.entries(TAGS).map(([k, [, t]]) => [k, `${ic(TAG_IC[k])}${t}`])].map(([k, t]) => `<button class="fc ${f === k ? 'on' : ''}" data-jf="${k}">${t}</button>`).join('')}</div>` : ''}
   ${list.length ? `<div class="card">${list.map(n => noteRow(n, true)).join('')}</div>`
     : `<div class="card">${estate('e-journal', state.cnotes.length ? 'אין כאן הערות' : 'היומן עוד ריק', 'רושמים מכאן, או ישר מתוך השיעור – בלחיצה אחת.')}</div>`}
@@ -3237,7 +3287,8 @@ function buildQueue() {
     if (a.kind === 'morning') for (const { w, d, dd } of days) {
       const lines = [];
       const bd = bdOn(dd); if (bd.length) lines.push(state.prefs.notifNames ? `🎂 יום הולדת ל${names(bd)}!` : `🎂 ${bd.length > 1 ? bd.length + ' ימי הולדת' : 'יום הולדת'} בכיתה היום`);
-      lines.push(`📅 ${d.periods[0].start} · ${d.periods[0].title}`);
+      lines.push(`📅 ${d.periods.length} שיעורים · מתחילים ב־${d.periods[0].start} – ${d.periods[0].title}`);
+      const oa = openActions().length; if (oa) lines.push(`📞 ${oa} דברים לטיפול מהיומן`);
       const pr = sec(w, d, /ערב|הדפסה/), br = sec(w, d, /להכין|להביא/);
       if (pr.length) lines.push(`🖨 להדפיס: ${pr.join(' · ')}`);
       if (br.length) lines.push(`🎒 להביא: ${br.slice(0, 4).join(' · ')}${br.length > 4 ? ` ועוד ${br.length - 4}` : ''}`);
@@ -3494,11 +3545,15 @@ function loader(show, pct = 0, label = '') {
   if (!show) { if (el) { el.classList.remove('show'); setTimeout(() => el.remove(), 400); } return; }
   if (!el) {
     el = document.createElement('div'); el.id = 'loader';
-    el.innerHTML = `<div class="ld-card"><div class="ld-book"><i></i><i></i><i></i></div><b>קוראת את התכנון…</b><small id="ldLabel"></small><div class="bar big"><span id="ldBar" style="--w:0%"></span></div></div>`;
+    el.innerHTML = `<div class="ld-card"><span class="ld-ill">${slotImg('welcome', 'md')}</span><b>קוראת את התכנון…</b>
+      <ul class="ld-steps"><li>${ic('check')}<span>פותחת את הקובץ</span></li><li>${ic('check')}<span>מוצאת ימים ושיעורים</span></li><li>${ic('check')}<span>מסדרת קבצים ומשימות</span></li></ul>
+      <small id="ldLabel"></small><div class="bar big"><span id="ldBar" style="--w:0%"></span></div></div>`;
     document.body.appendChild(el); void el.offsetWidth; el.classList.add('show');
   }
   $('#ldBar').style.setProperty('--w', Math.round(pct * 100) + '%'); $('#ldBar').style.width = Math.round(pct * 100) + '%';
   $('#ldLabel').textContent = label;
+  const step = pct >= .95 ? 2 : pct >= .15 ? 1 : 0;
+  el.querySelectorAll('.ld-steps li').forEach((li, i) => { li.classList.toggle('done', i < step); li.classList.toggle('now', i === step); });
 }
 // screen readers: folded content is not reachable, switches say what they switch, the current tab is marked
 function a11yFix(root) {
@@ -3576,13 +3631,14 @@ document.addEventListener('click', async e => {
   if (D.pday != null) { state.prepDow = +D.pday; if (state.tab !== 'prep') go('prep'); else rerender(); return; }
   if (D.goto) {
     const [dow, lb] = D.goto.split('|');
+    if ($('#overlay.show')) closeOverlay();
     state.dayDow = +dow; state.open[`${dow}:${lb}`] = true; go('day');
     const el = document.querySelector(`.lrow[data-id="${CSS.escape(dow + ':' + lb)}"]`);
     if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
     return;
   }
   if (D.cnote != null && D.tag) { noteSheet(D.cnote || null, D.tag); return; }
-  if (D.picktag) { state._note.tag = D.picktag; document.querySelectorAll('.tp').forEach(b => b.classList.toggle('on', b.dataset.picktag === D.picktag)); return; }
+  if (D.picktag) { state._note.tag = D.picktag; state._note.tagSet = true; document.querySelectorAll('.tp').forEach(b => b.classList.toggle('on', b.dataset.picktag === D.picktag)); return; }
   if (D.pickkid) { const k = state._note.kids, i = k.indexOf(D.pickkid); if (i >= 0) k.splice(i, 1); else k.push(D.pickkid); t.classList.toggle('on', i < 0); return; }
   if (D.cdone) { const n = state.cnotes.find(x => x.id === D.cdone); if (n) { n.done = !n.done; save(); if (n.done) miniBurst(t); setTimeout(rerender, 250); } return; }
   if (D.cdel) { { withUndo(['cnotes'], 'ההערה נמחקה', () => { state.cnotes = state.cnotes.filter(x => x.id !== D.cdel); }); } return; }
@@ -3593,7 +3649,7 @@ document.addEventListener('click', async e => {
   if (D.ldel) { if (true) { withUndo(['lists'], 'הרשימה נמחקה', () => { state.lists = state.lists.filter(x => x.id !== D.ldel); }); state.listEdit = null; save(); rerender(); } return; }
   if (D.ltpl != null) { const [e, title, items] = LIST_TEMPLATES[+D.ltpl]; state.lists.push({ id: uid(), emoji: e, title, items: items.map(x => ({ id: uid(), text: x, done: false })) }); save(); rerender(); toast('הרשימה נוצרה ✓'); return; }
   if (D.autoon) { const a = autos().find(x => x.id === D.autoon); a.on = !a.on; save(); rerender(); return; }
-  if (D.autodel) { state.autos = autos().filter(x => x.id !== D.autodel); save(); rerender(); return; }
+  if (D.autodel) { withUndo(['autos'], 'התזכורת הקבועה נמחקה', () => { state.autos = autos().filter(x => x.id !== D.autodel); }); return; }
   if (D.printitem) { e.preventDefault(); const [dow, si, i] = D.printitem.split('|').map(Number); printSheet(w, dow, si, i); return; }
   if (D.openfile) { closeOverlay(); openFile(D.openfile); return; }
   if (D.filemenu) { fileMenu(D.filemenu); return; }
@@ -3605,7 +3661,7 @@ document.addEventListener('click', async e => {
   if (D.delrow != null) { const r = t.closest('.erow'); r.classList.add('bye'); setTimeout(() => r.remove(), 200); return; }
   if (D.delprep) {
     const [dow, si, i] = D.delprep.split('|').map(Number);
-    w.prep[dow][si].items.splice(i, 1); save(); rerender(); return;
+    withUndo(['weeks'], 'המשימה נמחקה', () => { w.prep[dow][si].items.splice(i, 1); }); return;
   }
   if (D.log) {
     const cur = getLog(w, D.log);
@@ -3720,7 +3776,7 @@ document.addEventListener('click', async e => {
   if (D.act === 'mypalreset') { delete state.prefs.myPal; save(); applyPrefs(); rerender(); return; }
   if (D.skin) { state.prefs.skin = D.skin; save(); applyPrefs(); rerender(); return; }
   if (D.theme) { state.prefs.theme = D.theme; save(); applyPrefs(); rerender(); return; }
-  if (D.deltodo) { state.todos = state.todos.filter(x => x.id !== D.deltodo); save(); rerender(); return; }
+  if (D.deltodo) { withUndo(['todos'], 'התזכורת נמחקה', () => { state.todos = state.todos.filter(x => x.id !== D.deltodo); }); return; }
   switch (D.act) {
     case 'upload': $('#file').click(); break;
     case 'widget': sendToWidget(w); break;
@@ -3756,6 +3812,10 @@ document.addEventListener('click', async e => {
     case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
     case 'classes': classesSheet(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
+    case 'minviteno': state.prefs.mInvite = 1; save(); rerender(); toast('אפשר להפעיל מתי שרוצים: עוד ← התראות ואוטומציות', 3600); break;
+    case 'search': searchSheet(); break;
+    case 'notemic': noteMic(); break;
+    case 'voicenote': noteSheet('', 'note'); noteMic(); break;
     case 'stepsdone': state.prefs.stepsDone = true; save(); rerender(); toast('הצעדים הראשונים נסגרו · אפשר להחזיר בהגדרות'); break;
     case 'undo': { const f = state._undo; state._undo = null; $('#toast').classList.remove('show'); if (f) f(); break; }
     case 'pmmore': state.pmMore = !state.pmMore; rerender(); break;
@@ -3813,7 +3873,7 @@ document.addEventListener('click', async e => {
     case 'savekidsquick': { const k = parseKids($('#kidsQuick').value); if (!k.length) { toast('לא מצאתי שמות 🤔'); break; } state.kids = k; save(); state.pickMode = 'one'; pickerScreen(); toast(`נשמרו ${k.length} ילדים 💜`); break; }
     case 'preset': state.picked = []; state._lastPick = null; save(); pickerScreen(); break;
     case 'savekids': state.kids = parseKids($('#kidsIn').value); save(); toast(`נשמר! ${state.kids.length} ילדים 💜`); rerender(); break;
-    case 'cleartodos': state.todos = state.todos.filter(x => !x.done); save(); rerender(); break;
+    case 'cleartodos': withUndo(['todos'], 'התזכורות שסומנו נמחקו', () => { state.todos = state.todos.filter(x => !x.done); }); break;
     case 'copycarry': navigator.clipboard.writeText(carryText(w, summary(w))).then(() => toast('הועתק 📋 אפשר להדביק בתכנון של השבוע הבא')).catch(() => toast('לא הצלחתי להעתיק 😕')); break;
     case 'prepedit': state.prepEdit = !state.prepEdit; rerender(); break;
     case 'dellesson': {
@@ -4224,3 +4284,70 @@ if (appLocked) showLock();
 setTimeout(() => { const l = +localStorage.getItem('hk-snap') || 0; if (!appLocked && Date.now() - l > 20 * 3600e3) dailySnap(); }, 5000);
 render(true);
 if (!appLocked) { initAuth(); welcome(); setTimeout(autoOffline, 8000); }
+
+// ---- swipe a reminder (or a note that needs handling) sideways to mark it done
+const sw = { el: null, x: 0, y: 0, dx: 0, on: false };
+document.addEventListener('touchstart', e => {
+  const el = e.target.closest('[data-sw]'); sw.el = null;
+  if (!el || e.target.closest('input, textarea, select, .iconbtn')) return;
+  Object.assign(sw, { el, x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, on: false });
+}, { passive: true });
+document.addEventListener('touchmove', e => {
+  if (!sw.el) return;
+  const dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y;
+  if (!sw.on) {
+    if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { sw.el = null; return; }
+    if (Math.abs(dx) > 14) { sw.on = true; sw.el.classList.add('swiping'); }
+  }
+  if (sw.on) { sw.dx = dx; sw.el.style.transform = `translateX(${dx}px)`; sw.el.style.setProperty('--sw', Math.min(1, Math.abs(dx) / 90).toFixed(2)); }
+}, { passive: true });
+document.addEventListener('touchend', () => {
+  const el = sw.el; sw.el = null; if (!el || !sw.on) return;
+  el.classList.remove('swiping');
+  if (Math.abs(sw.dx) > 90) {
+    el.style.transform = `translateX(${sw.dx > 0 ? 110 : -110}%)`; el.classList.add('gone');
+    const [type, id] = el.dataset.sw.split(':');
+    setTimeout(() => {
+      if (type === 'todo') { const td = state.todos.find(x => x.id === id); if (td) withUndo(['todos'], 'סומן שבוצע ✓', () => { td.done = true; }); }
+      if (type === 'note') { const n = state.cnotes.find(x => x.id === id); if (n) withUndo(['cnotes'], 'סומן שטופל ✓', () => { n.done = true; }); }
+    }, 200);
+  } else { el.style.transform = ''; el.style.removeProperty('--sw'); }
+});
+
+// ---- one search for everything: children, lessons, files, notes, reminders
+function searchSheet() {
+  openOverlay(`<div class="ov sheet srch">
+    <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('search')}<h2>חיפוש</h2></div>
+    <label class="search"><span>${ic('search')}</span><input id="gsq" type="search" enterkeyhint="search" placeholder="ילד, שיעור, קובץ, הערה…" autocomplete="off"></label>
+    <div id="gsr"></div></div>`);
+  searchRun('');
+  setTimeout(() => { const i = $('#gsq'); if (i) i.focus(); }, 60);
+}
+function searchRun(q) {
+  const box = $('#gsr'); if (!box) return;
+  q = q.trim();
+  if (q.length < 2) { box.innerHTML = `<p class="hint gs-hint">מקלידים לפחות שתי אותיות – ומוצאים ילד, שיעור, מצגת, דף עבודה, הערה ביומן או תזכורת.</p>`; return; }
+  const lo = q.toLowerCase(), m = x => String(x || '').toLowerCase().includes(lo);
+  const mark = x => esc(x).replace(new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), y => `<mark>${y}</mark>`);
+  const wkName = w => w.number ? `שבוע ${w.number}` : (w.title || '');
+  const G = [];
+  const kids = state.kids.filter(k => m(k.name)).slice(0, 6);
+  if (kids.length) G.push(['users', 'ילדים', kids.map(k => `<button class="gsrow" data-kid="${esc(k.name)}"><span class="grow"><b>${mark(k.name)}</b></span>${ic('chevL', 'chev')}</button>`)]);
+  const lessons = [], files = new Map();
+  for (const w of sortedWeeks().reverse()) for (const d of w.days) for (const p of d.periods) {
+    if (lessons.length < 8 && (m(p.title) || p.sections.some(x => m(x.text)) || p.materials.some(x => m(x.text))))
+      lessons.push(`<button class="gsrow" data-gowk="${w.id}" data-goto="${d.dow}|${esc(p.label)}"><span class="grow"><b>${mark(p.title)}</b><small>${esc(wkName(w))} · יום ${esc(d.name)}${p.start ? ' · ' + esc(p.start) : ''}</small></span>${ic('chevL', 'chev')}</button>`);
+    for (const l of p.links) if (l.url && m(l.text) && !files.has(l.url) && files.size < 8)
+      files.set(l.url, `<a class="gsrow" href="${esc(l.url)}" target="_blank" rel="noopener"><span class="tri">${fileBadge(fileKind(l))}</span><span class="grow"><b>${mark(l.text)}</b><small>${esc(wkName(w))} · ${esc(p.title)}</small></span>${ic('chevL', 'chev')}</a>`);
+  }
+  if (lessons.length) G.push(['book', 'שיעורים', lessons]);
+  if (files.size) G.push(['folder', 'קבצים', [...files.values()]]);
+  const notes = state.cnotes.filter(n => m(n.text) || n.kids.some(m)).sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 6);
+  if (notes.length) G.push(['pencil', 'ביומן', notes.map(n => `<button class="gsrow" data-go="journal"><span class="grow"><b>${mark(n.kids.join(', ') || (TAGS[n.tag] || TAGS.note)[1])}</b>${n.text ? `<small>${mark(n.text)}</small>` : ''}</span>${ic('chevL', 'chev')}</button>`)]);
+  const todos = state.todos.filter(t => m(t.text)).slice(0, 6);
+  if (todos.length) G.push(['pin', 'תזכורות', todos.map(t => `<button class="gsrow" data-go="todos"><span class="grow"><b class="${t.done ? 'dim' : ''}">${mark(t.text)}</b></span>${ic('chevL', 'chev')}</button>`)]);
+  box.innerHTML = G.length ? G.map(([i, t, rows]) => `<div class="gsg"><div class="gsh">${ic(i)} ${t}</div>${rows.join('')}</div>`).join('')
+    : `<p class="hint gs-hint">לא מצאתי "${esc(q)}". אולי בכתיב אחר?</p>`;
+}
+document.addEventListener('input', e => { if (e.target.id === 'gsq') searchRun(e.target.value); });

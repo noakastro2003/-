@@ -21,6 +21,7 @@ const P = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.8v2M12 19.2v2M2.8 12h2M19.2 12h2M5.5 5.5l1.4 1.4M17.1 17.1l1.4 1.4M5.5 18.5l1.4-1.4M17.1 6.9l1.4-1.4"/>',
   moon: '<path d="M19.5 14.6A7.8 7.8 0 1 1 9.4 4.5a6.2 6.2 0 0 0 10.1 10.1z"/>',
   timer: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.6 1.6M9.5 2.8h5"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>',
   dice: '<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.2" fill="currentColor"/>',
   cake: '<path d="M4.5 20.5h15v-6.8a2.2 2.2 0 0 0-2.2-2.2H6.7a2.2 2.2 0 0 0-2.2 2.2z"/><path d="M4.5 15.6c1.8 1.3 3.6 1.3 5 0 1.4 1.3 3.6 1.3 5 0 1.4 1.3 3.2 1.3 5 0M12 11.5V8.5"/><path d="M12 6.2c.9-.8.9-1.8 0-2.7-.9.9-.9 1.9 0 2.7z"/>',
   pin: '<path d="M12 20.8s-6.3-5.6-6.3-10.6a6.3 6.3 0 0 1 12.6 0c0 5-6.3 10.6-6.3 10.6z"/><circle cx="12" cy="10.2" r="2.3"/>',

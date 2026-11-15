@@ -1846,3 +1846,31 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 .hb { position: relative; }
 .hb .dot { position: absolute !important; top: 9px !important; left: 9px !important; right: auto !important; width: 9px !important; height: 9px !important; border-radius: 50%;
   background: #F26B6B !important; box-shadow: 0 0 0 2.5px var(--card) !important; animation: none !important; }
+
+/* ================================================================ v84 · settings: grouped like a phone's own settings */
+.setsec { margin: 22px 10px 8px; font-size: var(--fs-note); font-weight: 700; color: var(--soft); letter-spacing: .3px; }
+.setcard { padding: 6px 16px 14px; }
+.setcard .field { margin-top: 10px; }
+.setcard > .setrow, .setcard .setrow { padding: 13px 0; border-top: 1px solid var(--line); gap: 12px; }
+.setcard > .setrow:first-child { border-top: 0; }
+.setrow > span small { display: block; margin-top: 2px; font-size: var(--fs-note); }
+.setnav { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 0; border: 0; border-top: 1px solid var(--line); background: none; color: var(--ink); font: inherit; text-align: start; cursor: pointer; }
+.setcard > .setnav:first-child { border-top: 0; }
+.setnav .chi { width: 38px; height: 38px; flex: none; }
+.setnav .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.setnav b { font-size: var(--fs-body); font-weight: 600; }
+.setnav small { color: var(--soft); font-size: var(--fs-note); }
+.setnav .chev { width: 16px; color: var(--soft); }
+.setcard .btnrow { margin: 6px 0 4px; }
+.setcard .howto { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; }
+.setcard .howto summary { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; list-style: none; }
+.setcard .howto summary::-webkit-details-marker, .adv > summary::-webkit-details-marker { display: none; }
+.setcard .howto summary .ic { width: 18px; height: 18px; color: var(--accent-ink); }
+.adv { margin-top: 22px; }
+.adv > summary { display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer; list-style: none; }
+.adv > summary .grow { display: flex; flex-direction: column; gap: 2px; }
+.adv > summary small { color: var(--soft); font-size: var(--fs-note); }
+.adv > summary .chi { width: 38px; height: 38px; }
+.adv[open] > summary .chev { transform: rotate(180deg); }
+.adv .danger { margin: 14px 0 4px; width: 100%; }
+.hint.ver { text-align: center; margin-top: 18px; }

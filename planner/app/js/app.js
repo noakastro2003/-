@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 83; // keep in step with CACHE in sw.js
+const APP_V = 84; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -2159,61 +2159,58 @@ function viewMore(w) {
 function viewSettings(w) {
   const P = state.prefs;
   const toggle = (key, on) => `<button class="switch ${on ? 'on' : ''}" data-toggle-pref="${key}" role="switch" aria-checked="${on}"><i></i></button>`;
-  return top('הגדרות', 'שהכל יעבוד בדיוק כמו שנוח לך', 'star', { back: 'more' }) + accountCard() + `
-  <div class="card">
-    ${cardHead('user', 'פרטים')}
+  const sec = (title, body) => `<h4 class="setsec">${title}</h4><div class="card setcard">${body}</div>`;
+  const link = (icon, title, small, attr) => `<button class="setnav" ${attr}><span class="chi">${ic(icon)}</span><span class="grow"><b>${title}</b>${small ? `<small>${small}</small>` : ''}</span>${ic('chevL', 'chev')}</button>`;
+  const seg = (items, cur, attr) => `<div class="seg">${items.map(([v, l, i]) => `<button class="${cur === v ? 'on' : ''}" ${attr}="${v}">${i ? ic(i) : ''}${l}</button>`).join('')}</div>`;
+  return top('הגדרות', 'שהכל יעבוד בדיוק כמו שנוח לך', 'star', { back: 'more' }) +
+  accountCard() +
+  sec('אני והכיתה', `
     <label class="field">איך לקרוא לך?<input id="nameIn" value="${esc(state.name)}"></label>
     <label class="field">כמה תלמידים בכיתה?<input id="classSizeIn" type="number" inputmode="numeric" min="1" max="60" value="${esc(state.prefs.classSize || state.kids.length || (w && w.classSize) || 26)}"></label>
-    <p class="hint">המספר הזה קובע כמה לשכפל מכל דף (במקום מה שכתוב בתכנון)</p>
-  </div>
-  <div class="card">
-    ${cardHead('sparkle', 'תצוגה')}
-    <div class="setrow"><span>גודל טקסט</span><div class="seg">${[0.9, 1, 1.15, 1.3].map((v, i) => `<button class="${P.size === v ? 'on' : ''}" data-size="${v}" style="font-size:${13 + i * 3}px">א</button>`).join('')}</div></div>
-    <div class="setrow pal"><span>צבעי המשבצות</span><div class="seg">${[['soft', 'פסטל רך'], ['cream', 'שמנת וזהב'], ['vivid', 'יותר צבע'], ['my', 'הצבעים שלי']].map(([v, l]) => `<button class="${(P.palette || 'soft') === v ? 'on' : ''}" data-pal="${v}" aria-pressed="${(P.palette || 'soft') === v}"><span class="sw sw-${v}">${v === 'my' ? MYPAL.slice(0, 3).map(([k]) => `<i style="background:${myPal()[k]}"></i>`).join('') : '<i></i><i></i><i></i>'}</span>${l}</button>`).join('')}</div></div>
+    <p class="hint">לפי המספר הזה נקבע כמה עותקים לצלם מכל דף</p>
+    ${link('users', multiCls() ? 'ניהול כיתות' : 'יש לי עוד כיתות', 'מחנכת, מורה מקצועית, כמה כיתות', 'data-act="classes"')}
+    ${link('clock', 'לוח צלצולים', 'מתי מתחיל ונגמר כל שיעור', 'data-go="bells"')}`) +
+  sec('מראה', `
+    <div class="setrow"><span>מצב</span>${seg([['light', 'יום', 'sun'], ['dark', 'לילה', 'moon'], ['auto', 'אוטומטי', 'sparkle']], P.theme, 'data-theme')}</div>
+    <div class="setrow"><span>גודל טקסט</span><div class="seg">${[0.9, 1, 1.15, 1.3].map((v, i) => `<button class="${P.size === v ? 'on' : ''}" data-size="${v}" style="font-size:${13 + i * 3}px" aria-label="גודל ${i + 1}">א</button>`).join('')}</div></div>
+    <div class="setrow pal"><span>צבעי השיעורים</span><div class="seg">${[['soft', 'פסטל רך'], ['cream', 'שמנת וזהב'], ['vivid', 'יותר צבע'], ['my', 'הצבעים שלי']].map(([v, l]) => `<button class="${(P.palette || 'soft') === v ? 'on' : ''}" data-pal="${v}" aria-pressed="${(P.palette || 'soft') === v}"><span class="sw sw-${v}">${v === 'my' ? MYPAL.slice(0, 3).map(([k]) => `<i style="background:${myPal()[k]}"></i>`).join('') : '<i></i><i></i><i></i>'}</span>${l}</button>`).join('')}</div></div>
     ${P.palette === 'my' ? `<div class="mypal">${MYPAL.map(([k, l]) => `<label class="mpc"><input type="color" value="${myPal()[k]}" data-mypal="${k}" aria-label="צבע ${l}"><span>צבע ${l}</span></label>`).join('')}
       <p class="hint">לוחצים על עיגול ובוחרים צבע. במצב לילה הגוון מתכהה לבד.</p>
-      <button class="linkbtn" data-act="mypalreset">חזרה לצבעים המקוריים</button></div>` : ''}
-    <div class="setrow"><span>סגנון</span><div class="seg">${[['luxe', 'sparkle', 'יוקרתי'], ['colorful', 'heart', 'צבעוני']].map(([v, i, l]) => `<button class="${(P.skin || 'luxe') === v ? 'on' : ''}" data-skin="${v}">${ic(i)}${l}</button>`).join('')}</div></div>
-    <div class="setrow"><span>מצב</span><div class="seg">${[['light', 'sun', 'יום'], ['dark', 'moon', 'לילה'], ['auto', 'sparkle', 'אוטו׳']].map(([v, i, l]) => `<button class="${P.theme === v ? 'on' : ''}" data-theme="${v}">${ic(i)}${l}</button>`).join('')}</div></div>
-  </div>
-  <div class="card">
-    ${cardHead('user', 'פרטיות')}
-    <div class="setrow"><span>שמות ילדים בהתראות<small class="dim"> (על מסך הנעילה)</small></span>${toggle('notifNames', !!P.notifNames)}</div>
-    <div class="setrow"><span>נעילה בקוד${P.pinHash ? ' · פעילה 🔒' : ''}<small class="dim"> – לפני שרואים את האפליקציה</small></span><button class="cta soft sm" data-act="${P.pinHash ? 'pinoff' : 'pinset'}">${P.pinHash ? 'ביטול' : 'הפעלה'}</button></div>
-    ${P.pinHash ? `<div class="setrow"><span>לנעול אחרי</span><div class="seg">${[1, 5, 15].map(m => `<button class="${(P.lockMin || 5) === m ? 'on' : ''}" data-lockmin="${m}">${m} דק׳</button>`).join('')}</div></div>` : ''}
-    <p class="hint">המידע על התלמידים נשמר בטלפון ובחשבון שלך בלבד. קוד הנעילה לא נשלח לשום מקום.</p>
-  </div>
-  <button class="card setlink" data-go="autos"><span class="chi">${ic('bell')}</span><span class="grow"><b>התראות ואוטומציות</b><small>מתי ועל מה לקבל התראה</small></span>${ic('chevL', 'chev')}</button>
-  ${w ? `<div class="card">
-    ${cardHead('phone', 'ווידג׳ט והתראות לאייפון')}
-    <button class="cta" data-act="widget">${ic('phone')} עדכון הווידג׳ט וההתראות</button>
-    <details class="howto"><summary>איך מתקינים? (פעם אחת)</summary>
+      <button class="linkbtn" data-act="mypalreset">חזרה לצבעים המקוריים</button></div>` : ''}`) +
+  sec('התראות', `
+    ${link('bell', 'התראות ואוטומציות', '"בוקר טוב", לפני שיעור, תזכורות קבועות', 'data-go="autos"')}
+    <div class="setrow"><span>שמות ילדים בהתראות<small class="dim">מופיעים גם על מסך הנעילה</small></span>${toggle('notifNames', !!P.notifNames)}</div>`) +
+  sec('פרטיות', `
+    <div class="setrow"><span>נעילה בקוד${P.pinHash ? ' · פעילה' : ''}<small class="dim">קוד בן 4 ספרות לפני שרואים את האפליקציה</small></span><button class="cta soft sm" data-act="${P.pinHash ? 'pinoff' : 'pinset'}">${P.pinHash ? 'ביטול' : 'הפעלה'}</button></div>
+    ${P.pinHash ? `<div class="setrow"><span>לנעול אחרי</span>${seg([1, 5, 15].map(m => [m, m + ' דק׳']), P.lockMin || 5, 'data-lockmin')}</div>` : ''}
+    <p class="hint">המידע על התלמידים נשמר בטלפון ובחשבון שלך בלבד. קוד הנעילה לא יוצא מהטלפון.</p>`) +
+  sec('קבצים וגיבוי', `
+    <div class="setrow"><span>קבצים של מחר בלי אינטרנט<small class="dim">אחרי 14:00 הקבצים של מחר נשמרים בטלפון</small></span>${toggle('autoOff', !!P.autoOff)}</div>
+    <p class="dim">${sync.user ? 'הכל נשמר בחשבון שלך. גיבוי לקובץ נותן עוד שקט – למשל לשמור בדרייב פעם בחודש.' : 'כרגע המידע נשמר רק בטלפון הזה – כדאי להתחבר לחשבון למעלה, או לשמור גיבוי מדי פעם.'}</p>
+    <div class="btnrow"><button class="cta soft" data-act="export">${ic('upload')} שמירת גיבוי</button><button class="cta soft" data-act="import">${ic('folder')} שחזור מגיבוי</button></div>
+    ${link('clock', 'חזרה לגרסה קודמת', 'האפליקציה שומרת לבד צילום מצב פעם ביום', 'data-act="snaps"')}`) +
+  sec('עזרה', `
+    ${link('warn', 'משהו לא עובד?', 'דיווח קצר – מגיע ישר לפתרון', 'data-act="report"')}
+    ${state.prefs.stepsDone ? link('flag', 'להחזיר את "צעדים ראשונים"', 'רשימת ההתחלה במסך "עכשיו"', 'data-act="stepsback"') : ''}
+    <details class="howto"><summary>${ic('home')} איך מוסיפים למסך הבית?</summary>
+      <p><b>אייפון:</b> בספארי ← כפתור השיתוף ← "הוספה למסך הבית".<br><b>אנדרואיד:</b> בכרום ← ⋮ ← "התקנת אפליקציה".</p>
+      <p class="hint">האפליקציה תיפתח במסך מלא, תעבוד גם בלי אינטרנט ותוכל לשלוח התראות.</p></details>`) +
+  `<details class="card setcard adv"><summary><span class="chi">${ic('settings')}</span><span class="grow"><b>מתקדם</b><small>סגנון, ווידג׳ט, מחיקת מידע</small></span>${ic('chevD', 'chev')}</summary>
+    <div class="setrow"><span>סגנון</span>${seg([['luxe', 'חימר', 'sparkle'], ['colorful', 'צבעוני', 'heart']], P.skin || 'luxe', 'data-skin')}</div>
+    ${w ? `<details class="howto"><summary>${ic('phone')} ווידג׳ט לאייפון (דרך Scriptable)</summary>
       <ol>
         <li>מתקינים מה־App Store את <b>Scriptable</b> (חינם).</li>
         <li><button class="linkbtn" data-act="widgetcode">${ic('link')} העתקת קוד הווידג׳ט</button></li>
         <li>ב־Scriptable: ＋ ← מדביקים ← קוראים לסקריפט <b>הכיתה שלי</b>.</li>
         <li>במסך הבית: לחיצה ארוכה ← ＋ ← Scriptable ← בוחרים גודל ← עורכים את הווידג׳ט ← Script: <b>הכיתה שלי</b>.</li>
-        <li>חוזרים לכאן ולוחצים "עדכון הווידג׳ט וההתראות". בפעם הראשונה האייפון ישאל אם לאשר התראות – מאשרים.</li>
+        <li>חוזרים לכאן ולוחצים על הכפתור למטה.</li>
       </ol>
-    </details>
-  </div>` : ''}
-  <div class="card">
-    ${cardHead('layers', 'גיבוי')}
-    <p class="dim">כל המידע נשמר רק בטלפון. כדאי לשמור גיבוי מדי פעם (למשל בדרייב).</p>
-    <div class="setrow"><span>לשמור בטלפון את הקבצים של מחר (אחרי 14:00) – כדי שייפתחו גם בלי אינטרנט</span><button class="switch ${state.prefs.autoOff ? 'on' : ''}" data-toggle-pref="autoOff" role="switch" aria-checked="${!!state.prefs.autoOff}"><i></i></button></div>
-    <div class="btnrow"><button class="cta soft" data-act="export">${ic('upload')} שמירת גיבוי</button><button class="cta soft" data-act="import">${ic('folder')} שחזור מגיבוי</button></div>
-  </div>
-  <div class="card">
-    ${cardHead('home', 'להוסיף למסך הבית')}
-    <p><b>אייפון:</b> בספארי ← כפתור השיתוף ← "הוספה למסך הבית".</p>
-    <p class="hint">האפליקציה תיפתח במסך מלא ותעבוד גם בלי אינטרנט.</p>
-  </div>
-  <button class="danger" data-act="wipe">${ic('trash')} מחיקת כל המידע מהטלפון</button>
-  ${state.prefs.stepsDone ? `<button class="linkbtn" data-act="stepsback">להחזיר את "צעדים ראשונים" למסך "עכשיו"</button>` : ''}
-  <div class="helprow"><button data-act="snaps">${ic('clock')} שחזור לגרסה קודמת</button><button data-act="report">${ic('warn')} משהו לא עובד?</button></div>
-  <p class="hint">גרסה ${APP_V}</p>`;
+      <button class="cta soft" data-act="widget">${ic('phone')} עדכון הווידג׳ט</button>
+    </details>` : ''}
+    <button class="danger" data-act="wipe">${ic('trash')} מחיקת כל המידע מהטלפון</button>
+  </details>
+  <p class="hint ver">הכיתה שלי · גרסה ${APP_V}</p>`;
 }
-
 function viewTodos(w) {
   return top('תזכורות', 'הדברים הקטנים שלא רוצים לשכוח', 'notepad', { back: 'more' }) + remindersCard(w, true) +
     `<p class="hint">תזכורת עם תאריך תופיע ב"עכשיו" מהיום הזה. בלי תאריך – תמיד. החלקה הצידה על תזכורת מסמנת שבוצעה.</p>` +
@@ -3050,9 +3047,8 @@ function accountCard() {
   if (sync.user) return `<div class="card acct">
     ${cardHead('cloud', 'חשבון וסנכרון')}
     <div class="acct-u"><span class="av">${esc((sync.user.email || '?')[0].toUpperCase())}</span><span class="grow"><b dir="ltr">${esc(sync.user.email || '')}</b><small id="syncState">${syncText()}</small></span></div>
-    <p class="dim">כל מה שאת עושה נשמר בחשבון ומופיע בכל מכשיר שתתחברי ממנו.</p>
-    <button class="cta soft" data-act="syncnow">${ic('upload')} סנכרון עכשיו</button>
-    <button class="logoutbtn" data-act="logout">${ic('user')} התנתקות מהחשבון</button>
+    <p class="dim">הכל נשמר בחשבון ומופיע בכל מכשיר ש${g('תתחברי', 'תתחבר')} ממנו.</p>
+    <div class="btnrow"><button class="cta soft" data-act="syncnow">${ic('upload')} סנכרון עכשיו</button><button class="cta soft" data-act="logout">${ic('user')} התנתקות</button></div>
   </div>`;
   return `<div class="card acct">
     ${cardHead('cloud', 'חשבון וסנכרון')}

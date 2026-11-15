@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 77; // keep in step with CACHE in sw.js
+const APP_V = 79; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -3487,7 +3487,7 @@ function render(animate) {
   }
   const tab = SUB[state.tab] || state.tab;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  moveTabInd();
+  requestAnimationFrame(moveTabInd);
   const v = $('#view');
   const needWeek = !['more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells', 'reports'].includes(state.tab);
   document.body.classList.toggle('onboarding', !state.onboarded);
@@ -3495,13 +3495,17 @@ function render(animate) {
   const busyNow = (() => { const w0 = realWeek(), d0 = w0 && todayInWeek(w0), ph0 = d0 && phase(d0); return ph0 && (ph0.kind === 'lesson' || ph0.kind === 'break'); })();
   const tp = state.onboarded && TABS.includes(state.tab) && !(state.tab === 'now' && busyNow) ? tipOnce(state.tab) : '';
   if (tp) html = html.replace('</header>', '</header>' + tp);
-  v.innerHTML = html;
+  // keep what doesn't change between screens (the logo, and the picture when it's the same one) – no blink, no jump
+  const tpl = document.createElement('template'); tpl.innerHTML = html;
+  const keep = (sel, same) => { const o = v.querySelector(sel), n = tpl.content.querySelector(sel); if (o && n && same(o, n)) n.replaceWith(o); };
+  keep('.brand .logo', () => true);
+  keep('.titlerow .illus', (o, n) => { const a = o.querySelector('img'), b = n.querySelector('img'); return a && b && a.getAttribute('src') === b.getAttribute('src'); });
+  v.replaceChildren(tpl.content);
   a11yFix(v);
   if (animate) {
     const a = TABS.indexOf(SUB[state.tab] || state.tab), b = TABS.indexOf(SUB[lastTab] || lastTab);
     const dir = lastTab == null ? 0 : a !== b ? Math.sign(a - b) : SUB[state.tab] ? 1 : -1;
-    v.classList.remove('enter', 'from-l', 'from-r'); void v.offsetWidth;
-    v.classList.add('enter', dir >= 0 ? 'from-l' : 'from-r');
+    v.classList.remove('from-l', 'from-r'); v.classList.add('enter', dir >= 0 ? 'from-l' : 'from-r');
     v.querySelectorAll('.card, .lrow, .toolgrid > button, .tile, .quick, .addbtn').forEach((el, i) => el.style.setProperty('--i', Math.min(i, 12)));
     countUp(v);
   } else v.classList.remove('enter');
@@ -3510,13 +3514,18 @@ function render(animate) {
 }
 
 // ================================================================ depth & motion
-let revealObs = null;
+let revealObs = null, revealGen = 0;
 function afterRender(v, animate) {
   // compact header title follows the page title
   const h1 = v.querySelector('.tt h1'); const mt = $('#miniTitle');
   if (mt) mt.textContent = h1 ? h1.textContent : 'הכיתה שלי';
   // cards below the fold slide in when they reach the screen
   if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (revealObs) revealObs.disconnect();
+  const gen = ++revealGen; requestAnimationFrame(() => { if (gen === revealGen) setupReveal(v); });
+  onScroll();
+}
+function setupReveal(v) {
   if (revealObs) revealObs.disconnect();
   revealObs = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); revealObs.unobserve(e.target); } }), { rootMargin: '0px 0px -30px 0px' });
   const H = innerHeight;
@@ -3574,10 +3583,10 @@ function moveTabInd() {
   if (!on || !ind) return;
   if (getComputedStyle(on.parentElement).flexDirection === 'column') {
     ind.style.left = on.offsetLeft + 'px'; ind.style.width = on.offsetWidth + 'px';
-    ind.style.top = on.offsetTop + 'px'; ind.style.height = on.offsetHeight + 'px'; ind.style.bottom = 'auto';
+    ind.style.top = on.offsetTop + 'px'; ind.style.height = on.offsetHeight + 'px'; ind.style.bottom = 'auto'; ind.style.transform = '';
   } else { ind.style.top = ''; ind.style.height = ''; ind.style.bottom = '';
     ind.style.width = on.offsetWidth + 'px';
-    ind.style.left = on.offsetLeft + 'px'; }
+    ind.style.left = '0px'; ind.style.transform = `translate3d(${on.offsetLeft}px, 0, 0)`; }
 }
 function countUp(root) {
   root.querySelectorAll('.num').forEach(el => {
@@ -3587,7 +3596,7 @@ function countUp(root) {
     requestAnimationFrame(f);
   });
 }
-function go(tab) { state.tab = tab; render(true); window.scrollTo({ top: 0, behavior: 'instant' }); }
+function go(tab) { state.tab = tab; if (scrollY) window.scrollTo({ top: 0, behavior: 'instant' }); render(true); }
 function rerender() { const y = window.scrollY; render(false); window.scrollTo({ top: y, behavior: 'instant' }); }
 
 // ================================================================ events
@@ -4391,3 +4400,10 @@ document.addEventListener('touchend', () => {
     ov.style.transform = ''; if (bg) bg.style.opacity = '';
   }
 });
+
+// all the pictures are decoded once at start, so a screen switch never waits for one
+(function preloadPictures() {
+  const list = [...ILLF].map(n => `img/ill/${n}.jpg`).concat(Object.keys(SLOT_FB).map(k => `img/ill/${k}.${SLOT_EXT[k] || 'jpg'}`), ['img/logo.png']);
+  const go = () => list.forEach(src => { const i = new Image(); i.src = src; if (i.decode) i.decode().catch(() => {}); });
+  if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 2500 }); else setTimeout(go, 800);
+})();

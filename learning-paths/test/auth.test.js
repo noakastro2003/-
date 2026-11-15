@@ -69,16 +69,16 @@ test('expired reset links are refused', async () => {
   await a('POST', '/api/auth/register', { name: 'גל', email: 'gal@x.org', password: 'password123' });
   await client()('POST', '/api/auth/forgot', { email: 'gal@x.org' });
   const token = sent.at(-1).text.match(/#\/reset\/([0-9a-f]{64})/)[1];
-  db.exec('UPDATE password_resets SET expires_at = 0');
+  await db.exec('UPDATE password_resets SET expires_at = 0');
   assert.equal((await client()('POST', '/api/auth/reset', { token, password: 'newpassword1' })).status, 400);
 });
 
-test('admin tool makes a reset link', () => {
+test('admin tool makes a reset link', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lp-reset-'));
   const dbFile = path.join(dir, 'app.db');
   const d = openDb(dbFile);
-  d.prepare("INSERT INTO teachers (name, email, password_hash, credits) VALUES ('דנה', 'dana@x.org', 'x', 20)").run();
-  d.close();
+  await d.prepare("INSERT INTO teachers (name, email, password_hash, credits) VALUES ('דנה', 'dana@x.org', 'x', 20)").run();
+  await d.close();
   const out = execFileSync(process.execPath, ['--no-warnings', 'admin.js', 'reset-link', 'dana@x.org'], {
     cwd: new URL('..', import.meta.url), env: { ...process.env, DB_FILE: dbFile, APP_URL: 'https://paths.example' }, encoding: 'utf8',
   });

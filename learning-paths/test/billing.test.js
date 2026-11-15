@@ -165,8 +165,8 @@ test('admin tool grants credits and subscriptions', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lp-admin-'));
   const dbFile = path.join(dir, 'app.db');
   const db = openDb(dbFile);
-  db.prepare("INSERT INTO teachers (name, email, password_hash, credits) VALUES ('דנה', 'dana@x.org', 'x', 20)").run();
-  db.close();
+  await db.prepare("INSERT INTO teachers (name, email, password_hash, credits) VALUES ('דנה', 'dana@x.org', 'x', 20)").run();
+  await db.close();
   const run = (...args) => execFileSync(process.execPath, ['--no-warnings', 'admin.js', ...args], {
     cwd: new URL('..', import.meta.url), env: { ...process.env, DB_FILE: dbFile }, encoding: 'utf8',
   });

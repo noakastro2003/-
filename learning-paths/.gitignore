@@ -1,3 +1,4 @@
-data/*.db*
+data/
 node_modules/
 demo/dist/
+.netlify/

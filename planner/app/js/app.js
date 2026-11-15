@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 79; // keep in step with CACHE in sw.js
+const APP_V = 80; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1679,7 +1679,7 @@ const ROLES = {
 const roleSet = r => new Set(r === 'both' ? ['home', 'subject'] : r ? [r] : []);
 const roleOf = set => set.has('home') && set.has('subject') ? 'both' : set.has('subject') ? 'subject' : set.has('home') ? 'home' : '';
 const ROLE_BOX = { get home() { return [g('מחנכת', 'מחנך'), g('יש לי כיתה שאני מחנכת – ילדים, הורים, ימי הולדת', 'יש לי כיתה שאני מחנך – ילדים, הורים, ימי הולדת')]; }, get subject() { return [g('מורה מקצועית', 'מורה מקצועי'), g('אני מלמדת מקצוע, בכיתה אחת או בכמה כיתות', 'אני מלמד מקצוע, בכיתה אחת או בכמה כיתות')]; } };
-const rolePick = (role, attr) => { const st = roleSet(role); return `<div class="rolepick">${Object.entries(ROLE_BOX).map(([k, [t, d]]) => `<button class="${st.has(k) ? 'on' : ''}" ${attr}="${k}" role="checkbox" aria-checked="${st.has(k)}"><span class="rbox">${st.has(k) ? '✓' : ''}</span><span class="rtx"><b>${t}</b><small>${d}</small></span></button>`).join('')}</div><p class="hint">אפשר לסמן אחת מהן או את שתיהן</p>`; };
+const rolePick = (role, attr) => { const st = roleSet(role); return `<div class="rolepick">${Object.entries(ROLE_BOX).map(([k, [t, d]]) => `<button class="${st.has(k) ? 'on' : ''}" ${attr}="${k}" role="checkbox" aria-checked="${st.has(k)}"><span class="rbox">${ic(k === 'home' ? 'home' : 'book')}<i class="rchk">${ic('check')}</i></span><span class="rtx"><b>${t}</b><small>${d}</small></span></button>`).join('')}</div><p class="hint">אפשר לסמן אחת מהן או את שתיהן</p>`; };
 const curCls = () => state.classes.find(c => c.id === state.curClass) || state.classes[0] || null;
 function ensureClasses() {
   if (!state.classes.length) {
@@ -1762,19 +1762,19 @@ function viewOnboard() {
       <p class="pmlbl">איך לפנות אלייך?</p><div class="seg"><button type="button" class="${!state.prefs.male ? 'on' : ''}" data-addr="f">את</button><button type="button" class="${state.prefs.male ? 'on' : ''}" data-addr="m">אתה</button></div>
       <button class="cta">הבא</button></form>
     <p class="hint">יש לך כבר חשבון? <button class="linkbtn" data-act="onblogin">התחברות</button></p>`;
-  if (st.step === 1) body = `<h1>${esc(st.name)}, מה התפקיד שלך?</h1><p class="onb-sub">אפשר לשנות בכל רגע (הכיתה ← ניהול כיתות)</p>
+  if (st.step === 1) body = `<div class="onb-ill">${illImg('class', 'md')}</div><h1>${esc(st.name)}, מה התפקיד שלך?</h1><p class="onb-sub">אפשר לשנות בכל רגע (הכיתה ← ניהול כיתות)</p>
     <div class="big">${rolePick(st.role, 'data-onbrole')}</div>
     <button class="cta" data-onbnext="2" ${st.role ? '' : 'disabled'}>הבא</button>
     <button class="linkbtn" data-onbback="1">חזרה</button>`;
-  if (st.step === 2) body = `<h1>הכיתות שלך</h1>
+  if (st.step === 2) body = `<div class="onb-ill">${illImg('school', 'md')}</div><h1>הכיתות שלך</h1>
     <form class="card onb-form" data-onbstep="2">
-      ${st.role !== 'subject' ? `<p class="pmlbl">🏠 הכיתה שאני מחנכת</p><div class="an-grid"><input name="home" value="${esc(st.home)}" placeholder="למשל ב׳2" ${st.role !== 'subject' ? 'required' : ''}><input name="size" type="number" inputmode="numeric" value="${esc(st.size)}" placeholder="מס׳ תלמידים"></div>` : ''}
-      ${st.role !== 'home' ? `<p class="pmlbl">📚 ${st.role === 'both' ? 'כיתות נוספות שאני מלמדת' : 'הכיתות שאני מלמדת'}</p>
+      ${st.role !== 'subject' ? `<p class="pmlbl">${ic('home')} הכיתה שאני מחנכת</p><div class="an-grid"><input name="home" value="${esc(st.home)}" placeholder="למשל ב׳2" ${st.role !== 'subject' ? 'required' : ''}><input name="size" type="number" inputmode="numeric" value="${esc(st.size)}" placeholder="מס׳ תלמידים"></div>` : ''}
+      ${st.role !== 'home' ? `<p class="pmlbl">${ic('book')} ${st.role === 'both' ? 'כיתות נוספות שאני מלמדת' : 'הכיתות שאני מלמדת'}</p>
         <input name="more" value="${esc(st.classes.join(', '))}" placeholder="למשל ג׳1, ג׳2, ד׳3" ${st.role === 'subject' ? 'required' : ''}>
         <input name="subject" value="${esc(st.subject)}" placeholder="מה אני מלמדת? (למשל אנגלית)">` : ''}
       <button class="cta">הבא</button>
     </form><button class="linkbtn" data-onbback="1">חזרה</button>`;
-  if (st.step === 3) body = `<h1>איך מתחילים?</h1><p class="onb-sub">התכנון השבועי הוא הלב של האפליקציה – ממנו נבנים "עכשיו", "להכין" וההודעות להורים.</p>
+  if (st.step === 3) body = `<div class="onb-ill">${slotImg('welcome', 'md')}</div><h1>איך מתחילים?</h1><p class="onb-sub">התכנון השבועי הוא הלב של האפליקציה – ממנו נבנים "עכשיו", "להכין" וההודעות להורים.</p>
     <div class="onb-start">
       <button data-onbgo="upload">${ic('upload')}<b>יש לי תכנון</b><small>PDF, Word, Excel או טקסט – בכל מבנה</small></button>
       <button data-onbgo="manual">${ic('pencil')}<b>אבנה שבוע כאן</b><small>מוסיפים שיעורים יום אחרי יום</small></button>
@@ -3493,7 +3493,8 @@ function render(animate) {
   document.body.classList.toggle('onboarding', !state.onboarded);
   let html = !state.onboarded ? viewOnboard() : !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
   const busyNow = (() => { const w0 = realWeek(), d0 = w0 && todayInWeek(w0), ph0 = d0 && phase(d0); return ph0 && (ph0.kind === 'lesson' || ph0.kind === 'break'); })();
-  const tp = state.onboarded && TABS.includes(state.tab) && !(state.tab === 'now' && busyNow) ? tipOnce(state.tab) : '';
+  const stepsOpen = state.tab === 'now' && !state.prefs.stepsDone && html.includes('class="card steps');
+  const tp = state.onboarded && TABS.includes(state.tab) && !(state.tab === 'now' && (busyNow || stepsOpen)) ? tipOnce(state.tab) : '';
   if (tp) html = html.replace('</header>', '</header>' + tp);
   // keep what doesn't change between screens (the logo, and the picture when it's the same one) – no blink, no jump
   const tpl = document.createElement('template'); tpl.innerHTML = html;

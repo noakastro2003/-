@@ -1787,3 +1787,25 @@ html[data-skin=luxe] .tt h1, html[data-skin=luxe] .tt h1::after { animation: non
 @media (max-width: 999px) {
   html[data-skin=luxe] .tabs .tab-ind, .tabs .tab-ind { transition: transform .32s cubic-bezier(.3, 1.3, .5, 1), width .32s ease !important; will-change: transform; }
 }
+
+/* ================================================================ v80 · first visit in the same clay world */
+.gd-dots i.on { background: #5B4190 !important; }
+.onb-ill { display: flex; justify-content: center; margin: 0 0 2px; }
+.onb-ill .ill.md { width: 132px; height: 132px; margin: 0; }
+.onb .pmlbl { display: flex; align-items: center; gap: 6px; }
+.onb .pmlbl .ic { width: 18px; height: 18px; color: var(--accent-ink); }
+/* role cards: a dough-ball icon; picked = plum ball with a small check, card lifts */
+html[data-skin=luxe] .rolepick button { border: 0 !important; background: var(--card); box-shadow: var(--clay) !important; border-radius: 24px; }
+html[data-skin=luxe] .rolepick button.on { box-shadow: 0 0 0 2.5px #5B4190, var(--clay) !important; }
+.rbox { position: relative; width: 46px; height: 46px; border: 0 !important; border-radius: 50% !important; background: var(--dough, #EEE4F6) !important; color: var(--accent-ink);
+  box-shadow: var(--clay-sm, none); }
+.rbox .ic { width: 22px; height: 22px; }
+.rolepick button.on .rbox { background: #5B4190 !important; color: #fff; transform: scale(1.06);
+  box-shadow: 0 8px 14px -8px rgba(74, 53, 102, .7), inset 0 2px 2px rgba(255, 255, 255, .25), inset 0 -4px 6px rgba(30, 18, 50, .3) !important; }
+.rchk { position: absolute; bottom: -3px; left: -3px; width: 20px; height: 20px; border-radius: 50%; background: #5CC983; color: #fff; display: grid; place-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .2); transform: scale(0); transition: transform .35s cubic-bezier(.3, 1.9, .45, 1); }
+.rchk .ic { width: 12px; height: 12px; stroke-width: 3; }
+.rolepick button.on .rchk { transform: scale(1); }
+/* "how to start" cards: the same dough-ball icons */
+html[data-skin=luxe] .onb-start button { border: 0 !important; box-shadow: var(--clay) !important; border-radius: 24px; }
+.onb-start .ic { width: 46px !important; height: 46px !important; padding: 12px; border-radius: 50%; background: var(--dough, #EEE4F6); color: var(--accent-ink) !important; box-shadow: var(--clay-sm, none); box-sizing: border-box; }

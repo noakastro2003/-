@@ -343,7 +343,7 @@ export async function editorPage(app, id, tab) {
     h('div', { class: 'editor-head' },
       h('span', { class: 'editor-icon', 'aria-hidden': 'true' }, state.path.theme.icon),
       titleInput, statusChip,
-      h('div', { class: 'row' },
+      h('div', { class: 'row wrap editor-actions' },
         h('a', { class: 'btn small secondary', href: `#/s/${state.path.code}`, target: DEMO ? null : '_blank', rel: 'noopener' }, '👀 תצוגה מקדימה'),
         publishBtn,
         h('button', { class: 'icon-btn', title: 'אפשרויות נוספות', 'aria-label': 'אפשרויות נוספות', onclick: () => moreMenu(state) }, '⋯'))),

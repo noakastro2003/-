@@ -434,13 +434,13 @@ body.student-body.student-dark { background: #14122a; }
 }
 
 /* ===== nikud keyboard ===== */
-.nikud-bar { margin-bottom: 1rem; }
+.nikud-bar { margin-bottom: 1rem; min-width: 0; max-width: 100%; }
 .task-form .nikud-bar { position: sticky; top: 52px; z-index: 2; background: var(--surface); padding-bottom: .4rem; }
 .nikud-toggle { font-weight: 700; }
-.nikud-panel { margin-top: .4rem; padding: .5rem .6rem; border-radius: 14px; background: #f6f5fb; border: 1px solid var(--line); }
+.nikud-panel { min-width: 0; max-width: 100%; margin-top: .4rem; padding: .5rem .6rem; border-radius: 14px; background: #f6f5fb; border: 1px solid var(--line); }
 .nikud-status { display: block; margin-bottom: .35rem; }
 .nikud-keys { display: flex; gap: .3rem; overflow-x: auto; padding-bottom: .2rem; }
-.nikud-key { flex: none; display: grid; place-items: center; width: 42px; height: 46px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; cursor: pointer; }
+.nikud-key { position: relative; flex: none; display: grid; place-items: center; width: 42px; height: 46px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; cursor: pointer; }
 .nikud-key:hover, .nikud-key:focus-visible { border-color: var(--accent); background: var(--accent-soft); }
 .nikud-glyph { font-size: 1.5rem; line-height: 1; font-family: 'Rubik', system-ui, sans-serif; }
 .nikud-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -1020,7 +1020,8 @@ a.icon-btn { display: inline-grid; place-items: center; text-decoration: none; }
 
 /* schedule and library sharing */
 .schedule-card, .share-lib-card { display: flex; flex-direction: column; gap: .5rem; }
-.schedule-card input[type=datetime-local] { min-width: 210px; }
+.schedule-card .field { flex: 1 1 200px; min-width: 0; }
+.schedule-card input[type=datetime-local] { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
 
 /* library */
 .lib-filters { margin: 1rem 0; }
@@ -1064,3 +1065,4 @@ a.icon-btn { display: inline-grid; place-items: center; text-decoration: none; }
 }
 .chip-ready { background: #fff3bf; color: #7a5b00; }
 .lib-curriculum { color: var(--accent); font-weight: 500; }
+.editor-actions { min-width: 0; max-width: 100%; }

@@ -746,8 +746,9 @@ function sayWord(word) {
   }
   if (!('speechSynthesis' in window)) return;
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(decodeSay(word.say));
-  u.lang = 'he-IL';
+  const text = decodeSay(word.say);
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = /[a-z]/i.test(text) && !/[\u0590-\u05FF]/.test(text) ? 'en-US' : 'he-IL'; // English words get an English voice
   u.rate = 0.75;
   speechSynthesis.speak(u);
 }

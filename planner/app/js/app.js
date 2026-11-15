@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 75; // keep in step with CACHE in sw.js
+const APP_V = 76; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -2383,6 +2383,7 @@ function openOverlay(html) {
   renderTimerPill();
 }
 function closeOverlay() {
+  if (voice.r) voiceStop();
   const o = $('#overlay'); if (o) o.classList.remove('show');
   $('#app').inert = false; $('#tabs').inert = false;
   lockScroll(false);
@@ -3141,21 +3142,28 @@ function noteGuess(text) {
   }
 }
 const voice = { r: null };
+function micIdle() { const b = $('.notesheet .micbtn'); if (b) { b.classList.remove('on'); b.querySelector('span').textContent = 'לומר בקול'; } }
+// iPhone doesn't always end on stop(): the button goes back at once, and if it's still listening half a second later it is cut off
+function voiceStop() {
+  const r = voice.r; voice.r = null; micIdle(); if (!r) return;
+  try { r.stop(); } catch { /* fine */ }
+  setTimeout(() => { try { r.abort(); } catch { /* fine */ } }, 600);
+}
 function noteMic() {
   const ta = $('.notesheet textarea'), btn = $('.notesheet .micbtn'); if (!ta || !btn) return;
   if (!SR) { ta.focus(); toast('לוחצים על המיקרופון שבמקלדת ומדברים – אני אזהה את הילד ואת סוג ההערה', 4200); return; }
-  if (voice.r) { voice.r.stop(); return; }
+  if (voice.r) { voiceStop(); return; }
   const r = new SR(); r.lang = 'he-IL'; r.interimResults = true; r.continuous = false;
   const base = ta.value.trim() ? ta.value.trim() + ' ' : '';
   r.onresult = e => { let x = ''; for (const res of e.results) x += res[0].transcript; ta.value = base + x; noteGuess(ta.value); };
   r.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { toast('לוחצים על המיקרופון שבמקלדת ומדברים', 3500); ta.focus(); } };
-  r.onend = () => { voice.r = null; const b = $('.notesheet .micbtn'); if (b) { b.classList.remove('on'); b.querySelector('span').textContent = 'לומר בקול'; } };
+  r.onend = () => { if (voice.r === r) voice.r = null; micIdle(); };
   try { r.start(); voice.r = r; btn.classList.add('on'); btn.querySelector('span').textContent = 'מקשיבה… לחיצה לסיום'; }
   catch { ta.focus(); toast('לוחצים על המיקרופון שבמקלדת ומדברים', 3500); }
 }
 document.addEventListener('input', e => { if (e.target.matches && e.target.matches('.notesheet textarea')) noteGuess(e.target.value); });
 function saveNote(f) {
-  if (voice.r) try { voice.r.stop(); } catch { /* fine */ }
+  voiceStop();
   const N = state._note; if (!N) return;
   const kids = N.kids.length ? N.kids : (f.who && f.who.value.trim() ? [f.who.value.trim()] : []);
   const text = f.text.value.trim();

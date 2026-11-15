@@ -5,7 +5,7 @@
 
 ## הפעלה
 
-דרוש Node.js בגרסה 22.13 ומעלה (משתמש ב-SQLite המובנה ב-Node). התלות היחידה היא ה-SDK של Anthropic, למחולל המסלולים.
+דרוש Node.js בגרסה 22.13 ומעלה. מסד הנתונים הוא Postgres: באתר החי Netlify Database, ובמחשב מקומי ובבדיקות PGlite (Postgres שרץ בתוך Node, בלי התקנה). הסכמה נמצאת ב-`netlify/database/migrations/`.
 
 ```bash
 cd learning-paths
@@ -15,7 +15,9 @@ npm test           # בדיקות
 ```
 
 משתני סביבה:
-- `PORT` (ברירת מחדל 3000), `DB_FILE` (ברירת מחדל `data/app.db`), `COOKIE_SECURE=1` כשמריצים מאחורי HTTPS.
+- `PORT` (ברירת מחדל 3000), `DB_FILE` – תיקיית מסד הנתונים המקומי (ברירת מחדל `data/pg`), או `DATABASE_URL` לשרת Postgres. `COOKIE_SECURE=1` כשמריצים מאחורי HTTPS.
+- `ADMIN_EMAILS` – כתובות האימייל (מופרדות בפסיקים) של מנהלי האתר. הם רואים כפתור "🛠️ ניהול" ויוצרים שם קודי הטבה.
+- `PAYMENTS_MODE=test` – כפתור ההצטרפות למנוי מפעיל מנוי בלי חיוב (לבדיקות). בלי הגדרה התשלום המקוון כבוי.
 - `APP_URL` – הכתובת הציבורית של האתר (לקישורי איפוס סיסמה באימייל).
 - `RESEND_API_KEY` ו-`MAIL_FROM` – שליחת אימיילים דרך Resend. בלי הגדרה, קישורי האיפוס נכתבים ליומן השרת.
 - `DICTA_ENABLED=0` מכבה את הניקוד של דיקטה; `DICTA_URL` משנה את כתובת השירות.
@@ -29,9 +31,19 @@ npm test           # בדיקות
 node demo/build.mjs   # יוצר את demo/dist
 ```
 
-## העלאה לאינטרנט (Render)
+## האתר החי (Netlify)
 
-בשורש הריפו יש קובץ `render.yaml` שמגדיר הכול: שרת Node, דיסק קבוע למסד הנתונים ובדיקת תקינות.
+האתר רץ ב-Netlify: הדפים מהתיקייה `public/`, וכל `/api/*` עובר לפונקציה `netlify/functions/api.mjs`, שמריצה את אותו קוד של `server.js`.
+- **מסד נתונים:** Netlify Database. בכל פריסה Netlify מריץ את קבצי ה-SQL שב-`netlify/database/migrations/`. אסור לשנות קובץ שכבר רץ: שינוי בסכמה = קובץ חדש עם מספר גבוה יותר.
+- **תמונות והקלטות:** Netlify Blobs (המאגר `media`), עד 4MB לקובץ.
+- **מחולל המסלולים:** רץ כפונקציית רקע (`ai-job-background`), כי פונקציה רגילה מוגבלת ל-60 שניות. הדף בודק כל כמה שניות אם המסלול מוכן. הקבצים שמצרפים למחולל מוגבלים יחד לכ-4MB.
+- **משתני סביבה** (Netlify → Project configuration → Environment variables): `ANTHROPIC_API_KEY` (סודי), `ADMIN_EMAILS`, ולפי הצורך `RESEND_API_KEY` ו-`MAIL_FROM`, `PAYMENTS_MODE`, `FREE_CREDITS`, `MONTHLY_CREDITS`, `PRICE_LABEL`. אחרי שינוי צריך פריסה מחדש.
+- **פריסה:** מתוך התיקייה `learning-paths` עם Netlify CLI (`netlify deploy --prod`), או חיבור הריפו ב-Netlify עם Base directory = `learning-paths`.
+- **ניהול מקומי מול האתר החי:** `DATABASE_URL=<connection string מ-Netlify> npm run admin -- show <email>`.
+
+## העלאה לאינטרנט (Render, חלופה)
+
+בשורש הריפו יש קובץ `render.yaml` שמגדיר שרת Node עם דיסק קבוע (מסד הנתונים המקומי נשמר בדיסק) ובדיקת תקינות.
 
 1. נרשמים ל-[render.com](https://render.com) עם חשבון ה-GitHub.
 2. **New → Blueprint**, בוחרים את הריפו ולוחצים **Apply**.

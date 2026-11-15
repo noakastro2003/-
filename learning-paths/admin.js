@@ -40,13 +40,7 @@ if (cmd === 'grant') {
 } else if (cmd === 'subscribe') {
   const months = arg === undefined ? 1 : Number(arg);
   if (!Number.isInteger(months) || months < 1 || months > 36) fail('מספר חודשים בין 1 ל-36');
-  billing.refresh(acc);
-  // Extending an active subscription adds time after its current end.
-  const start = billing.subscribed(acc) ? Date.parse(acc.subPeriodEnd) : Date.now();
-  // A manual multi-month subscription gets all its months' credits for the whole period.
-  const carry = billing.subscribed(acc) ? acc.subCreditsLeft : 0;
-  billing.activate(acc, { ...cfg, periodDays: cfg.periodDays * months, monthlyCredits: cfg.monthlyCredits * months }, start);
-  acc.subCreditsLeft += carry;
+  billing.grantMonths(acc, cfg, months);
   await save(cfg.monthlyCredits * months, 'subscribe', `admin, ${months} חודשים`);
 } else if (cmd === 'reset-link') {
   const token = crypto.randomBytes(32).toString('hex');

@@ -1066,3 +1066,10 @@ a.icon-btn { display: inline-grid; place-items: center; text-decoration: none; }
 .chip-ready { background: #fff3bf; color: #7a5b00; }
 .lib-curriculum { color: var(--accent); font-weight: 500; }
 .editor-actions { min-width: 0; max-width: 100%; }
+/* promo codes */
+.promo-form input { flex: 1 1 180px; text-transform: uppercase; letter-spacing: .05em; }
+.promo-table { width: 100%; border-collapse: collapse; }
+.promo-table th, .promo-table td { padding: .45rem .5rem; border-bottom: 1px solid var(--line); text-align: start; vertical-align: middle; }
+.promo-table tr.off { opacity: .5; }
+.promo-table code { font-size: 1rem; font-weight: 700; }
+.table-wrap { overflow-x: auto; }

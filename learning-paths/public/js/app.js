@@ -7,6 +7,7 @@ import { studentPage, joinCodePage } from './student.js';
 import { classPage } from './classroom.js';
 import { classAdminPage } from './classes.js';
 import { libraryPage, reportPage } from './library.js';
+import { adminPage } from './adminpage.js';
 
 const app = document.getElementById('app');
 export const session = { teacher: null, loaded: false };
@@ -31,7 +32,8 @@ async function loadSession() {
 const routes = [
   [/^#?\/?$/, () => (session.teacher ? go('#/dashboard') : homePage(app))],
   [/^#\/login$/, () => authPage(app, 'login')],
-  [/^#\/register$/, () => authPage(app, 'register')],
+  [/^#\/register(?:\?.*)?$/, () => authPage(app, 'register')],
+  [/^#\/admin$/, () => needTeacher(() => adminPage(app, topbar))],
   [/^#\/forgot$/, () => forgotPage(app)],
   [/^#\/reset\/([0-9a-f]{64})$/, (m) => resetPage(app, m[1])],
   [/^#\/join$/, () => joinCodePage(app)],

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { openDb, tx } from './db.js';
 import * as v from './validate.js';
 import { HttpError } from './validate.js';
+import { PROMO_KINDS, normalizeCode, promoInput, promoProblem, promoMessage, promoOut } from './promo.js';
 import { TEMPLATES } from './templates.js';
 import { createAiTools, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
 import READY_PATHS from './content/library-data.js';
@@ -195,7 +196,12 @@ export function whenText(ms) {
   return new Date(ms).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem', weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 }
 
-export function createApp(db, { ai, billingCfg = billingConfig(), mailer = createMailer(), dicta = callDicta } = {}) {
+export function createApp(db, {
+  ai, billingCfg = billingConfig(), mailer = createMailer(), dicta = callDicta,
+  // Teachers whose email is listed here manage promo codes (comma-separated ADMIN_EMAILS).
+  adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean),
+} = {}) {
+  const isAdmin = (teacher) => Boolean(teacher && adminEmails.includes(String(teacher.email).toLowerCase()));
   const loginLimit = rateLimiter(db, 'login', 10, 15 * 60 * 1000);
   const joinLimit = rateLimiter(db, 'join', 60, 15 * 60 * 1000);
   const aiLimit = rateLimiter(db, 'ai', 20, 60 * 60 * 1000);
@@ -203,6 +209,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
   const secretLimit = rateLimiter(db, 'secret', 8, 10 * 60 * 1000); // per student: stops guessing a classmate's secret
   const forgotLimit = rateLimiter(db, 'forgot', 5, 60 * 60 * 1000);
   const dictaLimit = rateLimiter(db, 'dicta', 120, 60 * 60 * 1000);
+  const promoLimit = rateLimiter(db, 'promo', 10, 60 * 60 * 1000); // stops guessing codes
   const uploadLimit = rateLimiter(db, 'upload', 40, 60 * 60 * 1000); // per student: recordings, photos, drawings
   // Tests pass their own tools; otherwise the real ones are made on first use.
   let tools = ai && (ai.generatePath || ai.nikud || ai.improveTask) ? ai : null;
@@ -339,6 +346,16 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
                           WHERE h.id = ?`),
     resolveHelp: db.prepare('UPDATE help_requests SET resolved = 1 WHERE id = ?'),
     resolveHelpForTask: db.prepare('UPDATE help_requests SET resolved = 1 WHERE student_id = ? AND task_id = ?'),
+
+    promoForUpdate: db.prepare('SELECT * FROM promo_codes WHERE code = ? FOR UPDATE'),
+    promoByCode: db.prepare('SELECT * FROM promo_codes WHERE code = ?'),
+    promoList: db.prepare('SELECT * FROM promo_codes ORDER BY created_at DESC, code'),
+    insertPromo: db.prepare(`INSERT INTO promo_codes (code, kind, amount, max_uses, expires_at, note) VALUES (?, ?, ?, ?, ?, ?)
+                             ON CONFLICT (code) DO NOTHING`),
+    setPromoActive: db.prepare('UPDATE promo_codes SET active = ? WHERE code = ?'),
+    usePromo: db.prepare('UPDATE promo_codes SET uses = uses + 1 WHERE code = ?'),
+    redeemOnce: db.prepare('INSERT INTO promo_redemptions (code, teacher_id) VALUES (?, ?) ON CONFLICT DO NOTHING'),
+    setDiscount: db.prepare('UPDATE teachers SET discount_percent = ?, discount_code = ? WHERE id = ?'),
   };
 
   // ----- serializers -----
@@ -466,10 +483,12 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
   const availableCredits = async (teacherId) => billing.available(billing.refresh(accountOf(await q.teacherById.get(teacherId))));
 
   async function billingOut(teacherId) {
-    const acc = accountOf(await q.teacherById.get(teacherId));
+    const row = await q.teacherById.get(teacherId);
+    const acc = accountOf(row);
     return {
       ...billing.summary(acc, billingCfg),
       paymentsMode: billingCfg.paymentsMode,
+      discount: row.discount_percent ? { percent: row.discount_percent, code: row.discount_code } : null,
       history: (await q.ledger.all(teacherId)).map((r) => ({
         delta: r.delta, action: r.action, label: billing.ACTION_LABELS[r.action] || r.action, note: r.note, at: r.created_at,
       })),
@@ -541,6 +560,39 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     await q.resolveHelpForTask.run(studentId, taskId);
   }
 
+  // ----- promo codes -----
+
+  // Applies a code to a teacher's account in one transaction. Returns the message to show.
+  async function redeemPromo(teacherId, input) {
+    const code = normalizeCode(input);
+    if (!code) throw new HttpError(400, 'כתבו את הקוד');
+    return tx(db, async () => {
+      const row = await q.promoForUpdate.get(code);
+      const problem = promoProblem(row);
+      if (problem) throw new HttpError(400, problem);
+      if (!(await q.redeemOnce.run(code, teacherId)).changes) throw new HttpError(409, 'כבר השתמשת בקוד הזה');
+      await q.usePromo.run(code);
+      if (row.kind === 'discount') {
+        await q.setDiscount.run(row.amount, code, teacherId);
+        await q.ledgerInsert.run(teacherId, 0, 'promo', `${code}: ${row.amount}% הנחה`);
+      } else {
+        await changeAccount(teacherId, async (acc) => {
+          if (row.kind === 'credits') acc.credits += row.amount;
+          else billing.grantMonths(acc, billingCfg, row.amount);
+        });
+        const delta = row.kind === 'credits' ? row.amount : billingCfg.monthlyCredits * row.amount;
+        await q.ledgerInsert.run(teacherId, delta, 'promo', row.kind === 'credits' ? code : `${code}: ${row.amount} חודשי מנוי`);
+      }
+      return promoMessage(row);
+    });
+  }
+
+  function requireAdmin(ctx) {
+    const t = requireTeacher(ctx);
+    if (!isAdmin(t)) throw new HttpError(403, 'הדף הזה למנהלי האתר בלבד');
+    return t;
+  }
+
   // ----- routes -----
 
   const routes = [];
@@ -566,7 +618,18 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
       await q.ledgerInsert.run(tid, billingCfg.freeCredits, 'signup', '');
       return tid;
     });
-    return [201, { teacher: { id, name, email: mail, credits: billingCfg.freeCredits } }, { 'Set-Cookie': await startSession(ctx.req, id) }];
+    // A promo code given at sign-up. The account exists either way; a bad code is reported.
+    let promo = null;
+    if (typeof ctx.body.promo === 'string' && ctx.body.promo.trim()) {
+      try {
+        await promoLimit(ctx.ip);
+        promo = { ok: true, message: await redeemPromo(id, ctx.body.promo) };
+      } catch (err) {
+        if (!(err instanceof HttpError)) throw err;
+        promo = { ok: false, message: err.message };
+      }
+    }
+    return [201, { teacher: { id, name, email: mail, credits: await availableCredits(id) }, promo }, { 'Set-Cookie': await startSession(ctx.req, id) }];
   });
 
   route('POST', '/api/auth/login', async (ctx) => {
@@ -624,21 +687,56 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
   });
 
   route('GET', '/api/auth/me', async (ctx) => ({
-    teacher: ctx.teacher && { ...ctx.teacher, credits: await availableCredits(ctx.teacher.id) },
+    teacher: ctx.teacher && { ...ctx.teacher, credits: await availableCredits(ctx.teacher.id), isAdmin: isAdmin(ctx.teacher) },
     costs: billingCfg.costs,
   }));
 
   route('GET', '/api/billing', async (ctx) => billingOut(requireTeacher(ctx).id));
+
+  route('POST', '/api/billing/redeem', async (ctx) => {
+    const teacher = requireTeacher(ctx);
+    await promoLimit(teacher.id);
+    const message = await redeemPromo(teacher.id, ctx.body.code);
+    return { message, ...(await billingOut(teacher.id)) };
+  });
+
+  // --- site admin: promo codes ---
+
+  route('GET', '/api/admin/promo', async (ctx) => {
+    requireAdmin(ctx);
+    return { codes: (await q.promoList.all()).map(promoOut), kinds: PROMO_KINDS };
+  });
+
+  route('POST', '/api/admin/promo', async (ctx) => {
+    requireAdmin(ctx);
+    const p = promoInput(ctx.body);
+    const r = await q.insertPromo.run(p.code, p.kind, p.amount, p.maxUses, p.expiresAt, p.note);
+    if (!r.changes) throw new HttpError(409, 'כבר יש קוד כזה');
+    return [201, { code: promoOut(await q.promoByCode.get(p.code)) }];
+  });
+
+  route('PUT', '/api/admin/promo/:code', async (ctx) => {
+    requireAdmin(ctx);
+    const code = normalizeCode(decodeURIComponent(ctx.params.code));
+    if (!(await q.setPromoActive.run(ctx.body.active ? 1 : 0, code)).changes) throw new HttpError(404, 'הקוד לא נמצא');
+    return { code: promoOut(await q.promoByCode.get(code)) };
+  });
 
   route('POST', '/api/billing/checkout', async (ctx) => {
     const teacher = requireTeacher(ctx);
     if (billingCfg.paymentsMode !== 'test') {
       throw new HttpError(503, 'התשלום המקוון עוד לא הופעל. כדי להצטרף למנוי, פנו להנהלת המערכת.');
     }
-    await tx(db, async () => await changeAccount(teacher.id, async (acc) => {
-      billing.activate(acc, billingCfg);
-      await q.ledgerInsert.run(teacher.id, billingCfg.monthlyCredits, 'subscribe', 'מצב בדיקה – ללא חיוב');
-    }));
+    const row = await q.teacherById.get(teacher.id);
+    await tx(db, async () => {
+      await changeAccount(teacher.id, async (acc) => {
+        billing.activate(acc, billingCfg);
+        const note = row.discount_percent ? `מצב בדיקה – ללא חיוב (הנחה ${row.discount_percent}% נוצלה)` : 'מצב בדיקה – ללא חיוב';
+        await q.ledgerInsert.run(teacher.id, billingCfg.monthlyCredits, 'subscribe', note);
+      });
+      // The discount is for the first payment; it is used up here.
+      if (row.discount_percent) await q.setDiscount.run(0, null, teacher.id);
+    });
     return await billingOut(teacher.id);
   });
 

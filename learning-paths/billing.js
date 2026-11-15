@@ -32,6 +32,7 @@ export const ACTION_LABELS = {
   grant: 'קרדיטים שנוספו ידנית',
   subscribe: 'הצטרפות למנוי',
   cancel: 'ביטול חידוש המנוי',
+  promo: 'קוד הטבה',
 };
 
 export function newAccount(cfg = BILLING_DEFAULTS) {
@@ -76,6 +77,18 @@ export function activate(acc, cfg = BILLING_DEFAULTS, now = Date.now()) {
   acc.subStatus = 'active';
   acc.subPeriodEnd = new Date(now + cfg.periodDays * 86400000).toISOString();
   acc.subCreditsLeft = cfg.monthlyCredits;
+  return acc;
+}
+
+// Free or prepaid months (a promo code, or an admin grant). An active subscription is
+// extended after its current end, and keeps the credits it has left.
+export function grantMonths(acc, cfg, months, now = Date.now()) {
+  refresh(acc, now);
+  const extending = subscribed(acc);
+  const start = extending ? Date.parse(acc.subPeriodEnd) : now;
+  const carry = extending ? acc.subCreditsLeft : 0;
+  activate(acc, { ...cfg, periodDays: cfg.periodDays * months, monthlyCredits: cfg.monthlyCredits * months }, start);
+  acc.subCreditsLeft += carry;
   return acc;
 }
 

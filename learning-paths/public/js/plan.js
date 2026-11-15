@@ -3,6 +3,7 @@ import { api } from './api.js';
 import { h, mount, toast, confirmDialog, busy, formatDate } from './ui.js';
 import { go } from './app.js';
 import { creditWord, setCredits } from './credits.js';
+import { DEMO } from './env.js';
 
 const dateLabel = (iso) => new Date(iso).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -45,6 +46,25 @@ function render(app, topbar, b) {
     }
   };
 
+  // A promo code: free months, credits, or a discount.
+  const codeInput = h('input', { type: 'text', dir: 'ltr', maxlength: 30, placeholder: 'למשל WELCOME2026', 'aria-label': 'קוד הטבה', autocapitalize: 'characters' });
+  const codeBtn = h('button', { class: 'btn secondary', type: 'submit' }, 'הפעלת הקוד');
+  const promoForm = h('form', {
+    class: 'row wrap promo-form',
+    onsubmit: async (e) => {
+      e.preventDefault();
+      if (DEMO) return toast('בגרסת ההדגמה אין קודי הטבה. הם יעבדו באתר עצמו.', 'info');
+      try {
+        const next = await busy(codeBtn, api('POST', '/api/billing/redeem', { code: codeInput.value }));
+        setCredits(next.available);
+        toast(next.message, 'ok');
+        render(app, topbar, next);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    },
+  }, codeInput, codeBtn);
+
   const subscribeBtn = h('button', { class: 'btn primary big', onclick: (e) => subscribe(e.currentTarget) },
     canceled ? 'חידוש המנוי' : 'הצטרפות למנוי');
 
@@ -73,7 +93,8 @@ function render(app, topbar, b) {
       h('div', { class: 'plan-head' },
         h('div', {},
           h('h2', {}, 'מנוי חודשי'),
-          h('p', { class: 'plan-price' }, b.plan.priceLabel)),
+          h('p', { class: 'plan-price' }, b.plan.priceLabel),
+          b.discount && h('p', { class: 'chip chip-ok' }, `🎁 ${b.discount.percent}% הנחה על התשלום הראשון (קוד ${b.discount.code})`)),
         subscribed && h('span', { class: `chip ${active ? 'chip-ok' : 'chip-warn'}` }, active ? 'פעיל' : 'החידוש בוטל')),
       h('ul', { class: 'plan-features' },
         h('li', {}, `${creditWord(b.plan.monthlyCredits)} חדשים כל חודש`),
@@ -87,6 +108,11 @@ function render(app, topbar, b) {
         !active && (b.paymentsMode === 'test' ? subscribeBtn : h('p', { class: 'notice warn' }, 'התשלום המקוון עוד לא הופעל. כדי להצטרף למנוי, פנו להנהלת המערכת.')),
         active && h('button', { class: 'btn ghost', onclick: (e) => cancel(e.currentTarget) }, 'ביטול חידוש המנוי')),
       b.paymentsMode === 'test' && !active && h('p', { class: 'muted small' }, '🧪 מצב בדיקה: ההצטרפות מפעילה מנוי בלי לחייב כרטיס אשראי.')),
+
+    h('section', { class: 'card' },
+      h('h2', {}, '🎁 יש לי קוד הטבה'),
+      h('p', { class: 'muted small' }, 'קוד ממנהלי האתר: חודשי מנוי חינם, קרדיטים נוספים או הנחה.'),
+      promoForm),
 
     b.history.length > 0 && h('section', { class: 'card' },
       h('h2', {}, 'היסטוריית שימוש'),

@@ -27,6 +27,7 @@ export function topbar(...extra) {
       extra,
       creditBadge(),
       DEMO && h('span', { class: 'chip chip-warn', title: 'הנתונים נשמרים רק אצלך' }, 'גרסת הדגמה'),
+      session.teacher?.isAdmin && !DEMO && h('a', { class: 'btn ghost small', href: '#/admin' }, '🛠️ ניהול'),
       session.teacher && !DEMO && h('span', { class: 'muted hide-sm' }, `שלום, ${session.teacher.name}`),
       session.teacher && !DEMO && h('button', { class: 'btn ghost small', onclick: logout }, 'יציאה')));
 }
@@ -125,6 +126,7 @@ export function authPage(app, mode) {
   const name = h('input', { type: 'text', required: true, autocomplete: 'name', maxlength: 80 });
   const email = h('input', { type: 'email', required: true, autocomplete: 'email', dir: 'ltr' });
   const pw = h('input', { type: 'password', required: true, minlength: isReg ? 8 : null, autocomplete: isReg ? 'new-password' : 'current-password', dir: 'ltr' });
+  const promo = h('input', { type: 'text', dir: 'ltr', maxlength: 30, autocapitalize: 'characters', value: new URLSearchParams(location.hash.split('?')[1] || '').get('code') || '' });
   const error = h('p', { class: 'error', role: 'alert' });
   const submit = h('button', { class: 'btn primary block', type: 'submit' }, isReg ? 'יצירת חשבון' : 'כניסה');
 
@@ -132,9 +134,13 @@ export function authPage(app, mode) {
     e.preventDefault();
     error.textContent = '';
     const body = { email: email.value, password: pw.value };
-    if (isReg) body.name = name.value;
+    if (isReg) { body.name = name.value; body.promo = promo.value; }
     busy(submit, api('POST', `/api/auth/${isReg ? 'register' : 'login'}`, body)
-      .then(() => { session.loaded = false; go('#/dashboard'); })
+      .then((r) => {
+        if (r.promo) toast(r.promo.message, r.promo.ok ? 'ok' : 'error');
+        session.loaded = false;
+        go('#/dashboard');
+      })
       .catch((err) => { error.textContent = err.message; }));
   };
 
@@ -144,6 +150,7 @@ export function authPage(app, mode) {
       isReg && field('שם מלא', name),
       field('אימייל', email),
       field('סיסמה', pw, isReg ? 'לפחות 8 תווים' : null),
+      isReg && !DEMO && field('קוד הטבה (לא חובה)', promo),
       error, submit,
       !isReg && h('p', { class: 'center small' }, h('a', { href: '#/forgot' }, 'שכחתי סיסמה')),
       h('p', { class: 'muted center' },

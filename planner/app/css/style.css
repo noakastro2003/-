@@ -1839,3 +1839,10 @@ html[data-skin=luxe][data-theme=dark] .ill, html[data-skin=luxe][data-theme=dark
   background: none !important; box-shadow: none !important; border-radius: 0 !important; overflow: visible !important; }
 html[data-skin=luxe][data-theme=dark] .ill img.ill-d { transform: none !important; filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .45)) !important; mix-blend-mode: normal !important;
   -webkit-mask-image: none !important; mask-image: none !important; object-fit: contain; }
+/* the logo at night: the clipboard alone, no cream tile */
+.logo .lg-d { display: none; }
+html[data-theme=dark] .logo .lg-l { display: none !important; }
+html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important; }
+.hb { position: relative; }
+.hb .dot { position: absolute !important; top: 9px !important; left: 9px !important; right: auto !important; width: 9px !important; height: 9px !important; border-radius: 50%;
+  background: #F26B6B !important; box-shadow: 0 0 0 2.5px var(--card) !important; animation: none !important; }

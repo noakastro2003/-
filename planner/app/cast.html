@@ -86,19 +86,30 @@ iframe { position: fixed; inset: 0; width: 100vw; height: 100vh; border: 0; back
 #snd { position: fixed; top: 2vh; right: 2vw; background: rgba(255, 255, 255, .08); color: var(--ink); border: 1px solid rgba(255, 255, 255, .15); border-radius: 99px; padding: 1vh 2.2vh; font: inherit; font-size: 2vh; cursor: pointer; }
 #snd.on { display: none; }
 #fs { position: fixed; top: 2vh; left: 2vw; background: rgba(255, 255, 255, .08); color: var(--ink); border: 1px solid rgba(255, 255, 255, .15); border-radius: 99px; padding: 1vh 2.2vh; font: inherit; font-size: 2vh; cursor: pointer; }
+
+/* clay traffic light: plum housing, dough-ball lamps; the lit one puffs up, glows and shows a face */
+.light { --lr: #F26B6B; --ly: #F7C64B; --lg: #5CC983; gap: 3.5vh; padding: 4.5vh 3.5vh; border-radius: 99vh; background: #5B4190;
+  box-shadow: 0 5vh 9vh -4vh rgba(30, 18, 50, .8), inset 0 1vh 1vh rgba(255, 255, 255, .25), inset 0 -2vh 3vh rgba(30, 18, 50, .35); }
+.light i { position: relative; opacity: 1 !important; --c: var(--lg); background: color-mix(in srgb, var(--c) 28%, #2E2140) !important;
+  box-shadow: inset 0 1.4vh 2.6vh rgba(0, 0, 0, .45), inset 0 -.3vh .3vh rgba(255, 255, 255, .12) !important;
+  transition: background .3s, box-shadow .3s, transform .5s cubic-bezier(.3, 1.9, .45, 1); }
+.light .r { --c: var(--lr); } .light .y { --c: var(--ly); } .light .g { --c: var(--lg); }
+.light i svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: #3B2A4A; stroke: #3B2A4A; opacity: 0; transform: scale(.7); transition: opacity .25s, transform .4s cubic-bezier(.3, 1.9, .45, 1); }
+.light i svg .ck { fill: #fff; opacity: .35; stroke: none; }
+.light[data-l=r] .r, .light[data-l=y] .y, .light[data-l=g] .g {
+  background: radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--c) 40%, #fff) 0, var(--c) 52%, color-mix(in srgb, var(--c) 78%, #3B2A4A) 100%) !important;
+  box-shadow: 0 0 9vh color-mix(in srgb, var(--c) 75%, transparent), 0 2vh 3vh -1vh rgba(0, 0, 0, .35), inset 0 1vh 1vh rgba(255, 255, 255, .5), inset 0 -1.6vh 2.5vh rgba(0, 0, 0, .16) !important; transform: scale(1.08); }
+.light[data-l=r] .r svg, .light[data-l=y] .y svg, .light[data-l=g] .g svg { opacity: .85; transform: none; }
+.light[data-l=r] .r { animation: lampR 1.4s ease-in-out infinite; }
+@keyframes lampR { 50% { transform: scale(1.14, 1.02); } }
+#shh .bub { background: #FFFAF3; color: #4A3566; box-shadow: 0 2vh 4vh -1vh rgba(0, 0, 0, .35), inset 0 .6vh .4vh #fff, inset 0 -1vh 1.6vh rgba(122, 92, 60, .14); }
+#shh .bub::after { border-left-color: #FFFAF3; }
 </style>
 </head>
 <body>
 <div id="stage"></div>
 <div id="shh" aria-hidden="true">
-  <svg viewBox="0 0 200 230"><ellipse cx="100" cy="222" rx="62" ry="7" fill="rgba(0,0,0,.18)"/>
-    <circle cx="100" cy="112" r="86" fill="#F4D88E"/><ellipse cx="72" cy="66" rx="26" ry="16" fill="#FFF3CF" opacity=".7" transform="rotate(-25 72 66)"/>
-    <path d="M58 100q13 11 26 0M116 100q13 11 26 0" fill="none" stroke="#4A3B5C" stroke-width="6" stroke-linecap="round"/>
-    <ellipse cx="56" cy="130" rx="14" ry="8" fill="#F2A7B5" opacity=".75"/><ellipse cx="144" cy="130" rx="14" ry="8" fill="#F2A7B5" opacity=".75"/>
-    <ellipse cx="100" cy="146" rx="10" ry="8" fill="#4A3B5C"/>
-    <circle cx="106" cy="182" r="20" fill="#F7C9A0" stroke="#E2A06E" stroke-width="3"/>
-    <rect x="93" y="118" width="15" height="58" rx="7.5" fill="#F7C9A0" stroke="#E2A06E" stroke-width="3"/>
-  </svg>
+  <svg viewBox="0 0 200 230" aria-hidden="true"><defs><radialGradient id="shB" cx="36%" cy="28%" r="78%"><stop offset="0" stop-color="#FFF2C4"/><stop offset=".5" stop-color="#F5D27C"/><stop offset="1" stop-color="#D6A245"/></radialGradient><radialGradient id="shF" cx="35%" cy="25%" r="85%"><stop offset="0" stop-color="#FFE6CF"/><stop offset="1" stop-color="#E5A272"/></radialGradient></defs><ellipse cx="100" cy="222" rx="64" ry="8" fill="rgba(60,40,20,.2)"/><circle cx="100" cy="112" r="86" fill="url(#shB)"/><ellipse cx="68" cy="60" rx="24" ry="13" fill="#fff" opacity=".5" transform="rotate(-28 68 60)"/><path d="M58 100q13 11 26 0M116 100q13 11 26 0" fill="none" stroke="#4A3B5C" stroke-width="6.5" stroke-linecap="round"/><ellipse cx="56" cy="128" rx="14" ry="8" fill="#F29BAE" opacity=".7"/><ellipse cx="144" cy="128" rx="14" ry="8" fill="#F29BAE" opacity=".7"/><ellipse cx="100" cy="146" rx="10" ry="8" fill="#4A3B5C"/><rect x="92" y="116" width="17" height="62" rx="8.5" fill="url(#shF)"/><circle cx="106" cy="184" r="22" fill="url(#shF)"/><ellipse cx="97" cy="124" rx="3" ry="6" fill="#fff" opacity=".45"/><ellipse cx="99" cy="176" rx="7" ry="4" fill="#fff" opacity=".35"/></svg>
   <div class="bub">ששששש…</div>
 </div>
 <button id="fs" type="button">מסך מלא</button>
@@ -173,7 +184,7 @@ function show(m) {
     h = `<div class="timer" id="tm">${fmt(Math.round(d.left))}</div><div class="bar"><i id="tb" style="width:${Math.round(100 * d.left / total)}%"></i></div>${d.label ? `<div class="sub">${esc(d.label)}</div>` : ''}`;
     if (d.running) timerT = setInterval(() => { const l = Math.max(0, Math.round((end - Date.now()) / 1000)); const t = $('#tm'); if (!t) return; t.textContent = fmt(l); $('#tb').style.width = Math.round(100 * l / total) + '%'; if (!l) { t.classList.add('done'); clearInterval(timerT); } }, 250);
   }
-  else if (k === 'noise') { h = `<div class="light" id="light" data-l="${esc(d || 'g')}"><i class="r"></i><i class="y"></i><i class="g"></i></div>`; }
+  else if (k === 'noise') { h = `<div class="light" id="light" data-l="${esc(d || 'g')}"><i class="r"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="14" cy="16" r="2.7"/><circle cx="26" cy="16" r="2.7"/><ellipse cx="20" cy="27" rx="3.6" ry="4.4"/></svg></i><i class="y"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="14" cy="17" r="2.6"/><circle cx="26" cy="17" r="2.6"/><path d="M14.5 26h11" fill="none" stroke-width="2.8" stroke-linecap="round"/></svg></i><i class="g"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="14" cy="17" r="2.6"/><circle cx="26" cy="17" r="2.6"/><ellipse class="ck" cx="10" cy="23" rx="3.2" ry="2"/><ellipse class="ck" cx="30" cy="23" rx="3.2" ry="2"/><path d="M13.5 24q6.5 6.5 13 0" fill="none" stroke-width="2.8" stroke-linecap="round"/></svg></i></div>`; }
   else if (k === 'html') h = `<iframe sandbox="allow-scripts allow-forms allow-modals allow-popups" srcdoc="${esc(d)}"></iframe>`;
   else if (k === 'canva') { const u = String(d || ''); h = /^https:\/\/(www\.)?canva\.com\/design\//.test(u) ? `<iframe src="${esc(u)}" allow="fullscreen" allowfullscreen></iframe>` : ''; }
   else if (k === 'blank') h = '';

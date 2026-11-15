@@ -1688,3 +1688,28 @@ html[data-skin=luxe] .nowc .segtabs { border-radius: 999px !important; overflow:
 html[data-skin=luxe] .nowc .segtabs { padding: 4px !important; } html[data-skin=luxe] .nowc .segtabs button { border-radius: 999px; padding: 9px 4px; }
 html[data-skin=luxe] .nowc .ring svg { overflow: visible; } html[data-skin=luxe] .nowc .ring circle { r: 42px; stroke-width: 10; }
 html[data-skin=luxe] .ill.wl img, html[data-skin=luxe] .card.empty > .ill img { -webkit-mask-image: none !important; mask-image: none !important; }
+
+/* ================================================================ v73 · TRAFFIC LIGHT in clay: a plum housing, the lamps are dough balls;
+   off = pressed into the housing, dim; on = puffs up, glows, and shows a little face */
+.nl { --lr: #F26B6B; --ly: #F7C64B; --lg: #5CC983; width: max-content; margin: 8px auto 14px; gap: 14px; padding: 14px 18px; border-radius: 999px; background: #5B4190;
+  box-shadow: 0 16px 26px -14px rgba(74, 53, 102, .75), inset 0 3px 2px rgba(255, 255, 255, .25), inset 0 -6px 10px rgba(30, 18, 50, .35); }
+.nl i { position: relative; opacity: 1 !important; width: 64px; height: 64px; --c: var(--lg);
+  background: color-mix(in srgb, var(--c) 28%, #2E2140) !important; box-shadow: inset 0 4px 8px rgba(0, 0, 0, .45), inset 0 -1px 1px rgba(255, 255, 255, .12) !important;
+  transition: background .3s, box-shadow .3s, transform .5s cubic-bezier(.3, 1.9, .45, 1), filter .3s; }
+.nl .r { --c: var(--lr); } .nl .y { --c: var(--ly); } .nl .g { --c: var(--lg); }
+.nl i svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: #3B2A4A; stroke: #3B2A4A; opacity: 0; transform: scale(.7); transition: opacity .25s, transform .4s cubic-bezier(.3, 1.9, .45, 1); }
+.nl i svg .ck { fill: #fff; opacity: .35; stroke: none; }
+.nl[data-l=r] .r, .nl[data-l=y] .y, .nl[data-l=g] .g, .nl:not([data-l]) .g {
+  background: radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--c) 40%, #fff) 0, var(--c) 52%, color-mix(in srgb, var(--c) 78%, #3B2A4A) 100%) !important;
+  box-shadow: 0 0 26px color-mix(in srgb, var(--c) 75%, transparent), 0 6px 10px -4px rgba(0, 0, 0, .35), inset 0 3px 3px rgba(255, 255, 255, .5), inset 0 -5px 8px rgba(0, 0, 0, .16) !important;
+  transform: scale(1.08); filter: none !important; }
+.nl[data-l=r] .r svg, .nl[data-l=y] .y svg, .nl[data-l=g] .g svg, .nl:not([data-l]) .g svg { opacity: .85; transform: none; }
+.nl[data-l=r] .r { animation: lampR 1.4s ease-in-out infinite; }
+@keyframes lampR { 50% { transform: scale(1.14, 1.02); } }
+/* projected on the phone itself: the same light, upright and big */
+.pj-nl { flex-direction: column; gap: 3.5vh; padding: 4.5vh 3.5vh; border-radius: 99vh; }
+.pj-nl i { width: 21vh; height: 21vh; }
+.pj-nl[data-l=r] .r, .pj-nl[data-l=y] .y, .pj-nl[data-l=g] .g { box-shadow: 0 0 8vh color-mix(in srgb, var(--c) 75%, transparent), 0 2vh 3vh -1vh rgba(0, 0, 0, .35), inset 0 1vh 1vh rgba(255, 255, 255, .5), inset 0 -1.6vh 2.5vh rgba(0, 0, 0, .16) !important; }
+@media (prefers-reduced-motion: reduce) { .nl[data-l=r] .r { animation: none; } }
+.pj-shh .bub { background: #FFFAF3; color: #4A3566; box-shadow: 0 2vmin 4vmin -1vmin rgba(0, 0, 0, .35), inset 0 .6vmin .4vmin #fff, inset 0 -1vmin 1.6vmin rgba(122, 92, 60, .14); }
+html[data-skin=luxe] input[type=range] { accent-color: #5B4190; }

@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 72; // keep in step with CACHE in sw.js
+const APP_V = 73; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1198,7 +1198,7 @@ function projector(kind, data) {
   if (kind === 'dict') body = `<ol class="pj-list">${(data || []).map(x => `<li>${esc(x)}</li>`).join('')}</ol>`;
   if (kind === 'groups') body = `<div class="pj-groups">${(data || []).map((g, i) => `<div><b>קבוצה ${i + 1}</b>${g.map(n => `<span>${esc(n)}</span>`).join('')}</div>`).join('')}</div>`;
   if (kind === 'points') body = `<div class="pj-points">${state.points.map(t => `<div><b>${esc(t.name)}</b><span>${t.pts}</span></div>`).join('')}</div>`;
-  if (kind === 'noise') body = `<div class="nl pj-nl" id="pjNoise" data-l="${noise.level || 'g'}"><i class="r"></i><i class="y"></i><i class="g"></i></div><p class="pj-hint">הטלפון מקשיב – שום דבר לא מוקלט</p>`;
+  if (kind === 'noise') body = `<div class="nl pj-nl" id="pjNoise" data-l="${noise.level || 'g'}">${LAMPS}</div><p class="pj-hint">הטלפון מקשיב – שום דבר לא מוקלט</p>`;
   if (kind === 'timer') body = `<div class="pj-timer" id="pjTimer">${fmtT(T.running ? Math.max(0, Math.round((T.endAt - Date.now()) / 1000)) : T.left || T.total)}</div>`;
   el.innerHTML = `<button class="pj-x" data-act="projclose" aria-label="סגירה">${ic('x')}</button>${body}
     <div class="pj-bar">${[['text', 'טקסט'], ['timer', 'טיימר'], ['groups', 'קבוצות'], ['points', 'ניקוד'], ['dict', 'הכתבה']].map(([k, l]) => `<button class="${k === kind ? 'on' : ''}" data-projmode="${k}">${l}</button>`).join('')}</div>`;
@@ -1226,7 +1226,7 @@ function viewClass() {
     ${state.points.length ? `<div class="btnrow"><button class="cta soft" data-act="ptzero">איפוס הנקודות</button><button class="cta soft" data-act="ptclear">מחיקת הקבוצות</button></div>` : ''}
   </div>`;
   h += `<div class="card noise">${cardHead('sparkle', 'רמזור רעש', `<button class="linkbtn" data-act="noiseproj">${ic('screen')} ${cast.on ? 'למסך הכיתה' : 'הקרנה'}</button>`)}
-    <div class="nl ${noise.on ? 'live' : ''}" id="noiseLight"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+    <div class="nl ${noise.on ? 'live' : ''}" id="noiseLight">${LAMPS}</div>
     <label class="field">רגישות<input type="range" min="1" max="10" value="${noise.sens}" data-noisesens></label>
     <button class="cta ${noise.on ? 'soft' : ''}" data-act="noise">${noise.on ? 'עצירה' : 'הפעלה'}</button>
     <div class="setrow"><span>הדמות משמיעה "ששש" כשהרמזור אדום 3 שניות</span><button class="switch ${state.prefs.shhSound !== false ? 'on' : ''}" data-act="shhsound" role="switch" aria-checked="${state.prefs.shhSound !== false}"><i></i></button></div>
@@ -1241,7 +1241,8 @@ function viewClass() {
   return h;
 }
 function weekKey() { const t = now(); const s = addDays(new Date(t.getFullYear(), t.getMonth(), t.getDate()), -t.getDay()); return isoDay(s); }
-const SHH_SVG = `<svg viewBox="0 0 200 230" aria-hidden="true"><ellipse cx="100" cy="222" rx="62" ry="7" fill="rgba(0,0,0,.18)"/><circle cx="100" cy="112" r="86" fill="#F4D88E"/><ellipse cx="72" cy="66" rx="26" ry="16" fill="#FFF3CF" opacity=".7" transform="rotate(-25 72 66)"/><path d="M58 100q13 11 26 0M116 100q13 11 26 0" fill="none" stroke="#4A3B5C" stroke-width="6" stroke-linecap="round"/><ellipse cx="56" cy="130" rx="14" ry="8" fill="#F2A7B5" opacity=".75"/><ellipse cx="144" cy="130" rx="14" ry="8" fill="#F2A7B5" opacity=".75"/><ellipse cx="100" cy="146" rx="10" ry="8" fill="#4A3B5C"/><circle cx="106" cy="182" r="20" fill="#F7C9A0" stroke="#E2A06E" stroke-width="3"/><rect x="93" y="118" width="15" height="58" rx="7.5" fill="#F7C9A0" stroke="#E2A06E" stroke-width="3"/></svg>`;
+const LAMPS = `<i class="r"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="14" cy="16" r="2.7"/><circle cx="26" cy="16" r="2.7"/><ellipse cx="20" cy="27" rx="3.6" ry="4.4"/></svg></i><i class="y"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="14" cy="17" r="2.6"/><circle cx="26" cy="17" r="2.6"/><path d="M14.5 26h11" fill="none" stroke-width="2.8" stroke-linecap="round"/></svg></i><i class="g"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="14" cy="17" r="2.6"/><circle cx="26" cy="17" r="2.6"/><ellipse class="ck" cx="10" cy="23" rx="3.2" ry="2"/><ellipse class="ck" cx="30" cy="23" rx="3.2" ry="2"/><path d="M13.5 24q6.5 6.5 13 0" fill="none" stroke-width="2.8" stroke-linecap="round"/></svg></i>`;
+const SHH_SVG = `<svg viewBox="0 0 200 230" aria-hidden="true"><defs><radialGradient id="shB" cx="36%" cy="28%" r="78%"><stop offset="0" stop-color="#FFF2C4"/><stop offset=".5" stop-color="#F5D27C"/><stop offset="1" stop-color="#D6A245"/></radialGradient><radialGradient id="shF" cx="35%" cy="25%" r="85%"><stop offset="0" stop-color="#FFE6CF"/><stop offset="1" stop-color="#E5A272"/></radialGradient></defs><ellipse cx="100" cy="222" rx="64" ry="8" fill="rgba(60,40,20,.2)"/><circle cx="100" cy="112" r="86" fill="url(#shB)"/><ellipse cx="68" cy="60" rx="24" ry="13" fill="#fff" opacity=".5" transform="rotate(-28 68 60)"/><path d="M58 100q13 11 26 0M116 100q13 11 26 0" fill="none" stroke="#4A3B5C" stroke-width="6.5" stroke-linecap="round"/><ellipse cx="56" cy="128" rx="14" ry="8" fill="#F29BAE" opacity=".7"/><ellipse cx="144" cy="128" rx="14" ry="8" fill="#F29BAE" opacity=".7"/><ellipse cx="100" cy="146" rx="10" ry="8" fill="#4A3B5C"/><rect x="92" y="116" width="17" height="62" rx="8.5" fill="url(#shF)"/><circle cx="106" cy="184" r="22" fill="url(#shF)"/><ellipse cx="97" cy="124" rx="3" ry="6" fill="#fff" opacity=".45"/><ellipse cx="99" cy="176" rx="7" ry="4" fill="#fff" opacity=".35"/></svg>`;
 function applyProjLook() { const el = $('#proj'); if (!el) return; const st = castLook(); el.dataset.look = st.theme; el.dataset.font = st.font; el.style.setProperty('--tsize', st.size); }
 // a soft "shhhh": white noise shaped like the sound of sh (most of it around 2–5 kHz), twice
 function playShh(ctx, vol = 1) {

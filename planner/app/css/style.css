@@ -1687,3 +1687,4 @@ html[data-skin=luxe] .nowc .segtabs button.on { color: var(--ink); font-weight: 
 html[data-skin=luxe] .nowc .segtabs { border-radius: 999px !important; overflow: hidden; }
 html[data-skin=luxe] .nowc .segtabs { padding: 4px !important; } html[data-skin=luxe] .nowc .segtabs button { border-radius: 999px; padding: 9px 4px; }
 html[data-skin=luxe] .nowc .ring svg { overflow: visible; } html[data-skin=luxe] .nowc .ring circle { r: 42px; stroke-width: 10; }
+html[data-skin=luxe] .ill.wl img, html[data-skin=luxe] .card.empty > .ill img { -webkit-mask-image: none !important; mask-image: none !important; }

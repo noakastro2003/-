@@ -1636,3 +1636,52 @@ html[data-skin=luxe] .tt h1::after, html[data-skin=luxe] .brand > span::after { 
 html[data-skin=luxe]:not([data-theme=dark]) .ill { border-radius: 0; overflow: visible; }
 html[data-skin=luxe]:not([data-theme=dark]) .ill img {
   -webkit-mask-image: radial-gradient(closest-side, #000 86%, transparent 100%); mask-image: radial-gradient(closest-side, #000 86%, transparent 100%); }
+
+/* ================================================================ v70 · NOW CARD in clay: a big puffy slab tinted with the subject's colour,
+   the minutes ring is a dough doughnut (raised rim, pressed centre, a thick soft band of colour) */
+html[data-skin=luxe] .nowc {
+  background: color-mix(in srgb, var(--c) 13%, var(--card)) !important; border-radius: 34px; padding: 22px 20px 20px;
+  box-shadow: 0 22px 36px -20px color-mix(in srgb, var(--c) 60%, rgba(96, 70, 44, .5)), 0 3px 6px -3px rgba(96, 70, 44, .14),
+    inset 0 3px 2px rgba(255, 255, 255, .85), inset 0 -8px 14px color-mix(in srgb, var(--c) 22%, transparent) !important; }
+html[data-skin=luxe] .nowc::before { inset: 0; height: auto; background: radial-gradient(60% 45% at 85% 0%, rgba(255, 255, 255, .55), transparent 70%); }
+html[data-skin=luxe][data-theme=dark] .nowc { background: color-mix(in srgb, var(--c) 16%, var(--card)) !important;
+  box-shadow: 0 22px 36px -18px rgba(0, 0, 0, .75), inset 0 2px 1px rgba(255, 255, 255, .1), inset 0 -8px 14px rgba(0, 0, 0, .3) !important; }
+html[data-skin=luxe][data-theme=dark] .nowc::before { background: radial-gradient(60% 45% at 85% 0%, rgba(255, 255, 255, .07), transparent 70%); }
+html[data-skin=luxe] .nowc .ring { width: 118px; height: 118px; border-radius: 50%; background: var(--card); box-shadow: var(--clay); }
+html[data-skin=luxe] .nowc .ring circle { stroke-width: 11; }
+html[data-skin=luxe] .nowc .ring .rt { stroke: color-mix(in srgb, var(--c) 16%, var(--bg)); }
+html[data-skin=luxe] .nowc .ring .rv { stroke: color-mix(in srgb, var(--c) 82%, #3A2850); filter: drop-shadow(0 1.5px 1px rgba(40, 25, 60, .25)); }
+html[data-skin=luxe] .nowc .ring:not(.soon) .rv { stroke: color-mix(in srgb, var(--c) 82%, #3A2850) !important; }
+html[data-skin=luxe] .nowc .rin { inset: 22px; border-radius: 50%; background: color-mix(in srgb, var(--bg) 70%, var(--card)); box-shadow: var(--clay-pressed); }
+html[data-skin=luxe] .nowc .rin b { font-size: 30px; color: var(--ink); }
+html[data-skin=luxe] .nowc .ring.soon .rin b { color: #B4586A; }
+html[data-skin=luxe] .nowc .segtabs { background: color-mix(in srgb, var(--c) 8%, var(--bg)) !important; border: 0 !important; box-shadow: var(--clay-pressed); }
+html[data-skin=luxe] .nowc .segind { background: var(--card) !important; box-shadow: var(--clay-sm) !important; }
+html[data-skin=luxe] .nowc .secpanel, html[data-skin=luxe] .nowc .sub, html[data-skin=luxe] .nowc .hw { background: color-mix(in srgb, var(--card) 80%, transparent) !important; border: 0 !important; box-shadow: var(--clay-sm) !important; border-radius: 22px; }
+html[data-skin=luxe] .nowc .tline .bar { background: color-mix(in srgb, var(--c) 10%, var(--bg)) !important; box-shadow: var(--clay-pressed); height: 10px; border-radius: 99px; }
+html[data-skin=luxe] .nowc .tline .bar span { background: color-mix(in srgb, var(--c) 82%, #3A2850) !important; border-radius: 99px; box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, .35); }
+html[data-skin=luxe] .nowc .pill { box-shadow: var(--clay-sm); border: 0; }
+
+/* ================================================================ v70 · SQUISH: pressing anything squashes it like dough; letting go, it springs back */
+html[data-skin=luxe] :is(.cta, .toolgrid button, .hubgrid button, .trow, .attline, .tile, .dc, .quick button, .jq, .iconbtn, .hb, .back, .fc, .steprow, .castgrid button, .ctheme button, .attk, .gkinds span, .seg button, .addtodo button, .chk .box, .logbtn) {
+  transition: transform .5s cubic-bezier(.3, 1.9, .45, 1), box-shadow .2s ease, background-color .2s ease, opacity .6s var(--ease); }
+html[data-skin=luxe] :is(.cta, .attline, .trow):active { transform: scale(1.015, .93) !important; transition-duration: .08s; transition-timing-function: ease-out; }
+html[data-skin=luxe] :is(.toolgrid button, .hubgrid button, .tile, .quick button, .castgrid button, .ctheme button, .attk):active { transform: scale(1.04, .9) !important; transition-duration: .08s; transition-timing-function: ease-out; }
+html[data-skin=luxe] :is(.dc, .jq, .iconbtn, .hb, .back, .fc, .gkinds span, .seg button, .addtodo button, .chk .box, .logbtn):active { transform: scale(1.1, .84) !important; transition-duration: .08s; transition-timing-function: ease-out; }
+html[data-skin=luxe] :is(.nextc, .teaser, .mrow, .steprow) { transition: transform .5s cubic-bezier(.3, 1.9, .45, 1), opacity .6s var(--ease); }
+html[data-skin=luxe] :is(.nextc, .teaser, .mrow, .steprow):active { transform: scale(1.008, .965); transition-duration: .08s; }
+html[data-skin=luxe] .tab:active .ic { transform: scale(1.2, .8); transition: transform .08s; }
+html[data-skin=luxe] .tab .ic { transition: transform .5s cubic-bezier(.3, 1.9, .45, 1); }
+@media (prefers-reduced-motion: reduce) { html[data-skin=luxe] :is(.cta, .toolgrid button, .hubgrid button, .trow, .attline, .tile, .dc, .quick button, .jq, .iconbtn, .hb, .back, .fc, .nextc, .teaser, .mrow, .steprow, .tab .ic):active { transform: none !important; } }
+
+/* ================================================================ v70 · EMPTY SCREENS: a picture, a line saying what's missing, a line saying how to fill it */
+.estate { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 18px 12px 10px; }
+.estate .ill.md { width: 150px; height: 150px; margin: 0 auto 4px; }
+.estate b { font-size: var(--fs-h3); font-weight: 700; color: var(--ink); }
+.estate span:not(.ill) { font-size: var(--fs-sm); color: var(--soft); max-width: 290px; line-height: 1.5; }
+.card.empty > .ill.md { width: 150px; height: 150px; margin: 0 auto 8px; }
+/* the ring's progress circle shares its class name with the scroll-reveal effect – never hide it */
+.ring circle.rv, .tring circle.rv { opacity: 1 !important; transform: none !important; }
+html[data-skin=luxe] .nowc .segind { top: 4px !important; bottom: 4px !important; height: auto !important; right: 4px; width: calc((100% - 8px) / var(--n)) !important; border-radius: 999px !important; }
+html[data-skin=luxe] .nowc .segtabs button.on { color: var(--ink); font-weight: 700; }
+html[data-skin=luxe] .nowc .segtabs { border-radius: 999px !important; overflow: hidden; }

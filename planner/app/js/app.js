@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 69; // keep in step with CACHE in sw.js
+const APP_V = 70; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -147,16 +147,22 @@ function weekNav(w) {
 
 function phase(day) {
   const m = nowMin();
-  const ps = day.periods.filter(p => p.start);
+  const ps = day.periods.filter(p => p.start).sort((x, y) => mins(x.start) - mins(y.start));
   if (!ps.length) return { kind: 'free' };
+  // a plan may list only start times: the end comes from the bell schedule, else the next lesson, else 45 minutes
+  const E = new Map(ps.map((p, i) => {
+    if (p.end && mins(p.end) > mins(p.start)) return [p, mins(p.end)];
+    const bell = state.prefs.bell && state.prefs.bell[p.label], nx = ps[i + 1];
+    return [p, bell && bell[1] && mins(bell[1]) > mins(p.start) ? mins(bell[1]) : Math.min(mins(p.start) + 45, nx ? mins(nx.start) : Infinity)];
+  }));
   const first = ps[0], last = ps[ps.length - 1];
   if (m < mins(first.start)) return { kind: 'before', next: first, inMin: Math.ceil(mins(first.start) - m) };
-  if (m >= mins(last.end)) return { kind: 'after' };
-  const cur = ps.find(p => m >= mins(p.start) && m < mins(p.end));
+  if (m >= E.get(last)) return { kind: 'after' };
+  const cur = ps.find(p => m >= mins(p.start) && m < E.get(p));
   const next = ps.find(p => mins(p.start) > m);
   if (cur) {
-    const len = mins(cur.end) - mins(cur.start);
-    return { kind: 'lesson', cur, next, left: Math.ceil(mins(cur.end) - m), len, pct: (m - mins(cur.start)) / len, inMin: next ? Math.ceil(mins(next.start) - m) : null };
+    const len = E.get(cur) - mins(cur.start);
+    return { kind: 'lesson', cur, next, left: Math.ceil(E.get(cur) - m), len, pct: (m - mins(cur.start)) / len, inMin: next ? Math.ceil(mins(next.start) - m) : null };
   }
   return { kind: 'break', next, inMin: Math.ceil(mins(next.start) - m) };
 }
@@ -234,6 +240,7 @@ function remindersCard(w, full) {
   const pdf = w && !full ? w.notes : [];
   return `<div class="card notes">
     ${cardHead('pin', 'לא לשכוח', !full ? `<button class="linkbtn" data-go="todos">הכל</button>` : '')}
+    ${full && !list.length ? estate('e-todos', 'אין תזכורות', 'כותבים כאן משהו קטן שלא רוצים לשכוח. עם תאריך – זה יופיע ב"עכשיו" ביום הזה.') : ''}
     ${list.map(t => `<div class="todo">
       <label class="chk ${t.done ? 'on' : ''}"><input type="checkbox" data-todo="${t.id}" ${t.done ? 'checked' : ''}><span class="box">${ic('check')}</span><span class="ct">${esc(t.text)}${t.date ? ` <small class="tpill">${esc(fmtDate(t.date))}</small>` : ''}</span></label>
       ${full ? `<button class="iconbtn" data-deltodo="${t.id}" aria-label="מחיקה">${ic('trash')}</button>` : ''}
@@ -259,6 +266,11 @@ const TAB_ILL = { now: 'desk', day: 'week', prep: 'prep', cls: 'class', kids: 'c
 const ILLF = new Set(['desk', 'week', 'prep', 'class', 'tools', 'school', 'notebook', 'medal']);
 const illFile = name => ILLF.has(name) ? name : ILL[name];
 const illImg = (name, cls = '') => illFile(name) ? `<span class="ill ${cls}"><img src="img/ill/${illFile(name)}.jpg" alt="" decoding="async"></span>` : '';
+// pictures for empty screens. Until a picture of its own is added to img/ill/, each one falls back to a family picture.
+const SLOT_FB = { 'e-todos': 'notebook', 'e-grades': 'medal', 'e-journal': 'notebook', 'e-kids': 'class', 'e-files': 'tools', welcome: 'school' };
+const slotImg = (slot, cls = 'md') => `<span class="ill ${cls}"><img src="img/ill/${slot}.jpg" data-fb="img/ill/${SLOT_FB[slot]}.jpg" alt="" decoding="async"></span>`;
+document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.dataset.fb && !t.src.endsWith(t.dataset.fb)) t.src = t.dataset.fb; }, true);
+const estate = (slot, title, text, extra = '') => `<div class="estate">${slotImg(slot)}<b>${title}</b>${text ? `<span>${text}</span>` : ''}${extra}</div>`;
 function top(title, sub, illus, opts = {}) {
   const dot = state.todos.some(todoDue) || bdOn(now()).length;
   return `<header class="top">
@@ -497,7 +509,7 @@ function viewDay(w) {
   const day = w.days.find(d => d.dow === sel);
   const isToday = todayInWeek(w) === day;
   const ph = isToday ? phase(day) : null;
-  const left = isToday && ph.kind !== 'after' ? day.periods.filter(p => mins(p.end) > nowMin()).length : null;
+  const left = isToday && ph.kind !== 'after' ? day.periods.filter(p => p.start && (mins(p.end) ?? mins(p.start) + 45) > nowMin()).length : null;
   h += `<div class="card daypick">
     <div class="dp-pills">${isToday ? `<button class="spill wk ${wantAwake ? 'on' : ''}" data-act="wake">${ic('sun')}${wantAwake ? 'מסך דלוק ✓' : 'מסך דלוק'}</button>` : ''}<span class="spill">${ic('sun')}יום ${day.name} · ${day.date}</span><span class="spill">${ic('calendar')}${left != null ? `עוד ${left} שיעורים` : `${day.periods.length} שיעורים`}</span></div>
     ${dayChips(w, sel)}
@@ -523,7 +535,7 @@ function lessonRow(w, day, p, ph) {
   return `<article class="lrow ${open ? 'open' : ''} ${isNow ? 'now' : ''}" style="--c:${look(p).c}" data-id="${esc(id)}">
     <button class="lr-h" data-toggle="${esc(id)}" aria-expanded="${open}">
       ${pill(p)}
-      <span class="lr-t"><b>${logIcon(w, id)}${p.cls && multiCls() ? `<i class="clsb">${esc(p.cls)}</i>` : ''}${esc(p.title)}</b><small class="lr-time">${esc(p.start)}–${esc(p.end)}${isNow ? ' <i class="live">עכשיו</i>' : ''}</small></span>
+      <span class="lr-t"><b>${logIcon(w, id)}${p.cls && multiCls() ? `<i class="clsb">${esc(p.cls)}</i>` : ''}${esc(p.title)}</b><small class="lr-time">${esc(p.start)}${p.end ? '–' + esc(p.end) : ''}${isNow ? ' <i class="live">עכשיו</i>' : ''}</small></span>
       <span class="circ">${ic('chevD')}</span>
     </button>
     <div class="lr-b"><div class="lr-in">
@@ -743,7 +755,7 @@ function viewFiles(w) {
       ${open ? `<div class="fgb">${g.rows.join('')}</div>` : ''}
     </div>`;
   }
-  if (!shown.length) h += `<p class="hint">${mode === 'print' ? 'אין קבצי הדפסה עם קישור בשבוע הזה.' : 'אין עדיין קבצים לשבוע הזה.'}</p>`;
+  if (!shown.length) h += `<div class="card">${estate('e-files', mode === 'print' ? 'אין קבצים להדפסה' : 'עוד אין קבצים לשבוע הזה', mode === 'print' ? 'בשבוע הזה אין קבצי הדפסה עם קישור.' : 'קבצים מהתכנון השבועי (קישורים ב־PDF) יופיעו כאן לבד.')}</div>`;
   if (!pinned.length) h += `<p class="hint">טיפ: לוחצים על ☆ ליד קובץ – והוא יישאר תמיד למעלה.</p>`;
   return h;
 }
@@ -1156,7 +1168,7 @@ function classMode() {
     ${c ? `<div class="cm-lesson" style="--c:${look(c.p).c}">
       ${pill(c.p)}
       <h1>${esc(c.p.title)}</h1>
-      <p class="cm-time">${c.ph.kind === 'lesson' ? `נשארו <b>${c.ph.left}</b> דק׳ · עד ${esc(c.p.end)}` : `מתחיל ${inText(c.ph.inMin)} · ${esc(c.p.start)}`}</p>
+      <p class="cm-time">${c.ph.kind === 'lesson' ? `נשארו <b>${c.ph.left}</b> דק׳${c.p.end ? ` · עד ${esc(c.p.end)}` : ''}` : `מתחיל ${inText(c.ph.inMin)} · ${esc(c.p.start)}`}</p>
       ${c.ph.kind === 'lesson' ? `<div class="bar big"><span style="--w:${Math.round(c.ph.pct * 100)}%"></span></div>` : ''}
       ${secs.length ? `<div class="cm-secs">${secs.map((s, i) => `<button class="${i === si ? 'on' : ''}" data-cmsec="${esc(id)}|${i}">${esc(s.label || 'שלב ' + (i + 1))}</button>`).join('')}</div>
       <div class="cm-panel">${esc(secs[si].text)}</div>` : ''}
@@ -1423,7 +1435,7 @@ function viewGrades() {
       <label class="field gn-other">איזה סוג?<input name="kindOther" placeholder="למשל: הצגה בעל פה" autocomplete="off"></label>
       <div class="gn-row"><label class="field">שם<input name="title" placeholder="למשל: הכתבה ח.ב.ר" required autocomplete="off"></label><label class="field gn-max">מתוך<input name="max" type="number" inputmode="numeric" value="100"></label></div>
       <button class="cta">${ic('plus')} יצירה והזנת ציונים</button></form></div>`;
-  if (!state.grades.length) h += `<div class="tlempty">${ic('chart')}<span class="grow">אחרי שיוצרים מבחן או הכתבה, מזינים ציון לכל ילד ורואים ממוצע ומי צריך חיזוק.</span></div>`;
+  if (!state.grades.length) h += `<div class="card">${estate('e-grades', 'עוד אין ציונים', 'יוצרים למעלה מבחן או הכתבה, מזינים ציון לכל ילד – ורואים ממוצע ומי צריך חיזוק.')}</div>`;
   if (state.grades.length) h += `<div class="card">${cardHead('chart', 'כל הציונים', `<span class="cnt">${state.grades.length}</span>`)}${state.grades.slice().reverse().map(g => { const v = Object.values(g.scores).filter(x => x !== '' && x != null).map(Number); return `<button class="pmhist" data-gopen="${g.id}"><span class="tpill">${esc(g.kind)}</span><span class="grow"><b>${esc(g.title)}</b><small>${v.length ? `ממוצע ${Math.round(v.reduce((a, b) => a + b, 0) / v.length)} · ${v.length} ציונים` : 'עוד לא הוזנו ציונים'}</small></span>${ic('chevL', 'chev')}</button>`; }).join('')}</div>`;
   const strug = state.kids.map(k => ({ k, gs: kidGrades(k.name) })).filter(x => x.gs.length).map(x => ({ ...x, a: Math.round(x.gs.reduce((s, y) => s + pct(y.v, y.g.max), 0) / x.gs.length) })).filter(x => x.a < 70).sort((a, b) => a.a - b.a);
   if (strug.length) h += `<div class="card">${cardHead('users', 'כדאי לחזק', `<span class="cnt">${strug.length}</span>`)}<p class="dim">ממוצע מתחת ל־70% – מתאים לקבוצת פרטני</p>${strug.map(x => `<button class="pmhist" data-kid="${esc(x.k.name)}"><span class="grow"><b>${esc(x.k.name)}</b></span><b class="low">${x.a}%</b></button>`).join('')}</div>`;
@@ -1720,7 +1732,7 @@ function viewHub() {
   h += attLine();
   h += `<button class="attline ${cast.on ? '' : 'todo'}" data-act="cast">${ic('screen')}<span class="grow"><b>מסך הכיתה</b> · ${cast.on ? 'מחובר – לחיצה לשליטה' : 'להקרין מהטלפון למחשב בכיתה'}</span>${ic('chevL', 'chev')}</button>`;
   h += `<div class="hubgrid">${tiles.map(([i, l, a, n], k) => `<button class="${HUES[k % 6]}" ${a}><span class="ti">${ic(i)}</span><b>${l}</b>${n ? `<em>${n}</em>` : ''}</button>`).join('')}</div>`;
-  if (!state.kids.length) h += `<div class="card">${cardHead('users', 'עוד אין ילדים בכיתה')}<p class="dim">מדביקים רשימת שמות (ואם רוצים גם יום הולדת וטלפון של הורה) – ואז יש כרטיס לכל ילד, "מי עונה?", ימי הולדת והודעות אישיות.</p><button class="cta" data-go="kids">${ic('plus')} הוספת הילדים</button></div>`;
+  if (!state.kids.length) h += `<div class="card">${estate('e-kids', 'עוד אין ילדים בכיתה', '')}<p class="dim">מדביקים רשימת שמות (ואם רוצים גם יום הולדת וטלפון של הורה) – ואז יש כרטיס לכל ילד, "מי עונה?", ימי הולדת והודעות אישיות.</p><button class="cta" data-go="kids">${ic('plus')} הוספת הילדים</button></div>`;
   else {
     const q = quietKids(7);
     if (q.length && state.kids.length - q.length >= state.kids.length / 3) h += `<div class="card quiet">${cardHead('heart', 'השבוע עוד לא נרשם כלום על', `<span class="cnt">${q.length}</span>`)}<div class="fchips wrap">${q.slice(0, 6).map(k => `<button class="fc" data-kid="${esc(k.name)}">${esc(k.name)}</button>`).join('')}${q.length > 6 ? `<span class="dim">ועוד ${q.length - 6}</span>` : ''}</div></div>`;
@@ -2260,6 +2272,7 @@ function viewEmpty() {
   </section>`;
   return top(state.name ? `שלום ${esc(state.name)}` : 'שלום', 'מעלים את התכנון השבועי ומתחילים', 'books') + firstSteps() + `
   <div class="card empty">
+    ${slotImg('welcome')}
     <p>מעלים את התכנון השבועי – <b>בכל צורה</b>: PDF, Word, Excel או טקסט – ואני מסדרת: מה עכשיו, מה הבא, מה להכין.</p>
     <button class="cta" data-act="upload">${ic('upload')} להעלות את התכנון של השבוע</button>
     <button class="cta soft" data-act="manualweek">${ic('pencil')} לבנות שבוע ידנית</button>
@@ -3115,7 +3128,7 @@ function viewJournal() {
   <div class="card jquick">${cardHead('plus', 'רישום מהיר')}<div class="jqgrid">${quick}</div></div>
   ${state.cnotes.length ? `<div class="fchips jf">${[['', 'הכל'], ['open', n ? `פתוחים · ${n}` : 'פתוחים'], ...Object.entries(TAGS).map(([k, [, t]]) => [k, `${ic(TAG_IC[k])}${t}`])].map(([k, t]) => `<button class="fc ${f === k ? 'on' : ''}" data-jf="${k}">${t}</button>`).join('')}</div>` : ''}
   ${list.length ? `<div class="card">${list.map(n => noteRow(n, true)).join('')}</div>`
-    : `<div class="jempty">${ic('pencil')}<b>${state.cnotes.length ? 'אין כאן הערות' : 'היומן עוד ריק'}</b><span>רושמים מכאן, או ישר מתוך השיעור – בלחיצה אחת.</span></div>`}
+    : `<div class="card">${estate('e-journal', state.cnotes.length ? 'אין כאן הערות' : 'היומן עוד ריק', 'רושמים מכאן, או ישר מתוך השיעור – בלחיצה אחת.')}</div>`}
   ${kidsRows.length ? `<div class="card">${cardHead('users', 'לפי ילד/ה')}${kidsRows.map(([k, v]) => `<div class="row"><span class="grow">${esc(k)}</span>${v.star ? `<span class="tpill">⭐ ${v.star}</span>` : ''}${v.disrupt ? `<span class="tpill warn">⚠️ ${v.disrupt}</span>` : ''}</div>`).join('')}</div>` : ''}`;
 }
 // "עכשיו": one tidy list – parents to call, children to follow up, my reminders – short, with a "more" link
@@ -3354,7 +3367,7 @@ function welcome(force) {
   const bd = bdOn(t);
   const el = document.createElement('div'); el.id = 'welcome';
   el.innerHTML = `<div class="wl-in">
-    <div class="wl-logo">${illImg('school', 'wl')}</div>
+    <div class="wl-logo">${slotImg('welcome', 'wl')}</div>
     <small>יום ${DAY_FULL[t.getDay()]}, ${t.getDate()} ${HE_MONTHS[t.getMonth()]}</small>
     <h1>${hello()}</h1>
     ${(([q, by]) => `<p class="wl-q">${esc(q)}</p>${by ? `<p class="wl-by">— ${esc(by)}</p>` : ''}`)(pickQuote())}

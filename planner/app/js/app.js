@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 81; // keep in step with CACHE in sw.js
+const APP_V = 82; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -265,11 +265,12 @@ const ILL = { books: 'desk', notepad: 'prep', star: 'tools', heart: 'class', clo
 const TAB_ILL = { now: 'desk', day: 'week', prep: 'prep', cls: 'class', kids: 'class', class: 'class', friends: 'class', more: 'tools', tools: 'tools', files: 'tools', journal: 'notebook', todos: 'notebook', lists: 'prep', autos: 'notebook', calendar: 'week', bells: 'week', bank: 'desk', msgs: 'notebook', summary: 'medal', grades: 'medal', settings: 'tools', reports: 'notebook' };
 const ILLF = new Set(['desk', 'week', 'prep', 'class', 'tools', 'school', 'notebook', 'medal']);
 const illFile = name => ILLF.has(name) ? name : ILL[name];
-const illImg = (name, cls = '') => illFile(name) ? `<span class="ill ${cls}"><img src="img/ill/${illFile(name)}.jpg" alt="" decoding="async"></span>` : '';
+// every picture has a night twin cut out of its cream background (img/ill/dark/*.webp); it loads only when night shows it
+const illImg = (name, cls = '') => illFile(name) ? `<span class="ill ${cls}"><img class="ill-l" src="img/ill/${illFile(name)}.jpg" alt="" decoding="async"><img class="ill-d" src="img/ill/dark/${illFile(name)}.webp" alt="" decoding="async" loading="lazy"></span>` : '';
 // pictures for empty screens. Until a picture of its own is added to img/ill/, each one falls back to a family picture.
 const SLOT_FB = { 'e-todos': 'notebook', 'e-grades': 'medal', 'e-journal': 'notebook', 'e-kids': 'class', 'e-files': 'tools', welcome: 'school' };
 const SLOT_EXT = { welcome: 'webp' };
-const slotImg = (slot, cls = 'md') => `<span class="ill ${cls}"><img src="img/ill/${slot}.${SLOT_EXT[slot] || 'jpg'}" data-fb="img/ill/${SLOT_FB[slot]}.jpg" alt="" decoding="async"></span>`;
+const slotImg = (slot, cls = 'md') => `<span class="ill ${cls}"><img class="ill-l" src="img/ill/${slot}.${SLOT_EXT[slot] || 'jpg'}" data-fb="img/ill/${SLOT_FB[slot]}.jpg" alt="" decoding="async"><img class="ill-d" src="img/ill/dark/${slot}.webp" data-fb="img/ill/dark/${SLOT_FB[slot]}.webp" alt="" decoding="async" loading="lazy"></span>`;
 document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.dataset.fb && !t.src.endsWith(t.dataset.fb)) t.src = t.dataset.fb; }, true);
 const estate = (slot, title, text, extra = '') => `<div class="estate">${slotImg(slot)}<b>${title}</b>${text ? `<span>${text}</span>` : ''}${extra}</div>`;
 function top(title, sub, illus, opts = {}) {
@@ -4404,7 +4405,9 @@ document.addEventListener('touchend', () => {
 
 // all the pictures are decoded once at start, so a screen switch never waits for one
 (function preloadPictures() {
-  const list = [...ILLF].map(n => `img/ill/${n}.jpg`).concat(Object.keys(SLOT_FB).map(k => `img/ill/${k}.${SLOT_EXT[k] || 'jpg'}`), ['img/logo.png']);
+  const dark = document.documentElement.dataset.theme === 'dark';
+  const list = (dark ? [...ILLF, ...Object.keys(SLOT_FB)].map(n => `img/ill/dark/${n}.webp`)
+    : [...ILLF].map(n => `img/ill/${n}.jpg`).concat(Object.keys(SLOT_FB).map(k => `img/ill/${k}.${SLOT_EXT[k] || 'jpg'}`))).concat(['img/logo.png']);
   const go = () => list.forEach(src => { const i = new Image(); i.src = src; if (i.decode) i.decode().catch(() => {}); });
   if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 2500 }); else setTimeout(go, 800);
 })();

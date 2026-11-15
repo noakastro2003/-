@@ -6,6 +6,7 @@ import { billingPage } from './plan.js';
 import { studentPage, joinCodePage } from './student.js';
 import { classPage } from './classroom.js';
 import { classAdminPage } from './classes.js';
+import { libraryPage, reportPage } from './library.js';
 
 const app = document.getElementById('app');
 export const session = { teacher: null, loaded: false };
@@ -40,6 +41,8 @@ const routes = [
   [/^#\/dashboard$/, () => needTeacher(() => dashboardPage(app))],
   [/^#\/generate$/, () => needTeacher(() => generatorPage(app, topbar))],
   [/^#\/billing$/, () => needTeacher(() => billingPage(app, topbar))],
+  [/^#\/library$/, () => needTeacher(() => libraryPage(app, topbar))],
+  [/^#\/path\/(\d+)\/report(?:\/(\d+))?$/, (m) => needTeacher(() => reportPage(app, topbar, Number(m[1]), m[2] ? Number(m[2]) : null))],
   [/^#\/path\/(\d+)(?:\/(tasks|design|share|progress))?$/, (m) => needTeacher(() => editorPage(app, Number(m[1]), m[2] || 'tasks'))],
 ];
 

@@ -186,6 +186,11 @@ async function callDicta(text) {
 }
 
 // mailer: { send({to, subject, text}) } – injectable for tests.
+// "יום ב׳, 12 בנובמבר, 08:00" in Israel time.
+export function whenText(ms) {
+  return new Date(ms).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem', weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+}
+
 export function createApp(db, { ai, billingCfg = billingConfig(), mailer = createMailer(), dicta = callDicta } = {}) {
   const loginLimit = rateLimiter(10, 15 * 60 * 1000);
   const joinLimit = rateLimiter(60, 15 * 60 * 1000);
@@ -288,6 +293,13 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     deleteStudent: db.prepare('DELETE FROM students WHERE id = ?'),
     studentsOfPath: db.prepare(`SELECT id, name, avatar, secret_hash IS NOT NULL AS has_secret, created_at, last_active,
                                 hidden_tasks, break_every FROM students WHERE path_id = ? ORDER BY name`),
+    setSchedule: db.prepare('UPDATE paths SET opens_at = ?, closes_at = ? WHERE id = ?'),
+    setAdapt: db.prepare('UPDATE students SET hidden_tasks = ?, break_every = ? WHERE id = ?'),
+    setShared: db.prepare('UPDATE paths SET shared = ?, shared_grade = ?, shared_subject = ?, shared_at = ? WHERE id = ?'),
+    library: db.prepare(`SELECT p.*, t.name AS author, (SELECT COUNT(*) FROM tasks k WHERE k.path_id = p.id) AS task_count,
+                         (SELECT GROUP_CONCAT(type) FROM tasks k WHERE k.path_id = p.id) AS types
+                         FROM paths p JOIN teachers t ON t.id = p.teacher_id WHERE p.shared = 1 ORDER BY p.copies DESC, p.shared_at DESC LIMIT 300`),
+    addCopy: db.prepare('UPDATE paths SET copies = copies + 1 WHERE id = ?'),
     addMood: db.prepare('INSERT INTO moods (student_id, kind, mood, at) VALUES (?, ?, ?, ?)'),
     recentMoods: db.prepare('SELECT kind, mood, at FROM moods WHERE student_id = ? ORDER BY at DESC, id DESC LIMIT 20'),
 
@@ -344,6 +356,11 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     theme: v.theme(JSON.parse(p.theme)),
     published: Boolean(p.published),
     approvalPin: p.approval_pin,
+    opensAt: p.opens_at ?? null,
+    closesAt: p.closes_at ?? null,
+    shared: Boolean(p.shared),
+    sharedGrade: p.shared_grade || '',
+    sharedSubject: p.shared_subject || '',
     createdAt: p.created_at,
     updatedAt: p.updated_at,
   });
@@ -463,7 +480,15 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     if (!p || (!p.published && p.teacher_id !== ctx.teacher?.id)) {
       throw new HttpError(404, 'לא מצאנו מסלול עם הקוד הזה');
     }
+    if (p.opens_at && Date.now() < p.opens_at && p.teacher_id !== ctx.teacher?.id) {
+      throw new HttpError(403, `המסלול ייפתח ב-${whenText(p.opens_at)}. מחכים לכם!`);
+    }
     return p;
+  }
+  const isClosed = (p) => Boolean(p.closes_at && Date.now() >= p.closes_at);
+  // After the closing time students can look at their map but not add work.
+  function assertOpen(p) {
+    if (isClosed(p)) throw new HttpError(403, 'המסלול נסגר, אי אפשר להמשיך בו. אפשר לשאול את המורה.');
   }
 
   function currentStudent(req, p) {
@@ -659,7 +684,18 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     const description = b.description !== undefined ? v.str(b.description, { max: 1000, field: 'תיאור' }) : p.description;
     const theme = b.theme !== undefined ? v.theme(b.theme, JSON.parse(p.theme)) : v.theme(JSON.parse(p.theme));
     const published = b.published !== undefined ? (b.published ? 1 : 0) : p.published;
+    const time = (x, cur) => {
+      if (x === undefined) return cur ?? null;
+      if (x === null || x === '') return null;
+      const n = Number(x);
+      if (!Number.isFinite(n) || n < 0) throw new HttpError(400, 'תאריך לא תקין');
+      return Math.round(n);
+    };
+    const opensAt = time(b.opensAt, p.opens_at);
+    const closesAt = time(b.closesAt, p.closes_at);
+    if (opensAt && closesAt && closesAt <= opensAt) throw new HttpError(400, 'מועד הסגירה צריך להיות אחרי מועד הפתיחה');
     q.updatePath.run(title, description, JSON.stringify(theme), published, p.id);
+    q.setSchedule.run(opensAt, closesAt, p.id);
     return { path: pathOut(q.pathById.get(p.id)) };
   });
 
@@ -1065,7 +1101,10 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     const p = publicPath(ctx, ctx.params.code);
     const out = pathOut(p);
     return {
-      path: { title: out.title, description: out.description, code: out.code, theme: out.theme, published: out.published },
+      path: {
+        title: out.title, description: out.description, code: out.code, theme: out.theme, published: out.published,
+        closed: isClosed(p), closesAt: out.closesAt,
+      },
       tasks: q.tasks.all(p.id).map((t) => taskOut(t, { forStudent: true })),
       preview: !p.published || ctx.teacher?.id === p.teacher_id,
       join: { secretEmojis: SECRET_EMOJIS, avatars: AVATARS },
@@ -1085,6 +1124,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
   // a returning student must give the same one.
   route('POST', '/api/s/:code/join', (ctx) => {
     const p = publicPath(ctx, ctx.params.code);
+    assertOpen(p);
     joinLimit(ctx.ip);
     const name = v.str(ctx.body.name, { max: 40, required: true, field: 'שם' });
     const secret = secretString(ctx.body.secret);
@@ -1106,6 +1146,75 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     return { token: s.token, ...studentState(q.studentById.get(s.id)) };
   });
 
+  // Per-student adaptation: hide tasks from one student, or give them their own break rhythm.
+  route('PUT', '/api/students/:id/adapt', (ctx) => {
+    const s = q.studentById.get(Number(ctx.params.id));
+    if (!s) throw new HttpError(404, 'התלמיד לא נמצא');
+    const p = ownPath(ctx, s.path_id);
+    const ids = new Set(q.tasks.all(p.id).map((t) => t.id));
+    const hidden = [...new Set(Array.isArray(ctx.body.hidden) ? ctx.body.hidden.map(Number) : [])].filter((id) => ids.has(id));
+    if (hidden.length && hidden.length >= ids.size) throw new HttpError(400, 'צריך להשאיר לפחות משימה אחת');
+    const be = ctx.body.breakEvery;
+    const breakEvery = be === null || be === undefined || be === '' ? null : v.int(be, { min: 0, max: 20, def: 0 });
+    q.setAdapt.run(JSON.stringify(hidden), breakEvery, s.id);
+    return { adapt: { hidden, breakEvery } };
+  });
+
+  // --- shared library: teachers share paths and copy each other's ---
+
+  route('PUT', '/api/paths/:id/share', (ctx) => {
+    const p = ownPath(ctx, ctx.params.id);
+    const shared = Boolean(ctx.body.shared);
+    if (shared && !q.tasks.all(p.id).length) throw new HttpError(400, 'אי אפשר לשתף מסלול בלי משימות');
+    const grade = GRADES.includes(ctx.body.grade) ? ctx.body.grade : '';
+    const subject = v.str(ctx.body.subject, { max: 40, field: 'מקצוע' });
+    q.setShared.run(shared ? 1 : 0, grade, subject, shared ? (p.shared_at || Date.now()) : null, p.id);
+    return { path: pathOut(q.pathById.get(p.id)) };
+  });
+
+  const libraryItem = (p, teacherId) => ({
+    id: p.id, title: p.title, description: p.description, theme: v.theme(JSON.parse(p.theme)),
+    grade: p.shared_grade, subject: p.shared_subject, taskCount: p.task_count,
+    types: [...new Set(String(p.types || '').split(',').filter(Boolean))],
+    author: String(p.author || '').split(/\s+/)[0], copies: p.copies, mine: p.teacher_id === teacherId,
+  });
+
+  route('GET', '/api/library', (ctx) => {
+    const teacher = requireTeacher(ctx);
+    return { items: q.library.all().map((p) => libraryItem(p, teacher.id)) };
+  });
+
+  const sharedPath = (id) => {
+    const p = q.pathById.get(Number(id));
+    if (!p || !p.shared) throw new HttpError(404, 'המסלול לא נמצא בספרייה');
+    return p;
+  };
+
+  route('GET', '/api/library/:id', (ctx) => {
+    requireTeacher(ctx);
+    const p = sharedPath(ctx.params.id);
+    return { title: p.title, description: p.description, theme: v.theme(JSON.parse(p.theme)), tasks: q.tasks.all(p.id).map((t) => taskOut(t)) };
+  });
+
+  route('POST', '/api/library/:id/copy', (ctx) => {
+    const teacher = requireTeacher(ctx);
+    const p = sharedPath(ctx.params.id);
+    const id = tx(db, () => {
+      charge(teacher.id, 'createPath', p.title);
+      const r = insertPath(teacher.id, p.title, p.description, newCode(), p.theme);
+      const newId = Number(r.lastInsertRowid);
+      for (const t of q.tasks.all(p.id)) {
+        insertTask(newId, {
+          type: t.type, title: t.title, emoji: t.emoji, estMinutes: t.est_minutes,
+          needsApproval: Boolean(t.needs_approval), content: JSON.parse(t.content),
+        });
+      }
+      if (p.teacher_id !== teacher.id) q.addCopy.run(p.id);
+      return newId;
+    });
+    return [201, { path: pathOut(q.pathById.get(id)), credits: availableCredits(teacher.id) }];
+  });
+
   route('POST', '/api/students/:id/reset-secret', (ctx) => {
     const s = q.studentById.get(Number(ctx.params.id));
     if (!s) throw new HttpError(404, 'התלמיד לא נמצא');
@@ -1123,6 +1232,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
 
   route('POST', '/api/s/:code/mood', (ctx) => {
     const p = publicPath(ctx, ctx.params.code);
+    assertOpen(p);
     const s = currentStudent(ctx.req, p);
     const { kind, mood } = moodInput(ctx.body);
     q.addMood.run(s.id, kind, mood, Date.now());
@@ -1138,6 +1248,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
 
   route('POST', '/api/s/:code/tasks/:taskId/complete', (ctx) => {
     const p = publicPath(ctx, ctx.params.code);
+    assertOpen(p);
     const s = currentStudent(ctx.req, p);
     const t = studentTask(p, ctx.params.taskId);
     const { correct, answer, explanation, wrong } = gradeAnswer(t, ctx.body);
@@ -1157,6 +1268,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
   // A student's spoken answer, photo of their work or drawing. Counts toward the teacher's storage.
   route('POST', '/api/s/:code/media', (ctx) => {
     const p = publicPath(ctx, ctx.params.code);
+    assertOpen(p);
     const s = currentStudent(ctx.req, p);
     uploadLimit(`${s.id}`);
     const buf = Buffer.from(typeof ctx.body.data === 'string' ? ctx.body.data : '', 'base64');
@@ -1202,6 +1314,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
 
   route('POST', '/api/s/:code/tasks/:taskId/help', (ctx) => {
     const p = publicPath(ctx, ctx.params.code);
+    assertOpen(p);
     const s = currentStudent(ctx.req, p);
     const t = studentTask(p, ctx.params.taskId);
     if (!q.openHelpForStudent.all(s.id).some((r) => r.task_id === t.id)) q.insertHelp.run(s.id, t.id);

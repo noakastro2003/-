@@ -49,7 +49,7 @@ export async function studentPage(app, code) {
   } catch (err) {
     return mount(app, h('main', { class: 'center-page kid' }, h('div', { class: 'card narrow center' },
       h('div', { class: 'big-emoji', 'aria-hidden': 'true' }, '🤷'),
-      h('h1', {}, err.status === 404 ? 'לא מצאנו את המסלול' : 'אופס!'),
+      h('h1', {}, err.status === 404 ? 'לא מצאנו את המסלול' : err.status === 403 ? 'עוד לא הזמן ⏰' : 'אופס!'),
       h('p', {}, err.status === 404 ? 'בדקו שהקוד נכון, או בקשו אותו שוב מהמורה.' : err.message),
       h('a', { class: 'btn primary', href: '#/join' }, 'לנסות קוד אחר'))));
   }
@@ -61,6 +61,8 @@ export async function studentPage(app, code) {
     app, code,
     path: data.path,
     tasks: data.tasks,
+    allTasks: data.tasks,
+    closed: Boolean(data.path.closed),
     theme: data.path.theme,
     preview: data.preview,
     token: data.preview ? null : storage(tokenKey(code)),
@@ -102,6 +104,9 @@ function applyState(s, st) {
   s.pending = st.pending || [];
   s.firstTry = st.firstTry || 0;
   s.moods = st.moods || {};
+  // The teacher may hide some tasks from this student.
+  s.adapt = st.adapt || { hidden: [], breakEvery: null };
+  s.tasks = s.allTasks.filter((t) => !s.adapt.hidden.includes(t.id));
   s.badgesShown ||= new Set(earnedBadges(s)); // a returning student isn't re-congratulated
 }
 
@@ -269,12 +274,14 @@ const wantsMood = (s, kind) => s.theme.moods !== false && !s.preview && !sameDay
 
 // First screen of the day: a quick "how do I feel?", then the map.
 function enterPath(s) {
-  if (!wantsMood(s, 'start') || s.moodSkipped) return showMap(s);
+  // Skipping counts for the rest of the day on this device.
+  const skipKey = `lp-mood-skip-${s.code}`;
+  if (!wantsMood(s, 'start') || storage(skipKey) === new Date().toDateString()) return showMap(s);
   frame(s, kidHeader(s), h('main', { class: 'center-page kid' },
     h('div', { class: 'card narrow center mood-card' },
       h('h1', { class: 'path-font' }, `איך ההרגשה עכשיו, ${s.name}?`),
       moodPicker(s, 'start', () => showMap(s)),
-      h('button', { class: 'btn ghost small', onclick: () => { s.moodSkipped = true; showMap(s); } }, 'דילוג'))));
+      h('button', { class: 'btn ghost small', onclick: () => { storage(skipKey, new Date().toDateString()); showMap(s); } }, 'דילוג'))));
 }
 
 function moodPicker(s, kind, after) {
@@ -351,7 +358,8 @@ function showMap(s) {
       !s.preview && badgeRow(s),
       stickersOn(s) && h('button', { class: 'btn ghost small album-btn', onclick: () => showAlbum(s) },
         `📒 האלבום שלי · ${doneCount(s)}/${s.tasks.length}`),
-      allDone
+      s.closed && !s.preview && h('div', { class: 'card center closed-note' }, '🔒 המסלול נסגר. אפשר להסתכל על המפה, אבל אי אפשר להמשיך בו.'),
+      s.closed && !s.preview ? null : allDone
         ? h('div', { class: 'card center finish-mini' }, h('span', { class: 'big-emoji' }, '🏆'), h('p', {}, 'סיימת את כל המסלול! איזה כיף!'))
         : h('button', { class: 'btn primary big go-btn', onclick: () => openTask(s, next) },
           isPending(s, s.tasks[next]) ? '🧑‍🏫 מחכים לאישור המורה' : doneCount(s) ? 'ממשיכים למשימה הבאה ←' : 'מתחילים! ←'),
@@ -756,7 +764,8 @@ function showWellDone(s, i, explanation) {
   const t = s.tasks[i];
   const next = nextIndex(s);
   if (next === -1) return showFinish(s);
-  const breakDue = s.theme.breakEvery > 0 && s.sinceBreak >= s.theme.breakEvery;
+  const every = s.adapt?.breakEvery ?? s.theme.breakEvery;
+  const breakDue = every > 0 && s.sinceBreak >= every;
   const goNext = () => (breakDue ? showBreak(s, next) : openTask(s, next));
   const nextBtn = h('button', { class: 'btn primary big', onclick: goNext }, breakDue ? 'זמן להפסקה קטנה 🙆' : 'למשימה הבאה ←');
   const fresh = s.preview ? [] : newBadges(s);

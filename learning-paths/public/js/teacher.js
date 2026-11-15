@@ -13,6 +13,7 @@ const THEME_FALLBACK = { color: '#6c5ce7', background: 'plain', font: 'rounded',
 import { nikudBar } from './nikud.js';
 import { imageField, audioField } from './media.js';
 import { classesSection } from './classes.js';
+import { scheduleCard, libraryShareCard } from './library.js';
 import { DEMO } from './env.js';
 import { creditBadge, creditWord, cost, setCredits, showError } from './credits.js';
 
@@ -211,6 +212,7 @@ export async function dashboardPage(app) {
     h('div', { class: 'page-head' },
       h('h1', {}, 'המסלולים שלי'),
       h('div', { class: 'row wrap' },
+        h('a', { class: 'btn ghost', href: '#/library' }, '📚 ספרייה'),
         h('a', { class: 'btn secondary', href: '#/generate' }, '✨ מחולל מסלולים'),
         h('button', { class: 'btn primary', onclick: newPathDialog }, '+ מסלול חדש'))),
     list,
@@ -230,6 +232,7 @@ export async function dashboardPage(app) {
       h('p', {}, 'צרו את המסלול הראשון – בעצמכם, ממסלול לדוגמה, או עם מחולל המסלולים שבונה מסלול שלם מנושא ומטרות.'),
       h('div', { class: 'row center wrap' },
         h('a', { class: 'btn secondary', href: '#/generate' }, '✨ מחולל מסלולים'),
+        h('a', { class: 'btn ghost', href: '#/library' }, '📚 העתקה מהספרייה'),
         h('button', { class: 'btn primary', onclick: newPathDialog }, 'יצירת מסלול בעצמי'))));
   }
   // What needs attention first: approvals and help requests, then the totals.
@@ -1015,7 +1018,8 @@ function demoShareTab(body, state) {
       h('div', { class: 'big-code', dir: 'ltr' }, state.path.code),
       h('p', {}, 'בגרסה המלאה, תלמידים נכנסים מהמחשב או מהטלפון שלהם עם הקוד הזה. בגרסת ההדגמה אפשר לשחק את התלמיד בעצמכם: ההתקדמות תופיע בלשונית "התקדמות".'),
       h('a', { class: 'btn primary big', href: `#/s/${state.path.code}` }, '🎒 כניסה כתלמיד')),
-    pinCard(state));
+    pinCard(state),
+    h('div', { class: 'share-grid' }, scheduleCard(state), libraryShareCard(state)));
 }
 
 function shareTab(body, state) {
@@ -1040,6 +1044,7 @@ function shareTab(body, state) {
         h('p', { class: 'muted' }, 'אפשר לשלוח בווטסאפ, במייל או בכיתה הווירטואלית'),
         h('button', { class: 'btn', onclick: () => copy(link, 'הקישור') }, '📋 העתקת הקישור'))),
     pinCard(state),
+    h('div', { class: 'share-grid' }, scheduleCard(state), libraryShareCard(state)),
     h('div', { class: 'card print-card' },
       h('div', { class: 'print-icon' }, state.path.theme.icon),
       h('h2', {}, state.path.title),
@@ -1138,7 +1143,10 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
     ]);
   };
 
-  const done = (s) => tasks.filter((t) => s.done[t.id] && s.done[t.id].approved !== false).length;
+  const hiddenFor = (s) => new Set(s.adapt?.hidden || []);
+  const tasksFor = (s) => tasks.filter((t) => !hiddenFor(s).has(t.id));
+  const done = (s) => tasksFor(s).filter((t) => s.done[t.id] && s.done[t.id].approved !== false).length;
+  const pathId = state?.path?.id;
   const pending = students.flatMap((s) => tasks.filter((t) => s.done[t.id]?.approved === false).map((t) => ({ s, t })));
   const stuck = stuckTasks(tasks, students, wrong);
   // Students who said today that they feel worried, sad or angry.
@@ -1172,8 +1180,9 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
         }, 'טופל ✓'))))),
     h('div', { class: 'stats' },
       h('div', { class: 'stat' }, h('strong', {}, students.length), h('span', {}, 'תלמידים')),
-      h('div', { class: 'stat' }, h('strong', {}, students.filter((s) => tasks.length && done(s) === tasks.length).length), h('span', {}, 'סיימו את המסלול')),
-      h('div', { class: 'stat' }, h('strong', {}, tasks.length ? `${Math.round(students.reduce((a, s) => a + done(s), 0) / (students.length * tasks.length) * 100)}%` : '—'), h('span', {}, 'השלמה ממוצעת'))),
+      h('div', { class: 'stat' }, h('strong', {}, students.filter((s) => tasksFor(s).length && done(s) === tasksFor(s).length).length), h('span', {}, 'סיימו את המסלול')),
+      h('div', { class: 'stat' }, h('strong', {}, tasks.length && students.length
+        ? `${Math.round((students.reduce((a, s) => a + done(s) / (tasksFor(s).length || 1), 0) / students.length) * 100)}%` : '—'), h('span', {}, 'השלמה ממוצעת'))),
     h('div', { class: 'table-wrap' },
       h('table', { class: 'progress-table' },
         h('thead', {}, h('tr', {},
@@ -1183,14 +1192,18 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
           h('th', {}, 'פעילות אחרונה'),
           h('th', {}, ''))),
         h('tbody', {}, students.map((s) => {
-          const pct = tasks.length ? Math.round((done(s) / tasks.length) * 100) : 0;
+          const mine = tasksFor(s).length;
+          const pct = mine ? Math.round((done(s) / mine) * 100) : 0;
+          const adapted = hiddenFor(s).size > 0 || (s.adapt?.breakEvery ?? null) !== null;
           return h('tr', {},
             h('th', { class: 'sticky', scope: 'row' }, s.avatar && h('span', { class: 'row-avatar', 'aria-hidden': 'true' }, s.avatar), s.name,
               (s.moods?.start || s.moods?.end) && h('span', {
                 class: 'row-mood', title: `איך הרגיש/ה: ${[s.moods.start && `בהתחלה ${s.moods.start.mood}`, s.moods.end && `בסוף ${s.moods.end.mood}`].filter(Boolean).join(', ')}`,
-              }, [s.moods.start?.mood, s.moods.end?.mood].filter(Boolean).join('→'))),
-            h('td', {}, h('div', { class: 'mini-progress', title: `${pct}%` }, h('span', { style: { width: `${pct}%` } })), h('span', { class: 'small muted' }, `${done(s)}/${tasks.length}`)),
+              }, [s.moods.start?.mood, s.moods.end?.mood].filter(Boolean).join('→')),
+              adapted && h('span', { class: 'adapted-tag', title: 'מסלול מותאם אישית' }, '⚙️')),
+            h('td', {}, h('div', { class: 'mini-progress', title: `${pct}%` }, h('span', { style: { width: `${pct}%` } })), h('span', { class: 'small muted' }, `${done(s)}/${mine}`)),
             tasks.map((t) => {
+              if (hiddenFor(s).has(t.id)) return h('td', { class: 'cell hidden-cell', title: 'מוסתרת לתלמיד הזה' }, '—');
               const d = s.done[t.id];
               const needsHelp = helpByCell.has(`${s.id}:${t.id}`);
               const misses = wrong[s.id]?.[t.id] || 0;
@@ -1211,6 +1224,10 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
             }),
             h('td', { class: 'small muted' }, formatDate(s.lastActive)),
             h('td', { class: 'row-actions' }, h('button', {
+              class: 'icon-btn', 'aria-label': `התאמה אישית ל${s.name}`, title: 'התאמה אישית', onclick: () => adaptDialog(s, tasks, reload),
+            }, '⚙️'), pathId && h('a', {
+              class: 'icon-btn', href: `#/path/${pathId}/report/${s.id}`, 'aria-label': `דוח של ${s.name}`, title: 'דוח להדפסה',
+            }, '🖨️'), h('button', {
               class: 'icon-btn', 'aria-label': `איפוס הסיסמה הסודית של ${s.name}`, title: 'איפוס הסיסמה הסודית', disabled: !s.hasSecret,
               onclick: async () => {
                 if (!(await confirmDialog(`לאפס את הסיסמה הסודית של ${s.name}? בכניסה הבאה תיבחר סיסמה חדשה. ההתקדמות נשמרת.`, { okText: 'איפוס' }))) return;
@@ -1223,5 +1240,33 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
               },
             }, '🗑️')));
         })))),
-    h('p', { class: 'muted small' }, '✓ הושלם · 💬 יש תשובה (לחיצה לצפייה) · ⏳ מחכה לאישור שלכם · ✋ ביקשו עזרה · ✗ מספר ניסיונות שגויים'));
+    h('p', { class: 'muted small' }, '✓ הושלם · 💬 יש תשובה (לחיצה לצפייה) · ⏳ מחכה לאישור שלכם · ✋ ביקשו עזרה · ✗ מספר ניסיונות שגויים · — מוסתרת לתלמיד · ⚙️ התאמה אישית'),
+    pathId && students.length > 0 && h('div', { class: 'row' }, h('a', { class: 'btn secondary small', href: `#/path/${pathId}/report` }, '🖨️ דוח לכל הכיתה')));
+}
+
+// Per-student adaptation: which tasks this student sees, and how often they get a break.
+function adaptDialog(s, tasks, reload) {
+  const hidden = new Set(s.adapt?.hidden || []);
+  const boxes = tasks.map((t) => h('input', { type: 'checkbox', checked: !hidden.has(t.id), value: t.id }));
+  const brk = h('select', {},
+    [['', 'כמו בכל המסלול'], ['0', 'בלי הפסקות'], ['1', 'אחרי כל משימה'], ['2', 'אחרי כל 2 משימות'], ['3', 'אחרי כל 3 משימות'], ['4', 'אחרי כל 4 משימות']]
+      .map(([val, label]) => h('option', { value: val, selected: String(s.adapt?.breakEvery ?? '') === val }, label)));
+  const save = h('button', { class: 'btn primary', type: 'submit' }, 'שמירה');
+  const m = modal(`⚙️ התאמה אישית ל${s.name}`, h('form', {
+    class: 'stack',
+    onsubmit: (e) => {
+      e.preventDefault();
+      const body = { hidden: boxes.filter((b) => !b.checked).map((b) => Number(b.value)), breakEvery: brk.value === '' ? null : Number(brk.value) };
+      busy(save, api('PUT', `/api/students/${s.id}/adapt`, body).then(() => { m.close(); toast('נשמר ✓', 'ok'); reload(); })
+        .catch((err) => toast(err.message, 'error')));
+    },
+  },
+    h('p', { class: 'muted small' }, 'למשל: פחות משימות למי שמתקשה, או הפסקות לעתים קרובות יותר. השאר רואים את המסלול כרגיל.'),
+    h('fieldset', {}, h('legend', {}, 'המשימות שהתלמיד/ה רואה'),
+      h('div', { class: 'adapt-list' }, tasks.map((t, i) => h('label', { class: 'check-row' }, boxes[i],
+        h('span', {}, `${i + 1}. ${t.emoji || TASK_TYPES[t.type].icon} ${t.title}`)))),
+      h('div', { class: 'row' },
+        h('button', { type: 'button', class: 'btn small ghost', onclick: () => boxes.forEach((b) => { b.checked = true; }) }, 'הכול'))),
+    field('הפסקות', brk),
+    h('div', { class: 'row end' }, h('button', { type: 'button', class: 'btn ghost', onclick: () => m.close() }, 'ביטול'), save)));
 }

@@ -3,7 +3,7 @@
 import * as v from '../validate.js';
 import { HttpError } from '../validate.js';
 import { TEMPLATES } from '../templates.js';
-import { studentContent, gradeAnswer, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS, GRADED_TYPES, keepTeacherParts } from '../logic.js';
+import { studentContent, gradeAnswer, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS, GRADED_TYPES, keepTeacherParts, moodInput } from '../logic.js';
 import { SYSTEM_PROMPT, GRADES, AI_TASK_TYPES, buildRequestText, jsonFormatInstructions, NIKUD_SYSTEM, improvePrompt } from '../ai-prompt.js';
 import { docxToText } from '../docx.js';
 import * as billing from '../billing.js';
@@ -106,7 +106,27 @@ const teacher = () => ({ id: 1, name: meta.teacherName || 'מורה', email: '' 
 const pathOut = (p) => ({
   id: p.id, title: p.title, description: p.description, code: p.code,
   theme: v.theme(p.theme), published: p.published, approvalPin: p.approvalPin, createdAt: p.createdAt, updatedAt: p.updatedAt,
+  opensAt: p.opensAt ?? null, closesAt: p.closesAt ?? null,
+  shared: Boolean(p.shared), sharedGrade: p.sharedGrade || '', sharedSubject: p.sharedSubject || '',
 });
+
+const isClosed = (p) => Boolean(p.closesAt && Date.now() >= p.closesAt);
+function assertOpen(p) {
+  if (isClosed(p)) throw new HttpError(403, 'המסלול נסגר, אי אפשר להמשיך בו. אפשר לשאול את המורה.');
+}
+// Students only: a path with an opening time in the future is not shown yet.
+function assertStarted(p) {
+  if (p.published && p.opensAt && Date.now() < p.opensAt) {
+    const when = new Date(p.opensAt).toLocaleString('he-IL', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    throw new HttpError(403, `המסלול ייפתח ב-${when}. מחכים לכם!`);
+  }
+}
+function latestMoods(s) {
+  const out = {};
+  for (const m of [...(s.moods || [])].reverse()) out[m.kind] ||= { mood: m.mood, at: m.at };
+  return out;
+}
+const adaptOf = (s) => ({ hidden: s.hidden || [], breakEvery: s.breakEvery ?? null });
 
 const taskOut = (t, forStudent = false) => ({
   id: t.id, type: t.type, title: t.title, emoji: t.emoji, estMinutes: t.estMinutes, needsApproval: Boolean(t.needsApproval),
@@ -155,7 +175,11 @@ function studentState(p, s) {
     else done[taskId] = { answer: d.answer, completedAt: d.completedAt };
   }
   const firstTry = p.tasks.filter((t) => GRADED_TYPES.includes(t.type) && done[t.id] && !p.attempts?.[s.id]?.[t.id]?.wrong).length;
-  return { student: { id: s.id, name: s.name, avatar: s.avatar || '' }, done, pending, firstTry, help: p.help.filter((h) => h.studentId === s.id && !h.resolved).map((h) => h.taskId) };
+  return {
+    student: { id: s.id, name: s.name, avatar: s.avatar || '' }, done, pending, firstTry,
+    help: p.help.filter((h) => h.studentId === s.id && !h.resolved).map((h) => h.taskId),
+    moods: latestMoods(s), adapt: adaptOf(s),
+  };
 }
 
 // The teacher's decision on a pending task: approve, or send it back to redo.
@@ -330,6 +354,11 @@ route('PUT', '/api/paths/:id', ({ params, body }) => {
   if (body.description !== undefined) next.description = v.str(body.description, { max: 1000, field: 'תיאור' });
   if (body.theme !== undefined) next.theme = v.theme(body.theme, p.theme);
   if (body.published !== undefined) next.published = Boolean(body.published);
+  const time = (x, cur) => (x === undefined ? cur ?? null : x === null || x === '' ? null : Math.round(Number(x)));
+  next.opensAt = time(body.opensAt, p.opensAt);
+  next.closesAt = time(body.closesAt, p.closesAt);
+  if ([next.opensAt, next.closesAt].some((x) => x !== null && !Number.isFinite(x))) throw new HttpError(400, 'תאריך לא תקין');
+  if (next.opensAt && next.closesAt && next.closesAt <= next.opensAt) throw new HttpError(400, 'מועד הסגירה צריך להיות אחרי מועד הפתיחה');
   Object.assign(p, next);
   save(p);
   return { path: pathOut(p) };
@@ -393,6 +422,7 @@ route('GET', '/api/paths/:id/progress', ({ params }) => {
     students: p.students.map((s) => ({
       id: s.id, name: s.name, avatar: s.avatar || '', hasSecret: Boolean(s.secret), joinedAt: s.createdAt, lastActive: s.lastActive,
       done: Object.fromEntries(Object.entries(p.progress[s.id] || {}).map(([k, d]) => [k, { ...d, approved: d.approved !== false }])),
+      moods: latestMoods(s), adapt: adaptOf(s),
     })).sort((a, b) => a.name.localeCompare(b.name, 'he')),
     help: p.help.filter((h) => !h.resolved).map(({ id, studentId, taskId, createdAt }) => ({ id, studentId, taskId, createdAt })),
     wrong: Object.fromEntries(Object.entries(p.attempts || {}).map(([sid, byTask]) => [sid,
@@ -519,7 +549,9 @@ async function uploadMedia(body) {
 route('POST', '/api/media', ({ body }) => uploadMedia(body));
 // A student's spoken answer (in the demo, the student is on the teacher's own browser).
 route('POST', '/api/s/:code/media', ({ params, headers, body }) => {
-  student(byCode(params.code), headers);
+  const p = byCode(params.code);
+  assertOpen(p);
+  student(p, headers);
   return uploadMedia(body);
 });
 route('POST', '/api/ai/generate', ({ body }) => generate(body));
@@ -528,8 +560,12 @@ route('POST', '/api/ai/generate', ({ body }) => generate(body));
 
 route('GET', '/api/s/:code', ({ params }) => {
   const p = byCode(params.code);
+  assertStarted(p);
   return {
-    path: { title: p.title, description: p.description, code: p.code, theme: v.theme(p.theme), published: p.published },
+    path: {
+      title: p.title, description: p.description, code: p.code, theme: v.theme(p.theme), published: p.published,
+      closed: isClosed(p), closesAt: p.closesAt ?? null,
+    },
     tasks: p.tasks.map((t) => taskOut(t, true)),
     // The demo's teacher plays the student on published paths; drafts open as a preview.
     preview: !p.published,
@@ -548,6 +584,7 @@ route('POST', '/api/s/:code/name', ({ params, body }) => {
 // The demo keeps the secret as-is: it lives only in the viewer's own private data.
 route('POST', '/api/s/:code/join', ({ params, body }) => {
   const p = byCode(params.code);
+  assertOpen(p);
   const name = v.str(body.name, { max: 40, required: true, field: 'שם' });
   const secret = secretString(body.secret);
   const avatar = AVATARS.includes(body.avatar) ? body.avatar : '';
@@ -579,6 +616,7 @@ route('POST', '/api/s/:code/tasks/:taskId/check', ({ params, body }) => {
 
 route('POST', '/api/s/:code/tasks/:taskId/complete', ({ params, body, headers }) => {
   const p = byCode(params.code);
+  assertOpen(p);
   const s = student(p, headers);
   const t = studentTask(p, params.taskId);
   const { correct, answer, explanation, wrong } = gradeAnswer(t.type, t.content, body);
@@ -639,6 +677,7 @@ route('POST', '/api/s/:code/tasks/:taskId/undo', ({ params, headers }) => {
 
 route('POST', '/api/s/:code/tasks/:taskId/help', ({ params, headers }) => {
   const p = byCode(params.code);
+  assertOpen(p);
   const s = student(p, headers);
   const t = studentTask(p, params.taskId);
   if (!p.help.some((h) => h.studentId === s.id && h.taskId === t.id && !h.resolved)) {
@@ -809,3 +848,67 @@ export async function api(method, url, body, headers = {}) {
     throw Object.assign(new Error(err instanceof HttpError ? err.message : 'משהו השתבש'), { status: err.status || 500, code: err.code });
   }
 }
+
+// ---------- moods, adaptation, library ----------
+
+route('POST', '/api/s/:code/mood', ({ params, headers, body }) => {
+  const p = byCode(params.code);
+  assertOpen(p);
+  const s = student(p, headers);
+  const { kind, mood } = moodInput(body);
+  (s.moods ||= []).push({ kind, mood, at: Date.now() });
+  s.moods = s.moods.slice(-20);
+  save(p, { touch: false });
+  return { moods: latestMoods(s) };
+});
+
+route('PUT', '/api/students/:id/adapt', ({ params, body }) => {
+  for (const p of paths.values()) {
+    const s = p.students.find((x) => x.id === Number(params.id));
+    if (!s) continue;
+    const ids = new Set(p.tasks.map((t) => t.id));
+    const hidden = [...new Set(Array.isArray(body.hidden) ? body.hidden.map(Number) : [])].filter((id) => ids.has(id));
+    if (hidden.length && hidden.length >= ids.size) throw new HttpError(400, 'צריך להשאיר לפחות משימה אחת');
+    const be = body.breakEvery;
+    s.hidden = hidden;
+    s.breakEvery = be === null || be === undefined || be === '' ? null : v.int(be, { min: 0, max: 20, def: 0 });
+    save(p, { touch: false });
+    return { adapt: adaptOf(s) };
+  }
+  throw new HttpError(404, 'התלמיד לא נמצא');
+});
+
+// The demo has no other teachers: its library holds the paths this viewer shared.
+route('PUT', '/api/paths/:id/share', ({ params, body }) => {
+  const p = getPath(params.id);
+  const shared = Boolean(body.shared);
+  if (shared && !p.tasks.length) throw new HttpError(400, 'אי אפשר לשתף מסלול בלי משימות');
+  p.shared = shared;
+  p.sharedGrade = GRADES.includes(body.grade) ? body.grade : '';
+  p.sharedSubject = v.str(body.subject, { max: 40, field: 'מקצוע' });
+  save(p, { touch: false });
+  return { path: pathOut(p) };
+});
+
+route('GET', '/api/library', () => ({
+  items: [...paths.values()].filter((p) => p.shared).map((p) => ({
+    id: p.id, title: p.title, description: p.description, theme: v.theme(p.theme), grade: p.sharedGrade || '', subject: p.sharedSubject || '',
+    taskCount: p.tasks.length, types: [...new Set(p.tasks.map((t) => t.type))], author: teacher().name, copies: p.copies || 0, mine: true,
+  })),
+}));
+
+const sharedPath = (id) => {
+  const p = paths.get(Number(id));
+  if (!p || !p.shared) throw new HttpError(404, 'המסלול לא נמצא בספרייה');
+  return p;
+};
+route('GET', '/api/library/:id', ({ params }) => {
+  const p = sharedPath(params.id);
+  return { title: p.title, description: p.description, theme: v.theme(p.theme), tasks: p.tasks.map((t) => taskOut(t)) };
+});
+route('POST', '/api/library/:id/copy', ({ params }) => {
+  const p = sharedPath(params.id);
+  charge('createPath', p.title);
+  const copy = createPath({ title: p.title, description: p.description, theme: p.theme, tasks: p.tasks.map(({ id, ...t }) => clone(t)) });
+  return { path: pathOut(copy), credits: credits() };
+});

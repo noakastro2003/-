@@ -427,7 +427,7 @@ body.student-body.student-dark { background: #14122a; }
 
 /* ===== print: only the share card ===== */
 @media print {
-  body * { visibility: hidden; }
+  body:has(.print-card) * { visibility: hidden; }
   .print-card, .print-card * { visibility: visible; }
   .print-card { display: block; position: absolute; inset: 0; text-align: center; box-shadow: none; padding: 3rem; }
   .print-icon { font-size: 5rem; }
@@ -1008,3 +1008,57 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .break-emoji { animation: none !important; } }
 .row-mood { margin-inline-start: .35rem; font-size: 1rem; }
 .mood-box { background: #fff8e1; border-color: #ffd43b; }
+
+/* closed path, adaptation */
+.closed-note { background: #fff4e6; border: 2px solid #ffa94d; font-weight: 500; margin-bottom: 1rem; }
+.cell.hidden-cell { color: #b8b6c8; background: repeating-linear-gradient(45deg, transparent 0 6px, #f3f2f8 6px 12px); }
+.adapted-tag { margin-inline-start: .3rem; font-size: .85rem; }
+.adapt-list { display: flex; flex-direction: column; gap: .35rem; max-height: 46vh; overflow: auto; padding: .2rem; }
+.check-row { display: flex; align-items: center; gap: .5rem; cursor: pointer; }
+.check-row input { width: 20px; height: 20px; }
+a.icon-btn { display: inline-grid; place-items: center; text-decoration: none; }
+
+/* schedule and library sharing */
+.schedule-card, .share-lib-card { display: flex; flex-direction: column; gap: .5rem; }
+.schedule-card input[type=datetime-local] { min-width: 210px; }
+
+/* library */
+.lib-filters { margin: 1rem 0; }
+.lib-filters { flex-wrap: wrap; }
+.lib-filters input[type=search] { flex: 1 1 260px; width: auto; }
+.lib-filters select { flex: 0 1 180px; width: auto; }
+.lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+.lib-card { background: var(--surface); border-radius: 18px; padding: 1rem; box-shadow: var(--shadow); border-top: 6px solid var(--accent); display: flex; flex-direction: column; gap: .4rem; }
+.lib-card h3 { margin: 0; font-size: 1.15rem; }
+.lib-card p { margin: 0; }
+.lib-top { display: flex; gap: .7rem; align-items: center; }
+.lib-icon { font-size: 2.2rem; }
+.lib-desc { color: var(--muted); font-size: .95rem; }
+.lib-card .row { margin-top: auto; }
+.lib-tasks { padding-inline-start: 1.4rem; display: flex; flex-direction: column; gap: .5rem; }
+
+/* printable report */
+.report { background: var(--surface); border-radius: 18px; padding: 1.4rem; margin: 1rem 0; box-shadow: var(--shadow); }
+.report-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--line); margin-bottom: 1rem; }
+.report-head h1 { margin: 0; font-size: 1.6rem; }
+.report-head p { margin: .2rem 0; }
+.report-stats { display: flex; flex-wrap: wrap; gap: .8rem; margin-bottom: 1rem; }
+.report-stats div { flex: 1; min-width: 120px; padding: .6rem .8rem; border-radius: 12px; background: #f6f5fb; display: flex; flex-direction: column; }
+.report-stats strong { font-size: 1.3rem; }
+.report-stats span { font-size: .85rem; color: var(--muted); }
+.report-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.report-table th, .report-table td { border: 1px solid var(--line); padding: .35rem .5rem; text-align: start; vertical-align: top; }
+.report-table th { background: #f6f5fb; }
+.report-answer { max-width: 280px; white-space: pre-wrap; }
+.report-img { max-width: 160px; max-height: 120px; border-radius: 6px; }
+.report-notes { margin-top: 1rem; display: flex; flex-direction: column; gap: .3rem; }
+.report-notes textarea { width: 100%; }
+@media print {
+  .topbar, .no-print, #toasts { display: none !important; }
+  body:has(.report-page) { background: #fff; }
+  .report-page { padding: 0; }
+  .report { box-shadow: none; border: 0; padding: 0; margin: 0 0 1rem; break-after: page; }
+  .report:last-child { break-after: auto; }
+  .report-notes textarea { border: 1px solid #ccc; resize: none; }
+  .report-notes textarea:placeholder-shown { color: transparent; }
+}

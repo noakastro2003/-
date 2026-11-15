@@ -395,7 +395,445 @@ function truefalse(t) {
   };
 }
 
-export const GAMES = { memory, wordsearch, matching, order, blanks, truefalse };
+// ---------- dragging with a finger or a mouse ----------
+
+// Calls onDrop(elementUnderPointer) when the element is dragged and released. A short tap
+// is left to the element's own click handler; a drag swallows the click that follows it.
+function dragSource(el, { onStart, onMove, onDrop, ghost = false }) {
+  let start = null;
+  let dragging = false;
+  let clone = null;
+  el.style.touchAction = 'none';
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button > 0) return;
+    start = { x: e.clientX, y: e.clientY };
+    el.setPointerCapture?.(e.pointerId);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!start) return;
+    if (!dragging && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) {
+      dragging = true;
+      el.classList.add('dragging');
+      if (ghost) {
+        const r = el.getBoundingClientRect();
+        clone = el.cloneNode(true);
+        clone.classList.add('drag-ghost');
+        clone.style.width = `${r.width}px`;
+        document.body.append(clone);
+      }
+      onStart?.();
+    }
+    if (!dragging) return;
+    if (clone) {
+      clone.style.left = `${e.clientX - clone.offsetWidth / 2}px`;
+      clone.style.top = `${e.clientY - clone.offsetHeight / 2}px`;
+    }
+    onMove?.(e);
+  });
+  const end = (e, cancelled) => {
+    if (!start) return;
+    start = null;
+    if (!dragging) return;
+    dragging = false;
+    el.classList.remove('dragging');
+    clone?.remove();
+    clone = null;
+    el.dataset.dragged = '1';
+    setTimeout(() => { delete el.dataset.dragged; }, 60);
+    onDrop(cancelled ? null : document.elementFromPoint(e.clientX, e.clientY));
+  };
+  el.addEventListener('pointerup', (e) => end(e, false));
+  el.addEventListener('pointercancel', (e) => end(e, true));
+}
+const wasDragged = (el) => el.dataset.dragged === '1';
+
+const SVG = 'http://www.w3.org/2000/svg';
+const svgEl = (tag, attrs) => {
+  const el = document.createElementNS(SVG, tag);
+  for (const [k, val] of Object.entries(attrs)) el.setAttribute(k, val);
+  return el;
+};
+
+// ---------- draw a line between partners ----------
+
+function lines(t) {
+  const { left, right } = t.content;
+  const assign = left.map(() => null); // left index -> right index
+  let sel = null; // { side: 'a' | 'b', i }
+  let wrongSet = new Set();
+  const svg = svgEl('svg', { class: 'lines-svg', 'aria-hidden': 'true' });
+  const temp = svgEl('line', { class: 'lines-temp' });
+  const colA = h('div', { class: 'lines-col' });
+  const colB = h('div', { class: 'lines-col' });
+  const board = h('div', { class: 'lines-board' }, colA, colB, svg);
+  const btnsA = [];
+  const btnsB = [];
+
+  const dotOf = (side, i) => {
+    const dot = (side === 'a' ? btnsA : btnsB)[i]?.querySelector('.lines-dot');
+    if (!dot) return null;
+    const r = dot.getBoundingClientRect();
+    const b = board.getBoundingClientRect();
+    return { x: r.left + r.width / 2 - b.left, y: r.top + r.height / 2 - b.top };
+  };
+  const connect = (li, ri) => {
+    const prev = assign.indexOf(ri);
+    if (prev >= 0) assign[prev] = null;
+    assign[li] = ri;
+    wrongSet.delete(li);
+    sel = null;
+    render();
+  };
+  const pick = (side, i) => {
+    if (sel && sel.side !== side) {
+      const [li, ri] = side === 'a' ? [i, sel.i] : [sel.i, i];
+      return connect(li, ri);
+    }
+    // Tapping a connected item lifts its line so it can go elsewhere.
+    const li = side === 'a' ? i : assign.indexOf(i);
+    if (li >= 0 && assign[li] !== null && !(sel && sel.side === side && sel.i === i)) assign[li] = null;
+    sel = sel && sel.side === side && sel.i === i ? null : { side, i };
+    render();
+  };
+
+  const draw = () => {
+    while (svg.firstChild) svg.firstChild.remove();
+    assign.forEach((ri, li) => {
+      if (ri === null) return;
+      const p = dotOf('a', li);
+      const q = dotOf('b', ri);
+      if (!p || !q) return;
+      svg.append(svgEl('line', {
+        x1: p.x, y1: p.y, x2: q.x, y2: q.y,
+        class: `lines-line${wrongSet.has(li) ? ' wrong' : ''}`,
+        stroke: PAIR_COLORS[li % PAIR_COLORS.length],
+      }));
+    });
+    svg.append(temp);
+  };
+
+  const item = (side, i, txt) => {
+    const li = side === 'a' ? i : assign.indexOf(i);
+    const linked = side === 'a' ? assign[i] !== null : li >= 0;
+    const btn = h('button', {
+      class: `lines-item path-font${sel?.side === side && sel.i === i ? ' selected' : ''}${side === 'a' && wrongSet.has(i) ? ' wrong' : ''}`,
+      style: linked ? { '--pair': PAIR_COLORS[li % PAIR_COLORS.length] } : null,
+      dataset: { side, i: String(i), linked: linked ? '1' : '' },
+      onclick: () => { if (!wasDragged(btn)) pick(side, i); },
+    }, h('span', { class: 'lines-text' }, txt), h('span', { class: 'lines-dot', 'aria-hidden': 'true' }));
+    dragSource(btn, {
+      onStart: () => {
+        if (side === 'a') assign[i] = null;
+        else if (assign.indexOf(i) >= 0) assign[assign.indexOf(i)] = null;
+        sel = { side, i };
+        draw();
+      },
+      onMove: (e) => {
+        const p = dotOf(side, i);
+        const b = board.getBoundingClientRect();
+        Object.entries({ x1: p.x, y1: p.y, x2: e.clientX - b.left, y2: e.clientY - b.top }).forEach(([k, val]) => temp.setAttribute(k, val));
+        temp.style.display = 'block';
+      },
+      onDrop: (target) => {
+        temp.style.display = 'none';
+        const other = target?.closest?.('.lines-item');
+        if (other && board.contains(other) && other.dataset.side !== side) {
+          const j = Number(other.dataset.i);
+          return side === 'a' ? connect(i, j) : connect(j, i);
+        }
+        sel = null;
+        render();
+      },
+    });
+    return btn;
+  };
+
+  const render = () => {
+    btnsA.length = 0;
+    btnsB.length = 0;
+    mount(colA, left.map((txt, i) => { const b = item('a', i, txt); btnsA.push(b); return b; }));
+    mount(colB, right.map((txt, i) => { const b = item('b', i, txt); btnsB.push(b); return b; }));
+    requestAnimationFrame(draw);
+  };
+  render();
+  if (window.ResizeObserver) new ResizeObserver(() => draw()).observe(board);
+  return {
+    el: h('div', { class: 'game' }, h('p', { class: 'game-counter' }, 'גררו קו מפריט לבן הזוג שלו (או לחצו על שניהם)'), board),
+    answer: () => assign.map((ri) => right[ri]),
+    ready: () => {
+      const n = assign.filter((x) => x === null).length;
+      return n ? `נשארו עוד ${n} קווים למתוח ✏️` : null;
+    },
+    wrong: (idx) => {
+      wrongSet = new Set(idx);
+      render();
+      setTimeout(() => { idx.forEach((i) => { assign[i] = null; }); render(); }, 1200);
+    },
+    label: 'בדיקה ✓',
+  };
+}
+
+// ---------- sort into groups ----------
+
+function sort(t) {
+  const { groups, items } = t.content;
+  const place = items.map(() => null); // item index -> group index (null = still in the pile)
+  let sel = null;
+  let wrongSet = new Set();
+  const wrap = h('div', { class: 'sort-game' });
+
+  const moveTo = (i, gi) => {
+    place[i] = gi;
+    wrongSet.delete(i);
+    sel = null;
+    render();
+  };
+  const chip = (i) => {
+    const btn = h('button', {
+      class: `sort-item path-font${sel === i ? ' selected' : ''}${wrongSet.has(i) ? ' wrong' : ''}`,
+      onclick: () => {
+        if (wasDragged(btn)) return;
+        sel = sel === i ? null : i;
+        render();
+      },
+    }, items[i]);
+    dragSource(btn, {
+      ghost: true,
+      onDrop: (target) => {
+        const box = target?.closest?.('[data-group]');
+        if (box && wrap.contains(box)) moveTo(i, box.dataset.group === 'pile' ? null : Number(box.dataset.group));
+      },
+    });
+    return btn;
+  };
+  const boxClick = (gi) => () => { if (sel !== null) moveTo(sel, gi); };
+
+  const render = () => {
+    const pile = items.map((_, i) => i).filter((i) => place[i] === null);
+    mount(wrap,
+      h('div', { class: `sort-pile${pile.length ? '' : ' empty'}`, dataset: { group: 'pile' }, onclick: (e) => { if (e.target === e.currentTarget) boxClick(null)(); } },
+        pile.length ? pile.map(chip) : h('span', { class: 'muted small' }, 'כל הפריטים מוינו 👏')),
+      h('div', { class: 'sort-boxes', style: { '--cols': String(Math.min(groups.length, 2)) } }, groups.map((name, gi) => h('div', {
+        class: `sort-box${sel !== null ? ' targetable' : ''}`, dataset: { group: String(gi) },
+        style: { '--pair': PAIR_COLORS[gi % PAIR_COLORS.length] },
+        onclick: (e) => { if (!e.target.closest('.sort-item')) boxClick(gi)(); },
+      },
+        h('button', { class: 'sort-box-title path-font', onclick: boxClick(gi), 'aria-label': `להכניס לקופסה: ${name}` }, name),
+        h('div', { class: 'sort-box-items' }, items.map((_, i) => i).filter((i) => place[i] === gi).map(chip))))));
+  };
+  render();
+  return {
+    el: h('div', { class: 'game' }, h('p', { class: 'game-counter' }, 'גררו כל פריט לקופסה, או לחצו על פריט ואז על הקופסה'), wrap),
+    answer: () => groups.map((_, gi) => items.filter((_, i) => place[i] === gi)),
+    ready: () => {
+      const n = place.filter((x) => x === null).length;
+      return n ? `נשארו עוד ${n} פריטים למיין 🗂️` : null;
+    },
+    wrong: (words) => {
+      wrongSet = new Set(items.map((x, i) => (words.includes(x) ? i : -1)).filter((i) => i >= 0));
+      render();
+      setTimeout(() => { wrongSet.forEach((i) => { place[i] = null; }); render(); }, 1300);
+    },
+    label: 'בדיקה ✓',
+  };
+}
+
+// ---------- spoken answer ----------
+
+function voice(t, ctx) {
+  const max = t.content.maxSeconds || 60;
+  let url = '';      // the saved recording
+  let local = '';    // what plays back here
+  let state = 'idle';
+  let seconds = 0;
+  let recorder = null;
+  let timer = null;
+  let typing = !(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+  const area = h('textarea', { class: 'answer-input', rows: 4, maxlength: 5000, placeholder: 'כתבו כאן את התשובה…', 'aria-label': 'התשובה שלי' });
+  const wrap = h('div', { class: 'voice-game' });
+
+  async function start() {
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      typing = true;
+      state = 'nomic';
+      return render();
+    }
+    const chunks = [];
+    recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    recorder.onstop = async () => {
+      stream.getTracks().forEach((tr) => tr.stop());
+      clearInterval(timer);
+      recorder = null;
+      const blob = new Blob(chunks, { type: chunks[0]?.type || 'audio/webm' });
+      if (local) URL.revokeObjectURL(local);
+      local = URL.createObjectURL(blob);
+      state = 'saving';
+      render();
+      try {
+        url = (await ctx.uploadAudio?.(blob)) || '(הקלטה בתצוגה מקדימה)';
+        state = 'saved';
+      } catch (err) {
+        state = 'failed';
+        wrap.dataset.error = err.message;
+      }
+      render();
+    };
+    recorder.start();
+    seconds = 0;
+    state = 'recording';
+    timer = setInterval(() => {
+      seconds++;
+      if (!wrap.isConnected || seconds >= max) recorder?.stop();
+      else { const st = wrap.querySelector('.voice-status'); if (st) st.textContent = statusText(); }
+    }, 1000);
+    render();
+  }
+
+  const clock = (n) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
+  const statusText = () => (state === 'recording' ? `מקליטים… ${clock(seconds)} (עד ${clock(max)})`
+    : state === 'saving' ? 'שומרים את ההקלטה…'
+      : state === 'saved' ? 'ההקלטה נשמרה! אפשר להקשיב, או להקליט שוב.'
+        : state === 'failed' ? `לא הצלחנו לשמור: ${wrap.dataset.error || ''}. נסו שוב.`
+          : 'לחצו על המיקרופון ודברו');
+  function render() {
+    if (typing) {
+      return mount(wrap,
+        state === 'nomic' && h('p', { class: 'muted small' }, 'אין גישה למיקרופון, אז כותבים במקום 🙂'),
+        area,
+        navigator.mediaDevices?.getUserMedia && window.MediaRecorder && h('button', { class: 'btn ghost small', onclick: () => { typing = false; state = 'idle'; render(); } }, '🎤 בעצם, אני רוצה להקליט'));
+    }
+    mount(wrap,
+      state === 'recording'
+        ? h('button', { class: 'mic-btn recording', onclick: () => recorder?.stop(), 'aria-label': 'עצירת ההקלטה' }, '⏹')
+        : h('button', { class: 'mic-btn', disabled: state === 'saving', onclick: start, 'aria-label': url ? 'הקלטה מחדש' : 'התחלת הקלטה' }, '🎤'),
+      h('p', { class: 'voice-status', role: 'status' }, statusText()),
+      local && state !== 'recording' && h('audio', { class: 'media-audio', src: local, controls: true }),
+      state !== 'recording' && h('button', { class: 'btn ghost small', onclick: () => { typing = true; render(); } }, '⌨️ אני מעדיף לכתוב'));
+  }
+  render();
+  return {
+    el: h('div', { class: 'game' }, wrap),
+    answer: () => (typing ? area.value : url),
+    ready: () => {
+      if (typing) return area.value.trim() ? null : 'כתבו תשובה קצרה לפני שמסיימים ✏️';
+      if (state === 'recording') return 'קודם עוצרים את ההקלטה ⏹';
+      if (state === 'saving') return 'רגע, שומרים את ההקלטה…';
+      return url ? null : 'הקליטו תשובה 🎤';
+    },
+    label: 'שליחה ✓',
+  };
+}
+
+// ---------- dictation ----------
+
+const decodeSay = (code) => {
+  const bin = atob(String(code).split('').reverse().join(''));
+  return new TextDecoder().decode(Uint8Array.from(bin, (ch) => ch.charCodeAt(0)));
+};
+
+function sayWord(word) {
+  if (word.audio) {
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    return new Audio(word.audio).play().catch(() => {});
+  }
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(decodeSay(word.say));
+  u.lang = 'he-IL';
+  u.rate = 0.75;
+  speechSynthesis.speak(u);
+}
+
+function dictation(t) {
+  const { words } = t.content;
+  let wrongSet = new Set();
+  const inputs = words.map((_, i) => h('input', {
+    type: 'text', class: 'dict-input path-font', maxlength: 80, autocomplete: 'off', autocapitalize: 'off', spellcheck: false,
+    'aria-label': `מילה ${i + 1}`,
+    oninput: () => { wrongSet.delete(i); rows[i].classList.remove('wrong'); },
+    onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); inputs[i + 1]?.focus(); if (inputs[i + 1]) sayWord(words[i + 1]); } },
+  }));
+  const rows = words.map((w, i) => h('li', { class: 'dict-row' },
+    h('span', { class: 'order-num' }, i + 1),
+    h('button', { class: 'icon-btn dict-play', 'aria-label': `השמעת מילה ${i + 1}`, onclick: () => { sayWord(w); inputs[i].focus(); } }, '🔊'),
+    inputs[i]));
+  return {
+    el: h('div', { class: 'game' }, h('p', { class: 'game-counter' }, 'לחצו על 🔊, הקשיבו, וכתבו את המילה. אפשר לשמוע שוב ושוב.'), h('ol', { class: 'dict-list' }, rows)),
+    answer: () => inputs.map((x) => x.value),
+    ready: () => {
+      const n = inputs.filter((x) => !x.value.trim()).length;
+      return n ? `נשארו עוד ${n} מילים לכתוב ✍️` : null;
+    },
+    wrong: (idx) => {
+      wrongSet = new Set(idx);
+      rows.forEach((r, i) => r.classList.toggle('wrong', wrongSet.has(i)));
+      inputs[idx[0]]?.focus();
+      inputs[idx[0]]?.select();
+    },
+    label: 'בדיקה ✓',
+  };
+}
+
+// ---------- flashcards ----------
+
+function flashcards(t, ctx) {
+  const { cards } = t.content;
+  let queue = shuffle(cards.map((_, i) => i));
+  let flipped = false;
+  let again = 0;
+  let finished = false;
+  const known = new Set();
+  const wrap = h('div', { class: 'flash-game' });
+
+  const next = (knew) => {
+    const i = queue.shift();
+    if (knew) known.add(i);
+    else { queue.push(i); again++; }
+    flipped = false;
+    if (!queue.length) {
+      finished = true;
+      render();
+      return setTimeout(() => ctx.complete(), 900);
+    }
+    render();
+  };
+
+  function render() {
+    if (finished) {
+      return mount(wrap, h('div', { class: 'flash-done' }, h('span', { class: 'big-emoji' }, '🎉'), h('p', {}, 'עברתם על כל הכרטיסיות!')));
+    }
+    const c = cards[queue[0]];
+    const card = h('button', {
+      class: `flash-card${flipped ? ' flipped' : ''}`, 'aria-label': flipped ? `הצד השני: ${c.b}` : `${c.a}. לחצו כדי להפוך`,
+      onclick: () => { flipped = !flipped; render(); wrap.querySelector('.flash-card')?.focus(); },
+    },
+      h('span', { class: 'flash-inner' },
+        h('span', { class: 'flash-face front path-font' }, c.a),
+        h('span', { class: 'flash-face back path-font' }, c.b)));
+    mount(wrap,
+      h('p', { class: 'game-counter' }, `ידעתי: ${known.size} מתוך ${cards.length}`),
+      h('div', { class: 'mini-progress flash-progress' }, h('span', { style: { width: `${(known.size / cards.length) * 100}%` } })),
+      card,
+      flipped
+        ? h('div', { class: 'flash-btns' },
+          h('button', { class: 'btn big flash-yes', onclick: () => next(true) }, '✓ ידעתי'),
+          h('button', { class: 'btn big ghost flash-again', onclick: () => next(false) }, '↺ עוד פעם'))
+        : h('p', { class: 'muted small center' }, 'חשבו על התשובה, ואז לחצו על הכרטיס כדי להפוך אותו'));
+  }
+  render();
+  return {
+    el: h('div', { class: 'game' }, wrap),
+    answer: () => again,
+    ready: () => (finished ? null : `נשארו עוד ${queue.length} כרטיסיות 🎴`),
+    label: 'סיימתי ✓',
+  };
+}
+
+export const GAMES = { memory, wordsearch, matching, order, blanks, truefalse, lines, sort, voice, dictation, flashcards };
 
 // Text for the read-aloud button.
 export function gameSpeech(t) {
@@ -403,7 +841,9 @@ export function gameSpeech(t) {
   switch (t.type) {
     case 'truefalse': return c.statements.join('. ');
     case 'order': return c.items.join('. ');
-    case 'matching': return c.left.join('. ');
+    case 'matching':
+    case 'lines': return c.left.join('. ');
+    case 'sort': return `${c.groups.join(', ')}. ${c.items.join(', ')}`;
     case 'blanks': return c.segments.join(' ... ');
     case 'wordsearch': return c.words.join(', ');
     default: return '';

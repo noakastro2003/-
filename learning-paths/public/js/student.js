@@ -405,7 +405,19 @@ function showTask(s, i) {
   }
   if (t.type === 'timer') parts.push(focusTimer(c.minutes));
   if (GAMES[t.type]) {
-    const game = GAMES[t.type](t, { complete: () => finishBtn.click() });
+    const game = GAMES[t.type](t, {
+      complete: () => finishBtn.click(),
+      // A spoken answer is saved as soon as the recording stops (not in the teacher's preview).
+      uploadAudio: s.preview ? null : async (blob) => {
+        const data = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result).split(',')[1] || '');
+          r.onerror = () => reject(new Error('לא הצלחנו לקרוא את ההקלטה'));
+          r.readAsDataURL(blob);
+        });
+        return (await api('POST', `/api/s/${s.code}/media`, { data, type: blob.type }, auth(s))).url;
+      },
+    });
     parts.push(game.el);
     if (game.label) finishBtn.textContent = game.label;
     getAnswer = () => ({ answer: game.answer() });

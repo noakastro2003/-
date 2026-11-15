@@ -33,7 +33,7 @@ function url(value, field) {
 }
 
 // A file the teacher uploaded (served by the app itself), or for images also a web address.
-const MEDIA_PATH = /^\/(api\/media|_blob)\/[A-Za-z0-9_-]{8,80}$/;
+export const MEDIA_PATH = /^\/(api\/media|_blob)\/[A-Za-z0-9_-]{8,80}$/;
 function mediaRef(value, field, { web = false } = {}) {
   const s = str(value, { max: 1000, field });
   if (!s || MEDIA_PATH.test(s)) return s;
@@ -126,6 +126,7 @@ export function theme(input = {}, base = THEME_DEFAULTS) {
 export const TASK_TYPES = [
   'read', 'link', 'question', 'choice', 'checklist', 'timer',
   'memory', 'wordsearch', 'matching', 'order', 'blanks', 'truefalse',
+  'lines', 'sort', 'voice', 'dictation', 'flashcards',
 ];
 
 // Removes Hebrew nikud and cantillation marks (keeps maqaf and punctuation).
@@ -201,8 +202,9 @@ function typeContent(type, c) {
     case 'memory':
       // b is optional: an empty b means two identical cards.
       return { text, pairs: pairList(c.pairs, { min: 2, max: 10 }) };
-    case 'matching': {
-      const pairs = pairList(c.pairs, { min: 2, max: 8 });
+    case 'matching':
+    case 'lines': {
+      const pairs = pairList(c.pairs, { min: 2, max: type === 'lines' ? 6 : 8 });
       if (pairs.some((p) => !p.b)) throw bad('בכל זוג צריך למלא את שני הצדדים');
       if (new Set(pairs.map((p) => normalizeWord(p.b))).size !== pairs.length) throw bad('הצד השני של כל זוג צריך להיות שונה');
       return { text, pairs };
@@ -232,6 +234,45 @@ function typeContent(type, c) {
       if (!statements.length) throw bad('צריך לפחות משפט אחד');
       if (statements.length > 10) throw bad('עד 10 משפטים');
       return { text, statements };
+    }
+    case 'sort': {
+      const list = Array.isArray(c.groups) ? c.groups : [];
+      const groups = list
+        .map((g) => ({
+          name: str(g?.name, { max: 60, field: 'שם קבוצה' }),
+          items: strList(g?.items, { field: 'פריטים', maxItems: 10, maxLen: 80 }),
+        }))
+        .filter((g) => g.name || g.items.length);
+      if (groups.some((g) => !g.name)) throw bad('לכל קבוצה צריך שם');
+      if (groups.length < 2) throw bad('צריך לפחות 2 קבוצות');
+      if (groups.length > 4) throw bad('עד 4 קבוצות');
+      if (groups.some((g) => !g.items.length)) throw bad('בכל קבוצה צריך לפחות פריט אחד');
+      const all = groups.flatMap((g) => g.items.map(normalizeWord));
+      if (all.length > 16) throw bad('עד 16 פריטים בסך הכול');
+      if (new Set(all).size !== all.length) throw bad('כל פריט יכול להופיע רק פעם אחת');
+      return { text, groups };
+    }
+    case 'voice':
+      return { text, maxSeconds: int(c.maxSeconds, { min: 10, max: 180, def: 60 }) };
+    case 'dictation': {
+      const list = Array.isArray(c.words) ? c.words : [];
+      const words = list
+        .map((x) => (typeof x === 'string' ? { w: x } : x))
+        .map((x) => {
+          const item = { w: str(x?.w, { max: 60, field: 'מילה' }) };
+          const audio = mediaRef(x?.audio, 'הקלטת מילה');
+          if (audio) item.audio = audio;
+          return item;
+        })
+        .filter((x) => x.w);
+      if (!words.length) throw bad('צריך לפחות מילה אחת להכתבה');
+      if (words.length > 12) throw bad('עד 12 מילים בהכתבה');
+      return { text, words };
+    }
+    case 'flashcards': {
+      const cards = pairList(c.cards, { min: 2, max: 20 });
+      if (cards.some((p) => !p.b)) throw bad('בכל כרטיסייה צריך למלא את שני הצדדים');
+      return { text, cards };
     }
   }
   throw bad('סוג משימה לא מוכר');

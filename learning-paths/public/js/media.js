@@ -71,12 +71,12 @@ export function imageField(current = '') {
 }
 
 // The teacher's voice reading the instructions. Recorded in the browser, or uploaded as a file.
-export function audioField(current = '') {
+export function audioField(current = '', { compact = false } = {}) {
   let value = current;
   let recorder = null;
   let timer = null;
   let seconds = 0;
-  const wrap = h('div', { class: 'media-field' });
+  const wrap = h('div', { class: `media-field${compact ? ' compact' : ''}` });
   const fileInput = h('input', {
     type: 'file', accept: 'audio/*', hidden: true,
     onchange: async (e) => {
@@ -117,24 +117,26 @@ export function audioField(current = '') {
     timer = setInterval(() => {
       seconds++;
       if (!wrap.isConnected || seconds >= 120) recorder?.stop(); // two minutes is plenty for instructions
-      else render('recording');
+      else { const stop = wrap.querySelector('.stop-rec'); if (stop) stop.textContent = `⏹ עצירה (${clock()})`; }
     }, 1000);
     render('recording');
   }
 
+  const clock = () => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   function render(state) {
-    const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
     mount(wrap,
       fileInput,
-      value && state !== 'recording' && h('audio', { class: 'media-audio', src: value, controls: true, preload: 'none' }),
+      value && state !== 'recording' && (compact
+        ? h('button', { type: 'button', class: 'btn small ghost', 'aria-label': 'השמעה', onclick: () => new Audio(value).play().catch(() => {}) }, '▶')
+        : h('audio', { class: 'media-audio', src: value, controls: true, preload: 'none' })),
       h('div', { class: 'row wrap' },
         state === 'recording'
-          ? h('button', { type: 'button', class: 'btn small danger', onclick: () => recorder?.stop() }, `⏹ עצירה (${clock})`)
+          ? h('button', { type: 'button', class: 'btn small danger stop-rec', onclick: () => recorder?.stop() }, `⏹ עצירה (${clock()})`)
           : h('button', { type: 'button', class: 'btn small', disabled: state === 'uploading' || !window.MediaRecorder, onclick: start },
-            state === 'uploading' ? 'שומר…' : value ? '🎙️ הקלטה מחדש' : '🎙️ הקלטת ההוראות'),
-        state !== 'recording' && h('button', { type: 'button', class: 'btn small ghost', onclick: () => fileInput.click() }, '📁 העלאת קובץ קול'),
-        value && state !== 'recording' && h('button', { type: 'button', class: 'btn small ghost', onclick: () => { value = ''; render(); } }, '🗑️ מחיקה')),
-      state === 'recording' && h('p', { class: 'recording-dot small' }, 'מקליטים… דברו ברור ולאט'));
+            state === 'uploading' ? 'שומר…' : compact ? (value ? '🎙️ שוב' : '🎙️ הקלטה') : value ? '🎙️ הקלטה מחדש' : '🎙️ הקלטת ההוראות'),
+        state !== 'recording' && !compact && h('button', { type: 'button', class: 'btn small ghost', onclick: () => fileInput.click() }, '📁 העלאת קובץ קול'),
+        value && state !== 'recording' && h('button', { type: 'button', class: 'btn small ghost', 'aria-label': 'מחיקת ההקלטה', onclick: () => { value = ''; render(); } }, compact ? '🗑️' : '🗑️ מחיקה')),
+      state === 'recording' && !compact && h('p', { class: 'recording-dot small' }, 'מקליטים… דברו ברור ולאט'));
   }
   render();
   wrap.getValue = () => value;

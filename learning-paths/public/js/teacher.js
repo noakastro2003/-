@@ -563,6 +563,33 @@ function statementEditor(statements) {
   });
 }
 
+// Sorting task: each group is a name and its items (one per line).
+function groupEditor(groups) {
+  return rowsEditor(groups, {
+    min: 2, max: 4, addLabel: '+ הוספת קבוצה',
+    makeRow: (g = { name: '', items: [] }) => {
+      const name = h('input', { type: 'text', value: g.name, maxlength: 60, placeholder: 'שם הקבוצה, למשל: חיות ים' });
+      const items = h('textarea', { rows: 3, maxlength: 1200, value: g.items.join('\n'), placeholder: 'פריט בכל שורה' });
+      return {
+        el: h('div', { class: 'group-row' }, name, items),
+        get: () => ({ name: name.value, items: items.value.split('\n').map((x) => x.trim()).filter(Boolean) }),
+      };
+    },
+  });
+}
+
+// Dictation: each word, with the teacher's own recording of it if she wants.
+function dictationEditor(words) {
+  return rowsEditor(words, {
+    min: 1, max: 12, addLabel: '+ הוספת מילה',
+    makeRow: (x = { w: '' }) => {
+      const w = h('input', { type: 'text', value: x.w, maxlength: 60, placeholder: 'מילה' });
+      const rec = audioField(x.audio || '', { compact: true });
+      return { el: [w, rec], get: () => ({ w: w.value, audio: rec.getValue() }) };
+    },
+  });
+}
+
 function emojiPicker(current, options) {
   let value = current;
   const wrap = h('div', { class: 'emoji-picker', role: 'radiogroup' });
@@ -582,11 +609,16 @@ const DEFAULT_TEXT = {
   order: 'סדרו את הפריטים לפי הסדר הנכון.',
   blanks: 'השלימו את המילים החסרות.',
   truefalse: 'קראו כל משפט והחליטו: נכון או לא נכון?',
+  lines: 'גררו קו מכל פריט אל בן הזוג שלו.',
+  sort: 'גררו כל פריט לקופסה המתאימה (או לחצו על פריט ואז על קופסה).',
+  voice: 'לחצו על המיקרופון וספרו במילים שלכם.',
+  dictation: 'הקשיבו לכל מילה וכתבו אותה. אפשר לשמוע שוב כמה פעמים שרוצים.',
+  flashcards: 'לחצו על הכרטיס כדי להפוך אותו. ידעתם? מעולה! לא? הוא יחזור עוד פעם.',
 };
 
-const TEXT_LABEL = { choice: 'שאלה', question: 'שאלה' };
+const TEXT_LABEL = { choice: 'שאלה', question: 'שאלה', voice: 'שאלה' };
 const TEXT_PLACEHOLDER = {
-  choice: 'השאלה', question: 'השאלה שהתלמידים יענו עליה',
+  choice: 'השאלה', question: 'השאלה שהתלמידים יענו עליה', voice: 'על מה התלמידים ידברו? למשל: ספרו מה הכי אהבתם בסיפור',
 };
 
 // existing: the saved task being edited (or null for a new one). draft: values to show
@@ -650,6 +682,26 @@ function taskForm(state, type, existing, onDone, draft = null) {
     const statements = statementEditor(c.statements || []);
     extra.push(field('משפטים', statements));
     collect = () => ({ statements: statements.values() });
+  } else if (type === 'lines') {
+    const pairs = pairEditor(c.pairs || [], { min: 2, max: 6, placeholderA: 'פריט', placeholderB: 'בן הזוג שלו' });
+    extra.push(field('זוגות לחיבור בקו', pairs, 'הפריטים יופיעו בשני טורים, והצד השני מעורבב. התלמידים גוררים קו בין בני הזוג.'));
+    collect = () => ({ pairs: pairs.values() });
+  } else if (type === 'sort') {
+    const groups = groupEditor(c.groups || []);
+    extra.push(field('הקבוצות והפריטים שלהן', groups, 'בין 2 ל-4 קבוצות, עד 16 פריטים בסך הכול. התלמידים יקבלו את כל הפריטים מעורבבים.'));
+    collect = () => ({ groups: groups.values() });
+  } else if (type === 'voice') {
+    const secs = h('select', {}, [30, 60, 90, 120, 180].map((n) => h('option', { value: n, selected: n === (c.maxSeconds ?? 60) }, n < 60 ? `${n} שניות` : n === 60 ? 'דקה' : `${n / 60} דקות`)));
+    extra.push(field('אורך הקלטה מקסימלי', secs, 'התשובות יופיעו אצלכם בטבלת ההתקדמות, ושם אפשר להקשיב להן. מי שאין לו מיקרופון יוכל לכתוב.'));
+    collect = () => ({ maxSeconds: Number(secs.value) });
+  } else if (type === 'dictation') {
+    const words = dictationEditor(c.words || []);
+    extra.push(field('המילים להכתבה', words, 'בלי הקלטה, המחשב יקריא את המילה. הקלטה שלכם ברורה יותר (מומלץ). הבדיקה מתעלמת מניקוד.'));
+    collect = () => ({ words: words.values() });
+  } else if (type === 'flashcards') {
+    const cards = pairEditor(c.cards || [], { min: 2, max: 20, placeholderA: 'צד קדמי (מילה, שאלה, תרגיל)', placeholderB: 'צד אחורי (פירוש, תשובה)' });
+    extra.push(field('כרטיסיות', cards, 'כרטיסייה שהתלמידים לא ידעו חוזרת בסוף, עד שיודעים את כולן.'));
+    collect = () => ({ cards: cards.values() });
   }
 
   const approval = h('input', { type: 'checkbox', checked: Boolean(src?.needsApproval) });
@@ -990,6 +1042,16 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
     let answer = null;
     if (t.type === 'question') answer = h('blockquote', { class: 'answer' }, d.answer);
     if (t.type === 'choice') answer = h('p', {}, 'התשובה: ', h('strong', {}, t.content.options[d.answer] ?? '—'));
+    if (t.type === 'voice') {
+      answer = d.answer?.audio
+        ? h('div', {}, h('p', {}, 'התשובה בקול:'), h('audio', { class: 'media-audio', src: d.answer.audio, controls: true, preload: 'none' }))
+        : h('div', {}, h('p', { class: 'small muted' }, 'לא היה מיקרופון, אז התשובה נכתבה:'), h('blockquote', { class: 'answer' }, d.answer ?? ''));
+    }
+    if (t.type === 'flashcards' && d.answer) {
+      answer = h('p', {}, d.answer.again
+        ? `עבר על כל הכרטיסיות. ${d.answer.again} פעמים לחץ "עוד פעם".`
+        : 'ידע את כל הכרטיסיות כבר בסיבוב הראשון 🌟');
+    }
     const m = modal(`${s.name} · ${t.title}`, [
       h('p', { class: 'muted' }, `${d.approved === false ? 'הסתיים, מחכה לאישור' : 'הושלם'} · ${formatDate(d.completedAt)}`),
       answer || h('p', {}, d.approved === false ? 'המשימה הושלמה ומחכה לאישור שלך.' : 'המשימה סומנה כהושלמה ✓'),
@@ -1049,11 +1111,11 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
                 }, '⏳'));
               }
               if (d) {
-                const hasAnswer = t.type === 'question' || t.type === 'choice';
+                const hasAnswer = ['question', 'choice', 'voice', 'flashcards'].includes(t.type);
                 const time = Number.isFinite(d.durationSec) ? ` · ${minutesLabel(d.durationSec)}` : '';
                 return h('td', { class: 'cell done' }, h('button', {
                   class: 'cell-btn', title: `${hasAnswer ? 'הצגת התשובה' : 'הושלם'}${time}`, 'aria-label': `${t.title}: הושלם${time}`, onclick: () => showAnswer(s, t),
-                }, hasAnswer ? '💬' : '✓'), missBadge);
+                }, t.type === 'voice' ? '🎤' : hasAnswer ? '💬' : '✓'), missBadge);
               }
               return h('td', { class: `cell${needsHelp ? ' help' : ''}`, title: needsHelp ? 'ביקשו עזרה' : 'עוד לא' }, needsHelp ? '✋' : '', missBadge);
             }),

@@ -10,7 +10,7 @@ function randomInt(n) {
 }
 
 // Task types with right and wrong answers: a "first try" badge counts these.
-export const GRADED_TYPES = ['choice', 'matching', 'order', 'blanks', 'truefalse'];
+export const GRADED_TYPES = ['choice', 'matching', 'order', 'blanks', 'truefalse', 'lines', 'sort', 'dictation'];
 
 // A student's "secret password": 3 picks (repeats allowed) from these pictures. Easy for
 // young children and weak readers; the server rate-limits guessing.
@@ -61,7 +61,14 @@ function studentTypeContent(type, c) {
       return rest;
     }
     case 'matching':
-      return { text: c.text, left: c.pairs.map((p) => p.a), right: shuffle(c.pairs.map((p) => p.b)) };
+    case 'lines':
+      return { text: c.text, left: c.pairs.map((p) => p.a), right: shuffleChanged(c.pairs.map((p) => p.b)) };
+    case 'sort':
+      return { text: c.text, groups: c.groups.map((g) => g.name), items: shuffle(c.groups.flatMap((g) => g.items)) };
+    case 'dictation':
+      // The browser needs each word to read it aloud. It is sent encoded, so it is not on
+      // screen or readable at a glance; this keeps honest students honest, nothing more.
+      return { text: c.text, words: c.words.map((x) => (x.audio ? { audio: x.audio } : { say: encodeSay(x.w) })) };
     case 'order':
       return { text: c.text, items: shuffleChanged(c.items) };
     case 'blanks': {
@@ -74,6 +81,18 @@ function studentTypeContent(type, c) {
       return c;
   }
 }
+
+export function encodeSay(word) {
+  const bytes = new TextEncoder().encode(word);
+  return btoa(String.fromCharCode(...bytes)).split('').reverse().join('');
+}
+export function decodeSay(code) {
+  const bin = atob(String(code).split('').reverse().join(''));
+  return new TextDecoder().decode(Uint8Array.from(bin, (ch) => ch.charCodeAt(0)));
+}
+
+// Dictation: no nikud, case, spaces or punctuation.
+const spelling = (s) => v.normalizeWord(String(s)).replace(/[.,!?;:"'׳״()־-]/g, '').replace(/\s+/g, ' ').trim();
 
 // Validates a student's answer for a task. Returns { correct, answer, wrong?, explanation? }
 // where answer is what gets stored and wrong lists the indices to fix; throws when incomplete.
@@ -89,7 +108,34 @@ export function gradeAnswer(type, content, body) {
   const sameWord = (a, b) => typeof a === 'string' && v.normalizeWord(a) === v.normalizeWord(b);
   switch (type) {
     case 'matching':
+    case 'lines':
       return graded(list(content.pairs.length), content.pairs.map((p) => p.b), sameWord);
+    case 'dictation':
+      return graded(list(content.words.length), content.words.map((x) => x.w),
+        (a, b) => typeof a === 'string' && spelling(a) === spelling(b));
+    case 'sort': {
+      // answer: one list of item texts per group, in the teacher's group order.
+      const placed = list(content.groups.length);
+      const where = new Map();
+      placed.forEach((items, gi) => {
+        if (!Array.isArray(items)) throw new HttpError(400, 'צריך למיין את כל הפריטים');
+        for (const it of items) if (typeof it === 'string') where.set(v.normalizeWord(it), gi);
+      });
+      const wrong = [];
+      content.groups.forEach((g, gi) => g.items.forEach((it) => {
+        const at = where.get(v.normalizeWord(it));
+        if (at === undefined) throw new HttpError(400, 'צריך למיין את כל הפריטים');
+        if (at !== gi) wrong.push(it);
+      }));
+      return { correct: wrong.length === 0, answer: placed, wrong };
+    }
+    case 'voice': {
+      // A recording of the student, or typed words when there is no microphone.
+      const a = v.str(body.answer, { max: 5000, required: true, field: 'תשובה' });
+      return { correct: true, answer: v.MEDIA_PATH.test(a) ? { audio: a } : a };
+    }
+    case 'flashcards':
+      return { correct: true, answer: { again: v.int(body.answer, { min: 0, max: 999, def: 0 }) } };
     case 'order':
       return graded(list(content.items.length), content.items, sameWord);
     case 'blanks': {
@@ -151,6 +197,21 @@ export function taskFromAi(t) {
     estMinutes: clamp(estMinutes, 1, 120, 5),
     content,
   });
+}
+
+// After an AI rewrite: the pictures, recordings and approval stop belong to the teacher.
+export function keepTeacherParts(original, improved) {
+  const o = original.content;
+  const c = improved.content;
+  if (o.image) c.image = o.image;
+  if (o.audio) c.audio = o.audio;
+  if (improved.type === 'dictation') {
+    const rec = new Map(o.words.filter((x) => x.audio).map((x) => [v.normalizeWord(x.w), x.audio]));
+    for (const x of c.words) if (rec.has(v.normalizeWord(x.w))) x.audio = rec.get(v.normalizeWord(x.w));
+  }
+  if (improved.type === 'voice') c.maxSeconds = o.maxSeconds;
+  improved.needsApproval = original.needsApproval;
+  return improved;
 }
 
 // Raw generator JSON -> { title, description, theme, tasks, skipped }. Throws if nothing usable.

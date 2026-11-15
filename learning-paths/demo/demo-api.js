@@ -3,7 +3,7 @@
 import * as v from '../validate.js';
 import { HttpError } from '../validate.js';
 import { TEMPLATES } from '../templates.js';
-import { studentContent, gradeAnswer, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS, GRADED_TYPES } from '../logic.js';
+import { studentContent, gradeAnswer, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS, GRADED_TYPES, keepTeacherParts } from '../logic.js';
 import { SYSTEM_PROMPT, GRADES, AI_TASK_TYPES, buildRequestText, jsonFormatInstructions, NIKUD_SYSTEM, improvePrompt } from '../ai-prompt.js';
 import { docxToText } from '../docx.js';
 import * as billing from '../billing.js';
@@ -489,15 +489,13 @@ route('POST', '/api/ai/improve-task', async ({ body }) => {
     if (t.type !== original.type) throw new HttpError(502, 'התקבלה משימה מסוג אחר. נסו שוב.');
     return t;
   });
-  if (original.content.image) improved.content.image = original.content.image;
-  if (original.content.audio) improved.content.audio = original.content.audio;
-  improved.needsApproval = original.needsApproval;
+  keepTeacherParts(original, improved);
   return { task: improved, credits: credits() };
 });
 
 // Uploads go to the artifact's own file store; the demo has no server to keep them.
 let assetsPromise;
-route('POST', '/api/media', async ({ body }) => {
+async function uploadMedia(body) {
   const assets = await (assetsPromise ||= (window.claude?.use ? window.claude.use('assets') : Promise.resolve(null)).catch(() => null));
   if (!assets) throw new HttpError(503, 'העלאת קבצים זמינה כשפותחים את ההדגמה ב-claude.ai.');
   const bytes = Uint8Array.from(atob(String(body.data || '')), (c) => c.charCodeAt(0));
@@ -517,6 +515,12 @@ route('POST', '/api/media', async ({ body }) => {
   } catch (err) {
     throw new HttpError(400, err?.message || 'ההעלאה נכשלה');
   }
+}
+route('POST', '/api/media', ({ body }) => uploadMedia(body));
+// A student's spoken answer (in the demo, the student is on the teacher's own browser).
+route('POST', '/api/s/:code/media', ({ params, headers, body }) => {
+  student(byCode(params.code), headers);
+  return uploadMedia(body);
 });
 route('POST', '/api/ai/generate', ({ body }) => generate(body));
 

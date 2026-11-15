@@ -5,7 +5,7 @@ export const GRADES = ['גן', 'א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', '
 
 // Task types the generator may use. 'link' is left out on purpose: the model
 // would have to invent URLs, and a dead link is worse than no link.
-export const AI_TASK_TYPES = ['read', 'question', 'choice', 'checklist', 'timer', 'memory', 'wordsearch', 'matching', 'order', 'blanks', 'truefalse'];
+export const AI_TASK_TYPES = ['read', 'question', 'choice', 'checklist', 'timer', 'memory', 'wordsearch', 'matching', 'order', 'blanks', 'truefalse', 'lines', 'sort', 'voice', 'dictation', 'flashcards'];
 
 export const ICONS = ['🚀', '🌈', '🦄', '🐢', '🦁', '⚽', '🎨', '📚', '🧩', '🌟', '🌱', '🏝️', '🐙', '🎵', '🔬', '🏰'];
 export const COLORS = ['#6c5ce7', '#0984e3', '#00a884', '#e17055', '#d63384', '#2d3436'];
@@ -33,6 +33,11 @@ Rules per task type (the JSON schema enforces the shape, these rules cover the r
 - order: 3–7 "items" listed in the CORRECT order (the app shuffles them).
 - blanks: "passage" is a short text (1–4 sentences) where each word the student must fill in is wrapped in square brackets, e.g. "השמש [זורחת] במזרח". 2–6 blanks. Put 0–3 wrong-but-plausible words in "distractors".
 - truefalse: 3–6 "statements", each with "t" true or false; mix true and false.
+- lines: the student draws a line from each item to its partner. 3–5 "pairs"; keep both sides short (under 20 characters); all "b" values different.
+- sort: the student sorts items into groups. 2–3 "groups", each with a short "name" and 2–5 "items"; every item belongs to exactly one group and appears only once.
+- voice: the student records a spoken answer instead of writing. "text" is an open question or a "tell in your own words" prompt that takes under a minute to answer.
+- dictation: the student hears each word and types it. 3–8 "words" (single words or very short phrases) from the topic, in plain Hebrew spelling without nikud.
+- flashcards: cards the student flips to practice and memorize. 4–12 "cards": "a" is the front (a word, question or exercise) and "b" the back (meaning, answer or result).
 - Every task: a short "title" (2–5 words), one fitting "emoji", and a realistic "estMinutes".
 - "text" for games is the instruction line, for example "מצאו את כל הזוגות".
 
@@ -75,6 +80,11 @@ const EXAMPLES = {
   order: { text: '...', items: ['...', '...', '...'] },
   blanks: { text: '...', passage: '... [...] ...', distractors: ['...'] },
   truefalse: { text: '...', statements: [{ s: '...', t: true }] },
+  lines: { text: '...', pairs: [{ a: '...', b: '...' }] },
+  sort: { text: '...', groups: [{ name: '...', items: ['...', '...'] }] },
+  voice: { text: '...' },
+  dictation: { text: '...', words: ['...', '...'] },
+  flashcards: { text: '...', cards: [{ a: '...', b: '...' }] },
 };
 
 export function jsonFormatInstructions(types) {
@@ -102,7 +112,7 @@ export const IMPROVE_REQUESTS = {
   simpler: 'Rewrite all student-facing text in simpler, shorter Hebrew that a younger student or a weak reader understands. Keep the same content and the same correct answers.',
   shorter: 'Make the instructions shorter and clearer: one action, as few words as possible. Keep the content and the correct answers.',
   nikud: 'Add full, correct nikud to all student-facing Hebrew text (wordsearch words stay without nikud). Change nothing else.',
-  more: 'Add more items (options, pairs, steps, statements, words or blanks, as fits the task type) on the same topic, staying within the limits for this task type.',
+  more: 'Add more items (options, pairs, cards, groups items, steps, statements, words or blanks, as fits the task type) on the same topic, staying within the limits for this task type.',
   easier: 'Make the task easier for students who are struggling, while keeping the same learning goal.',
   harder: 'Make the task more challenging for students who finish quickly, while keeping the same learning goal.',
 };
@@ -110,6 +120,8 @@ export const IMPROVE_REQUESTS = {
 // The task in the shape the model returns it, plus what to change.
 export function improvePrompt(task, request) {
   const { image, audio, imageUrl, ...content } = task.content || {};
+  if (task.type === 'dictation') content.words = content.words.map((x) => x.w);
+  if (task.type === 'voice') delete content.maxSeconds;
   const flat = { type: task.type, title: task.title, emoji: task.emoji, estMinutes: task.estMinutes, ...content };
   const ask = IMPROVE_REQUESTS[request.kind] || `The teacher asks (in her own words): ${request.custom}`;
   return [

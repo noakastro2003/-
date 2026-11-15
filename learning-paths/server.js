@@ -10,7 +10,7 @@ import { TEMPLATES } from './templates.js';
 import { createAiTools, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
 import { stripNikud } from './validate.js';
 import {
-  studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS, GRADED_TYPES,
+  studentContent, gradeAnswer as grade, parseAiInput, pathFromAi, taskFromAi, randomPin, secretString, SECRET_EMOJIS, AVATARS, GRADED_TYPES, keepTeacherParts,
 } from './logic.js';
 import * as billing from './billing.js';
 import { createMailer } from './mailer.js';
@@ -59,6 +59,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   'font-src https://fonts.gstatic.com',
   'img-src * data:',
+  "media-src 'self' blob:",
   'frame-src https://www.youtube-nocookie.com',
   "object-src 'none'",
   "base-uri 'none'",
@@ -193,6 +194,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
   const secretLimit = rateLimiter(8, 10 * 60 * 1000); // per student: stops guessing a classmate's secret
   const forgotLimit = rateLimiter(5, 60 * 60 * 1000);
   const dictaLimit = rateLimiter(120, 60 * 60 * 1000);
+  const recordLimit = rateLimiter(30, 60 * 60 * 1000); // per student: spoken answers
   // Tests pass their own tools; otherwise the real ones are made on first use.
   let tools = ai && (ai.generatePath || ai.nikud || ai.improveTask) ? ai : null;
   const aiTools = () => (tools ||= createAiTools());
@@ -731,10 +733,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
       if (t.type !== original.type) throw new HttpError(502, 'התקבלה משימה מסוג אחר. נסו שוב.');
       return t;
     });
-    // The picture, the recording and the approval stop belong to the teacher, not the model.
-    if (original.content.image) improved.content.image = original.content.image;
-    if (original.content.audio) improved.content.audio = original.content.audio;
-    improved.needsApproval = original.needsApproval;
+    keepTeacherParts(original, improved);
     return { task: improved, credits: availableCredits(teacher.id) };
   });
 
@@ -1132,6 +1131,24 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     q.resolveHelpForTask.run(s.id, t.id);
     return { correct: true, explanation: explanation || '', ...studentState(s) };
   });
+
+  // A student's spoken answer. Audio only; counts toward the teacher's storage.
+  route('POST', '/api/s/:code/media', (ctx) => {
+    const p = publicPath(ctx, ctx.params.code);
+    const s = currentStudent(ctx.req, p);
+    recordLimit(`${s.id}`);
+    const buf = Buffer.from(typeof ctx.body.data === 'string' ? ctx.body.data : '', 'base64');
+    if (!buf.length) throw new HttpError(400, 'ההקלטה ריקה');
+    if (buf.length > 4 * 1024 * 1024) throw new HttpError(413, 'ההקלטה ארוכה מדי');
+    const mime = sniffMedia(buf);
+    if (!mime?.startsWith('audio/')) throw new HttpError(400, 'אפשר לשלוח רק הקלטה');
+    if (q.mediaUsage.get(p.teacher_id).total + buf.length > MEDIA_QUOTA_BYTES) {
+      throw new HttpError(413, 'אין מקום להקלטות כרגע. ספרו למורה.');
+    }
+    const id = crypto.randomBytes(16).toString('hex');
+    q.insertMedia.run(id, p.teacher_id, mime, buf.length, buf);
+    return [201, { url: `/api/media/${id}` }];
+  }, { maxBody: 6 * 1024 * 1024 });
 
   route('POST', '/api/s/:code/tasks/:taskId/open', (ctx) => {
     const p = publicPath(ctx, ctx.params.code);

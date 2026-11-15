@@ -93,6 +93,7 @@ export const TASK_TYPES = {
   read: { group: 'basic', name: 'קריאה / הסבר', icon: '📖', desc: 'טקסט הסבר או הוראות, עם תמונה אופציונלית' },
   link: { group: 'basic', name: 'סרטון / קישור', icon: '🎬', desc: 'סרטון יוטיוב (מוטמע) או קישור לאתר' },
   question: { group: 'basic', name: 'שאלה פתוחה', icon: '💬', desc: 'התלמידים כותבים תשובה, והיא מגיעה אליכם' },
+  voice: { group: 'basic', name: 'תשובה בקול', icon: '🎤', desc: 'התלמידים מקליטים תשובה במקום לכתוב, ואתם מקשיבים' },
   choice: { group: 'basic', name: 'שאלה אמריקאית', icon: '🤔', desc: 'בחירה מכמה תשובות, עם משוב מיידי' },
   checklist: { group: 'basic', name: 'רשימת צעדים', icon: '✅', desc: 'פירוק משימה לצעדים קטנים לסימון' },
   timer: { group: 'basic', name: 'זמן עבודה מרוכז', icon: '⏱️', desc: 'שעון עצר לעבודה ממוקדת לזמן קצוב' },
@@ -102,6 +103,10 @@ export const TASK_TYPES = {
   order: { group: 'game', name: 'סידור לפי הסדר', icon: '🔢', desc: 'מסדרים שלבים, מילים במשפט או אירועים' },
   blanks: { group: 'game', name: 'השלמת מילים', icon: '🧩', desc: 'משלימים מילים חסרות מתוך מחסן מילים' },
   truefalse: { group: 'game', name: 'נכון / לא נכון', icon: '⚖️', desc: 'מחליטים על כל משפט אם הוא נכון' },
+  lines: { group: 'game', name: 'מתיחת קו', icon: '〰️', desc: 'גוררים קו מכל פריט לבן הזוג שלו' },
+  sort: { group: 'game', name: 'מיון לקבוצות', icon: '🗂️', desc: 'מכניסים כל פריט לקופסה הנכונה' },
+  dictation: { group: 'game', name: 'הכתבה', icon: '✍️', desc: 'שומעים מילה ומקלידים אותה. בלי לחשוש מניקוד' },
+  flashcards: { group: 'game', name: 'כרטיסיות', icon: '🎴', desc: 'הופכים כרטיס: מילה ופירוש, תרגיל ותשובה' },
 };
 
 export const TASK_GROUPS = [

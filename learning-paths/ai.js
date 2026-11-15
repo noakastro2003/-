@@ -42,6 +42,16 @@ const VARIANT_FIELDS = {
       items: { type: 'object', additionalProperties: false, required: ['s', 't'], properties: { s, t: { type: 'boolean' } } },
     },
   },
+  lines: { pairs },
+  sort: {
+    groups: {
+      type: 'array',
+      items: { type: 'object', additionalProperties: false, required: ['name', 'items'], properties: { name: s, items: strings } },
+    },
+  },
+  voice: {},
+  dictation: { words: strings },
+  flashcards: { cards: pairs },
 };
 
 export function pathSchema(types = AI_TASK_TYPES) {

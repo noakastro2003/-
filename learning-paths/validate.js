@@ -127,6 +127,7 @@ export const TASK_TYPES = [
   'read', 'link', 'question', 'choice', 'checklist', 'timer',
   'memory', 'wordsearch', 'matching', 'order', 'blanks', 'truefalse',
   'lines', 'sort', 'voice', 'dictation', 'flashcards',
+  'photo', 'hotspot', 'draw', 'highlight',
 ];
 
 // Removes Hebrew nikud and cantillation marks (keeps maqaf and punctuation).
@@ -153,6 +154,29 @@ export function parseBlanks(passage) {
   return { segments, answers };
 }
 
+// "הכלב [רץ] [וקפץ גבוה]" -> words to tap, and which of them are the right ones.
+// tight lists the tokens written with no space before them ("ו[שיחק]", "[חברים].").
+export function highlightTokens(passage) {
+  const text = String(passage);
+  const tokens = [];
+  const targets = [];
+  const tight = [];
+  for (const m of text.matchAll(/\[([^\[\]]+)\]|([^\s\[\]]+)/g)) {
+    const glued = m.index > 0 && !/\s/.test(text[m.index - 1]);
+    if (m[2]) {
+      if (glued && tokens.length) tight.push(tokens.length);
+      tokens.push(m[2]);
+      continue;
+    }
+    m[1].trim().split(/\s+/).filter(Boolean).forEach((w, k) => {
+      if (k === 0 && glued && tokens.length) tight.push(tokens.length);
+      targets.push(tokens.length);
+      tokens.push(w);
+    });
+  }
+  return { tokens, targets, tight };
+}
+
 function pairList(value, { min, max }) {
   if (!Array.isArray(value)) value = [];
   const pairs = value
@@ -175,6 +199,7 @@ function taskContent(type, c = {}) {
   const audio = mediaRef(c.audio, 'הקלטה');
   if (image) media.image = image;
   if (audio) media.audio = audio;
+  if (type === 'hotspot' && !image) throw bad('במשימת סימון על תמונה צריך להעלות תמונה');
   return { ...typeContent(type, c), ...media };
 }
 
@@ -268,6 +293,29 @@ function typeContent(type, c) {
       if (!words.length) throw bad('צריך לפחות מילה אחת להכתבה');
       if (words.length > 12) throw bad('עד 12 מילים בהכתבה');
       return { text, words };
+    }
+    case 'photo':
+    case 'draw':
+      return { text };
+    case 'hotspot': {
+      const list = Array.isArray(c.spots) ? c.spots : [];
+      const num = (x, lo, hi) => {
+        const n = Number(x);
+        if (!Number.isFinite(n)) throw bad('נקודה לא תקינה');
+        return Math.round(Math.min(hi, Math.max(lo, n)) * 10) / 10;
+      };
+      const spots = list.map((p) => ({ x: num(p?.x, 0, 100), y: num(p?.y, 0, 100), r: num(p?.r ?? 8, 3, 30) }));
+      if (!spots.length) throw bad('סמנו על התמונה לפחות מקום נכון אחד');
+      if (spots.length > 8) throw bad('עד 8 מקומות לסימון');
+      return { text, spots };
+    }
+    case 'highlight': {
+      const passage = str(c.passage, { max: 3000, required: true, field: 'טקסט' });
+      const { tokens, targets } = highlightTokens(passage);
+      if (!targets.length) throw bad('שימו בסוגריים מרובעים את המילים שצריך לסמן, למשל: הכלב [רץ] בגינה');
+      if (targets.length > 30) throw bad('עד 30 מילים לסימון');
+      if (tokens.length > 400) throw bad('הטקסט ארוך מדי לסימון');
+      return { text, passage };
     }
     case 'flashcards': {
       const cards = pairList(c.cards, { min: 2, max: 20 });

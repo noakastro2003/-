@@ -10,7 +10,7 @@ function randomInt(n) {
 }
 
 // Task types with right and wrong answers: a "first try" badge counts these.
-export const GRADED_TYPES = ['choice', 'matching', 'order', 'blanks', 'truefalse', 'lines', 'sort', 'dictation'];
+export const GRADED_TYPES = ['choice', 'matching', 'order', 'blanks', 'truefalse', 'lines', 'sort', 'dictation', 'hotspot', 'highlight'];
 
 // A student's "secret password": 3 picks (repeats allowed) from these pictures. Easy for
 // young children and weak readers; the server rate-limits guessing.
@@ -65,6 +65,12 @@ function studentTypeContent(type, c) {
       return { text: c.text, left: c.pairs.map((p) => p.a), right: shuffleChanged(c.pairs.map((p) => p.b)) };
     case 'sort':
       return { text: c.text, groups: c.groups.map((g) => g.name), items: shuffle(c.groups.flatMap((g) => g.items)) };
+    case 'hotspot':
+      return { text: c.text, count: c.spots.length };
+    case 'highlight': {
+      const { tokens, targets, tight } = v.highlightTokens(c.passage);
+      return { text: c.text, tokens, tight, count: targets.length };
+    }
     case 'dictation':
       // The browser needs each word to read it aloud. It is sent encoded, so it is not on
       // screen or readable at a glance; this keeps honest students honest, nothing more.
@@ -133,6 +139,33 @@ export function gradeAnswer(type, content, body) {
       // A recording of the student, or typed words when there is no microphone.
       const a = v.str(body.answer, { max: 5000, required: true, field: 'תשובה' });
       return { correct: true, answer: v.MEDIA_PATH.test(a) ? { audio: a } : a };
+    }
+    case 'photo':
+    case 'draw': {
+      const a = v.str(body.answer, { max: 200, field: 'תמונה' });
+      if (!v.MEDIA_PATH.test(a)) throw new HttpError(400, type === 'photo' ? 'צלמו את העבודה לפני ששולחים 📷' : 'ציירו משהו לפני ששולחים 🎨');
+      return { correct: true, answer: { image: a } };
+    }
+    case 'hotspot': {
+      const points = list(content.spots.length).map((p) => ({ x: Number(p?.x), y: Number(p?.y) }));
+      if (points.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) throw new HttpError(400, 'נקודה לא תקינה');
+      // Each spot can be claimed by one point; a point outside every free spot is wrong.
+      const free = content.spots.map(() => true);
+      const wrong = [];
+      points.forEach((p, i) => {
+        const k = content.spots.findIndex((s, j) => free[j] && ((p.x - s.x) ** 2 + (p.y - s.y) ** 2) <= s.r ** 2);
+        if (k < 0) wrong.push(i);
+        else free[k] = false;
+      });
+      return { correct: wrong.length === 0, answer: points, wrong };
+    }
+    case 'highlight': {
+      const { tokens, targets } = v.highlightTokens(content.passage);
+      const picked = Array.isArray(body.answer) ? [...new Set(body.answer.map(Number))] : [];
+      if (picked.some((i) => !Number.isInteger(i) || i < 0 || i >= tokens.length)) throw new HttpError(400, 'סימון לא תקין');
+      if (picked.length !== targets.length) throw new HttpError(400, `צריך לסמן בדיוק ${targets.length} מילים`);
+      const wrong = picked.filter((i) => !targets.includes(i));
+      return { correct: wrong.length === 0, answer: picked, wrong };
     }
     case 'flashcards':
       return { correct: true, answer: { again: v.int(body.answer, { min: 0, max: 999, def: 0 }) } };

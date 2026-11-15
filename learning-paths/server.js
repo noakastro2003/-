@@ -58,7 +58,7 @@ const CSP = [
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   'font-src https://fonts.gstatic.com',
-  'img-src * data:',
+  'img-src * data: blob:',
   "media-src 'self' blob:",
   'frame-src https://www.youtube-nocookie.com',
   "object-src 'none'",
@@ -194,7 +194,7 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
   const secretLimit = rateLimiter(8, 10 * 60 * 1000); // per student: stops guessing a classmate's secret
   const forgotLimit = rateLimiter(5, 60 * 60 * 1000);
   const dictaLimit = rateLimiter(120, 60 * 60 * 1000);
-  const recordLimit = rateLimiter(30, 60 * 60 * 1000); // per student: spoken answers
+  const uploadLimit = rateLimiter(40, 60 * 60 * 1000); // per student: recordings, photos, drawings
   // Tests pass their own tools; otherwise the real ones are made on first use.
   let tools = ai && (ai.generatePath || ai.nikud || ai.improveTask) ? ai : null;
   const aiTools = () => (tools ||= createAiTools());
@@ -1132,16 +1132,16 @@ export function createApp(db, { ai, billingCfg = billingConfig(), mailer = creat
     return { correct: true, explanation: explanation || '', ...studentState(s) };
   });
 
-  // A student's spoken answer. Audio only; counts toward the teacher's storage.
+  // A student's spoken answer, photo of their work or drawing. Counts toward the teacher's storage.
   route('POST', '/api/s/:code/media', (ctx) => {
     const p = publicPath(ctx, ctx.params.code);
     const s = currentStudent(ctx.req, p);
-    recordLimit(`${s.id}`);
+    uploadLimit(`${s.id}`);
     const buf = Buffer.from(typeof ctx.body.data === 'string' ? ctx.body.data : '', 'base64');
-    if (!buf.length) throw new HttpError(400, 'ההקלטה ריקה');
-    if (buf.length > 4 * 1024 * 1024) throw new HttpError(413, 'ההקלטה ארוכה מדי');
+    if (!buf.length) throw new HttpError(400, 'הקובץ ריק');
+    if (buf.length > 4 * 1024 * 1024) throw new HttpError(413, 'הקובץ גדול מדי');
     const mime = sniffMedia(buf);
-    if (!mime?.startsWith('audio/')) throw new HttpError(400, 'אפשר לשלוח רק הקלטה');
+    if (!mime || mime === 'image/gif') throw new HttpError(400, 'אפשר לשלוח הקלטה או תמונה');
     if (q.mediaUsage.get(p.teacher_id).total + buf.length > MEDIA_QUOTA_BYTES) {
       throw new HttpError(413, 'אין מקום להקלטות כרגע. ספרו למורה.');
     }

@@ -4,8 +4,9 @@
 export const GRADES = ['גן', 'א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ז׳', 'ח׳', 'ט׳', 'י׳', 'י״א', 'י״ב'];
 
 // Task types the generator may use. 'link' is left out on purpose: the model
-// would have to invent URLs, and a dead link is worse than no link.
-export const AI_TASK_TYPES = ['read', 'question', 'choice', 'checklist', 'timer', 'memory', 'wordsearch', 'matching', 'order', 'blanks', 'truefalse', 'lines', 'sort', 'voice', 'dictation', 'flashcards'];
+// would have to invent URLs, and a dead link is worse than no link. 'hotspot' needs
+// the teacher's own picture.
+export const AI_TASK_TYPES = ['read', 'question', 'choice', 'checklist', 'timer', 'memory', 'wordsearch', 'matching', 'order', 'blanks', 'truefalse', 'lines', 'sort', 'voice', 'dictation', 'flashcards', 'highlight', 'photo', 'draw'];
 
 export const ICONS = ['🚀', '🌈', '🦄', '🐢', '🦁', '⚽', '🎨', '📚', '🧩', '🌟', '🌱', '🏝️', '🐙', '🎵', '🔬', '🏰'];
 export const COLORS = ['#6c5ce7', '#0984e3', '#00a884', '#e17055', '#d63384', '#2d3436'];
@@ -37,6 +38,9 @@ Rules per task type (the JSON schema enforces the shape, these rules cover the r
 - sort: the student sorts items into groups. 2–3 "groups", each with a short "name" and 2–5 "items"; every item belongs to exactly one group and appears only once.
 - voice: the student records a spoken answer instead of writing. "text" is an open question or a "tell in your own words" prompt that takes under a minute to answer.
 - dictation: the student hears each word and types it. 3–8 "words" (single words or very short phrases) from the topic, in plain Hebrew spelling without nikud.
+- highlight: the student taps words in a text. "passage" is a short text (1–4 sentences) where each word to tap is wrapped in square brackets, e.g. "הילד [רץ] ו[קפץ] בחצר"; "text" says what to tap (for example "סמנו את כל הפעלים"). 2–8 words to tap.
+- photo: the student does work on paper (in the notebook) and photographs it. "text" says exactly what to write, draw or solve on paper.
+- draw: the student draws on the screen. "text" says what to draw (for example a picture of the story's hero, or a diagram).
 - flashcards: cards the student flips to practice and memorize. 4–12 "cards": "a" is the front (a word, question or exercise) and "b" the back (meaning, answer or result).
 - Every task: a short "title" (2–5 words), one fitting "emoji", and a realistic "estMinutes".
 - "text" for games is the instruction line, for example "מצאו את כל הזוגות".
@@ -85,6 +89,9 @@ const EXAMPLES = {
   voice: { text: '...' },
   dictation: { text: '...', words: ['...', '...'] },
   flashcards: { text: '...', cards: [{ a: '...', b: '...' }] },
+  highlight: { text: '...', passage: '... [...] ...' },
+  photo: { text: '...' },
+  draw: { text: '...' },
 };
 
 export function jsonFormatInstructions(types) {

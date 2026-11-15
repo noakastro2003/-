@@ -52,6 +52,9 @@ const VARIANT_FIELDS = {
   voice: {},
   dictation: { words: strings },
   flashcards: { cards: pairs },
+  highlight: { passage: s },
+  photo: {},
+  draw: {},
 };
 
 export function pathSchema(types = AI_TASK_TYPES) {

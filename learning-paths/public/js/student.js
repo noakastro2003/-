@@ -346,11 +346,13 @@ function showTask(s, i) {
   let getAnswer = () => ({});
   let canFinish = () => true;
   let onWrong = null;
+  let prepare = null;
 
   const parts = [];
   if (c.text) parts.push(h('p', { class: 'task-text path-font' }, c.text));
 
-  if (c.image || c.imageUrl) {
+  // In these tasks the picture is the board itself.
+  if ((c.image || c.imageUrl) && !['hotspot', 'draw'].includes(t.type)) {
     parts.push(h('img', { class: 'task-image', src: c.image || c.imageUrl, alt: '', referrerpolicy: 'no-referrer' }));
   }
   if (t.type === 'link') {
@@ -407,8 +409,8 @@ function showTask(s, i) {
   if (GAMES[t.type]) {
     const game = GAMES[t.type](t, {
       complete: () => finishBtn.click(),
-      // A spoken answer is saved as soon as the recording stops (not in the teacher's preview).
-      uploadAudio: s.preview ? null : async (blob) => {
+      // Recordings, photos and drawings are saved before sending (not in the teacher's preview).
+      upload: s.preview ? null : async (blob) => {
         const data = await new Promise((resolve, reject) => {
           const r = new FileReader();
           r.onload = () => resolve(String(r.result).split(',')[1] || '');
@@ -429,6 +431,7 @@ function showTask(s, i) {
       return false;
     };
     onWrong = game.wrong;
+    prepare = game.prepare || null;
   }
 
   const helpBtn = h('button', {
@@ -449,6 +452,7 @@ function showTask(s, i) {
     if (!canFinish()) return;
     finishBtn.disabled = true;
     try {
+      if (prepare) await prepare();
       const body = getAnswer();
       let r;
       if (s.preview) {

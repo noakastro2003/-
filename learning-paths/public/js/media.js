@@ -16,7 +16,7 @@ export async function uploadMedia(blob) {
 }
 
 // Phone photos are often several MB: scale big pictures down before uploading.
-async function shrinkImage(file) {
+export async function shrinkImage(file) {
   if (file.type === 'image/gif' || file.size < 600 * 1024) return file;
   try {
     const bitmap = await createImageBitmap(file);
@@ -64,6 +64,7 @@ export function imageField(current = '') {
           state === 'uploading' ? 'מעלה…' : value ? '🔄 החלפת תמונה' : '📷 העלאת תמונה'),
         value && h('button', { type: 'button', class: 'btn small ghost', onclick: () => { value = ''; urlInput.value = ''; render(); } }, '🗑️ הסרה')),
       !value && urlInput);
+    if (state !== 'uploading') wrap.dispatchEvent(new CustomEvent('media-change'));
   }
   render();
   wrap.getValue = () => value;

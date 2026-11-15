@@ -7,6 +7,10 @@
 // and calls ctx.complete() itself when a game finishes on its own (memory, word search).
 import { h, mount } from './ui.js';
 import { stripNikud } from './themes.js';
+import { shrinkImage } from './media.js';
+
+// Stands in for an upload in the teacher's preview, where nothing is saved.
+const PREVIEW_FILE = '/api/media/preview-only';
 
 const PAIR_COLORS = ['#ffd166', '#06d6a0', '#74b9ff', '#ff8fab', '#b39cd0', '#ffb347', '#9be7c4', '#f6a6ff'];
 
@@ -674,7 +678,7 @@ function voice(t, ctx) {
       state = 'saving';
       render();
       try {
-        url = (await ctx.uploadAudio?.(blob)) || '(הקלטה בתצוגה מקדימה)';
+        url = (await ctx.upload?.(blob)) || '(הקלטה בתצוגה מקדימה)';
         state = 'saved';
       } catch (err) {
         state = 'failed';
@@ -833,7 +837,234 @@ function flashcards(t, ctx) {
   };
 }
 
-export const GAMES = { memory, wordsearch, matching, order, blanks, truefalse, lines, sort, voice, dictation, flashcards };
+// ---------- photo of work on paper ----------
+
+function photo(t, ctx) {
+  let url = '';
+  let shown = '';
+  let state = 'idle';
+  const wrap = h('div', { class: 'photo-game' });
+  const pick = (capture) => h('input', {
+    type: 'file', accept: 'image/png,image/jpeg,image/webp', hidden: true, ...(capture ? { capture: 'environment' } : {}),
+    onchange: async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      state = 'saving';
+      render();
+      try {
+        const small = await shrinkImage(file);
+        if (shown) URL.revokeObjectURL(shown);
+        shown = URL.createObjectURL(small);
+        url = (await ctx.upload?.(small)) || PREVIEW_FILE;
+        state = 'saved';
+      } catch (err) {
+        state = 'failed';
+        wrap.dataset.error = err.message;
+      }
+      render();
+    },
+  });
+  const camera = pick(true);
+  const gallery = pick(false);
+  function render() {
+    mount(wrap, camera, gallery,
+      shown ? h('img', { class: 'photo-preview', src: shown, alt: 'הצילום שלי' }) : h('div', { class: 'photo-empty', 'aria-hidden': 'true' }, '📄'),
+      h('p', { class: 'voice-status', role: 'status' },
+        state === 'saving' ? 'שולחים את התמונה…'
+          : state === 'saved' ? 'התמונה נשמרה! אפשר לצלם שוב אם משהו לא ברור.'
+            : state === 'failed' ? `לא הצלחנו לשלוח: ${wrap.dataset.error || ''}`
+              : 'כשסיימתם במחברת, צלמו את הדף'),
+      h('div', { class: 'row wrap center-row' },
+        h('button', { class: 'btn primary', disabled: state === 'saving', onclick: () => camera.click() }, url ? '📷 צילום מחדש' : '📷 צילום'),
+        h('button', { class: 'btn ghost', disabled: state === 'saving', onclick: () => gallery.click() }, '🖼️ בחירת תמונה')));
+  }
+  render();
+  return {
+    el: h('div', { class: 'game' }, wrap),
+    answer: () => url,
+    ready: () => (state === 'saving' ? 'רגע, התמונה עוד נשלחת…' : url ? null : 'צלמו את העבודה לפני ששולחים 📷'),
+    label: 'שליחה ✓',
+  };
+}
+
+// ---------- drawing board ----------
+
+const INKS = ['#24233a', '#e03131', '#1971c2', '#2f9e44', '#f08c00', '#ae3ec9'];
+
+function draw(t, ctx) {
+  const W = 900;
+  const H = 640;
+  const canvas = h('canvas', { class: 'draw-canvas', width: W, height: H, 'aria-label': 'לוח ציור' });
+  const g = canvas.getContext('2d');
+  g.lineCap = g.lineJoin = 'round';
+  let color = INKS[0];
+  let width = 6;
+  let eraser = false;
+  let drawing = false;
+  let dirty = false;
+  let empty = true;
+  let url = '';
+  const undo = [];
+  const bg = t.content.image ? h('img', { class: 'draw-bg', src: t.content.image, alt: '', referrerpolicy: 'no-referrer' }) : null;
+
+  const at = (e) => {
+    const r = canvas.getBoundingClientRect();
+    return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H];
+  };
+  canvas.style.touchAction = 'none';
+  canvas.addEventListener('pointerdown', (e) => {
+    drawing = true;
+    canvas.setPointerCapture?.(e.pointerId);
+    undo.push(g.getImageData(0, 0, W, H));
+    if (undo.length > 20) undo.shift();
+    g.globalCompositeOperation = eraser ? 'destination-out' : 'source-over';
+    g.strokeStyle = color;
+    g.lineWidth = eraser ? width * 4 : width;
+    const [x, y] = at(e);
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + 0.01, y);
+    g.stroke();
+    dirty = true;
+    empty = false;
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drawing) return;
+    const [x, y] = at(e);
+    g.lineTo(x, y);
+    g.stroke();
+  });
+  const stop = () => { drawing = false; };
+  canvas.addEventListener('pointerup', stop);
+  canvas.addEventListener('pointercancel', stop);
+
+  const tools = h('div', { class: 'draw-tools' });
+  const renderTools = () => mount(tools,
+    INKS.map((c) => h('button', {
+      class: `ink${!eraser && color === c ? ' on' : ''}`, style: { background: c }, 'aria-label': 'צבע', 'aria-pressed': String(!eraser && color === c),
+      onclick: () => { color = c; eraser = false; renderTools(); },
+    })),
+    [[3, 'דק'], [6, 'בינוני'], [14, 'עבה']].map(([n, label]) => h('button', {
+      class: `pen-size${width === n ? ' on' : ''}`, 'aria-label': label, 'aria-pressed': String(width === n),
+      onclick: () => { width = n; renderTools(); },
+    }, h('span', { style: { width: `${n + 4}px`, height: `${n + 4}px` } }))),
+    h('button', { class: `icon-btn tool${eraser ? ' on' : ''}`, 'aria-label': 'מחק', title: 'מחק', onclick: () => { eraser = !eraser; renderTools(); } }, '🧽'),
+    h('button', { class: 'icon-btn tool', 'aria-label': 'ביטול', title: 'ביטול', onclick: () => { const d = undo.pop(); if (d) { g.putImageData(d, 0, 0); dirty = true; } } }, '↩️'),
+    h('button', { class: 'icon-btn tool', 'aria-label': 'ניקוי הלוח', title: 'ניקוי הלוח', onclick: () => { undo.push(g.getImageData(0, 0, W, H)); g.clearRect(0, 0, W, H); dirty = true; empty = true; } }, '🗑️'));
+  renderTools();
+
+  // The picture sent to the teacher: the background (when the browser allows it) and the drawing.
+  async function exportPng() {
+    const out = h('canvas', { width: W, height: H });
+    const o = out.getContext('2d');
+    o.fillStyle = '#fff';
+    o.fillRect(0, 0, W, H);
+    if (bg?.complete && bg.naturalWidth) {
+      const scale = Math.min(W / bg.naturalWidth, H / bg.naturalHeight);
+      const w = bg.naturalWidth * scale;
+      const hh = bg.naturalHeight * scale;
+      o.drawImage(bg, (W - w) / 2, (H - hh) / 2, w, hh);
+    }
+    o.drawImage(canvas, 0, 0);
+    try {
+      return await new Promise((r, j) => out.toBlob((b) => (b ? r(b) : j(new Error('blob'))), 'image/png'));
+    } catch {
+      return new Promise((r) => canvas.toBlob(r, 'image/png')); // a web picture blocked the export
+    }
+  }
+
+  return {
+    el: h('div', { class: 'game' }, tools, h('div', { class: 'draw-board' }, bg, canvas)),
+    answer: () => url,
+    ready: () => (empty && !url ? 'ציירו משהו לפני ששולחים 🎨' : null),
+    // Called just before sending: saves the drawing if it changed.
+    prepare: async () => {
+      if (!dirty && url) return;
+      url = (await ctx.upload?.(await exportPng())) || PREVIEW_FILE;
+      dirty = false;
+    },
+    label: 'שליחה ✓',
+  };
+}
+
+// ---------- tap the right places on a picture ----------
+
+function hotspot(t) {
+  const { count, image } = t.content;
+  let points = [];
+  let wrongSet = new Set();
+  const board = h('div', { class: 'spot-board on-task' });
+  const counter = h('p', { class: 'game-counter' });
+  const render = () => {
+    counter.textContent = `סמנו ${count} ${count === 1 ? 'מקום' : 'מקומות'} · סימנתם ${points.length}`;
+    mount(board,
+      h('img', { src: image, alt: '', draggable: 'false', referrerpolicy: 'no-referrer' }),
+      points.map((p, i) => h('button', {
+        class: `marker${wrongSet.has(i) ? ' wrong' : ''}`, style: { left: `${p.x}%`, top: `${p.y}%` },
+        'aria-label': `הסרת סימון ${i + 1}`,
+        onclick: (e) => { e.stopPropagation(); points.splice(i, 1); wrongSet = new Set(); render(); },
+      }, '📍')));
+  };
+  board.addEventListener('click', (e) => {
+    if (e.target.closest('.marker')) return;
+    if (points.length >= count) return;
+    const r = board.getBoundingClientRect();
+    points.push({ x: Math.round(((e.clientX - r.left) / r.width) * 1000) / 10, y: Math.round(((e.clientY - r.top) / r.height) * 1000) / 10 });
+    wrongSet = new Set();
+    render();
+  });
+  render();
+  return {
+    el: h('div', { class: 'game' }, counter, board, h('p', { class: 'muted small center' }, 'לחצו על סימון כדי להסיר אותו')),
+    answer: () => points,
+    ready: () => (points.length < count ? `נשארו עוד ${count - points.length} מקומות לסמן 🎯` : null),
+    wrong: (idx) => {
+      wrongSet = new Set(idx);
+      render();
+      setTimeout(() => { points = points.filter((_, i) => !wrongSet.has(i)); wrongSet = new Set(); render(); }, 1300);
+    },
+    label: 'בדיקה ✓',
+  };
+}
+
+// ---------- tap words in a text ----------
+
+function highlight(t) {
+  const { tokens, count } = t.content;
+  const tight = new Set(t.content.tight || []);
+  const picked = new Set();
+  let wrongSet = new Set();
+  const text = h('p', { class: 'hl-text path-font' });
+  const counter = h('p', { class: 'game-counter' });
+  const render = () => {
+    counter.textContent = `סמנו ${count} מילים · סימנתם ${picked.size}`;
+    const nodes = [];
+    tokens.forEach((w, i) => {
+      if (i && !tight.has(i)) nodes.push(' ');
+      nodes.push(h('button', {
+        class: `hl-word${tight.has(i) ? ' glued' : ''}${tight.has(i + 1) ? ' glued-next' : ''}${picked.has(i) ? ' on' : ''}${wrongSet.has(i) ? ' wrong' : ''}`, 'aria-pressed': String(picked.has(i)),
+        onclick: () => { if (picked.has(i)) picked.delete(i); else picked.add(i); wrongSet = new Set(); render(); },
+      }, w));
+    });
+    mount(text, nodes);
+  };
+  render();
+  return {
+    el: h('div', { class: 'game' }, counter, text),
+    answer: () => [...picked].sort((a, b) => a - b),
+    ready: () => (picked.size < count ? `צריך לסמן עוד ${count - picked.size} מילים 🖍️`
+      : picked.size > count ? `סימנתם ${picked.size - count} מילים יותר מדי. לחצו על מילה כדי לבטל.` : null),
+    wrong: (idx) => {
+      wrongSet = new Set(idx);
+      render();
+      setTimeout(() => { idx.forEach((i) => picked.delete(i)); wrongSet = new Set(); render(); }, 1300);
+    },
+    label: 'בדיקה ✓',
+  };
+}
+
+export const GAMES = { memory, wordsearch, matching, order, blanks, truefalse, lines, sort, voice, dictation, flashcards, photo, draw, hotspot, highlight };
 
 // Text for the read-aloud button.
 export function gameSpeech(t) {
@@ -843,6 +1074,7 @@ export function gameSpeech(t) {
     case 'order': return c.items.join('. ');
     case 'matching':
     case 'lines': return c.left.join('. ');
+    case 'highlight': return c.tokens.join(' ');
     case 'sort': return `${c.groups.join(', ')}. ${c.items.join(', ')}`;
     case 'blanks': return c.segments.join(' ... ');
     case 'wordsearch': return c.words.join(', ');

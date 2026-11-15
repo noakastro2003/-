@@ -590,6 +590,56 @@ function dictationEditor(words) {
   });
 }
 
+// Hotspot task: the teacher taps the right places on her picture.
+function spotEditor(spots, imageF) {
+  let list = spots.map((x) => ({ ...x }));
+  let size = list[0]?.r ?? 8;
+  const wrap = h('div', { class: 'spot-editor' });
+  const render = () => {
+    const src = imageF.getValue();
+    if (!src) return mount(wrap, h('p', { class: 'notice' }, '👆 קודם מעלים תמונה (למעלה), ואז מסמנים עליה את המקומות הנכונים.'));
+    const board = h('div', { class: 'spot-board' },
+      h('img', { src, alt: '', draggable: 'false' }),
+      list.map((p, i) => h('button', {
+        type: 'button', class: 'spot', 'aria-label': `מחיקת מקום ${i + 1}`, title: 'לחיצה מוחקת',
+        style: { left: `${p.x}%`, top: `${p.y}%`, width: `${p.r * 2}%`, height: `${p.r * 2}%` },
+        onclick: (e) => { e.stopPropagation(); list.splice(i, 1); render(); },
+      }, i + 1)));
+    board.addEventListener('click', (e) => {
+      if (list.length >= 8) return toast('עד 8 מקומות', 'error');
+      const r = board.getBoundingClientRect();
+      list.push({ x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100, r: size });
+      render();
+    });
+    const slider = h('input', {
+      type: 'range', min: 3, max: 25, value: size, 'aria-label': 'גודל האזור',
+      oninput: (e) => { size = Number(e.target.value); list = list.map((p) => ({ ...p, r: size })); board.querySelectorAll('.spot').forEach((el) => { el.style.width = el.style.height = `${size * 2}%`; }); },
+    });
+    mount(wrap, board, h('div', { class: 'row wrap' }, h('label', { class: 'small' }, 'גודל האזור: ', slider),
+      h('span', { class: 'small muted' }, list.length ? `${list.length} מקומות נכונים` : 'לחצו על התמונה כדי לסמן מקום נכון')));
+  };
+  imageF.addEventListener('media-change', render);
+  render();
+  wrap.values = () => list;
+  return wrap;
+}
+
+// Highlight task: the text, and a preview of the words students will need to tap.
+function highlightEditor(passageText) {
+  const passage = h('textarea', { rows: 4, maxlength: 3000, required: true, value: passageText, placeholder: 'הַיֶּלֶד [רָץ] לַגַּן וְ[שִׂחֵק] בַּנַּדְנֵדָה.' });
+  const preview = h('p', { class: 'hl-preview path-font' });
+  const draw = () => {
+    const nodes = [];
+    for (const m of passage.value.matchAll(/\[([^\[\]]+)\]|([^\[\]]+)/g)) nodes.push(m[1] ? h('mark', {}, m[1]) : m[2]);
+    mount(preview, nodes.length ? nodes : h('span', { class: 'muted' }, 'כאן תופיע תצוגה מקדימה'));
+  };
+  passage.addEventListener('input', draw);
+  draw();
+  const wrap = h('div', {}, passage, preview);
+  wrap.getValue = () => passage.value;
+  return wrap;
+}
+
 function emojiPicker(current, options) {
   let value = current;
   const wrap = h('div', { class: 'emoji-picker', role: 'radiogroup' });
@@ -613,6 +663,10 @@ const DEFAULT_TEXT = {
   sort: 'גררו כל פריט לקופסה המתאימה (או לחצו על פריט ואז על קופסה).',
   voice: 'לחצו על המיקרופון וספרו במילים שלכם.',
   dictation: 'הקשיבו לכל מילה וכתבו אותה. אפשר לשמוע שוב כמה פעמים שרוצים.',
+  photo: 'פתרו במחברת, ואז צלמו את הדף ושלחו.',
+  draw: 'ציירו על הלוח. אפשר לבחור צבע ועובי.',
+  hotspot: 'לחצו על המקום הנכון בתמונה.',
+  highlight: 'סמנו בטקסט את המילים המתאימות.',
   flashcards: 'לחצו על הכרטיס כדי להפוך אותו. ידעתם? מעולה! לא? הוא יחזור עוד פעם.',
 };
 
@@ -698,6 +752,17 @@ function taskForm(state, type, existing, onDone, draft = null) {
     const words = dictationEditor(c.words || []);
     extra.push(field('המילים להכתבה', words, 'בלי הקלטה, המחשב יקריא את המילה. הקלטה שלכם ברורה יותר (מומלץ). הבדיקה מתעלמת מניקוד.'));
     collect = () => ({ words: words.values() });
+  } else if (type === 'hotspot') {
+    // Uses the task's picture field (created below); the editor follows it.
+    collect = () => ({ spots: spotsEd.values() });
+  } else if (type === 'highlight') {
+    const hl = highlightEditor(c.passage || '');
+    extra.push(field('הטקסט', hl, 'שימו בסוגריים מרובעים [ ] את המילים שהתלמידים צריכים לסמן. הן לא יופיעו מסומנות אצל התלמידים.'));
+    collect = () => ({ passage: hl.getValue() });
+  } else if (type === 'photo') {
+    extra.push(h('p', { class: 'notice' }, '📷 התלמידים יצלמו את הדף בטלפון או במחשב, ואת התמונה תראו בטבלת ההתקדמות.'));
+  } else if (type === 'draw') {
+    extra.push(h('p', { class: 'notice' }, '🎨 אם תעלו תמונה, היא תהיה הרקע של לוח הציור (למשל דף צביעה, מפה ריקה או שרטוט להשלמה). את הציורים תראו בטבלת ההתקדמות.'));
   } else if (type === 'flashcards') {
     const cards = pairEditor(c.cards || [], { min: 2, max: 20, placeholderA: 'צד קדמי (מילה, שאלה, תרגיל)', placeholderB: 'צד אחורי (פירוש, תשובה)' });
     extra.push(field('כרטיסיות', cards, 'כרטיסייה שהתלמידים לא ידעו חוזרת בסוף, עד שיודעים את כולן.'));
@@ -706,6 +771,12 @@ function taskForm(state, type, existing, onDone, draft = null) {
 
   const approval = h('input', { type: 'checkbox', checked: Boolean(src?.needsApproval) });
   const imageF = imageField(c.image || c.imageUrl || '');
+  const spotsEd = type === 'hotspot' ? spotEditor(c.spots || [], imageF) : null;
+  // A <div>, not field()'s <label>: a click inside a label is passed on to the first button in it.
+  if (spotsEd) {
+    extra.push(h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'המקומות הנכונים בתמונה'), spotsEd,
+      h('span', { class: 'hint' }, 'לחצו על התמונה לסימון מקום נכון, ולחצו על עיגול כדי למחוק אותו. התלמידים יצטרכו למצוא את כולם.')));
+  }
   const audioF = audioField(c.audio || '');
   const submit = h('button', { class: 'btn primary', type: 'submit' }, existing ? 'שמירה' : 'הוספה');
   const payloadNow = () => ({
@@ -737,7 +808,7 @@ function taskForm(state, type, existing, onDone, draft = null) {
     field('כותרת', title),
     field(TEXT_LABEL[type] || 'הוראות', text),
     h('div', { class: 'media-row' },
-      field('תמונה (לא חובה)', imageF),
+      field(type === 'hotspot' ? 'התמונה' : type === 'draw' ? 'תמונת רקע לציור (לא חובה)' : 'תמונה (לא חובה)', imageF),
       field('ההוראות בקול שלך (לא חובה)', audioF, 'התלמידים ישמעו אותך במקום הקראה ממוחשבת')),
     extra,
     h('div', { class: 'row wrap' }, field('זמן משוער (דקות)', est)),
@@ -1047,6 +1118,9 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
         ? h('div', {}, h('p', {}, 'התשובה בקול:'), h('audio', { class: 'media-audio', src: d.answer.audio, controls: true, preload: 'none' }))
         : h('div', {}, h('p', { class: 'small muted' }, 'לא היה מיקרופון, אז התשובה נכתבה:'), h('blockquote', { class: 'answer' }, d.answer ?? ''));
     }
+    if ((t.type === 'photo' || t.type === 'draw') && d.answer?.image) {
+      answer = h('a', { href: d.answer.image, target: '_blank', rel: 'noopener' }, h('img', { class: 'answer-image', src: d.answer.image, alt: t.type === 'photo' ? 'הצילום של התלמיד' : 'הציור של התלמיד' }));
+    }
     if (t.type === 'flashcards' && d.answer) {
       answer = h('p', {}, d.answer.again
         ? `עבר על כל הכרטיסיות. ${d.answer.again} פעמים לחץ "עוד פעם".`
@@ -1111,11 +1185,11 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
                 }, '⏳'));
               }
               if (d) {
-                const hasAnswer = ['question', 'choice', 'voice', 'flashcards'].includes(t.type);
+                const hasAnswer = ['question', 'choice', 'voice', 'flashcards', 'photo', 'draw'].includes(t.type);
                 const time = Number.isFinite(d.durationSec) ? ` · ${minutesLabel(d.durationSec)}` : '';
                 return h('td', { class: 'cell done' }, h('button', {
                   class: 'cell-btn', title: `${hasAnswer ? 'הצגת התשובה' : 'הושלם'}${time}`, 'aria-label': `${t.title}: הושלם${time}`, onclick: () => showAnswer(s, t),
-                }, t.type === 'voice' ? '🎤' : hasAnswer ? '💬' : '✓'), missBadge);
+                }, { voice: '🎤', photo: '📷', draw: '🎨' }[t.type] || (hasAnswer ? '💬' : '✓')), missBadge);
               }
               return h('td', { class: `cell${needsHelp ? ' help' : ''}`, title: needsHelp ? 'ביקשו עזרה' : 'עוד לא' }, needsHelp ? '✋' : '', missBadge);
             }),

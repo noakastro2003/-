@@ -93,6 +93,8 @@ export const TASK_TYPES = {
   read: { group: 'basic', name: 'קריאה / הסבר', icon: '📖', desc: 'טקסט הסבר או הוראות, עם תמונה אופציונלית' },
   link: { group: 'basic', name: 'סרטון / קישור', icon: '🎬', desc: 'סרטון יוטיוב (מוטמע) או קישור לאתר' },
   question: { group: 'basic', name: 'שאלה פתוחה', icon: '💬', desc: 'התלמידים כותבים תשובה, והיא מגיעה אליכם' },
+  photo: { group: 'basic', name: 'צילום עבודה', icon: '📷', desc: 'עובדים במחברת, מצלמים ושולחים אליכם' },
+  draw: { group: 'basic', name: 'לוח ציור', icon: '🎨', desc: 'מציירים או כותבים ביד על המסך' },
   voice: { group: 'basic', name: 'תשובה בקול', icon: '🎤', desc: 'התלמידים מקליטים תשובה במקום לכתוב, ואתם מקשיבים' },
   choice: { group: 'basic', name: 'שאלה אמריקאית', icon: '🤔', desc: 'בחירה מכמה תשובות, עם משוב מיידי' },
   checklist: { group: 'basic', name: 'רשימת צעדים', icon: '✅', desc: 'פירוק משימה לצעדים קטנים לסימון' },
@@ -106,6 +108,8 @@ export const TASK_TYPES = {
   lines: { group: 'game', name: 'מתיחת קו', icon: '〰️', desc: 'גוררים קו מכל פריט לבן הזוג שלו' },
   sort: { group: 'game', name: 'מיון לקבוצות', icon: '🗂️', desc: 'מכניסים כל פריט לקופסה הנכונה' },
   dictation: { group: 'game', name: 'הכתבה', icon: '✍️', desc: 'שומעים מילה ומקלידים אותה. בלי לחשוש מניקוד' },
+  hotspot: { group: 'game', name: 'סימון על תמונה', icon: '🎯', desc: 'לוחצים על המקום הנכון במפה, בגוף או בתמונה' },
+  highlight: { group: 'game', name: 'סימון מילים בטקסט', icon: '🖍️', desc: 'מסמנים בטקסט, למשל את כל הפעלים' },
   flashcards: { group: 'game', name: 'כרטיסיות', icon: '🎴', desc: 'הופכים כרטיס: מילה ופירוש, תרגיל ותשובה' },
 };
 

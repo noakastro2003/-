@@ -106,11 +106,40 @@ test('a student records a spoken answer and the teacher gets it', async () => {
   assert.equal((await kid('POST', `/api/s/${path.code}/media`, { data: WEBM.toString('base64') })).status, 401);
   const { body: { token, student } } = await kid('POST', `/api/s/${path.code}/join`, { name: 'נועם', secret: SECRET });
   const auth = { 'X-Student-Token': token };
-  assert.equal((await kid('POST', `/api/s/${path.code}/media`, { data: PNG.toString('base64') }, auth)).status, 400, 'audio only');
+  assert.equal((await kid('POST', `/api/s/${path.code}/media`, { data: Buffer.from('<svg onload=alert(1)></svg>').toString('base64') }, auth)).status, 400, 'no scripts');
   const up = await kid('POST', `/api/s/${path.code}/media`, { data: WEBM.toString('base64') }, auth);
   assert.equal(up.status, 201);
   const done = await kid('POST', `/api/s/${path.code}/tasks/${task.id}/complete`, { answer: up.body.url }, auth);
   assert.equal(done.body.correct, true);
   const prog = (await t('GET', `/api/paths/${path.id}/progress`)).body;
   assert.deepEqual(prog.students.find((s) => s.id === student.id).done[task.id].answer, { audio: up.body.url });
+});
+
+test('hotspot: needs a picture; each right place counts once', () => {
+  assert.throws(() => v.task({ type: 'hotspot', title: 'x', content: { spots: [{ x: 10, y: 10, r: 5 }] } }), /תמונה/);
+  const t = v.task({ type: 'hotspot', title: 'מפה', content: { image: REC, spots: [{ x: 20, y: 20, r: 10 }, { x: 80, y: 50, r: 10 }] } });
+  const sc = studentContent('hotspot', t.content);
+  assert.deepEqual(sc, { text: '', count: 2, image: REC });
+  assert.equal(gradeAnswer('hotspot', t.content, { answer: [{ x: 78, y: 55 }, { x: 25, y: 18 }] }).correct, true);
+  assert.deepEqual(gradeAnswer('hotspot', t.content, { answer: [{ x: 21, y: 21 }, { x: 22, y: 22 }] }).wrong, [1], 'same place twice');
+  assert.throws(() => gradeAnswer('hotspot', t.content, { answer: [{ x: 1, y: 1 }] }));
+});
+
+test('highlight words: targets hidden, exact count required', () => {
+  const t = v.task({ type: 'highlight', title: 'פעלים', content: { passage: 'הילד [רץ] לגן ו[שיחק] [עם חברים].' } });
+  const sc = studentContent('highlight', t.content);
+  assert.deepEqual(sc.tokens, ['הילד', 'רץ', 'לגן', 'ו', 'שיחק', 'עם', 'חברים', '.']);
+  assert.deepEqual(sc.tight, [4, 7]);
+  assert.equal(sc.count, 4);
+  assert.equal('passage' in sc, false);
+  const targets = [1, 4, 5, 6];
+  assert.equal(gradeAnswer('highlight', t.content, { answer: targets }).correct, true);
+  assert.deepEqual(gradeAnswer('highlight', t.content, { answer: [0, 1, 4, 5] }).wrong, [0]);
+  assert.throws(() => gradeAnswer('highlight', t.content, { answer: [1] }), /בדיוק 4/);
+});
+
+test('photo and drawing answers must be uploaded pictures', () => {
+  const p = v.task({ type: 'photo', title: 'צלמו', content: {} });
+  assert.deepEqual(gradeAnswer('photo', p.content, { answer: REC }).answer, { image: REC });
+  assert.throws(() => gradeAnswer('draw', p.content, { answer: 'https://evil.example/x.png' }));
 });

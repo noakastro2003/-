@@ -37,7 +37,8 @@ node demo/build.mjs   # יוצר את demo/dist
 - **מסד נתונים:** Netlify Database. בכל פריסה Netlify מריץ את קבצי ה-SQL שב-`netlify/database/migrations/`. אסור לשנות קובץ שכבר רץ: שינוי בסכמה = קובץ חדש עם מספר גבוה יותר.
 - **תמונות והקלטות:** Netlify Blobs (המאגר `media`), עד 4MB לקובץ.
 - **מחולל המסלולים:** רץ כפונקציית רקע (`ai-job-background`), כי פונקציה רגילה מוגבלת ל-60 שניות. הדף בודק כל כמה שניות אם המסלול מוכן. הקבצים שמצרפים למחולל מוגבלים יחד לכ-4MB.
-- **משתני סביבה** (Netlify → Project configuration → Environment variables): `ANTHROPIC_API_KEY` (סודי), `ADMIN_EMAILS`, ולפי הצורך `RESEND_API_KEY` ו-`MAIL_FROM`, `PAYMENTS_MODE`, `FREE_CREDITS`, `MONTHLY_CREDITS`, `PRICE_LABEL`. אחרי שינוי צריך פריסה מחדש.
+- **הבינה המלאכותית:** דרך Netlify AI Gateway, שמזריק לפונקציות את המפתח והכתובת של Anthropic בעצמו (השימוש נגבה בקרדיטים של Netlify). אין צורך ב-`ANTHROPIC_API_KEY`; מפתח שמגדירים בעצמכם גובר על ה-Gateway. הפונקציות קוראות משתנים דרך `Netlify.env`, כי ערכי ה-Gateway לא תמיד זמינים ב-`process.env`.
+- **משתני סביבה** (Netlify → Project configuration → Environment variables): `ADMIN_EMAILS`, ולפי הצורך `RESEND_API_KEY` ו-`MAIL_FROM`, `PAYMENTS_MODE`, `FREE_CREDITS`, `MONTHLY_CREDITS`, `PRICE_LABEL`. אחרי שינוי צריך פריסה מחדש.
 - **פריסה:** מתוך התיקייה `learning-paths` עם Netlify CLI (`netlify deploy --prod`), או חיבור הריפו ב-Netlify עם Base directory = `learning-paths`.
 - **ניהול מקומי מול האתר החי:** `DATABASE_URL=<connection string מ-Netlify> npm run admin -- show <email>`.
 

@@ -1702,8 +1702,11 @@ export function createApp(db, {
     if (!text) throw new HttpError(400, 'אין טקסט להקראה');
     if (text.length > TTS_MAX_CHARS) throw new HttpError(400, 'הטקסט ארוך מדי להקראה');
     const keyOf = (voiceId) => crypto.createHash('sha256').update(`${voiceId}\n${text}`).digest('hex');
-    const hit = await q.ttsCached.get(keyOf(tts.voiceId));
-    if (hit) return { url: `/api/media/${hit.media_id}` };
+    // A recording made by any of the voices counts (the voice that answers may change).
+    for (const voiceId of tts.voiceIds || [tts.voiceId]) {
+      const hit = await q.ttsCached.get(keyOf(voiceId));
+      if (hit) return { url: `/api/media/${hit.media_id}` };
+    }
     await ttsLimit(s ? `s${s.id}` : `t${ctx.teacher.id}`);
     await ttsPathLimit(p.teacher_id);
     const out = await tts.speak(text);

@@ -38,7 +38,7 @@ node demo/build.mjs   # יוצר את demo/dist
 - **תמונות והקלטות:** Netlify Blobs (המאגר `media`), עד 4MB לקובץ.
 - **מחולל המסלולים:** רץ כפונקציית רקע (`ai-job-background`), כי פונקציה רגילה מוגבלת ל-60 שניות. הדף בודק כל כמה שניות אם המסלול מוכן. הקבצים שמצרפים למחולל מוגבלים יחד לכ-4MB.
 - **הבינה המלאכותית:** דרך Netlify AI Gateway, שמזריק לפונקציות את המפתח והכתובת של Anthropic בעצמו (השימוש נגבה בקרדיטים של Netlify). אין צורך ב-`ANTHROPIC_API_KEY`; מפתח שמגדירים בעצמכם גובר על ה-Gateway. הפונקציות קוראות משתנים דרך `Netlify.env`, כי ערכי ה-Gateway לא תמיד זמינים ב-`process.env`.
-- **הקראה בקול טבעי:** Gemini TTS דרך ה-Gateway (או OpenAI, אם זמין; `TTS_PROVIDER` מכריח ספק). כל טקסט מוקלט פעם אחת ונשמר (הטבלה `tts_cache` + Blobs), ואינו נספר במכסת הקבצים של המורה. כשאין קול טבעי – קול המכשיר.
+- **הקראה בקול טבעי:** Google Cloud Text-to-Speech בקול עברי (`GOOGLE_TTS_API_KEY`, ואפשר לבחור קול ב-`GOOGLE_TTS_VOICE`, ברירת מחדל `he-IL-Wavenet-A`). ה-AI Gateway לא מציע כרגע מודלי דיבור; `TTS_PROVIDER=gemini` או `openai` ינסו אותם. כל טקסט מוקלט פעם אחת ונשמר (`tts_cache` + Blobs), ואינו נספר במכסת הקבצים של המורה. בלי מפתח – קול המכשיר.
 - **משתני סביבה** (Netlify → Project configuration → Environment variables): `ADMIN_EMAILS`, `SITE_OWNER` ו-`CONTACT_EMAIL` (מוצגים בעמודים המשפטיים), ולפי הצורך `RESEND_API_KEY` ו-`MAIL_FROM`, `PAYMENTS_MODE`, `FREE_CREDITS`, `MONTHLY_CREDITS`, `PRICE_LABEL`. אחרי שינוי צריך פריסה מחדש.
 - **פריסה:** מתוך התיקייה `learning-paths` עם Netlify CLI (`netlify deploy --prod`), או חיבור הריפו ב-Netlify עם Base directory = `learning-paths`.
 - **ניהול מקומי מול האתר החי:** `DATABASE_URL=<connection string מ-Netlify> npm run admin -- show <email>`.

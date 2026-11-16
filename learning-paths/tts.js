@@ -1,7 +1,7 @@
-// Natural Hebrew read-aloud. On Netlify the AI Gateway provides the keys (Gemini and OpenAI);
-// elsewhere set GEMINI_API_KEY or OPENAI_API_KEY. The first provider that answers is used and
-// remembered. TTS_PROVIDER ("gemini" or "openai") forces one. Every recording is cached by the
-// server, so a text is synthesized once for all students.
+// Natural Hebrew read-aloud. By default through Google Cloud Text-to-Speech (GOOGLE_TTS_API_KEY).
+// TTS_PROVIDER ("google", "gemini", "openai" or one voice id) picks other providers. The first
+// that answers is used and remembered. Every recording is cached by the server, so a text is
+// synthesized once for all students. Without a provider, students hear the device's voice.
 import { HttpError } from './validate.js';
 import { envVar } from './ai.js';
 
@@ -10,6 +10,7 @@ const GEMINI_MODEL = 'gemini-2.5-flash-preview-tts';
 const GEMINI_VOICE = 'Kore';
 const OPENAI_MODEL = 'gpt-4o-mini-tts';
 const OPENAI_VOICE = 'coral';
+const GOOGLE_VOICE = 'he-IL-Wavenet-A';
 
 const SPEAK_HE = 'הקריאו בעברית, לאט, בקול חם וברור של מורה שמקריאה לילדים בכיתה. הקריאו רק את הטקסט, בלי להוסיף דבר:';
 const geminiClient = async () => {
@@ -76,7 +77,34 @@ function openaiChatAudio(model) {
   };
 }
 
+// Google Cloud Text-to-Speech: natural Hebrew voices (he-IL). Needs GOOGLE_TTS_API_KEY;
+// GOOGLE_TTS_VOICE picks the voice.
+const googleCloud = {
+  get id() { return `google-cloud/${envVar('GOOGLE_TTS_VOICE') || GOOGLE_VOICE}`; },
+  family: 'google',
+  enabled: () => Boolean(envVar('GOOGLE_TTS_API_KEY')),
+  async speak(text) {
+    const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(envVar('GOOGLE_TTS_API_KEY'))}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: { text },
+        voice: { languageCode: 'he-IL', name: envVar('GOOGLE_TTS_VOICE') || GOOGLE_VOICE },
+        audioConfig: { audioEncoding: 'MP3', speakingRate: 0.92 },
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) throw Object.assign(new Error((await res.text().catch(() => '')).slice(0, 200)), { status: res.status });
+    const { audioContent } = await res.json();
+    return { data: Buffer.from(audioContent || '', 'base64'), mime: 'audio/mpeg' };
+  },
+};
+
+// The AI Gateway's Gemini and OpenAI voices are used only when TTS_PROVIDER asks for them
+// (the gateway did not offer speech models when this was written; trying them all on every
+// request would only delay the device-voice fallback).
 const providers = [
+  googleCloud,
   geminiTts('gemini-2.5-flash-preview-tts'),
   geminiTts('gemini-2.5-flash-tts'),
   geminiTts('gemini-2.5-pro-preview-tts'),
@@ -100,7 +128,7 @@ export function wav(pcm, rate = 24000) {
 let working = null; // the provider that answered last
 const order = () => {
   const forced = envVar('TTS_PROVIDER'); // "gemini", "openai" or one id
-  let list = providers.filter((p) => p.enabled() && (!forced || p.family === forced || p.id.startsWith(forced)));
+  let list = providers.filter((p) => p.enabled() && (forced ? p.family === forced || p.id.startsWith(forced) : p.family === 'google'));
   if (working && list.includes(working)) list = [working, ...list.filter((p) => p !== working)];
   return list;
 };

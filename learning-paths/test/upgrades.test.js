@@ -195,3 +195,29 @@ test('class activity: finished tasks per day and where students are stuck', asyn
   assert.equal(shai.stuck[0].help, true);
   assert.equal(raz.total, 0);
 });
+
+test('Google Cloud voice: only with a key; sends Hebrew text, returns MP3', async () => {
+  const { createTts } = await import('../tts.js');
+  const tts = createTts();
+  assert.equal(tts.enabled, false);
+  const realFetch = globalThis.fetch;
+  let sent;
+  globalThis.fetch = async (url, init) => {
+    sent = { url: String(url), body: JSON.parse(init.body) };
+    return new Response(JSON.stringify({ audioContent: Buffer.from('ID3mp3').toString('base64') }), { status: 200 });
+  };
+  process.env.GOOGLE_TTS_API_KEY = 'test-key';
+  try {
+    assert.equal(tts.enabled, true);
+    const out = await tts.speak('שלום');
+    assert.equal(out.mime, 'audio/mpeg');
+    assert.equal(out.data.toString(), 'ID3mp3');
+    assert.match(out.voiceId, /^google-cloud\/he-IL-/);
+    assert.match(sent.url, /texttospeech\.googleapis\.com/);
+    assert.equal(sent.body.voice.languageCode, 'he-IL');
+    assert.equal(sent.body.input.text, 'שלום');
+  } finally {
+    globalThis.fetch = realFetch;
+    delete process.env.GOOGLE_TTS_API_KEY;
+  }
+});

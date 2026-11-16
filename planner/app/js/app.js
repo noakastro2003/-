@@ -15,7 +15,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 const KEY = 'noa-planner-v1';
 const team = { data: {}, at: {}, busy: {} }; // shared-week progress of the other teachers (see TEAM below)
 let teamT = 0;
-const APP_V = 91; // keep in step with CACHE in sw.js
+const APP_V = 92; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1787,6 +1787,7 @@ function viewHub() {
     if (q.length && state.kids.length - q.length >= state.kids.length / 3) h += `<div class="card quiet">${cardHead('heart', 'השבוע עוד לא נרשם כלום על', `<span class="cnt">${q.length}</span>`)}<div class="fchips wrap">${q.slice(0, 6).map(k => `<button class="fc" data-kid="${esc(k.name)}">${esc(k.name)}</button>`).join('')}${q.length > 6 ? `<span class="dim">ועוד ${q.length - 6}</span>` : ''}</div></div>`;
     h += `<div class="card">${cardHead('user', 'הילדים', `<span class="cnt">${state.kids.length}</span>`)}<div class="kidgrid">${state.kids.map(k => { const n = kidNotes(k.name).length; return `<button data-kid="${esc(k.name)}"><span class="av">${esc(k.name[0] || '?')}</span><b>${esc(k.name.split(' ')[0])}</b>${n ? `<em>${n}</em>` : ''}</button>`; }).join('')}</div></div>`;
   }
+  h += insightsCard();
   if (state.kids.length) h += `<div class="card">${cardHead('users', 'אסיפת הורים')}<p class="dim">דף הכנה לכל ילד: חוזקות, מה לחזק, ציונים, נוכחות ומקום לכתוב בזמן השיחה.</p>
     <div class="btnrow"><button class="cta soft" data-act="meetall">${ic('printer')} דפים לכל הכיתה</button><button class="cta soft" data-act="evalall">${ic('text')} טיוטות הערכה</button></div></div>`;
   h += bdCard(14, 'ימי הולדת בשבועיים הקרובים');
@@ -3698,6 +3699,7 @@ document.addEventListener('click', async e => {
   if (D.cnote != null && D.tag) { noteSheet(D.cnote || null, D.tag); return; }
   if (D.picktag) { state._note.tag = D.picktag; state._note.tagSet = true; document.querySelectorAll('.tp').forEach(b => b.classList.toggle('on', b.dataset.picktag === D.picktag)); return; }
   if (D.pickkid) { const k = state._note.kids, i = k.indexOf(D.pickkid); if (i >= 0) k.splice(i, 1); else k.push(D.pickkid); t.classList.toggle('on', i < 0); return; }
+  if (D.insoff) { state.prefs.insOff = state.prefs.insOff || {}; state.prefs.insOff[D.insoff] = Date.now(); save(); rerender(); return; }
   if (D.evaldraft) { evalSheet(D.evaldraft); return; }
   if (D.evalsex) { const [n, sx] = D.evalsex.split('|'); state.evals = state.evals || {}; const E = state.evals[n] = state.evals[n] || {}; const changed = E.sex && E.sex !== sx; E.sex = sx; const k = state.kids.find(x => x.name === n); if (k) k.sex = sx; if (changed || !E.text) E.text = evalDraft(n, sx); save(); evalSheet(n); return; }
   if (D.evalredo) { const n = D.evalredo, E = state.evals[n] || {}; withUndo(['evals'], 'נכתבה טיוטה חדשה', () => { state.evals[n] = { ...E, text: evalDraft(n, E.sex || 'f') }; }); evalSheet(n); return; }
@@ -4693,4 +4695,37 @@ async function icsExport() {
   if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'הכיתה שלי – יומן' }); return; } catch (e) { if (e.name === 'AbortError') return; } }
   const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
   toast(`${ev.length} אירועים מוכנים – פותחים את הקובץ ובוחרים "הוספה ליומן"`, 4000);
+}
+
+// ================================================================ TRENDS: patterns the teacher might miss – gentle, specific, dismissible
+function insights() {
+  const out = [], t0 = Date.now(), DAY = 864e5, recent = n => t0 - new Date(n.at).getTime() < 14 * DAY;
+  const off = state.prefs.insOff || {};
+  const add = (key, kind, text, kid) => { if (!(off[key] && t0 - off[key] < 14 * DAY)) out.push({ key, kind, text, kid }); };
+  for (const k of state.kids) {
+    const ps = kidGrades(k.name).map(x => pct(x.v, x.g.max));
+    if (ps.length >= 3) {
+      const last = ps.slice(-2), before = ps.slice(0, -2), m = a => a.reduce((x, y) => x + y, 0) / a.length, d = m(last) - m(before);
+      if (d <= -15) add(`drop:${k.name}:${ps.length}`, 'down', `הציונים של ${k.name} ירדו בשני המבדקים האחרונים (מ־${Math.round(m(before))} ל־${Math.round(m(last))} בממוצע)`, k.name);
+      if (d >= 15) add(`rise:${k.name}:${ps.length}`, 'up', `${k.name} ${k.sex === 'm' ? 'השתפר' : k.sex === 'f' ? 'השתפרה' : 'השתפר/ה'} מאוד בשני המבדקים האחרונים (מ־${Math.round(m(before))} ל־${Math.round(m(last))}) – אולי שווה מילה טובה או הודעה הביתה`, k.name);
+    }
+    const dis = state.cnotes.filter(n => n.tag === 'disrupt' && n.kids.includes(k.name) && recent(n)).length;
+    if (dis >= 3) add(`dis:${k.name}:${dis}`, 'warn', `נרשמו ${dis} הפרעות של ${k.name} בשבועיים האחרונים`, k.name);
+    let abs = 0; for (const [key, v] of Object.entries(state.att || {})) { const [d, c] = key.split('|'); if (c === (state.curClass || '') && t0 - new Date(d + 'T12:00').getTime() < 14 * DAY && v[k.name] === 'a') abs++; }
+    if (abs >= 3) add(`abs:${k.name}:${abs}`, 'warn', `${k.name} ${k.sex === 'm' ? 'חסר' : k.sex === 'f' ? 'חסרה' : 'חסר/ה'} ${abs} פעמים בשבועיים האחרונים`, k.name);
+  }
+  // when in the day do disruptions happen?
+  const byLabel = {}; let total = 0;
+  for (const n of state.cnotes) if (n.tag === 'disrupt' && n.label && recent(n)) { byLabel[n.label] = (byLabel[n.label] || 0) + 1; total++; }
+  const top1 = Object.entries(byLabel).sort((a, b) => b[1] - a[1])[0];
+  if (top1 && top1[1] >= 4 && top1[1] / total >= .4) add(`hour:${top1[0]}:${top1[1]}`, 'hour', `${Math.round(top1[1] / total * 100)}% מההפרעות בשבועיים האחרונים היו ב${top1[0] === 'בוקר' ? 'מפגש הבוקר' : 'שעה ' + top1[0]} – אולי שווה לשנות שם משהו (מקומות ישיבה, הפסקת תנועה, עבודה בקבוצות)`);
+  return out.slice(0, 5);
+}
+function insightsCard() {
+  const L = insights(); if (!L.length) return '';
+  const icon = { down: 'warn', up: 'star', warn: 'flag', hour: 'clock' };
+  return `<div class="card insights">${cardHead('sparkle', 'שמתי לב ש…', `<span class="cnt">${L.length}</span>`)}
+    ${L.map(x => `<div class="insrow ${x.kind}"><span class="ii">${ic(icon[x.kind])}</span><span class="grow">${esc(x.text)}</span>
+      ${x.kid ? `<button class="linkbtn" data-kid="${esc(x.kid)}">לכרטיס</button>` : ''}<button class="iconbtn" data-insoff="${esc(x.key)}" aria-label="הסתרה">${ic('x')}</button></div>`).join('')}
+  </div>`;
 }

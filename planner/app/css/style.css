@@ -1963,3 +1963,12 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 .tmbar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: color-mix(in srgb, var(--bg) 70%, var(--card)); box-shadow: var(--clay-pressed, none); }
 .tmbar i { display: block; width: var(--w); height: 100%; }
 .tmbar .d { background: #5CC983; } .tmbar .p { background: #F7C64B; }
+/* v92 · insights */
+.insrow { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); font-size: var(--fs-sm); line-height: 1.45; }
+.insrow:first-of-type { border-top: 0; }
+.insrow .ii { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--dough, #EEE4F6); color: var(--accent-ink); box-shadow: var(--clay-sm, none); }
+.insrow .ii .ic { width: 17px; height: 17px; }
+.insrow.down .ii, .insrow.warn .ii { background: color-mix(in srgb, #F26B6B 18%, var(--card)); color: #C2456B; }
+.insrow.up .ii { background: color-mix(in srgb, #5CC983 22%, var(--card)); color: #2E8A55; }
+.insrow .linkbtn { white-space: nowrap; }
+.insrow .iconbtn { width: 28px; height: 28px; flex: none; }

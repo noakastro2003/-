@@ -8,7 +8,7 @@ import * as v from './validate.js';
 import { HttpError } from './validate.js';
 import { PROMO_KINDS, normalizeCode, promoInput, promoProblem, promoMessage, promoOut } from './promo.js';
 import { TEMPLATES } from './templates.js';
-import { createAiTools, aiConfigured, GRADES, AI_TASK_TYPES } from './ai.js';
+import { createAiTools, aiConfigured, aiEnvReport, GRADES, AI_TASK_TYPES } from './ai.js';
 import READY_PATHS from './content/library-data.js';
 import { stripNikud } from './validate.js';
 import {
@@ -221,7 +221,7 @@ export function createApp(db, {
   // Tests pass their own tools; otherwise the real ones are made on first use.
   let tools = ai && (ai.generatePath || ai.nikud || ai.improveTask) ? ai : null;
   const aiTools = () => (tools ||= createAiTools());
-  const aiEnabled = ai ? ai.enabled !== false : aiConfigured();
+  const aiEnabledNow = () => (ai ? ai.enabled !== false : aiConfigured());
 
   const q = {
     teacherByEmail: db.prepare('SELECT * FROM teachers WHERE email = ?'),
@@ -881,7 +881,7 @@ export function createApp(db, {
 
   // Runs a paid AI action: takes the credits first, gives them back if it fails.
   async function withCredits(teacherId, action, note, fn) {
-    if (!aiEnabled) throw new HttpError(503, 'הבינה המלאכותית עוד לא הופעלה בשרת הזה (חסר מפתח API).');
+    if (!aiEnabledNow()) throw new HttpError(503, 'הבינה המלאכותית עוד לא הופעלה בשרת הזה (חסר מפתח API).');
     await aiLimit(teacherId);
     const taken = await tx(db, async () => await charge(teacherId, action, note));
     try {
@@ -955,7 +955,10 @@ export function createApp(db, {
 
   route('GET', '/api/ai/status', async (ctx) => {
     requireTeacher(ctx);
-    return { enabled: aiEnabled, grades: GRADES, types: AI_TASK_TYPES, costs: billingCfg.costs };
+    return {
+      enabled: aiEnabledNow(), grades: GRADES, types: AI_TASK_TYPES, costs: billingCfg.costs,
+      env: aiEnvReport(), // only which settings exist, never their values
+    };
   });
 
   // The slow part of generating a path: the model, then saving the path. Refunds on failure.
@@ -979,7 +982,7 @@ export function createApp(db, {
 
   route('POST', '/api/ai/generate', async (ctx) => {
     const teacher = requireTeacher(ctx);
-    if (!aiEnabled) throw new HttpError(503, 'מחולל המסלולים עוד לא הופעל בשרת הזה (חסר מפתח API).');
+    if (!aiEnabledNow()) throw new HttpError(503, 'מחולל המסלולים עוד לא הופעל בשרת הזה (חסר מפתח API).');
     const input = parseAiInput(ctx.body);
     await aiLimit(teacher.id);
 

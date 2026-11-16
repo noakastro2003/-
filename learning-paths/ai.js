@@ -124,9 +124,19 @@ export async function fileBlocks(files) {
 
 // ---------- the call ----------
 
+// Environment variables: Netlify Functions offer Netlify.env (which also sees variables the
+// platform injects, like the AI Gateway's); elsewhere process.env.
+export const envVar = (k) => globalThis.Netlify?.env?.get?.(k) ?? process.env[k];
+
+// Checked on every request: on Netlify the AI Gateway may inject the key after start-up.
 export function aiConfigured() {
-  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_PROFILE);
+  return Boolean(envVar('ANTHROPIC_API_KEY') || envVar('ANTHROPIC_AUTH_TOKEN') || envVar('ANTHROPIC_PROFILE'));
 }
+
+// Which AI settings exist (never their values), for the admin to diagnose a disabled generator.
+export const aiEnvReport = () => Object.fromEntries(
+  ['ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'NETLIFY_AI_GATEWAY_KEY', 'NETLIFY_AI_GATEWAY_URL'].map((k) => [k, Boolean(envVar(k))]),
+);
 
 const ERRORS = {
   generate: { refusal: 'המחולל לא יכול ליצור מסלול לבקשה הזו. נסו לנסח את הנושא אחרת.', long: 'המסלול יצא ארוך מדי. נסו פחות משימות או קבצים קצרים יותר.' },
@@ -182,7 +192,11 @@ export function taskSchema(type) {
 }
 
 // Returns { generatePath, nikud, improveTask }, each validated by the caller.
-export function createAiTools(client = new Anthropic({ timeout: 10 * 60 * 1000 })) {
+export function createAiTools(client = new Anthropic({
+  timeout: 10 * 60 * 1000,
+  apiKey: envVar('ANTHROPIC_API_KEY') || null,
+  baseURL: envVar('ANTHROPIC_BASE_URL') || undefined,
+})) {
   return {
     async generatePath(input) {
       const { blocks, names } = await fileBlocks(input.files);

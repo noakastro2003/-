@@ -16,7 +16,7 @@ const KEY = 'noa-planner-v1';
 const team = { data: {}, at: {}, busy: {} }; // shared-week progress of the other teachers (see TEAM below)
 let teamT = 0;
 const ai = { busy: false, kind: 'lesson', out: null, err: '' }; // the AI builder's screen state (see AI below)
-const APP_V = 94; // keep in step with CACHE in sw.js
+const APP_V = 95; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -2237,6 +2237,7 @@ function viewSettings(w) {
     ${link('clock', 'חזרה לגרסה קודמת', 'האפליקציה שומרת לבד צילום מצב פעם ביום', 'data-act="snaps"')}`) +
   sec('עזרה', `
     ${link('warn', 'משהו לא עובד?', 'דיווח קצר – מגיע ישר לפתרון', 'data-act="report"')}
+    ${link('heart', 'שליחת דף הסבר למורה חברה', 'מה יש באפליקציה ואיך מתקינים – בקישור אחד', 'data-act="sharewelcome"')}
     ${state.prefs.stepsDone ? link('flag', 'להחזיר את "צעדים ראשונים"', 'רשימת ההתחלה במסך "עכשיו"', 'data-act="stepsback"') : ''}
     <details class="howto"><summary>${ic('home')} איך מוסיפים למסך הבית?</summary>
       <p><b>אייפון:</b> בספארי ← כפתור השיתוף ← "הוספה למסך הבית".<br><b>אנדרואיד:</b> בכרום ← ⋮ ← "התקנת אפליקציה".</p>
@@ -3899,6 +3900,7 @@ document.addEventListener('click', async e => {
     case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
     case 'classes': classesSheet(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
+    case 'sharewelcome': { const url = `${location.origin}/welcome.html`, text = 'מצאתי אפליקציה שמסדרת את כל התכנון השבועי, הכיתה וההורים במקום אחד – שווה להציץ:'; if (navigator.share) { try { await navigator.share({ title: 'הכיתה שלי', text, url }); } catch { /* closed */ } } else { try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('הקישור הועתק ✓'); } catch { prompt('הקישור:', url); } } break; }
     case 'aigo': aiGo(); break;
     case 'aicopy': { try { await navigator.clipboard.writeText(aiText(ai.out)); toast('הועתק ✓', 1500); } catch { toast('לא הצלחתי להעתיק'); } break; }
     case 'aiprint': aiPrint(ai.out); break;

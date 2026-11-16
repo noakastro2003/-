@@ -2081,3 +2081,20 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 #printroot .sroom.b-right .pgrid, #printroot .sroom.b-left .pgrid { flex: 1; }
 .flipbar { margin-top: 14px; }
 .flipbar .seg button { font-size: var(--fs-sm); }
+
+/* v104 — class rules screen */
+.rulelist { margin: 4px 0 10px; padding: 0 22px 0 0; }
+.rulelist li { padding: 4px 0; border-bottom: 1px solid var(--line); font-size: var(--fs-body); }
+.rulelist li::marker { color: var(--plum, #5B4190); font-weight: 700; }
+.rulelist .rl { display: flex; align-items: center; gap: 2px; }
+.rulelist .rtext { flex: 1; min-width: 0; background: none; border: 0; padding: 6px 0; text-align: start; font: inherit; color: inherit; cursor: text; }
+.rulelist li.editing form { display: flex; gap: 6px; }
+.rulelist li.editing input { flex: 1; }
+.flipup { transform: rotate(180deg); }
+.rulecard .fchips .fc { font-size: var(--fs-sm); text-align: start; }
+#proj .pj-title { font-size: 6vh; margin: 0 0 3vh; text-align: center; }
+#proj .pj-rules { font-size: 5vh; }
+#printroot .rposter { text-align: center; padding-top: 30pt; }
+#printroot .rposter h1 { font-size: 40pt; color: #5B4190; margin: 0 0 6pt; }
+#printroot .rposter .rp-sub { font-size: 14pt; color: #777; margin: 0 0 24pt; }
+#printroot .rposter ol { text-align: start; display: inline-block; font-size: 24pt; line-height: 1.9; margin: 0; padding-inline-start: 40pt; }

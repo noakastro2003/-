@@ -26,8 +26,10 @@ const SEAT_PRESETS = {
 };
 const BOARD_SIDES = [['top', 'למעלה'], ['bottom', 'למטה'], ['right', 'מימין'], ['left', 'משמאל']];
 const boardWrap = (S, board, grid, cls = 'sroom') => `<div class="${cls} b-${S.board || 'top'}">${board}${grid}</div>`;
+const RULE_IDEAS = { rules: ['מצביעים ומחכים לתור', 'מקשיבים כשמישהו מדבר', 'מדברים בשקט ובכבוד', 'שומרים על הציוד של כולם', 'יוצאים מהכיתה רק באישור', 'עוזרים לחבר שצריך', 'טועים ולומדים – לא צוחקים על אף אחד'],
+  routines: ['בכניסה: מוציאים מחברת ועט ומתחילים במשימת הפתיחה שעל הלוח', 'סימן שקט: יד מורמת + ספירה לאחור מ־5', 'סיימתי מוקדם? קורא/ת ספר או עובד/ת על משימת אתגר', 'שירותים: לוקחים את הכרטיס ומחזירים', 'לפני ההפסקה: מסדרים את השולחן ומרימים כיסא', 'סוף היום: מעתיקים שיעורי בית מהלוח'] };
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 104; // keep in step with CACHE in sw.js
+const APP_V = 105; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -277,7 +279,7 @@ const greet = () => { const h = now().getHours(); return h < 5 ? 'לילה טו�
 // one illustration family (soft clay, plum / cream / gold), shown in a rounded tile
 const ILL = { books: 'desk', notepad: 'prep', star: 'tools', heart: 'class', clock: 'week', calendar: 'week', cake: 'notebook', medal: 'medal', sunrise: 'school', school: 'school', notebook: 'notebook' };
 // which picture belongs to which screen
-const TAB_ILL = { ai: 'prep', seats: 'class', now: 'desk', day: 'week', prep: 'prep', cls: 'class', kids: 'class', class: 'class', friends: 'class', more: 'tools', tools: 'tools', files: 'tools', journal: 'notebook', todos: 'notebook', lists: 'prep', autos: 'notebook', calendar: 'week', bells: 'week', bank: 'desk', msgs: 'notebook', summary: 'medal', grades: 'medal', settings: 'tools', reports: 'notebook' };
+const TAB_ILL = { rules: 'class', ai: 'prep', seats: 'class', now: 'desk', day: 'week', prep: 'prep', cls: 'class', kids: 'class', class: 'class', friends: 'class', more: 'tools', tools: 'tools', files: 'tools', journal: 'notebook', todos: 'notebook', lists: 'prep', autos: 'notebook', calendar: 'week', bells: 'week', bank: 'desk', msgs: 'notebook', summary: 'medal', grades: 'medal', settings: 'tools', reports: 'notebook' };
 const ILLF = new Set(['desk', 'week', 'prep', 'class', 'tools', 'school', 'notebook', 'medal']);
 const illFile = name => ILLF.has(name) ? name : ILL[name];
 // every picture has a night twin cut out of its cream background (img/ill/dark/*.webp); it loads only when night shows it
@@ -1234,6 +1236,7 @@ function projector(kind, data) {
   let el = $('#proj'); if (!el) { el = document.createElement('div'); el.id = 'proj'; document.body.appendChild(el); }
   let body = '';
   if (kind === 'text') body = `<div class="pj-text" contenteditable="true" spellcheck="false">${esc(data || state.projText || 'המשימה עכשיו:')}</div><p class="pj-hint">אפשר לכתוב ישר על המסך</p>`;
+  if (kind === 'rules') body = `<h2 class="pj-title">${esc((data || {}).title || 'חוקי הכיתה')}</h2><ol class="pj-list pj-rules">${((data || {}).items || []).map(x => `<li>${esc(x)}</li>`).join('')}</ol>`;
   if (kind === 'dict') body = `<ol class="pj-list">${(data || []).map(x => `<li>${esc(x)}</li>`).join('')}</ol>`;
   if (kind === 'groups') body = `<div class="pj-groups">${(data || []).map((g, i) => `<div><b>קבוצה ${i + 1}</b>${g.map(n => `<span>${esc(n)}</span>`).join('')}</div>`).join('')}</div>`;
   if (kind === 'points') body = `<div class="pj-points">${state.points.map(t => `<div><b>${esc(t.name)}</b><span>${t.pts}</span></div>`).join('')}</div>`;
@@ -1791,7 +1794,7 @@ function viewHub() {
   let h = top(c ? esc(c.name) : 'הכיתה', multiCls() ? 'בוחרים כיתה – והכל מתעדכן לפיה' : 'הילדים, ההורים והמעקב – במקום אחד', 'users');
   h += `<div class="hubcls">${multiCls() ? clsChips(state.curClass) : ''}<button class="linkbtn" data-act="classes">${ic('settings')} ${multiCls() ? 'ניהול כיתות' : 'יש לי עוד כיתות'}</button></div>`;
   const tiles = [['phone2', 'הודעה להורים', 'data-go="msgs"', ''], ['star', 'ציונים', 'data-go="grades"', state.grades.filter(g => !g.cls || g.cls === state.curClass).length || ''],
-    ['pencil', 'יומן כיתה', 'data-go="journal"', openActions().length || ''], ['medal', 'ניקוד ורמזור', 'data-go="class"', ''], ['users', 'עריכת הרשימה', 'data-go="kids"', state.kids.length || ''], ['calendar', 'לוח אירועים', 'data-go="calendar"', ''], ['grid', 'מקומות ישיבה', 'data-go="seats"', '']];
+    ['pencil', 'יומן כיתה', 'data-go="journal"', openActions().length || ''], ['medal', 'ניקוד ורמזור', 'data-go="class"', ''], ['users', 'עריכת הרשימה', 'data-go="kids"', state.kids.length || ''], ['calendar', 'לוח אירועים', 'data-go="calendar"', ''], ['grid', 'מקומות ישיבה', 'data-go="seats"', ''], ['flag', 'חוקי הכיתה', 'data-go="rules"', toLines(clsRules().rules).length || '']];
   const HUES = ['hue-rose', 'hue-gold', 'hue-lav', 'hue-apr', 'hue-sage', 'hue-blue'];
   h += attLine();
   h += `<button class="attline ${cast.on ? '' : 'todo'}" data-act="cast">${ic('screen')}<span class="grow"><b>מסך הכיתה</b> · ${cast.on ? 'מחובר – לחיצה לשליטה' : 'להקרין מהטלפון למחשב בכיתה'}</span>${ic('chevL', 'chev')}</button>`;
@@ -2205,10 +2208,11 @@ function viewMore(w) {
   const weeks = Object.values(state.weeks).sort((a, b) => (a.id < b.id ? 1 : -1));
   return top('עוד', streak() > 1 ? `🔥 ${streak()} ימים ברצף שהכל מוכן` : 'כלים, הגדרות ותכנונים', 'star') + `
   ${[
-    ['תכנון', [['upload', 'תכנון חדש', 'data-act="upload"'], ['layers', 'השבוע הבא', w ? 'data-act="nextweek"' : 'disabled'], ['grid', 'מערכת', 'data-day="all"'], ['clock', 'לוח צלצולים', 'data-go="bells"'], ['book', 'מאגר שיעורים', 'data-go="bank"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`]]],
-    ['חומרים ורעיונות', [['sparkle', 'שיעור / דף עבודה עם AI', 'data-go="ai"'], ['screen', 'מסך הכיתה', 'data-act="cast"'], ['folder', 'קבצים', 'data-go="files"'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"'], ['pencil', 'נקדן', 'data-act="nakdan"']]],
-    ['תזכורות ושיתוף', [['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"'], ['heart', 'מורות חברות', 'data-go="friends"']]],
-  ].map(([t, items], k) => `<h4 class="sect msect">${t}</h4><div class="toolgrid ${['hue-lav', 'hue-apr', 'hue-rose'][k] || ''}">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
+    ['השבוע שלי', [['upload', 'תכנון חדש', 'data-act="upload"'], ['layers', 'השבוע הבא', w ? 'data-act="nextweek"' : 'disabled'], ['grid', 'המערכת', 'data-day="all"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`], ['book', 'מאגר שיעורים', 'data-go="bank"']]],
+    ['בכיתה', [['screen', 'מסך הכיתה', 'data-act="cast"'], ['flag', 'חוקי הכיתה', 'data-go="rules"'], ['blocks', 'מקומות ישיבה', 'data-go="seats"'], ['medal', 'ניקוד ורמזור', 'data-go="class"'], ['users', 'מורה מחליפה', `data-subday="${w && todayInWeek(w) ? todayInWeek(w).dow : (w && w.days[0] ? w.days[0].dow : 0)}" ${w ? '' : 'disabled'}`], ['text', 'הגרלת הכתבה', 'data-act="dictfree"']]],
+    ['יוצרים חומרים', [['sparkle', 'שיעור / דף עם AI', 'data-go="ai"'], ['folder', 'קבצים', 'data-go="files"'], ['star', 'שיטות וטיפים', 'data-go="tools"'], ['pencil', 'נקדן', 'data-act="nakdan"']]],
+    ['סדר ותזכורות', [['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['calendar', 'לוח אירועים', 'data-go="calendar"'], ['bell', 'אוטומציות', 'data-go="autos"'], ['heart', 'מורות חברות', 'data-go="friends"'], ['clock', 'לוח צלצולים', 'data-go="bells"']]],
+  ].map(([t, items], k) => `<h4 class="sect msect">${t}</h4><div class="toolgrid ${['hue-lav', 'hue-sage', 'hue-apr', 'hue-rose'][k] || ''}">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
   <h4 class="sect msect">עזרה והגדרות</h4>
   <button class="card setlink" data-go="settings"><span class="chi">${ic('settings')}</span><span class="grow"><b>הגדרות</b><small>${sync.user ? g('☁️ מחוברת · ', '☁️ מחובר · ') : ''}חשבון, תצוגה, התראות, ווידג׳ט</small></span>${ic('chevL', 'chev')}</button>
   ${repo.admin ? `<button class="card setlink" data-go="reports"><span class="chi">${ic('warn')}</span><span class="grow"><b>דיווחים</b><small>${repo.open ? `${repo.open} פתוחים` : 'אין דיווחים פתוחים'}</small></span>${repo.open ? `<span class="cnt">${repo.open}</span>` : ''}${ic('chevL', 'chev')}</button>` : ''}
@@ -3546,7 +3550,7 @@ function readyMoment(day) {
 // ================================================================ render
 const TABS = ['now', 'day', 'prep', 'cls', 'more'];
 const SUB = { ai: 'more', seats: 'cls', files: 'more', friends: 'more', bells: 'more', kids: 'cls', grades: 'cls', journal: 'cls', class: 'cls', msgs: 'cls', calendar: 'cls', todos: 'more', reports: 'more', summary: 'more', settings: 'more',  lists: 'more', autos: 'more', tools: 'more',   bank: 'more',  };
-const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, cls: viewHub, friends: viewFriends, bells: viewBells, reports: viewReports, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar, seats: viewSeats, ai: viewAi };
+const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, cls: viewHub, friends: viewFriends, bells: viewBells, reports: viewReports, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar, seats: viewSeats, ai: viewAi, rules: viewRules };
 let lastTab = null;
 function render(animate) {
   let w = pickWeek();
@@ -3561,7 +3565,7 @@ function render(animate) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   requestAnimationFrame(moveTabInd);
   const v = $('#view');
-  const needWeek = !['ai', 'seats', 'more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells', 'reports'].includes(state.tab);
+  const needWeek = !['rules', 'ai', 'seats', 'more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells', 'reports'].includes(state.tab);
   document.body.classList.toggle('onboarding', !state.onboarded);
   let html = !state.onboarded ? viewOnboard() : !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
   const busyNow = (() => { const w0 = realWeek(), d0 = w0 && todayInWeek(w0), ph0 = d0 && phase(d0); return ph0 && (ph0.kind === 'lesson' || ph0.kind === 'break'); })();
@@ -3759,6 +3763,12 @@ document.addEventListener('click', async e => {
     S.desks = S.desks.filter(inside); for (const key of Object.keys(S.map)) if (!inside(key)) delete S.map[key]; S.layout = 'custom'; save(); rerender(); return; }
   if (D.seatmode) { state._seatEdit = D.seatmode === 'edit'; state._seatSel = null; state._deskSel = null; rerender(); return; }
   if (D.seatcell) { if (performance.now() - deskDrag.endAt < 350) return; deskTap(D.seatcell); return; }
+  if (D.ruletap) { state._ruleEdit = D.ruletap; rerender(); setTimeout(() => { const i = $('[data-ruleedit] input'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 30); return; }
+  if (D.ruledel) { const [k, i] = D.ruledel.split(':'); const L = toLines(clsRules()[k]); withUndo(['crules'], 'נמחק', () => { L.splice(+i, 1); clsRules()[k] = L.join('\n'); }); return; }
+  if (D.ruleup) { const [k, i] = D.ruleup.split(':'); const L = toLines(clsRules()[k]); [L[i - 1], L[i]] = [L[i], L[i - 1]]; ruleSet(k, L); return; }
+  if (D.ruleidea) { const [k, x] = D.ruleidea.split('|'); ruleSet(k, [...toLines(clsRules()[k]), x]); return; }
+  if (D.ruleproj) { const k = D.ruleproj; projector('rules', { title: k === 'rules' ? 'החוקים שלנו' : 'השגרות שלנו', items: toLines(clsRules()[k]) }); return; }
+  if (D.ruleprint) { rulePrint(D.ruleprint); return; }
   if (D.seatflip) { const S = seatsOf(), v = D.seatflip === 'v';
     const f = k => { const [r, c] = k.split('-').map(Number); return v ? seatKey(S.gh - 1 - r, c) : seatKey(r, S.gw - 1 - c); };
     withUndo(['seats'], v ? 'הסידור התהפך – למעלה ↔ למטה' : 'הסידור התהפך – ימין ↔ שמאל', () => {
@@ -4190,6 +4200,8 @@ document.addEventListener('submit', e => {
     state.canva = [{ u, t: t.slice(0, 30) }, ...(state.canva || []).filter(c => c.u !== u)].slice(0, 12); save();
     castSend('canva', u); toast('מוצג במסך הכיתה 📺', 1400); castSheet(); return;
   }
+  if (f.matches('[data-ruleadd]')) { e.preventDefault(); const t = f.t.value.trim(), k = f.dataset.ruleadd; if (!t) return; ruleSet(k, [...toLines(clsRules()[k]), t]); setTimeout(() => { const n = $(`[data-ruleadd="${k}"] input`); if (n) n.focus(); }, 30); return; }
+  if (f.matches('[data-ruleedit]')) { e.preventDefault(); const [k, i] = f.dataset.ruleedit.split(':'), t = f.t.value.trim(), L = toLines(clsRules()[k]); if (t) L[+i] = t; else L.splice(+i, 1); state._ruleEdit = null; ruleSet(k, L); return; }
   if (f.matches('[data-casttext]')) { e.preventDefault(); state.projText = f.t.value.trim(); save(); castSend('text', state.projText); toast('מוצג במסך הכיתה 📺', 1400); return; }
   if (f.matches('[data-report]')) {
     e.preventDefault();
@@ -4872,6 +4884,33 @@ document.addEventListener('input', e => {
 let rulesT = 0;
 // class rules and routines, kept per class (the substitute page shows them)
 function clsRules() { state.crules = state.crules || {}; const id = state.curClass || 'main'; return state.crules[id] || (state.crules[id] = { rules: '', routines: '' }); }
+
+// ================================================================ CLASS RULES & ROUTINES (per class; the substitute page and the classroom screen show them)
+function viewRules() {
+  const R = clsRules(), c = curCls(), ed = state._ruleEdit || null;
+  let h = top('חוקי הכיתה', c && c.name ? `${esc(c.name)} · חוקים ושגרות` : 'החוקים והשגרות שלנו', 'flag', { back: 'cls' });
+  const box = (k, title, icon, empty) => {
+    const L = toLines(R[k]);
+    return `<div class="card rulecard">${cardHead(icon, title, L.length ? `<span class="cnt">${L.length}</span>` : '')}
+      ${L.length ? `<ol class="rulelist">${L.map((x, i) => ed === `${k}:${i}` ? `<li class="editing"><form data-ruleedit="${k}:${i}"><input name="t" value="${esc(x)}" autocomplete="off"><button class="iconbtn" aria-label="שמירה">${ic('check')}</button></form></li>`
+        : `<li><div class="rl"><button class="grow rtext" data-ruletap="${k}:${i}">${esc(x)}</button>${i ? `<button class="iconbtn" data-ruleup="${k}:${i}" aria-label="להעלות">${ic('chevD', 'flipup')}</button>` : ''}<button class="iconbtn" data-ruledel="${k}:${i}" aria-label="מחיקה">${ic('x')}</button></div></li>`).join('')}</ol>` : `<p class="dim">${empty}</p>`}
+      <form class="addtodo" data-ruleadd="${k}"><input name="t" placeholder="${k === 'rules' ? 'חוק חדש…' : 'שגרה חדשה…'}" autocomplete="off"><button aria-label="הוספה">${ic('plus')}</button></form>
+      ${(() => { const ideas = RULE_IDEAS[k].filter(x => !L.includes(x)); return ideas.length ? `<p class="pmlbl">רעיונות – לחיצה מוסיפה</p><div class="fchips wrap">${ideas.map(x => `<button class="fc" data-ruleidea="${k}|${esc(x)}">${ic('plus')} ${esc(x)}</button>`).join('')}</div>` : ''; })()}
+      ${L.length ? `<div class="btnrow"><button class="cta soft" data-ruleproj="${k}">${ic('screen')} ${cast.on ? 'למסך הכיתה' : 'הקרנה'}</button><button class="cta soft" data-ruleprint="${k}">${ic('printer')} פוסטר להדפסה</button></div>` : ''}
+    </div>`;
+  };
+  h += box('rules', 'החוקים שלנו', 'flag', 'עוד אין חוקים. כדאי לנסח יחד עם הילדים 3–6 חוקים קצרים, במשפט חיובי (מה כן עושים).');
+  h += box('routines', 'השגרות שלנו', 'clock', 'שגרות הן ה"איך עושים אצלנו": כניסה לכיתה, סימן שקט, מה עושים כשמסיימים מוקדם.');
+  h += `<p class="hint">לחיצה על שורה = עריכה. החוקים והשגרות מופיעים גם בדף של המורה המחליפה.</p>`;
+  return h;
+}
+function ruleSet(k, L) { clsRules()[k] = L.join('\n'); save(); rerender(); }
+function rulePrint(k) {
+  const L = toLines(clsRules()[k]), c = curCls();
+  let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
+  r.innerHTML = `<div class="pw-pg rposter"><h1>${k === 'rules' ? 'החוקים שלנו' : 'השגרות שלנו'}</h1>${c && c.name ? `<p class="rp-sub">${esc(c.name)}</p>` : ''}<ol>${L.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>`;
+  document.body.classList.add('printing'); setTimeout(() => window.print(), 60);
+}
 
 // ---- what the substitute sent back: day report + chat (polled while a link is live, and 3 days after)
 function subLinks() {

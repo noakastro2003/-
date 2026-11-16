@@ -212,6 +212,7 @@ function show(m) {
   else if (k === 'seats') { const S = d || {}, set = new Set(S.desks || []), cells = []; for (let r = 0; r < (S.gh || 0); r++) for (let c = 0; c < (S.gw || 0); c++) { const key = r + '-' + c, n = (S.map || {})[key]; cells.push(set.has(key) ? `<div class="st ${n ? '' : 'e'}">${n ? esc(n) : ''}</div>` : '<div class="st g"></div>'); }
     h = `<div class="seats b-${S.board || 'top'}" style="--cols:${S.gw || 1}"><div class="sb">הלוח</div><div class="sg">${cells.join('')}</div></div>`; }
   else if (k === 'groups') h = `<div class="groups">${(d || []).map((g, i) => `<div><b>קבוצה ${i + 1}</b>${g.map(n => `<span>${esc(n)}</span>`).join('')}</div>`).join('')}</div>`;
+  else if (k === 'rules') h = `<div class="sub">${esc((d || {}).title || 'חוקי הכיתה')}</div><ol class="list">${((d || {}).items || []).map(x => `<li>${esc(x)}</li>`).join('')}</ol>`;
   else if (k === 'dict') h = `<ol class="list">${(d || []).map(x => `<li>${esc(x)}</li>`).join('')}</ol>`;
   else if (k === 'lesson') h = `<div class="lesson">${d.sec ? `<div class="sec">${esc(d.sec)}</div>` : ''}<h1>${esc(d.title)}</h1>${d.text ? `<p>${esc(d.text)}</p>` : ''}</div>`;
   else if (k === 'file') { const id = (String(d.url).match(/\/d\/([\w-]{10,})/) || [])[1]; h = id ? `<iframe src="https://drive.google.com/file/d/${id}/preview" allow="autoplay; fullscreen" allowfullscreen></iframe>` : `<div class="big">${esc(d.text || '')}</div>`; }

@@ -29,7 +29,7 @@ const boardWrap = (S, board, grid, cls = 'sroom') => `<div class="${cls} b-${S.b
 const RULE_IDEAS = { rules: ['מצביעים ומחכים לתור', 'מקשיבים כשמישהו מדבר', 'מדברים בשקט ובכבוד', 'שומרים על הציוד של כולם', 'יוצאים מהכיתה רק באישור', 'עוזרים לחבר שצריך', 'טועים ולומדים – לא צוחקים על אף אחד'],
   routines: ['בכניסה: מוציאים מחברת ועט ומתחילים במשימת הפתיחה שעל הלוח', 'סימן שקט: יד מורמת + ספירה לאחור מ־5', 'סיימתי מוקדם? קורא/ת ספר או עובד/ת על משימת אתגר', 'שירותים: לוקחים את הכרטיס ומחזירים', 'לפני ההפסקה: מסדרים את השולחן ומרימים כיסא', 'סוף היום: מעתיקים שיעורי בית מהלוח'] };
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 106; // keep in step with CACHE in sw.js
+const APP_V = 107; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -307,7 +307,21 @@ function todoPop(force) {
     <p class="hint">אפשר לכבות את הקפיצה לגמרי בהגדרות ← התראות.</p>
   </div>`);
   if (navigator.vibrate) navigator.vibrate([20, 60, 20]);
+  fairyDust($('#overlay .todopop'));
   return true;
+}
+// a little sprinkle of fairy dust over the popup – sparkles drift down and fade
+function fairyDust(host) {
+  if (!host || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const box = document.createElement('div'); box.className = 'fdust'; box.setAttribute('aria-hidden', 'true');
+  const C = ['#F6C14B', '#FFE08A', '#C9A8F5', '#F6B7CF', '#FFFFFF'];
+  for (let i = 0; i < 34; i++) {
+    const d = document.createElement('i'), star = i % 4 === 0, sz = star ? 9 + Math.random() * 7 : 3 + Math.random() * 4;
+    d.className = star ? 'st' : '';
+    d.style.cssText = `--x:${Math.random() * 100}%;--dx:${(Math.random() - .5) * 60}px;--dy:${70 + Math.random() * 120}px;--s:${sz}px;--c:${C[i % C.length]};--d:${(Math.random() * .7).toFixed(2)}s;--t:${(1.3 + Math.random() * .9).toFixed(2)}s`;
+    box.appendChild(d);
+  }
+  host.appendChild(box); setTimeout(() => box.remove(), 2600);
 }
 // on opening: after the greeting fades. Coming back after a while counts as opening again. Timed reminders pop on time while the app is open.
 setTimeout(function tryPop(n = 0) { if ($('#welcome') && n < 10) { setTimeout(() => tryPop(n + 1), 700); return; } todoPop(); }, 1800);
@@ -2250,15 +2264,14 @@ function tipSheet(id) {
 function viewMore(w) {
   const weeks = Object.values(state.weeks).sort((a, b) => (a.id < b.id ? 1 : -1));
   return top('עוד', streak() > 1 ? `🔥 ${streak()} ימים ברצף שהכל מוכן` : 'כלים, הגדרות ותכנונים', 'star') + `
-  ${[
-    ['השבוע שלי', [['upload', 'תכנון חדש', 'data-act="upload"'], ['layers', 'השבוע הבא', w ? 'data-act="nextweek"' : 'disabled'], ['grid', 'המערכת', 'data-day="all"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`], ['book', 'מאגר שיעורים', 'data-go="bank"']]],
-    ['בכיתה', [['screen', 'מסך הכיתה', 'data-act="cast"'], ['flag', 'חוקי הכיתה', 'data-go="rules"'], ['chair', 'מקומות ישיבה', 'data-go="seats"'], ['medal', 'ניקוד ורמזור', 'data-go="class"'], ['users', 'מורה מחליפה', `data-subday="${w && todayInWeek(w) ? todayInWeek(w).dow : (w && w.days[0] ? w.days[0].dow : 0)}" ${w ? '' : 'disabled'}`], ['text', 'הגרלת הכתבה', 'data-act="dictfree"']]],
-    ['יוצרים חומרים', [['sparkle', 'שיעור / דף עם AI', 'data-go="ai"'], ['folder', 'קבצים', 'data-go="files"'], ['star', 'שיטות וטיפים', 'data-go="tools"'], ['pencil', 'נקדן', 'data-act="nakdan"']]],
-    ['סדר ותזכורות', [['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['calendar', 'לוח אירועים', 'data-go="calendar"'], ['bell', 'אוטומציות', 'data-go="autos"'], ['heart', 'מורות חברות', 'data-go="friends"'], ['clock', 'לוח צלצולים', 'data-go="bells"']]],
-  ].map(([t, items], k) => `<h4 class="sect msect">${t}</h4><div class="toolgrid ${['hue-lav', 'hue-sage', 'hue-apr', 'hue-rose'][k] || ''}">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
-  <h4 class="sect msect">עזרה והגדרות</h4>
-  <button class="card setlink" data-go="settings"><span class="chi">${ic('settings')}</span><span class="grow"><b>הגדרות</b><small>${sync.user ? g('☁️ מחוברת · ', '☁️ מחובר · ') : ''}חשבון, תצוגה, התראות, ווידג׳ט</small></span>${ic('chevL', 'chev')}</button>
+    <button class="card setlink" data-go="settings"><span class="chi">${ic('settings')}</span><span class="grow"><b>הגדרות</b><small>${sync.user ? g('☁️ מחוברת · ', '☁️ מחובר · ') : ''}חשבון, תצוגה, התראות, ווידג׳ט</small></span>${ic('chevL', 'chev')}</button>
   ${repo.admin ? `<button class="card setlink" data-go="reports"><span class="chi">${ic('warn')}</span><span class="grow"><b>דיווחים</b><small>${repo.open ? `${repo.open} פתוחים` : 'אין דיווחים פתוחים'}</small></span>${repo.open ? `<span class="cnt">${repo.open}</span>` : ''}${ic('chevL', 'chev')}</button>` : ''}
+  ${[
+    ['השבוע שלי', [['upload', 'תכנון חדש', 'data-act="upload"'], ['layers', 'השבוע הבא', w ? 'data-act="nextweek"' : 'disabled'], ['grid', 'המערכת', 'data-day="all"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`], ['clock', 'לוח צלצולים', 'data-go="bells"']]],
+    ['בכיתה', [['screen', 'מסך הכיתה', 'data-act="cast"'], ['flag', 'חוקי הכיתה', 'data-go="rules"'], ['chair', 'מקומות ישיבה', 'data-go="seats"'], ['medal', 'ניקוד ורמזור', 'data-go="class"'], ['users', 'מורה מחליפה', `data-subday="${w && todayInWeek(w) ? todayInWeek(w).dow : (w && w.days[0] ? w.days[0].dow : 0)}" ${w ? '' : 'disabled'}`], ['text', 'הגרלת הכתבה', 'data-act="dictfree"']]],
+    ['יוצרים חומרים', [['sparkle', 'שיעור / דף עם AI', 'data-go="ai"'], ['book', 'מאגר שיעורים', 'data-go="bank"'], ['folder', 'קבצים', 'data-go="files"'], ['star', 'שיטות וטיפים', 'data-go="tools"'], ['file', 'נקדן', 'data-act="nakdan"'], ['phone2', 'הודעה להורים', 'data-go="msgs"']]],
+    ['סדר ותזכורות', [['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['calendar', 'לוח אירועים', 'data-go="calendar"'], ['pencil', 'יומן כיתה', 'data-go="journal"'], ['bell', 'אוטומציות', 'data-go="autos"'], ['heart', 'מורות חברות', 'data-go="friends"']]],
+  ].map(([t, items], k) => `<h4 class="sect msect">${t}</h4><div class="toolgrid ${['hue-lav', 'hue-sage', 'hue-apr', 'hue-rose'][k] || ''}">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
   <div class="helprow"><button data-act="guide">${ic('book')} איך זה עובד</button><button data-act="report">${ic('warn')} משהו לא עובד?</button></div>
   <div class="card">
     ${cardHead('upload', 'התכנונים שלי')}
@@ -5183,9 +5196,17 @@ function aiText(o) {
 }
 function aiPrint(o) {
   let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
-  const item = (x, i) => `<div class="ai-q"><b>${i + 1}.</b> ${esc(x.prompt)}${x.options.length ? `<div class="ai-opt">${x.options.map(y => `<span>${x.kind === 'choice' ? '◯ ' : ''}${esc(y)}</span>`).join('')}</div>` : ''}${x.kind === 'open' || x.kind === 'fill' ? '<div class="mp-line"></div>' : x.kind === 'draw' ? '<div class="ai-box"></div>' : ''}</div>`;
+  // numbers and signs stay left-to-right inside Hebrew lines ("42 + 15" must not print as "15 + 42")
+  const M = v => esc(v).replace(/[\d_][\d_]*(?:\s*[+\-−×÷=:<>]\s*[\d_]+)+(?:\s*₪)?/g, m => `<span class="mth" dir="ltr">${m}</span>`);
+  const plain = v => String(v || '').replace(/[\u0591-\u05C7]/g, '');
+  const space = x => { const t = plain(x.prompt);
+    if (x.kind === 'draw') return '<div class="ai-box"></div>';
+    if (/מאונך|תרגיל|פתרו|חשבו/.test(t) && x.kind !== 'choice' && x.kind !== 'match' && x.kind !== 'order') return '<div class="ai-box calc"></div>';
+    if (x.kind === 'open') return '<div class="mp-line"></div><div class="mp-line"></div>';
+    return ''; };
+  const item = (x, i) => `<div class="ai-q"><b>${i + 1}.</b> ${M(x.prompt)}${x.options.length ? `<div class="ai-opt ${x.kind}">${x.options.map(y => `<span>${x.kind === 'choice' ? '◯ ' : ''}${M(y)}</span>`).join('')}</div>` : ''}${space(x)}</div>`;
   if (o.kind === 'sheet') r.innerHTML = o.levels.map(l => `<div class="pw-pg aisheet"><header><h1>${esc(o.title)}</h1><p>${esc(l.name)} · שם: ____________ · תאריך: ________</p></header>${o.story ? `<p class="ai-ins">${esc(o.story)}</p>` : ''}<p class="ai-ins"><b>${esc(l.instructions)}</b></p>${l.items.map(item).join('')}</div>`).join('')
-    + `<div class="pw-pg aisheet"><header><h1>${esc(o.title)} – תשובות</h1><p>למורה</p></header>${o.levels.map(l => `<h2>${esc(l.name)}</h2><ol>${l.items.map(x => `<li>${esc(x.answer)}</li>`).join('')}</ol>`).join('')}</div>`;
+    + `<div class="pw-pg aisheet"><header><h1>${esc(o.title)} – תשובות</h1><p>למורה</p></header>${o.levels.map(l => `<h2>${esc(l.name)}</h2><ol>${l.items.map(x => `<li>${M(x.answer)}</li>`).join('')}</ol>`).join('')}</div>`;
   else r.innerHTML = `<div class="pw-pg aisheet"><header><h1>${esc(o.title)}</h1><p>${o.goals.map(esc).join(' · ')}</p></header>
     ${o.sections.map(x => `<h2>${esc(x.label)} · ${x.minutes} דק׳</h2>${x.teacherSays ? `<p>“${esc(x.teacherSays)}”</p>` : ''}${x.studentsDo ? `<p><b>הילדים:</b> ${esc(x.studentsDo)}</p>` : ''}<ol>${x.steps.map(y => `<li>${esc(y)}</li>`).join('')}</ol>`).join('')}
     ${o.questions.length ? `<h2>שאלות</h2><ol>${o.questions.map(x => `<li>${esc(x.q)} <i>(${esc(x.answer)})</i></li>`).join('')}</ol>` : ''}

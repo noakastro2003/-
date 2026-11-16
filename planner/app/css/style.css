@@ -2119,3 +2119,32 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 .tpbtns .cta { flex: 1; width: auto; margin: 0; min-height: 42px; }
 .tpoff { margin-top: 8px; font-size: var(--fs-sm); }
 .twhen .fc { white-space: nowrap; }
+
+/* v106 — AI worksheet print: white paper, no split questions, room to write, math left-to-right */
+@media print {
+  :root, html, body, body.printing, #printroot { background: #fff !important; background-color: #fff !important; --bg: #fff; }
+  #printroot .ai-q, #printroot .aisheet h2, #printroot .aisheet li { break-inside: avoid; page-break-inside: avoid; }
+  #printroot .aisheet header, #printroot .aisheet .ai-ins { break-after: avoid; }
+}
+#printroot { background: #fff; }
+#printroot .aisheet { background: #fff; }
+#printroot .ai-q { padding-bottom: 10pt; border-bottom: .6pt solid #e6e0ec; break-inside: avoid; }
+#printroot .ai-q:last-child { border-bottom: 0; }
+#printroot .mth { unicode-bidi: isolate; direction: ltr; display: inline-block; white-space: nowrap; }
+#printroot .ai-q .mp-line { height: 24pt; border-bottom: .8pt solid #bdb5c7; }
+#printroot .ai-box.calc { height: 64pt; width: 46%; }
+#printroot .ai-opt.match { justify-content: space-between; }
+#printroot .aisheet ol li { margin: 3pt 0; }
+#printroot .ai-opt { display: block; margin: 5pt 0 0; }
+#printroot .ai-opt span { display: inline-block; margin-inline-end: 18pt; margin-bottom: 4pt; }
+#printroot .ai-opt.match span { margin-inline-end: 26pt; }
+@media print { body::after, body::before, html::after, html::before { display: none !important; content: none !important; } }
+/* fairy dust on the reminder popup */
+.todopop { position: relative; overflow: visible; }
+.fdust { position: absolute; inset: -30px 0 auto 0; height: 0; pointer-events: none; z-index: 3; }
+.fdust i { position: absolute; top: 0; left: var(--x); width: var(--s); height: var(--s); border-radius: 50%; background: var(--c);
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--c) 70%, transparent); opacity: 0; animation: fdust var(--t) cubic-bezier(.23, 1, .32, 1) var(--d) forwards; }
+.fdust i.st { border-radius: 0; background: none; box-shadow: none; }
+.fdust i.st::before { content: ''; position: absolute; inset: 0; background: var(--c); filter: drop-shadow(0 0 3px var(--c));
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%); }
+@keyframes fdust { 0% { opacity: 0; transform: translate(0, 0) scale(.3) rotate(0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1) rotate(160deg); } }

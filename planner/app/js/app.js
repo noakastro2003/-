@@ -5134,6 +5134,7 @@ function aiContext(topic) {
 const AI_STEPS = { lesson: ['קוראת את התכנון שלך…', 'חושבת על מבנה השיעור…', 'בונה פתיחה שמעוררת עניין…', 'מתכננת את העבודה בזוגות…', 'כותבת שאלות ותשובות…', 'מכינה התאמות למתקשים ולמתקדמים…', 'מכינה דפים להדפסה…', 'בודקת שהכל מסתדר בזמן…'],
   sheet: ['קוראת את התכנון שלך…', 'בוחרת סוגי משימות…', 'כותבת את רמה א׳…', 'כותבת את רמה ב׳…', 'כותבת את רמה ג׳…', 'מנקדת ובודקת…', 'מכינה דף תשובות…'] };
 function viewAi() {
+  if (ai.out) wsPreload();
   const c = curCls();
   let h = top('בונים עם AI', 'שיעור מלא או דף עבודה בשלוש רמות – ברמה של מורה ותיקה', 'sparkle', { back: 'more' });
   h += `<div class="card setcard aiform">
@@ -5194,7 +5195,10 @@ function aiText(o) {
     o.support ? 'למתקשים: ' + o.support : '', o.challenge ? 'למתקדמים: ' + o.challenge : '', o.exitTicket ? 'כרטיס יציאה: ' + o.exitTicket : '', o.homework ? 'שיעורי בית: ' + o.homework : ''].filter(Boolean).join('\n');
   return [o.title, o.story, '', ...o.levels.map(l => `${l.name}\n${l.instructions}\n${l.items.map((x, i) => `${i + 1}. ${x.prompt}${x.options.length ? ' [' + x.options.join(' / ') + ']' : ''}`).join('\n')}\n`), 'תשובות:', ...o.levels.map(l => `${l.name}: ${l.items.map((x, i) => `${i + 1}. ${x.answer}`).join(' · ')}`)].filter(x => x != null).join('\n');
 }
+// the worksheet's fonts and picture are fetched ahead, so the print dialog never shows a half-styled page
+function wsPreload() { if (wsPreload.done) return; wsPreload.done = true; try { ['400 20px Playpen', '400 14px Rubik', '500 14px Rubik', '700 14px Rubik'].forEach(f => document.fonts.load(f, 'אבג')); } catch { /* fine */ } new Image().src = 'img/ill/dark/prep.webp'; }
 function aiPrint(o) {
+  wsPreload();
   let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
   // numbers and signs stay left-to-right inside Hebrew lines ("42 + 15" must not print as "15 + 42")
   const M = v => esc(v).replace(/[\d_][\d_]*(?:\s*[+\-−×÷=:<>]\s*[\d_]+)+(?:\s*₪)?/g, m => `<span class="mth" dir="ltr">${m}</span>`);
@@ -5204,9 +5208,24 @@ function aiPrint(o) {
     if (/מאונך|תרגיל|פתרו|חשבו/.test(t) && x.kind !== 'choice' && x.kind !== 'match' && x.kind !== 'order') return '<div class="ai-box calc"></div>';
     if (x.kind === 'open') return '<div class="mp-line"></div><div class="mp-line"></div>';
     return ''; };
-  const item = (x, i) => `<div class="ai-q"><b>${i + 1}.</b> ${M(x.prompt)}${x.options.length ? `<div class="ai-opt ${x.kind}">${x.options.map(y => `<span>${x.kind === 'choice' ? '◯ ' : ''}${M(y)}</span>`).join('')}</div>` : ''}${space(x)}</div>`;
-  if (o.kind === 'sheet') r.innerHTML = o.levels.map(l => `<div class="pw-pg aisheet"><header><h1>${esc(o.title)}</h1><p>${esc(l.name)} · שם: ____________ · תאריך: ________</p></header>${o.story ? `<p class="ai-ins">${esc(o.story)}</p>` : ''}<p class="ai-ins"><b>${esc(l.instructions)}</b></p>${l.items.map(item).join('')}</div>`).join('')
-    + `<div class="pw-pg aisheet"><header><h1>${esc(o.title)} – תשובות</h1><p>למורה</p></header>${o.levels.map(l => `<h2>${esc(l.name)}</h2><ol>${l.items.map(x => `<li>${M(x.answer)}</li>`).join('')}</ol>`).join('')}</div>`;
+  // a worksheet that looks like one a teacher would be proud to hand out
+  const LV = [['#3F9A6B', '#E6F4EC', 'ws-a'], ['#5B6FD1', '#E9ECFB', 'ws-b'], ['#D9822B', '#FCEFE2', 'ws-c']];
+  const blanks = h => h.replace(/_{2,}/g, '<span class="ws-blank"></span>');
+  const stars = n => '<span class="ws-stars">' + [0, 1, 2].map(k => `<svg viewBox="0 0 24 24" class="${k <= n ? 'on' : ''}"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2 6.3 20.3l1.2-6.4L2.8 9.5l6.4-.8z"/></svg>`).join('') + '</span>';
+  const face = (k) => `<svg viewBox="0 0 40 40" class="ws-face"><circle cx="20" cy="20" r="17"/><circle cx="14" cy="16" r="1.8" class="f"/><circle cx="26" cy="16" r="1.8" class="f"/><path d="${['M12 24c4 5 12 5 16 0', 'M13 26h14', 'M12 28c4-5 12-5 16 0'][k]}"/></svg>`;
+  const item = (x, i) => `<div class="ws-q"><span class="ws-n">${i + 1}</span><div class="ws-qb"><p class="ws-p">${blanks(M(x.prompt))}</p>${x.options.length ? `<div class="ws-opt ${x.kind}">${x.options.map(y => `<span>${x.kind === 'choice' ? '<i class="ws-bub"></i>' : x.kind === 'order' ? '<i class="ws-sq"></i>' : ''}${blanks(M(y))}</span>`).join('')}</div>` : ''}${space(x).replace('ai-box calc', 'ws-box calc').replace('ai-box', 'ws-box').replace(/mp-line/g, 'ws-line')}</div></div>`;
+  if (o.kind === 'sheet') r.innerHTML = o.levels.map((l, li) => { const [c, t, cls] = LV[li % 3];
+    return `<div class="pw-pg ws ${cls}" style="--c:${c};--t:${t}">
+      <div class="ws-top"><div class="ws-badge">${stars(li)}<b>${esc(l.name)}</b></div><div class="ws-who"><span>שם: <i></i></span><span>כיתה: <i class="sm"></i></span><span>תאריך: <i class="sm"></i></span></div></div>
+      <h1 class="ws-h">${esc(o.title)}</h1>
+      ${o.story ? `<div class="ws-story"><img src="img/ill/dark/prep.webp" alt=""><p>${M(o.story)}</p></div>` : ''}
+      <p class="ws-ins"><svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z M14 7l3 3"/></svg>${esc(l.instructions)}</p>
+      ${l.items.map(item).join('')}
+      <div class="ws-end"><span>איך הרגשתי בדף?</span>${face(0)}${face(1)}${face(2)}<span class="ws-good">כל הכבוד! ✦</span></div>
+    </div>`; }).join('')
+    + `<div class="pw-pg ws ws-key"><div class="ws-top"><div class="ws-badge"><b>למורה · תשובות</b></div></div><h1 class="ws-h">${esc(o.title)}</h1>
+      <div class="ws-keys">${o.levels.map((l, li) => `<div class="ws-kcol" style="--c:${LV[li % 3][0]};--t:${LV[li % 3][1]}"><h2>${esc(l.name)}</h2><ol>${l.items.map(x => `<li>${M(x.answer)}</li>`).join('')}</ol></div>`).join('')}</div>
+      ${o.teacherNote ? `<p class="ws-note"><b>הערה למורה:</b> ${esc(o.teacherNote)}</p>` : ''}</div>`;
   else r.innerHTML = `<div class="pw-pg aisheet"><header><h1>${esc(o.title)}</h1><p>${o.goals.map(esc).join(' · ')}</p></header>
     ${o.sections.map(x => `<h2>${esc(x.label)} · ${x.minutes} דק׳</h2>${x.teacherSays ? `<p>“${esc(x.teacherSays)}”</p>` : ''}${x.studentsDo ? `<p><b>הילדים:</b> ${esc(x.studentsDo)}</p>` : ''}<ol>${x.steps.map(y => `<li>${esc(y)}</li>`).join('')}</ol>`).join('')}
     ${o.questions.length ? `<h2>שאלות</h2><ol>${o.questions.map(x => `<li>${esc(x.q)} <i>(${esc(x.answer)})</i></li>`).join('')}</ol>` : ''}

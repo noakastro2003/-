@@ -5,7 +5,7 @@
 import { HttpError } from './validate.js';
 import { envVar } from './ai.js';
 
-const MODELS = ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image', 'gemini-2.5-flash-image-preview'];
+const MODELS = ['gemini-2.5-flash-image', 'gemini-3-pro-image-preview', 'gemini-3-pro-image', 'gemini-2.5-flash-image-preview'];
 let working = null;
 
 export const imagesConfigured = () => Boolean(envVar('GEMINI_API_KEY'));
@@ -45,9 +45,10 @@ export function createImageTool(make = async () => {
       } catch (err) {
         lastErr = err;
         if (err instanceof HttpError) throw err;
-        const status = err?.status ?? err?.code;
-        // An unknown model: try the next one. Anything else is a real failure.
-        if (!(status === 404 || /not found|not supported|unknown model/i.test(String(err?.message)))) break;
+        console.error(`image model ${model} failed:`, err?.status ?? '', String(err?.message || err).slice(0, 300));
+        // Content blocked: another model won't help. Anything else (a model this gateway
+        // doesn't offer, a busy model): try the next one.
+        if (/safety|blocked|prohibited/i.test(String(err?.message))) break;
       }
     }
     console.error('image generation failed:', lastErr?.status ?? '', String(lastErr?.message || lastErr).slice(0, 300));

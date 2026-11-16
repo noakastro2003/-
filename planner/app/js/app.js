@@ -16,7 +16,7 @@ const KEY = 'noa-planner-v1';
 const team = { data: {}, at: {}, busy: {} }; // shared-week progress of the other teachers (see TEAM below)
 let teamT = 0;
 const ai = { busy: false, kind: 'lesson', out: null, err: '' }; // the AI builder's screen state (see AI below)
-const APP_V = 97; // keep in step with CACHE in sw.js
+const APP_V = 98; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -3726,7 +3726,7 @@ document.addEventListener('click', async e => {
   if (D.insoff) { state.prefs.insOff = state.prefs.insOff || {}; state.prefs.insOff[D.insoff] = Date.now(); save(); rerender(); return; }
   if (D.evalai) { const n = D.evalai, t0 = $('#evalText'); if (!t0 || !t0.value.trim()) return; if (!sync.user) { toast(AI_ERR.login, 3000); return; }
     t.disabled = true; t.innerHTML = `${ic('sparkle')} משפרת…`;
-    try { const txt = await aiCall({ kind: 'polish', text: t0.value }); withUndo(['evals'], 'הניסוח שופר', () => { state.evals[n] = { ...(state.evals[n] || {}), text: txt.trim() }; }); evalSheet(n); }
+    try { const { text: txt } = await aiFetch('polish', { text: t0.value }); withUndo(['evals'], 'הניסוח שופר', () => { state.evals[n] = { ...(state.evals[n] || {}), text: txt.trim() }; }); evalSheet(n); }
     catch (e) { toast(AI_ERR[e.code] || AI_ERR.error, 3500); t.disabled = false; t.innerHTML = `${ic('sparkle')} שיפור הניסוח עם AI`; }
     return; }
   if (D.evaldraft) { evalSheet(D.evaldraft); return; }
@@ -3919,7 +3919,7 @@ document.addEventListener('click', async e => {
     case 'aigo': aiGo(); break;
     case 'aicopy': { try { await navigator.clipboard.writeText(aiText(ai.out)); toast('הועתק ✓', 1500); } catch { toast('לא הצלחתי להעתיק'); } break; }
     case 'aiprint': aiPrint(ai.out); break;
-    case 'aibank': { const o = ai.out; state.bank.push({ id: uid(), at: Date.now(), p: { label: '', start: '', end: '', title: o.title, subtitle: o.goal || '', sections: o.sections.map(x => ({ label: `${x.label} (${x.minutes} דק׳)`, text: x.text })), materials: o.materials.map(text => ({ text })), homework: o.homework ? [o.homework] : [], links: [], badges: ['נבנה עם AI'], from: 'AI' } }); save(); toast('נשמר במאגר השיעורים ⭐'); break; }
+    case 'aibank': { const o = ai.out; state.bank.push({ id: uid(), at: Date.now(), p: { label: '', start: '', end: '', title: o.title, subtitle: o.goals.join(' · '), sections: [...o.sections.map(x => ({ label: `${x.label} (${x.minutes} דק׳)`, text: [x.teacherSays && `המורה: ${x.teacherSays}`, x.studentsDo && `הילדים: ${x.studentsDo}`, ...x.steps].filter(Boolean).join(' · ') })), ...(o.questions.length ? [{ label: 'שאלות', text: o.questions.map(x => `${x.q} (${x.answer})`).join(' · ') }] : []), ...(o.support || o.challenge ? [{ label: 'התאמות', text: [o.support && 'למתקשים: ' + o.support, o.challenge && 'למתקדמים: ' + o.challenge].filter(Boolean).join(' · ') }] : []), ...(o.exitTicket ? [{ label: 'כרטיס יציאה', text: o.exitTicket }] : [])], materials: o.materials.map(text => ({ text })), homework: o.homework ? [o.homework] : [], links: [], badges: ['נבנה עם AI'], from: 'AI' } }); save(); toast('נשמר במאגר השיעורים ⭐'); break; }
     case 'subcreate': subCreate(); break;
     case 'ics': icsExport(); break;
     case 'evalall': evalAllSheet(); break;
@@ -4816,59 +4816,100 @@ async function subShare(t) {
 }
 document.addEventListener('input', e => { if (e.target.id === 'subNotes' && state._sub) state._sub.notes = e.target.value; });
 
-// ================================================================ AI: a lesson or a three-level worksheet from a topic (Claude, through Netlify AI Gateway)
-async function aiCall(body, onText) {
+// ================================================================ AI: a lesson or a three-level worksheet, thought through (Claude, high effort, in the background)
+async function aiFetch(op, body, q = '') {
   try { await ID.refreshSession(); } catch { /* fine */ }
-  const r = await fetch('/api/ai', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  if (!r.ok) { const j = await r.json().catch(() => ({})); throw Object.assign(new Error(j.error || r.status), { code: j.error || r.status }); }
-  const rd = r.body.getReader(), dec = new TextDecoder(); let txt = '';
-  for (;;) { const { value, done } = await rd.read(); if (done) break; txt += dec.decode(value, { stream: true }); onText && onText(txt); }
-  const m = txt.match(/\n\u0000(\w+)$/); if (m) throw Object.assign(new Error(m[1]), { code: m[1] });
-  return txt;
+  const r = await fetch(`/api/ai?op=${op}${q}`, body ? { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : { credentials: 'same-origin' });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || r.status), { code: j.error || 'error' });
+  return j;
 }
-const AI_ERR = { login: 'צריך להתחבר לחשבון (בהגדרות)', limit: 'הגעת למכסה היומית – אפשר שוב מחר', 'not-ready': 'הבינה המלאכותית עוד לא פעילה באתר – היא נדלקת אחרי ההעלאה הבאה', get refusal() { return `לא הצלחתי לבנות את זה – ${g('נסי', 'נסה')} לנסח אחרת`; }, get cut() { return `התשובה נקטעה – ${g('נסי', 'נסה')} נושא מצומצם יותר`; }, get error() { return `משהו השתבש – ${g('נסי', 'נסה')} שוב בעוד רגע`; } };
+const AI_ERR = { login: 'צריך להתחבר לחשבון (בהגדרות)', limit: 'הגעת למכסה היומית – אפשר שוב מחר', month: 'נגמרה המכסה החודשית של האתר', 'not-ready': 'הבינה המלאכותית עוד לא פעילה באתר – היא נדלקת אחרי ההעלאה הבאה',
+  get refusal() { return `לא הצלחתי לבנות את זה – ${g('נסי', 'נסה')} לנסח אחרת`; }, get cut() { return `יצא ארוך מדי – ${g('נסי', 'נסה')} נושא מצומצם יותר`; }, get error() { return `משהו השתבש – ${g('נסי', 'נסה')} שוב בעוד רגע`; }, gone: 'הבנייה כבר לא זמינה' };
+// what the teacher already teaches: the closest lesson in the plan, and one full lesson as a style reference
+function aiContext(topic) {
+  const w = pickWeek(), all = w ? w.days.flatMap(d => d.periods.map(p => ({ d, p }))) : [];
+  const words = topic.replace(/[^א-ת\s]/g, ' ').split(/\s+/).filter(x => x.length > 2);
+  const score = p => words.reduce((n, x) => n + ((p.title + ' ' + p.sections.map(s => s.text).join(' ')).includes(x) ? 1 : 0), 0);
+  const asText = p => `${p.title}\n${p.sections.filter(s => s.text).map(s => `${s.label ? s.label + ': ' : ''}${s.text}`).join('\n')}${p.materials.length ? '\nלהכין: ' + p.materials.map(m => m.text).join(', ') : ''}`;
+  const ranked = all.map(x => ({ ...x, s: score(x.p) })).filter(x => x.s).sort((a, b) => b.s - a.s);
+  const style = (ranked[0] || all.find(x => x.p.sections.filter(s => s.text).length >= 3) || {}).p;
+  const c = curCls();
+  return { subject: ranked[0] ? look(ranked[0].p).n : (c && c.subject) || '', kids: state.kids.length || +state.prefs.classSize || '', style: style ? asText(style) : '', near: ranked.slice(0, 3).map(x => `יום ${x.d.name}: ${asText(x.p)}`).join('\n\n') };
+}
+const AI_STEPS = { lesson: ['קוראת את התכנון שלך…', 'חושבת על מבנה השיעור…', 'בונה פתיחה שמעוררת עניין…', 'מתכננת את העבודה בזוגות…', 'כותבת שאלות ותשובות…', 'מכינה התאמות למתקשים ולמתקדמים…', 'מכינה דפים להדפסה…', 'בודקת שהכל מסתדר בזמן…'],
+  sheet: ['קוראת את התכנון שלך…', 'בוחרת סוגי משימות…', 'כותבת את רמה א׳…', 'כותבת את רמה ב׳…', 'כותבת את רמה ג׳…', 'מנקדת ובודקת…', 'מכינה דף תשובות…'] };
 function viewAi() {
   const c = curCls();
-  let h = top('בונים עם AI', 'שיעור מלא או דף עבודה בשלוש רמות – מנושא אחד', 'sparkle', { back: 'more' });
+  let h = top('בונים עם AI', 'שיעור מלא או דף עבודה בשלוש רמות – ברמה של מורה ותיקה', 'sparkle', { back: 'more' });
   h += `<div class="card setcard aiform">
     <div class="seg aikind">${[['lesson', 'שיעור', 'book'], ['sheet', 'דף עבודה', 'file']].map(([k, l, i]) => `<button class="${ai.kind === k ? 'on' : ''}" data-aikind="${k}">${ic(i)}${l}</button>`).join('')}</div>
     <label class="field">נושא<input id="aiTopic" placeholder="${ai.kind === 'lesson' ? 'למשל: ריבוי זוגי – מִשְׁקָפַיִם, אוֹפַנַּיִם' : 'למשל: חיבור במאונך עד 100'}" value="${esc(state._aiTopic || '')}"></label>
     <div class="frow"><label class="field">כיתה<input id="aiGrade" value="${esc(state._aiGrade || (c && c.name) || '')}" placeholder="ב׳"></label>${ai.kind === 'lesson' ? `<label class="field">דקות<input id="aiMin" type="number" inputmode="numeric" value="${esc(state._aiMin || 45)}"></label>` : ''}</div>
     <label class="field">דגשים (לא חובה)<textarea id="aiNotes" rows="2" placeholder="למשל: הרבה תנועה, עבודה בזוגות, יש 3 תלמידים מתקשים בקריאה">${esc(state._aiNotes || '')}</textarea></label>
     <button class="cta" data-act="aigo" ${ai.busy ? 'disabled' : ''}>${ic('sparkle')} ${ai.busy ? 'בונה…' : ai.kind === 'lesson' ? 'בניית שיעור' : 'בניית דף עבודה'}</button>
-    <p class="hint">נבנה עם Claude. כדאי תמיד לעבור על התוצאה לפני השיעור. עד 15 בניות ביום.</p>
+    <p class="hint">ה־AI חושב לעומק ונעזר בתכנון ${g("שלך", "שלך")} כדי לשמור על הסגנון – זה לוקח 1–3 דקות. אפשר לעבור למסך אחר בינתיים. כדאי תמיד לעבור על התוצאה לפני השיעור.</p>
   </div>`;
-  if (ai.busy) h += `<div class="card aiwait"><span class="ld-ill">${slotImg('welcome', 'md')}</span><b>${ai.kind === 'lesson' ? 'מתכננת את השיעור…' : 'כותבת את הדף…'}</b><small id="aiProg">זה לוקח בערך חצי דקה</small></div>`;
+  if (ai.busy) h += `<div class="card aiwait"><span class="ld-ill">${slotImg('welcome', 'md')}</span><b id="aiStep">${AI_STEPS[ai.kind][0]}</b><small id="aiProg">עוד רגע…</small></div>`;
   if (ai.err) h += `<div class="card"><p class="dim">${esc(ai.err)}</p></div>`;
   const o = ai.out;
-  if (o && o.kind === 'lesson') h += `<div class="card ailesson">${cardHead('book', esc(o.title))}${o.goal ? `<p class="dim">${esc(o.goal)}</p>` : ''}
-    ${o.sections.map(x => `<div class="aisec"><b>${esc(x.label)}<span>${x.minutes} דק׳</span></b><p>${esc(x.text)}</p></div>`).join('')}
+  if (o && o.kind === 'lesson') h += `<div class="card ailesson">${cardHead('book', esc(o.title))}
+    ${o.goals.length ? `<h4>מטרות</h4><ul>${o.goals.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}${o.prior ? `<p class="dim">ידע קודם: ${esc(o.prior)}</p>` : ''}
+    ${o.sections.map(x => `<div class="aisec"><b>${esc(x.label)}<span>${x.minutes} דק׳</span></b>${x.teacherSays ? `<p class="say">“${esc(x.teacherSays)}”</p>` : ''}${x.studentsDo ? `<p><i>הילדים:</i> ${esc(x.studentsDo)}</p>` : ''}${x.steps.length ? `<ol>${x.steps.map(y => `<li>${esc(y)}</li>`).join('')}</ol>` : ''}</div>`).join('')}
+    ${o.questions.length ? `<h4>שאלות לאורך השיעור</h4>${o.questions.map(x => `<details class="aiq"><summary>${esc(x.q)}</summary><p>${esc(x.answer)}</p></details>`).join('')}` : ''}
+    ${o.board ? `<h4>על הלוח</h4><pre class="board-t">${esc(o.board)}</pre>` : ''}
     ${o.materials.length ? `<h4>מה צריך</h4><ul>${o.materials.map(m => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}
-    ${o.homework ? `<h4>שיעורי בית</h4><p>${esc(o.homework)}</p>` : ''}${o.differentiation ? `<h4>התאמה לתלמידים</h4><p>${esc(o.differentiation)}</p>` : ''}
-    <div class="btnrow"><button class="cta" data-act="aibank">${ic('star')} שמירה במאגר השיעורים</button><button class="cta soft" data-act="aicopy">${ic('link')} העתקה</button></div></div>`;
-  if (o && o.kind === 'sheet') h += `<div class="card ailesson">${cardHead('file', esc(o.title))}
-    ${o.levels.map(l => `<div class="aisec"><b>${esc(l.name)}</b><p class="dim">${esc(l.instructions)}</p><ol>${l.items.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>`).join('')}
-    <div class="btnrow"><button class="cta" data-act="aiprint">${ic('printer')} הדפסה (כל רמה בעמוד)</button><button class="cta soft" data-act="aicopy">${ic('link')} העתקה</button></div></div>`;
+    ${o.printables.length ? `<h4>להדפסה</h4>${o.printables.map(x => `<details class="aiq"><summary>${esc(x.title)}</summary><pre class="board-t">${esc(x.content)}</pre></details>`).join('')}` : ''}
+    ${o.support || o.challenge ? `<h4>התאמות</h4>${o.support ? `<p><i>למתקשים:</i> ${esc(o.support)}</p>` : ''}${o.challenge ? `<p><i>למתקדמים:</i> ${esc(o.challenge)}</p>` : ''}` : ''}
+    ${o.exitTicket ? `<h4>כרטיס יציאה</h4><p>${esc(o.exitTicket)}</p>` : ''}${o.homework ? `<h4>שיעורי בית</h4><p>${esc(o.homework)}</p>` : ''}
+    ${o.tips.length ? `<h4>טיפים</h4><ul>${o.tips.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    <div class="btnrow"><button class="cta" data-act="aibank">${ic('star')} שמירה במאגר</button><button class="cta soft" data-act="aiprint">${ic('printer')} הדפסה</button></div>
+    <div class="btnrow"><button class="cta soft" data-act="aicopy">${ic('link')} העתקה</button></div></div>`;
+  if (o && o.kind === 'sheet') h += `<div class="card ailesson">${cardHead('file', esc(o.title))}${o.story ? `<p class="say">${esc(o.story)}</p>` : ''}
+    ${o.levels.map(l => `<div class="aisec"><b>${esc(l.name)}</b><p class="dim">${esc(l.instructions)}</p><ol>${l.items.map(x => `<li>${esc(x.prompt)}${x.options.length ? `<div class="aiopts">${x.options.map(y => `<span>${esc(y)}</span>`).join('')}</div>` : ''}<small class="ans">תשובה: ${esc(x.answer)}</small></li>`).join('')}</ol></div>`).join('')}
+    ${o.teacherNote ? `<p class="hint">${esc(o.teacherNote)}</p>` : ''}
+    <div class="btnrow"><button class="cta" data-act="aiprint">${ic('printer')} הדפסה (רמה בעמוד + תשובות)</button><button class="cta soft" data-act="aicopy">${ic('link')} העתקה</button></div></div>`;
   return h;
 }
 async function aiGo() {
   const v = id => ($(id) || {}).value || '';
   state._aiTopic = v('#aiTopic').trim(); state._aiGrade = v('#aiGrade').trim(); state._aiNotes = v('#aiNotes').trim(); if ($('#aiMin')) state._aiMin = +v('#aiMin') || 45;
-  if (!state._aiTopic) { toast('כותבים נושא קודם'); return; }
+  if (!state._aiTopic) { toast(g('כתבי נושא קודם', 'כתוב נושא קודם')); return; }
   if (!sync.user) { toast(AI_ERR.login, 3000); return; }
+  const kind = ai.kind;
   Object.assign(ai, { busy: true, out: null, err: '' }); rerender();
+  const t0 = Date.now(); let k = 0;
+  const tick = setInterval(() => { const s = $('#aiStep'), p = $('#aiProg'), sec = Math.round((Date.now() - t0) / 1000); if (sec % 9 === 0) k = Math.min(k + 1, AI_STEPS[kind].length - 1); if (s) s.textContent = AI_STEPS[kind][k]; if (p) p.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; }, 1000);
   try {
-    const txt = await aiCall({ kind: ai.kind, topic: state._aiTopic, grade: state._aiGrade, minutes: state._aiMin, notes: state._aiNotes }, t => { const p = $('#aiProg'); if (p) p.textContent = `נכתבו ${t.length} תווים…`; });
-    ai.out = { kind: ai.kind, ...JSON.parse(txt) };
+    const { id } = await aiFetch('start', { kind, topic: state._aiTopic, grade: state._aiGrade, minutes: kind === 'lesson' ? state._aiMin : null, notes: state._aiNotes, ...aiContext(state._aiTopic) });
+    for (;;) {
+      await new Promise(r => setTimeout(r, 4000));
+      const j = await aiFetch('get', null, `&id=${encodeURIComponent(id)}`);
+      if (j.status === 'done') { ai.out = { kind, ...j.result }; break; }
+      if (j.status === 'error') throw Object.assign(new Error(j.error), { code: j.error });
+      if (Date.now() - t0 > 16 * 60e3) throw Object.assign(new Error('timeout'), { code: 'error' });
+    }
   } catch (e) { ai.err = AI_ERR[e.code] || AI_ERR.error; }
-  ai.busy = false; if (state.tab === 'ai') rerender();
+  clearInterval(tick); ai.busy = false;
+  if (state.tab === 'ai') rerender(); else if (ai.out) toast(ai.kind === 'lesson' ? 'השיעור מוכן ✨ (עוד ← בונים עם AI)' : 'דף העבודה מוכן ✨', 4000);
 }
 function aiText(o) {
-  if (o.kind === 'lesson') return [o.title, o.goal, '', ...o.sections.map(x => `${x.label} (${x.minutes} דק׳)\n${x.text}`), '', o.materials.length ? 'מה צריך: ' + o.materials.join(', ') : '', o.homework ? 'שיעורי בית: ' + o.homework : '', o.differentiation ? 'התאמה: ' + o.differentiation : ''].filter(x => x !== null).join('\n');
-  return [o.title, '', ...o.levels.map(l => `${l.name}\n${l.instructions}\n${l.items.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n`)].join('\n');
+  if (o.kind === 'lesson') return [o.title, o.goals.length ? 'מטרות: ' + o.goals.join(' · ') : '', '',
+    ...o.sections.map(x => `${x.label} (${x.minutes} דק׳)\n${x.teacherSays ? 'המורה: ' + x.teacherSays + '\n' : ''}${x.studentsDo ? 'הילדים: ' + x.studentsDo + '\n' : ''}${x.steps.map((y, i) => `${i + 1}. ${y}`).join('\n')}`), '',
+    o.questions.length ? 'שאלות:\n' + o.questions.map(x => `• ${x.q} (${x.answer})`).join('\n') : '', o.board ? 'על הלוח:\n' + o.board : '', o.materials.length ? 'מה צריך: ' + o.materials.join(', ') : '',
+    o.support ? 'למתקשים: ' + o.support : '', o.challenge ? 'למתקדמים: ' + o.challenge : '', o.exitTicket ? 'כרטיס יציאה: ' + o.exitTicket : '', o.homework ? 'שיעורי בית: ' + o.homework : ''].filter(Boolean).join('\n');
+  return [o.title, o.story, '', ...o.levels.map(l => `${l.name}\n${l.instructions}\n${l.items.map((x, i) => `${i + 1}. ${x.prompt}${x.options.length ? ' [' + x.options.join(' / ') + ']' : ''}`).join('\n')}\n`), 'תשובות:', ...o.levels.map(l => `${l.name}: ${l.items.map((x, i) => `${i + 1}. ${x.answer}`).join(' · ')}`)].filter(x => x != null).join('\n');
 }
 function aiPrint(o) {
   let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
-  r.innerHTML = o.levels.map(l => `<div class="pw-pg aisheet"><header><h1>${esc(o.title)}</h1><p>${esc(l.name)} · שם: ____________ · תאריך: ________</p></header><p class="ai-ins">${esc(l.instructions)}</p>${l.items.map((x, i) => `<div class="ai-q"><b>${i + 1}.</b> ${esc(x)}<div class="mp-line"></div><div class="mp-line"></div></div>`).join('')}</div>`).join('');
+  const item = (x, i) => `<div class="ai-q"><b>${i + 1}.</b> ${esc(x.prompt)}${x.options.length ? `<div class="ai-opt">${x.options.map(y => `<span>${x.kind === 'choice' ? '◯ ' : ''}${esc(y)}</span>`).join('')}</div>` : ''}${x.kind === 'open' || x.kind === 'fill' ? '<div class="mp-line"></div>' : x.kind === 'draw' ? '<div class="ai-box"></div>' : ''}</div>`;
+  if (o.kind === 'sheet') r.innerHTML = o.levels.map(l => `<div class="pw-pg aisheet"><header><h1>${esc(o.title)}</h1><p>${esc(l.name)} · שם: ____________ · תאריך: ________</p></header>${o.story ? `<p class="ai-ins">${esc(o.story)}</p>` : ''}<p class="ai-ins"><b>${esc(l.instructions)}</b></p>${l.items.map(item).join('')}</div>`).join('')
+    + `<div class="pw-pg aisheet"><header><h1>${esc(o.title)} – תשובות</h1><p>למורה</p></header>${o.levels.map(l => `<h2>${esc(l.name)}</h2><ol>${l.items.map(x => `<li>${esc(x.answer)}</li>`).join('')}</ol>`).join('')}</div>`;
+  else r.innerHTML = `<div class="pw-pg aisheet"><header><h1>${esc(o.title)}</h1><p>${o.goals.map(esc).join(' · ')}</p></header>
+    ${o.sections.map(x => `<h2>${esc(x.label)} · ${x.minutes} דק׳</h2>${x.teacherSays ? `<p>“${esc(x.teacherSays)}”</p>` : ''}${x.studentsDo ? `<p><b>הילדים:</b> ${esc(x.studentsDo)}</p>` : ''}<ol>${x.steps.map(y => `<li>${esc(y)}</li>`).join('')}</ol>`).join('')}
+    ${o.questions.length ? `<h2>שאלות</h2><ol>${o.questions.map(x => `<li>${esc(x.q)} <i>(${esc(x.answer)})</i></li>`).join('')}</ol>` : ''}
+    ${o.board ? `<h2>על הלוח</h2><pre>${esc(o.board)}</pre>` : ''}${o.materials.length ? `<h2>מה צריך</h2><p>${o.materials.map(esc).join(' · ')}</p>` : ''}
+    ${o.support ? `<p><b>למתקשים:</b> ${esc(o.support)}</p>` : ''}${o.challenge ? `<p><b>למתקדמים:</b> ${esc(o.challenge)}</p>` : ''}${o.exitTicket ? `<p><b>כרטיס יציאה:</b> ${esc(o.exitTicket)}</p>` : ''}${o.homework ? `<p><b>שיעורי בית:</b> ${esc(o.homework)}</p>` : ''}</div>
+    ${o.printables.map(x => `<div class="pw-pg aisheet"><header><h1>${esc(x.title)}</h1></header><pre class="ai-print">${esc(x.content)}</pre></div>`).join('')}`;
   document.body.classList.add('printing'); setTimeout(() => window.print(), 60);
 }

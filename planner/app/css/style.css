@@ -1991,3 +1991,20 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 .aisec p { margin: 4px 0 0; line-height: 1.55; }
 #printroot .aisheet .ai-ins { font-size: 12pt; margin: 0 0 10pt; }
 #printroot .ai-q { font-size: 13pt; margin: 0 0 12pt; }
+/* v98 · AI results, richer */
+.ailesson .say { margin: 6px 0; padding: 10px 14px; border-radius: 16px; background: color-mix(in srgb, var(--accent-ink) 7%, var(--card)); font-size: var(--fs-sm); line-height: 1.55; }
+.ailesson i { font-style: normal; font-weight: 600; color: var(--accent-ink); }
+.aiq { padding: 8px 0; border-top: 1px solid var(--line); }
+.aiq summary { cursor: pointer; font-weight: 500; list-style: none; }
+.aiq summary::-webkit-details-marker { display: none; }
+.aiq summary::before { content: '▸ '; color: var(--accent-ink); }
+.aiq[open] summary::before { content: '▾ '; }
+.aiq p { margin: 6px 0 0; color: var(--soft); }
+.board-t { white-space: pre-wrap; font: inherit; font-size: var(--fs-sm); margin: 6px 0; padding: 12px 14px; border-radius: 16px; background: #2F5B47; color: #F3F1E6; line-height: 1.7; }
+.aiopts { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.aiopts span { padding: 2px 10px; border-radius: 99px; background: var(--dough, #EEE4F6); font-size: var(--fs-note); }
+.ans { display: block; color: #2E8A55; font-size: var(--fs-note); }
+#printroot .aisheet h2 { font-size: 13pt; color: #4A3566; margin: 12pt 0 4pt; }
+#printroot .aisheet pre, #printroot .ai-print { white-space: pre-wrap; font: inherit; font-size: 12pt; line-height: 1.7; }
+#printroot .ai-opt { display: flex; flex-wrap: wrap; gap: 6pt 16pt; margin: 4pt 0; }
+#printroot .ai-box { height: 70pt; border: .8pt dashed #cfc6d8; border-radius: 6pt; margin-top: 4pt; }

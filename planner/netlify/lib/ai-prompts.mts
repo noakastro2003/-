@@ -1,0 +1,62 @@
+// What Claude is asked to make, and the shape it must come back in. Shared by ai.mts (start/poll) and ai-run.mts (the work).
+
+export const SYSTEM = `את מורה ותיקה ומצטיינת בבית ספר יסודי ממלכתי בישראל, ומלווה מורות חדשות. את כותבת לעמית/ה שילמד את זה מחר בבוקר, אז הכל צריך להיות מוכן לשימוש – לא רעיונות כלליים.
+
+איך נראה תוצר טוב:
+• מותאם בדיוק לגיל ולכיתה. בכיתות א׳–ב׳: משפטים קצרים, הרבה תנועה ומשחק, פעילויות של 5–10 דקות. בכיתות גבוהות: יותר עבודה עצמית וחשיבה.
+• תואם את תוכנית הלימודים של משרד החינוך ואת המונחים שבה (למשל "משפחת מילים", "שורש", "ריבוי זוגי", "חיבור במאונך", "הבנת הנקרא – משמעות גלויה / משתמעת").
+• מעשי: מה המורה אומרת במילים שלה, מה הילדים עושים בפועל, כמה זמן, ומה צריך להכין מראש. בלי ז'רגון של השתלמויות.
+• פעילות אמיתית ולא רק "דיון": עבודה בזוגות או בקבוצות, משחק, תנועה, כרטיסיות, לוח מחיק – לפי הנושא.
+• שאלות עם תשובות צפויות, כדי שהמורה ידע/תדע מה לחפש.
+• דיפרנציאציה אמיתית: מה עושה ילד שמתקשה ומה עושה ילד שמסיים מהר – באותו שיעור.
+• בעברית תקנית, חמה ופשוטה. טקסט שמיועד לילדים בכיתות א׳–ב׳ – בניקוד מלא ונכון.
+
+אסור:
+• להמציא ציטוטים, מחקרים, ספרים, אתרים, קישורים או קבצים שלא נאמרו.
+• להבטיח דברים שהמורה לא יכול/ה לבדוק. אם משהו לא ידוע – לכתוב מה כדאי לבדוק.`
+
+const str = { type: 'string' }
+const strs = { type: 'array', items: str }
+const obj = (props: Record<string, unknown>) => ({ type: 'object', additionalProperties: false, required: Object.keys(props), properties: props })
+
+export const LESSON = obj({
+  title: str, goals: strs, prior: str,
+  sections: { type: 'array', items: obj({ label: str, minutes: { type: 'integer' }, teacherSays: str, studentsDo: str, steps: strs }) },
+  questions: { type: 'array', items: obj({ q: str, answer: str }) },
+  board: str, materials: strs,
+  printables: { type: 'array', items: obj({ title: str, content: str }) },
+  support: str, challenge: str, exitTicket: str, homework: str, tips: strs,
+})
+export const SHEET = obj({
+  title: str, story: str,
+  levels: { type: 'array', items: obj({ name: str, instructions: str, items: { type: 'array', items: obj({ kind: { type: 'string', enum: ['open', 'choice', 'match', 'fill', 'order', 'draw'] }, prompt: str, options: strs, answer: str }) } }) },
+  teacherNote: str,
+})
+
+export function buildPrompt(kind: string, b: any) {
+  const t = (x: unknown, n: number) => String(x || '').slice(0, n)
+  const ctx = [
+    b.grade && `כיתה: ${t(b.grade, 20)}`, b.subject && `מקצוע: ${t(b.subject, 40)}`, b.kids && `מספר תלמידים: ${Number(b.kids)}`,
+    b.minutes && `אורך: ${Number(b.minutes)} דקות`, b.notes && `דגשים מהמורה: ${t(b.notes, 900)}`,
+  ].filter(Boolean).join('\n')
+  const style = b.style ? `\n\nכך נראה שיעור אמיתי מהתכנון של המורה – לשמור על אותה רוח, אותו סדר ואותם שמות חלקים (זה רק לסגנון, לא לנושא):\n"""\n${t(b.style, 1800)}\n"""` : ''
+  const near = b.near ? `\n\nמה כבר לומדים בכיתה סביב הנושא הזה השבוע (להתחבר לזה, לא לחזור על זה):\n"""\n${t(b.near, 1500)}\n"""` : ''
+  if (kind === 'lesson') return { schema: LESSON, prompt: `תכנני שיעור מלא בנושא: ${t(b.topic, 300)}\n${ctx}${style}${near}
+
+מה למלא:
+• title – שם השיעור כמו שהמורה תכתוב בתכנון. goals – 2–3 מטרות שאפשר לבדוק. prior – מה הילדים צריכים לדעת מקודם (משפט אחד).
+• sections – פתיחה, גוף השיעור (יכול להיות 2–3 חלקים), סיום. סכום הדקות = אורך השיעור. בכל חלק: teacherSays – מה המורה אומרת, במילים שלה, 1–3 משפטים; studentsDo – מה הילדים עושים; steps – 2–5 צעדים מעשיים.
+• questions – 4–6 שאלות לאורך השיעור, מהקלה לחשיבה, כל אחת עם answer – התשובה הצפויה.
+• board – מה כותבים על הלוח, שורה לכל פריט.
+• materials – מה צריך להכין או להביא (עם כמויות לפי מספר התלמידים, אם ידוע).
+• printables – דפים או כרטיסיות להדפסה שהשיעור צריך, עם התוכן המלא שלהם (למשל רשימת 12 כרטיסיות). אם אין צורך – רשימה ריקה.
+• support – מה עושה ילד שמתקשה. challenge – מה עושה ילד שמסיים מהר. exitTicket – שאלה אחת לסיום שבודקת הבנה. homework – משימה קצרה או מחרוזת ריקה. tips – 2–3 טיפים קצרים לניהול השיעור (מה עלול להשתבש ואיך מונעים).` }
+  return { schema: SHEET, prompt: `בני דף עבודה בנושא: ${t(b.topic, 300)}\n${ctx}${style}${near}
+
+מה למלא:
+• title – כותרת קצרה ושמחה לדף. story – אם מתאים, פתיח קצר של 1–2 משפטים שנותן הקשר (סיפור, דמות, משימה); אחרת מחרוזת ריקה.
+• levels – בדיוק שלוש רמות: "רמה א׳", "רמה ב׳", "רמה ג׳" (מהבסיסית לאתגר). בכל רמה instructions קצרה ו־6–8 משימות.
+• בכל משימה: kind – open (כתיבה), choice (בחירה – עם options), match (התאמה – options בצורה "צד ימין = צד שמאל"), fill (השלמה – לסמן חסר ב־____), order (סידור – options בסדר מעורבב), draw (ציור/סימון). prompt – נוסח המשימה לילד. answer – התשובה הנכונה (למורה).
+• לגוון את סוגי המשימות. להתחיל קל ולהתקדם. לכיתות א׳–ב׳ – ניקוד מלא בכל טקסט לילד.
+• teacherNote – משפט למורה: מה הדף בודק ואיך לחלק בין הרמות.` }
+}

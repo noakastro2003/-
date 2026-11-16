@@ -1,99 +1,73 @@
-// Claude helps the teacher: a full lesson, a worksheet in three levels, or polishing a report-card comment.
-// Runs through Netlify AI Gateway (credentials are injected; usage is paid from the site's credits).
-// Signed-in teachers only, a daily cap per teacher, and the answer streams back so long lessons stay under 60s.
+// The AI helper's front door: starts a job (a lesson or a worksheet) and lets the app check on it.
+// The work itself runs in ai-run (a background function, up to 15 minutes), so Claude can think properly.
+// A short comment polish runs right here. Signed-in teachers only, with a daily cap per teacher and a monthly cap for the site.
 import Anthropic from '@anthropic-ai/sdk'
 import { getUser } from '@netlify/identity'
 import { getStore } from '@netlify/blobs'
 import type { Config } from '@netlify/functions'
+import { SYSTEM } from '../lib/ai-prompts.mts'
 
-const DAILY = 15
 const json = (x: unknown, status = 200) => Response.json(x, { status, headers: { 'cache-control': 'no-store' } })
-
-const VOICE = `את מורה ותיקה ומנוסה בבית ספר יסודי בישראל, שכותבת לעמיתה. כותבים בעברית פשוטה, חמה ומקצועית, לפי תוכנית הלימודים של משרד החינוך.
-מתאימים לגיל ולכיתה שנאמרו, לפעילות אמיתית בכיתה (לא תיאוריה), עם הוראות קצרות וברורות. לא ממציאים קבצים, קישורים או ספרים שלא נאמרו.`
-
-const LESSON = {
-  type: 'object', additionalProperties: false, required: ['title', 'goal', 'sections', 'materials', 'homework', 'differentiation'],
-  properties: {
-    title: { type: 'string' }, goal: { type: 'string' },
-    sections: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['label', 'minutes', 'text'], properties: { label: { type: 'string' }, minutes: { type: 'integer' }, text: { type: 'string' } } } },
-    materials: { type: 'array', items: { type: 'string' } },
-    homework: { type: 'string' },
-    differentiation: { type: 'string' },
-  },
-}
-const SHEET = {
-  type: 'object', additionalProperties: false, required: ['title', 'levels'],
-  properties: {
-    title: { type: 'string' },
-    levels: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['name', 'instructions', 'items'], properties: { name: { type: 'string' }, instructions: { type: 'string' }, items: { type: 'array', items: { type: 'string' } } } } },
-  },
-}
-
-function request(kind: string, b: any) {
-  const grade = String(b.grade || '').slice(0, 20), topic = String(b.topic || '').slice(0, 300), notes = String(b.notes || '').slice(0, 800)
-  if (kind === 'lesson') return {
-    schema: LESSON, max: 6000,
-    prompt: `בני/בניי שיעור ${b.minutes ? `של ${Number(b.minutes)} דקות ` : ''}לכיתה ${grade} בנושא: ${topic}.
-${notes ? `דגשים מהמורה: ${notes}\n` : ''}מבנה: פתיחה (מעוררת עניין), גוף השיעור (פעילות פעילה, עדיף בזוגות/קבוצות), סיום (סיכום ובדיקת הבנה). לכל חלק – כמה דקות ומה עושים בפועל, במשפטים קצרים.
-"materials" – מה צריך להכין או להביא. "homework" – משימה קצרה (או מחרוזת ריקה). "differentiation" – משפט או שניים: איך להתאים לתלמידים מתקשים ולמתקדמים.`,
-  }
-  if (kind === 'sheet') return {
-    schema: SHEET, max: 6000,
-    prompt: `בני/בניי דף עבודה לכיתה ${grade} בנושא: ${topic}, בשלוש רמות: "בסיסי", "מתקדם", "אתגר". בכל רמה 5–6 משימות קצרות שאפשר לפתור על הדף, מהקל לקשה.
-${notes ? `דגשים מהמורה: ${notes}\n` : ''}הוראה אחת קצרה לכל רמה. בלי תשובות.`,
-  }
-  // polish a report-card comment, keeping every fact the teacher wrote
-  return {
-    schema: null, max: 2000,
-    prompt: `לפניך טיוטת הערכה לתעודה שכתבה מורה לתלמיד/ה. שפרי את הניסוח שיהיה חם, אישי ומקצועי, באותה לשון פנייה (זכר/נקבה) ובאותו אורך בערך.
-אל תוסיפי עובדות שלא כתובות, אל תשמיטי עובדות, ושמרי את החתימה בסוף. החזירי רק את הטקסט המשופר.
-
-${String(b.text || '').slice(0, 2500)}`,
-  }
-}
+const DAY_CAP = Number(Netlify.env.get('AI_DAY_CAP') || 6)
+const MONTH_CAP = Number(Netlify.env.get('AI_MONTH_CAP') || 40)
 
 export default async (req: Request) => {
   const user = await getUser()
   if (!user) return json({ error: 'login' }, 401)
-  if (req.method !== 'POST') return json({ error: 'method' }, 405)
-  if (!process.env.ANTHROPIC_API_KEY) return json({ error: 'not-ready' }, 503) // AI Gateway not active yet
-
-  const b = (await req.json().catch(() => ({}))) as any
-  const kind = ['lesson', 'sheet', 'polish'].includes(b.kind) ? b.kind : ''
-  if (!kind || (kind !== 'polish' && !String(b.topic || '').trim()) || (kind === 'polish' && !String(b.text || '').trim())) return json({ error: 'empty' }, 400)
-
+  if (!Netlify.env.get('ANTHROPIC_API_KEY')) return json({ error: 'not-ready' }, 503)
+  const u = new URL(req.url), op = u.searchParams.get('op') || ''
   const st = getStore({ name: 'hakita-ai', consistency: 'strong' })
-  const ck = `n/${user.id}/${new Date().toISOString().slice(0, 10)}`
-  const used = Number((await st.get(ck)) || 0)
-  if (used >= DAILY) return json({ error: 'limit', limit: DAILY }, 429)
-  await st.set(ck, String(used + 1))
 
-  const r = request(kind, b)
-  const client = new Anthropic()
-  const enc = new TextEncoder()
-  const body = new ReadableStream({
-    async start(ctrl) {
-      try {
-        const stream = client.messages.stream({
-          model: 'claude-opus-5-5',
-          max_tokens: r.max,
-          system: VOICE,
-          output_config: { effort: 'low', ...(r.schema ? { format: { type: 'json_schema', schema: r.schema } } : {}) },
-          messages: [{ role: 'user', content: r.prompt }],
-        })
-        stream.on('text', t => ctrl.enqueue(enc.encode(t)))
-        const msg = await stream.finalMessage()
-        if (msg.stop_reason === 'refusal') ctrl.enqueue(enc.encode('\n\u0000refusal'))
-        else if (msg.stop_reason === 'max_tokens') ctrl.enqueue(enc.encode('\n\u0000cut'))
-      } catch (e) {
-        console.warn('ai failed', e instanceof Anthropic.APIError ? `${e.status} ${e.message}` : String(e))
-        ctrl.enqueue(enc.encode('\n\u0000error'))
-      }
-      ctrl.close()
-    },
-  })
-  return new Response(body, { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } })
+  if (op === 'get') {
+    const job = (await st.get(`job/${u.searchParams.get('id')}`, { type: 'json' })) as any
+    if (!job || job.owner !== user.id) return json({ error: 'gone' }, 404)
+    return json({ status: job.status, result: job.result || null, error: job.error || null })
+  }
+  if (req.method !== 'POST') return json({ error: 'method' }, 405)
+  const b = (await req.json().catch(() => ({}))) as any
+
+  // limits: per teacher per day, and for the whole site per month (AI is paid from the site's credits)
+  const day = new Date().toISOString().slice(0, 10), month = day.slice(0, 7)
+  const dk = `n/${user.id}/${day}`, mk = `m/${month}`
+  const usedDay = Number((await st.get(dk)) || 0), usedMonth = Number((await st.get(mk)) || 0)
+  if (usedDay >= DAY_CAP) return json({ error: 'limit', limit: DAY_CAP }, 429)
+  if (usedMonth >= MONTH_CAP) return json({ error: 'month', limit: MONTH_CAP }, 429)
+
+  if (op === 'polish') {
+    const text = String(b.text || '').slice(0, 2500)
+    if (!text.trim()) return json({ error: 'empty' }, 400)
+    await st.set(dk, String(usedDay + 1)); await st.set(mk, String(usedMonth + 1))
+    try {
+      const client = new Anthropic()
+      const msg = await client.messages.create({
+        model: 'claude-opus-5-5', max_tokens: 4000, system: SYSTEM, output_config: { effort: 'medium' },
+        messages: [{ role: 'user', content: `לפניך טיוטת הערכה לתעודה שכתב/ה המורה לתלמיד/ה. שפרי את הניסוח: חם, אישי, מקצועי וזורם, בעברית תקנית.
+שמרי בדיוק על לשון הפנייה (זכר/נקבה) של הטיוטה, ועל לשון המורה (מאחלת/מאחל וכו׳) כפי שהיא.
+אל תוסיפי עובדות שלא כתובות ואל תשמיטי עובדות. אורך דומה. שמרי את החתימה בסוף. החזירי רק את הטקסט.
+
+${text}` }],
+      })
+      if (msg.stop_reason === 'refusal') return json({ error: 'refusal' }, 422)
+      const out = msg.content.map(c => (c.type === 'text' ? c.text : '')).join('').trim()
+      return json({ text: out })
+    } catch (e) {
+      console.warn('polish failed', e instanceof Anthropic.APIError ? `${e.status} ${e.message}` : String(e))
+      return json({ error: 'error' }, 502)
+    }
+  }
+
+  if (op === 'start') {
+    const kind = b.kind === 'sheet' ? 'sheet' : 'lesson'
+    if (!String(b.topic || '').trim()) return json({ error: 'empty' }, 400)
+    const raw = JSON.stringify(b)
+    if (raw.length > 12_000) return json({ error: 'too-big' }, 413)
+    await st.set(dk, String(usedDay + 1)); await st.set(mk, String(usedMonth + 1))
+    const id = crypto.randomUUID()
+    await st.setJSON(`job/${id}`, { id, owner: user.id, kind, params: b, status: 'queued', at: Date.now() })
+    await fetch(new URL('/api/ai-run', req.url).toString(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) })
+    return json({ id })
+  }
+  return json({ error: 'unknown op' }, 400)
 }
 
 export const config: Config = { path: '/api/ai' }

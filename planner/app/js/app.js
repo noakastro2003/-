@@ -25,12 +25,12 @@ const SEAT_PRESETS = {
   none: ['ריק', () => []],
 };
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 100; // keep in step with CACHE in sw.js
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
+const APP_V = 101; // keep in step with CACHE in sw.js
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null, att: {}, seats: {}, evals: {},
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null, att: {}, seats: {}, evals: {}, crules: {},
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -3751,8 +3751,8 @@ document.addEventListener('click', async e => {
   if (D.seatdim) { const [k, d] = D.seatdim.split('|'); const S = seatsOf(); S[k] = Math.max(k === 'gw' ? 4 : 3, Math.min(k === 'gw' ? 16 : 14, S[k] + +d));
     const inside = key => { const [r, c] = key.split('-').map(Number); return r < S.gh && c < S.gw; };
     S.desks = S.desks.filter(inside); for (const key of Object.keys(S.map)) if (!inside(key)) delete S.map[key]; S.layout = 'custom'; save(); rerender(); return; }
-  if (D.seatmode) { state._seatEdit = D.seatmode === 'edit'; state._seatSel = null; rerender(); return; }
-  if (D.seatcell) { const S = seatsOf(), k = D.seatcell, i = S.desks.indexOf(k); if (i >= 0) { S.desks.splice(i, 1); delete S.map[k]; } else S.desks.push(k); S.layout = 'custom'; save(); rerender(); return; }
+  if (D.seatmode) { state._seatEdit = D.seatmode === 'edit'; state._seatSel = null; state._deskSel = null; rerender(); return; }
+  if (D.seatcell) { if (performance.now() - deskDrag.endAt < 350) return; deskTap(D.seatcell); return; }
   if (D.seatpreset) { const S = seatsOf(); withUndo(['seats'], `תבנית: ${SEAT_PRESETS[D.seatpreset][0]}`, () => { S.desks = SEAT_PRESETS[D.seatpreset][1](S.gw, S.gh); S.layout = D.seatpreset; const set = new Set(S.desks); for (const key of Object.keys(S.map)) if (!set.has(key)) delete S.map[key]; }); return; }
   if (D.seatfront) { const S = seatsOf(); const i = S.front.indexOf(D.seatfront); if (i >= 0) S.front.splice(i, 1); else S.front.push(D.seatfront); save(); rerender(); return; }
   if (D.seatapartdel != null) { seatsOf().apart.splice(+D.seatapartdel, 1); save(); rerender(); return; }
@@ -3938,6 +3938,8 @@ document.addEventListener('click', async e => {
     case 'evalall': evalAllSheet(); break;
     case 'evalcopyall': { const all = state.kids.map(k => { const E = (state.evals || {})[k.name] || {}; return E.text ? `${k.name}\n${E.text}` : ''; }).filter(Boolean).join('\n\n———\n\n'); if (!all) { toast('עוד אין הערכות – בוחרים ילד/ה ובן/בת'); break; } try { await navigator.clipboard.writeText(all); toast(`הועתקו ${all.split('———').length} הערכות ✓`, 2000); } catch { toast('לא הצלחתי להעתיק'); } break; }
     case 'meetall': meetPrint(state.kids.map(k => k.name)); break;
+    case 'deskdel': { const S = seatsOf(), k = state._deskSel; if (k) withUndo(['seats'], 'השולחן הוסר', () => { S.desks = S.desks.filter(x => x !== k); delete S.map[k]; S.layout = 'custom'; }); state._deskSel = null; rerender(); break; }
+    case 'deskunsel': state._deskSel = null; rerender(); break;
     case 'seatshuffle': { const S = seatsOf(); withUndo(['seats'], 'סידור חדש', () => { const r = seatShuffle(S); S.map = r.map; if (r.bad) setTimeout(() => toast(`לא הצלחתי להפריד בין כולם (${r.bad}) – אפשר לתקן ידנית`, 3500), 50); }); state._seatSel = null; if (cast.on && cast.last && cast.last.kind === 'seats') castSend('seats', seatsPlain(seatsOf())); break; }
     case 'seatwipe': { withUndo(['seats'], 'המקומות נוקו', () => { seatsOf().map = {}; }); state._seatSel = null; break; }
     case 'seatclear1': { const S = seatsOf(); if (state._seatSel && S.map[state._seatSel]) delete S.map[state._seatSel]; state._seatSel = null; save(); rerender(); break; }
@@ -4571,11 +4573,12 @@ function viewSeats() {
     h += `<div class="card setcard"><p class="pmlbl">מתחילים מתבנית ומתאימים לכיתה</p>
       <div class="fchips wrap">${Object.entries(SEAT_PRESETS).map(([k, [l]]) => `<button class="fc ${S.layout === k ? 'on' : ''}" data-seatpreset="${k}">${l}</button>`).join('')}</div>
       ${step('gw', S.gw, 4, 16, 'רוחב החדר (משבצות)')}${step('gh', S.gh, 3, 14, 'עומק החדר (משבצות)')}
-      <p class="hint">${S.desks.length} שולחנות · ${names.length} ילדים${S.desks.length < names.length ? ` – חסרים ${names.length - S.desks.length} שולחנות` : ''}</p></div>`;
+      <p class="hint">${S.desks.length} שולחנות · ${names.length} ילדים${S.desks.length < names.length ? ` – חסרים ${names.length - S.desks.length} שולחנות` : ''}</p>
+      <p class="hint">גוררים שולחן למקום אחר – או לוחצים עליו ואז על המקום החדש. לחיצה על משבצת ריקה מוסיפה שולחן.</p></div>`;
   }
   const cell = (r, c) => {
     const k = seatKey(r, c), isDesk = desks.has(k), n = S.map[k];
-    if (edit) return `<button class="seat ${isDesk ? 'desk' : 'cellx'} ${n ? 'full' : ''}" data-seatcell="${k}" aria-label="${isDesk ? 'הסרת שולחן' : 'הוספת שולחן'}">${isDesk ? (n ? `<b>${esc(n.split(' ')[0])}</b>` : '') : ''}</button>`;
+    if (edit) return `<button class="seat ${isDesk ? 'desk' : 'cellx'} ${n ? 'full' : ''} ${state._deskSel === k ? 'sel' : ''}" data-seatcell="${k}" aria-label="${isDesk ? 'שולחן – לחיצה כדי להזיז' : 'משבצת ריקה'}">${isDesk ? (n ? `<b>${esc(n.split(' ')[0])}</b>` : '') : ''}</button>`;
     if (!isDesk) return '<span class="seat gap"></span>';
     return `<button class="seat ${n ? 'full' : ''} ${sel === k ? 'sel' : ''}" data-seat="${k}" ${n ? `aria-label="${esc(n)}"` : ''}>${n ? `<b style="font-size:${Math.min(12.5, Math.max(7, 262 / S.gw / Math.max(3, n.split(" ")[0].length) / .66)).toFixed(1)}px">${esc(n.split(' ')[0])}</b>${n.split(' ')[1] && S.gw <= 8 ? `<small>${esc(n.split(' ').slice(1).join(' '))}</small>` : ''}${S.front.includes(n) ? '<i class="sfront"></i>' : ''}` : '<span class="plus">+</span>'}</button>`;
   };
@@ -4583,6 +4586,7 @@ function viewSeats() {
     <div class="seatwrap"><div class="seatgrid" style="--cols:${S.gw}">${Array.from({ length: S.gh }, (_, r) => Array.from({ length: S.gw }, (_, c) => cell(r, c)).join('')).join('')}</div></div>
     ${!edit && sel ? `<p class="hint seathint">${S.map[sel] ? `נבחר/ה: <b>${esc(S.map[sel])}</b> – לוחצים על שולחן אחר להחלפה, או ` : 'שולחן ריק – בוחרים ילד/ה מהרשימה למטה, או '}<button class="linkbtn" data-act="seatclear1">${S.map[sel] ? 'פינוי השולחן' : 'ביטול'}</button></p>` : ''}
     ${!edit && free.length ? `<div class="seatfree"><p class="pmlbl">עוד לא יושבים (${free.length})${sel && !S.map[sel] ? ' – לוחצים על שם כדי להושיב' : ''}</p><div class="fchips wrap">${free.map(n => `<button class="fc" data-seatkid="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>` : ''}
+    ${edit && state._deskSel ? `<div class="btnrow"><button class="cta soft" data-act="deskdel">${ic('trash')} הסרת השולחן${S.map[state._deskSel] ? ` (${esc(S.map[state._deskSel].split(' ')[0])} יחזור לרשימה)` : ''}</button><button class="cta soft" data-act="deskunsel">${ic('x')} ביטול</button></div>` : ''}
     ${edit ? `<button class="cta" data-seatmode="sit">${ic('check')} סיום עריכה</button>` : ''}
   </div>`;
   if (edit) return h;
@@ -4803,7 +4807,9 @@ function subSheet(dow) {
     ${last ? `<div class="sublast"><b>יש קישור פעיל</b> עד ${new Date(last.exp).toLocaleString('he-IL', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}
       <div class="btnrow"><button class="cta soft" data-subshare="${esc(last.token)}">${ic('link')} שליחה שוב</button><button class="cta soft" data-subend="${esc(last.token)}">${ic('x')} ביטול הקישור</button></div></div>` : ''}
     <p class="pmlbl">איזה יום?</p><div class="fchips">${w.days.filter(d => d.periods.length).map(d => `<button class="fc ${d.dow === day.dow ? 'on' : ''}" data-subday="${d.dow}">יום ${esc(d.name)}${d.date ? ' ' + esc(d.date) : ''}</button>`).join('')}</div>
-    <label class="field">דגשים למחליפה<textarea id="subNotes" rows="4" placeholder="למשל: יואב יושב ליד הדלת ויוצא לפרטני ב־10:00 · בהפסקה תורנות בחצר · המפתח של הארון במגירה העליונה">${esc(S.notes)}</textarea></label>
+    <label class="field">חוקי הכיתה <small class="dim">(נשמר לפעם הבאה)</small><textarea id="subRules" rows="4" placeholder="מצביעים ומחכים לתור&#10;מדברים בשקט ובכבוד&#10;יוצאים מהכיתה רק באישור">${esc(clsRules().rules)}</textarea></label>
+    <label class="field">שגרות בכיתה <small class="dim">(נשמר לפעם הבאה)</small><textarea id="subRoutines" rows="4" placeholder="בכניסה: מוציאים מחברת ועט ומתחילים במשימת הפתיחה שעל הלוח&#10;סימן שקט: יד מורמת + ספירה לאחור מ־5&#10;להפסקה יוצאים בטור, אחרי סידור השולחן">${esc(clsRules().routines)}</textarea></label>
+    <label class="field">דגשים למחליפה <small class="dim">(רק להיום)</small><textarea id="subNotes" rows="4" placeholder="למשל: יואב יושב ליד הדלת ויוצא לפרטני ב־10:00 · בהפסקה תורנות בחצר · המפתח של הארון במגירה העליונה">${esc(S.notes)}</textarea></label>
     ${tg('kids', 'רשימת שמות הילדים', 'שמות בלבד – לנוכחות')}
     ${hasSeats ? tg('seats', 'מקומות הישיבה') : ''}
     <div class="setrow"><span>הקישור פעיל</span><div class="seg">${[['day', 'היום'], ['24', '24 שעות'], ['week', 'עד סוף השבוע']].map(([v, l]) => `<button class="${S.hours === v ? 'on' : ''}" data-subhours="${v}">${l}</button>`).join('')}</div></div>
@@ -4817,7 +4823,7 @@ async function subCreate() {
   const end = new Date(now()); end.setHours(19, 0, 0, 0);
   const hours = S.hours === '24' ? 24 : S.hours === 'week' ? Math.max(2, (addDays(new Date(now().toDateString()), 7 - now().getDay()) - now()) / 3600e3) : Math.max(2, (end - now()) / 3600e3);
   const data = {
-    teacher: state.name || '', cls: (curCls() || {}).name || state.prefs.cls || '', day: `יום ${day.name}${day.date ? ' ' + day.date : ''}`, notes: S.notes,
+    teacher: state.name || '', cls: (curCls() || {}).name || state.prefs.cls || '', day: `יום ${day.name}${day.date ? ' ' + day.date : ''}`, notes: S.notes, rules: toLines(clsRules().rules), routines: toLines(clsRules().routines),
     periods: day.periods.map(p => ({ start: p.start, end: p.end, title: p.title, subtitle: (p.subtitle || '').split('·').slice(1).join('·').trim(), sections: p.sections.map(x => ({ label: x.label, text: x.text })), materials: p.materials.map(m => m.text), links: p.links.filter(l => l.url).map(l => ({ text: l.text, url: l.url })) })),
     kids: S.kids ? state.kids.map(k => k.name) : null,
     seats: S.seats ? seatsPlain(seatsOf()) : null,
@@ -4836,7 +4842,13 @@ async function subShare(t) {
   if (navigator.share) { try { await navigator.share({ title: 'למורה המחליפה', text, url }); return; } catch (e) { if (e.name === 'AbortError') return; } }
   try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('הקישור הועתק – מדביקים בווטסאפ ✓', 2500); } catch { prompt('הקישור:', url); }
 }
-document.addEventListener('input', e => { if (e.target.id === 'subNotes' && state._sub) state._sub.notes = e.target.value; });
+document.addEventListener('input', e => {
+  if (e.target.id === 'subNotes' && state._sub) state._sub.notes = e.target.value;
+  if (e.target.id === 'subRules' || e.target.id === 'subRoutines') { const R = clsRules(); R[e.target.id === 'subRules' ? 'rules' : 'routines'] = e.target.value; clearTimeout(rulesT); rulesT = setTimeout(save, 600); }
+});
+let rulesT = 0;
+// class rules and routines, kept per class (the substitute page shows them)
+function clsRules() { state.crules = state.crules || {}; const id = state.curClass || 'main'; return state.crules[id] || (state.crules[id] = { rules: '', routines: '' }); }
 
 // ================================================================ AI: a lesson or a three-level worksheet, thought through (Claude, high effort, in the background)
 async function aiFetch(op, body, q = '') {
@@ -4935,3 +4947,51 @@ function aiPrint(o) {
     ${o.printables.map(x => `<div class="pw-pg aisheet"><header><h1>${esc(x.title)}</h1></header><pre class="ai-print">${esc(x.content)}</pre></div>`).join('')}`;
   document.body.classList.add('printing'); setTimeout(() => window.print(), 60);
 }
+
+// moving a desk (with whoever sits on it) to another square – by dragging, or tap the desk and then the new square
+function deskMove(from, to) {
+  const S = seatsOf(); if (from === to || !S.desks.includes(from)) return false;
+  const swap = S.desks.includes(to), a = S.map[from], b = S.map[to];
+  if (!swap) S.desks = S.desks.map(x => (x === from ? to : x));
+  if (a) S.map[to] = a; else delete S.map[to];
+  if (swap) { if (b) S.map[from] = b; else delete S.map[from]; } else delete S.map[from];
+  S.layout = 'custom'; save(); return true;
+}
+function deskTap(k) {
+  const S = seatsOf(), sel = state._deskSel, isDesk = S.desks.includes(k);
+  if (sel) { if (sel !== k) deskMove(sel, k); state._deskSel = null; rerender(); return; }
+  if (isDesk) { state._deskSel = k; rerender(); return; }
+  S.desks.push(k); S.layout = 'custom'; save(); rerender();
+}
+const deskDrag = { el: null, from: null, ghost: null, x0: 0, y0: 0, on: false, endAt: 0 };
+function dragStart(el, x, y) { Object.assign(deskDrag, { el, from: el.dataset.seatcell, x0: x, y0: y, on: false, ghost: null }); }
+function dragMove(x, y) {
+  const d = deskDrag; if (!d.el) return false;
+  if (!d.on) {
+    if (Math.hypot(x - d.x0, y - d.y0) < 8) return false;
+    d.on = true; d.ghost = d.el.cloneNode(true); d.ghost.classList.add('deskghost');
+    const r = d.el.getBoundingClientRect(); d.ghost.style.width = r.width + 'px'; d.ghost.style.height = r.height + 'px';
+    document.body.appendChild(d.ghost); d.el.classList.add('dragfrom');
+  }
+  d.ghost.style.transform = `translate(${x - d.ghost.offsetWidth / 2}px, ${y - d.ghost.offsetHeight / 2}px) scale(1.12)`;
+  document.querySelectorAll('.seat.dropto').forEach(z => z.classList.remove('dropto'));
+  const c = (document.elementFromPoint(x, y) || {}).closest?.('[data-seatcell]'); if (c && c !== d.el) c.classList.add('dropto');
+  return true;
+}
+function dragEnd(x, y) {
+  const d = deskDrag; if (!d.el) return; const was = d.on, from = d.from;
+  if (d.ghost) d.ghost.remove(); d.el.classList.remove('dragfrom'); document.querySelectorAll('.seat.dropto').forEach(z => z.classList.remove('dropto'));
+  d.el = null; if (!was) return;
+  d.endAt = performance.now();
+  const c = x == null ? null : (document.elementFromPoint(x, y) || {}).closest?.('[data-seatcell]');
+  if (c && deskMove(from, c.dataset.seatcell)) { state._deskSel = null; rerender(); }
+}
+// fingers: touch events (the page must not scroll while a desk is being carried)
+document.addEventListener('touchstart', e => { const el = e.target.closest('.editing .seat.desk[data-seatcell]'); if (el && e.touches.length === 1) dragStart(el, e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+document.addEventListener('touchmove', e => { if (!deskDrag.el) return; if (e.cancelable) e.preventDefault(); dragMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+document.addEventListener('touchend', e => { if (deskDrag.el) { const t = e.changedTouches[0]; dragEnd(t ? t.clientX : null, t ? t.clientY : null); } });
+document.addEventListener('touchcancel', () => dragEnd(null, null));
+// a mouse on a computer
+document.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; const el = e.target.closest('.editing .seat.desk[data-seatcell]'); if (el) dragStart(el, e.clientX, e.clientY); });
+document.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' && dragMove(e.clientX, e.clientY)) e.preventDefault(); });
+document.addEventListener('pointerup', e => { if (e.pointerType === 'mouse') dragEnd(e.clientX, e.clientY); });

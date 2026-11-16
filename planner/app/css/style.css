@@ -2034,3 +2034,9 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 
 .seat.sel { transform: scale(1.08); z-index: 1; }
 .seat b { white-space: nowrap !important; overflow-wrap: normal !important; overflow: hidden; max-width: 100%; letter-spacing: -.2px; }
+/* v101 · moving desks */
+.editing .seat.desk { touch-action: none; cursor: grab; }
+.editing .seat.sel { background: #5B4190 !important; color: #fff; }
+.editing .seat.dropto { box-shadow: 0 0 0 2.5px #5B4190 !important; background: color-mix(in srgb, #5B4190 22%, var(--card)) !important; }
+.editing .seat.dragfrom { opacity: .3; }
+.deskghost { position: fixed; top: 0; left: 0; z-index: 90; pointer-events: none; margin: 0; background: #5B4190 !important; color: #fff; border-radius: 10px; box-shadow: 0 14px 24px -10px rgba(74, 53, 102, .6) !important; display: grid; place-items: center; }

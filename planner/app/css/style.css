@@ -2062,3 +2062,20 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 .ssay { display: flex; gap: 8px; align-items: flex-end; margin-top: 6px; }
 .ssay textarea { flex: 1; }
 .ssay .cta { width: auto; flex: none; padding-inline: 18px; margin: 0; }
+
+/* v103 — the board can sit on any side of the room */
+.sroom { display: flex; flex-direction: column; gap: 14px; }
+.sroom .board { margin: 0 auto; }
+.sroom.b-bottom { flex-direction: column-reverse; }
+.sroom.b-right, .sroom.b-left { flex-direction: row; align-items: stretch; gap: 6px; }
+.sroom.b-left { flex-direction: row-reverse; }
+.sroom.b-right .board, .sroom.b-left .board { width: 22px; font-size: 12px; flex: none; margin: 0; padding: 12px 0; writing-mode: vertical-rl; display: flex; align-items: center; justify-content: center; }
+.sroom.b-right .seatwrap, .sroom.b-left .seatwrap { flex: 1; min-width: 0; }
+.boardside button { font-size: var(--fs-sm); }
+.boardhint { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.boardside.mini { display: inline-flex; }
+.boardside.mini button { padding: 4px 10px; min-height: 32px; }
+#printroot .sroom { gap: 10pt; }
+#printroot .sroom .pboard { margin: 0 auto; }
+#printroot .sroom.b-right .pboard, #printroot .sroom.b-left .pboard { width: 22pt; margin: 0; writing-mode: vertical-rl; display: flex; align-items: center; justify-content: center; }
+#printroot .sroom.b-right .pgrid, #printroot .sroom.b-left .pgrid { flex: 1; }

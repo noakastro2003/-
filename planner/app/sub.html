@@ -74,7 +74,11 @@ textarea:focus, input:focus, select:focus { outline: 2px solid var(--plum); outl
 .legend { font-size: 13px; color: var(--soft); margin: 0 0 10px; }
 .count { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; font-size: 14px; }
 .count span { background: var(--well); border-radius: 99px; padding: 3px 12px; }
-.board { margin: 0 auto 12px; width: 60%; text-align: center; padding: 6px; border-radius: 99px; background: var(--plum); color: var(--card); font-size: 13px; }
+.sroom { display: flex; flex-direction: column; gap: 12px; } .sroom.b-bottom { flex-direction: column-reverse; }
+.sroom.b-right, .sroom.b-left { flex-direction: row; gap: 8px; } .sroom.b-left { flex-direction: row-reverse; }
+.sroom.b-right .board, .sroom.b-left .board { width: 26px !important; margin: 0 !important; writing-mode: vertical-rl; display: flex; align-items: center; justify-content: center; }
+.sroom.b-right .seats, .sroom.b-left .seats { flex: 1; min-width: 0; }
+.board { margin: 0 auto; width: 60%; text-align: center; padding: 6px; border-radius: 99px; background: var(--plum); color: var(--card); font-size: 13px; }
 .seats { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 8px 4px; }
 .seat { min-height: 40px; display: grid; place-items: center; border-radius: 12px; background: var(--card); box-shadow: var(--clay); font-size: 12px; text-align: center; padding: 3px; overflow-wrap: anywhere; line-height: 1.2; }
 .seat.e { background: transparent; box-shadow: var(--press); }
@@ -199,7 +203,7 @@ function vCls() {
       <div class="count"><span>${D.kids.length - a} בכיתה</span>${a ? `<span>${a} חסרים</span>` : ''}${l ? `<span>${l} איחרו</span>` : ''}</div></div>`;
   }
   if (D.seats) { const S = D.seats, set = new Set(S.desks || []), c = []; for (let r = 0; r < S.gh; r++) for (let k = 0; k < S.gw; k++) { const key = r + '-' + k, n = (S.map || {})[key]; c.push(set.has(key) ? `<div class="seat ${n ? '' : 'e'} ${n && R.absent.includes(n) ? 'absent' : ''}">${esc(n || '')}</div>` : '<div class="seat g"></div>'); }
-    h += `<div class="card"><h2>מקומות ישיבה</h2><div class="board">הלוח</div><div class="seats" style="--cols:${S.gw}">${c.join('')}</div></div>`; }
+    h += `<div class="card"><h2>מקומות ישיבה</h2><div class="sroom b-${S.board || 'top'}"><div class="board">הלוח</div><div class="seats" style="--cols:${S.gw}">${c.join('')}</div></div></div>`; }
   return h || `<div class="card"><p class="empty">${TW('המחנכת לא שיתפה', 'המחנך לא שיתף')} את רשימת הילדים בקישור הזה. אפשר לרשום מי חסר בלשונית "דיווח".</p></div>`;
 }
 function vRules() {

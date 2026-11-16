@@ -24,8 +24,10 @@ const SEAT_PRESETS = {
   groups: ['קבוצות', (W, H) => { const d = []; for (let r = 1; r + 1 < H; r += 3) for (let c = 0; c + 1 < W; c += 3) d.push(seatKey(r, c), seatKey(r, c + 1), seatKey(r + 1, c), seatKey(r + 1, c + 1)); return d; }],
   none: ['ריק', () => []],
 };
+const BOARD_SIDES = [['top', 'למעלה'], ['bottom', 'למטה'], ['right', 'מימין'], ['left', 'משמאל']];
+const boardWrap = (S, board, grid, cls = 'sroom') => `<div class="${cls} b-${S.board || 'top'}">${board}${grid}</div>`;
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 102; // keep in step with CACHE in sw.js
+const APP_V = 103; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -3757,6 +3759,7 @@ document.addEventListener('click', async e => {
     S.desks = S.desks.filter(inside); for (const key of Object.keys(S.map)) if (!inside(key)) delete S.map[key]; S.layout = 'custom'; save(); rerender(); return; }
   if (D.seatmode) { state._seatEdit = D.seatmode === 'edit'; state._seatSel = null; state._deskSel = null; rerender(); return; }
   if (D.seatcell) { if (performance.now() - deskDrag.endAt < 350) return; deskTap(D.seatcell); return; }
+  if (D.seatboard) { const S = seatsOf(); S.board = D.seatboard; save(); rerender(); if (cast.on && cast.last && cast.last.kind === 'seats') castSend('seats', seatsPlain(S)); return; }
   if (D.seatpreset) { const S = seatsOf(); withUndo(['seats'], `תבנית: ${SEAT_PRESETS[D.seatpreset][0]}`, () => { S.desks = SEAT_PRESETS[D.seatpreset][1](S.gw, S.gh); S.layout = D.seatpreset; const set = new Set(S.desks); for (const key of Object.keys(S.map)) if (!set.has(key)) delete S.map[key]; }); return; }
   if (D.seatfront) { const S = seatsOf(); const i = S.front.indexOf(D.seatfront); if (i >= 0) S.front.splice(i, 1); else S.front.push(D.seatfront); save(); rerender(); return; }
   if (D.seatapartdel != null) { seatsOf().apart.splice(+D.seatapartdel, 1); save(); rerender(); return; }
@@ -4548,7 +4551,11 @@ function seatsOf() {
   return S;
 }
 const seatNear = (a, b) => { const [r1, c1] = a.split('-').map(Number), [r2, c2] = b.split('-').map(Number); return Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1; };
-function seatOrder(S) { return S.desks.slice().sort((a, b) => { const [r1, c1] = a.split('-').map(Number), [r2, c2] = b.split('-').map(Number); return r1 - r2 || c1 - c2; }); }
+// nearest the board first (column 0 is on the right, the grid runs right-to-left)
+function seatOrder(S) {
+  const B = S.board || 'top', d = k => { const [r, c] = k.split('-').map(Number); return B === 'bottom' ? [S.gh - 1 - r, c] : B === 'right' ? [c, r] : B === 'left' ? [S.gw - 1 - c, r] : [r, c]; };
+  return S.desks.slice().sort((a, b) => { const [x1, y1] = d(a), [x2, y2] = d(b); return x1 - x2 || y1 - y2; });
+}
 function seatShuffle(S) {
   const names = state.kids.map(k => k.name), seats = seatOrder(S);
   const front = S.front.filter(n => names.includes(n)), rest = names.filter(n => !front.includes(n));
@@ -4577,6 +4584,7 @@ function viewSeats() {
     const step = (k, v, min, max, l) => `<div class="setrow"><span>${l}</span><span class="stepper"><button data-seatdim="${k}|-1" ${v <= min ? 'disabled' : ''} aria-label="פחות">${MINUS}</button><b>${v}</b><button data-seatdim="${k}|1" ${v >= max ? 'disabled' : ''} aria-label="עוד">${ic('plus')}</button></span></div>`;
     h += `<div class="card setcard"><p class="pmlbl">מתחילים מתבנית ומתאימים לכיתה</p>
       <div class="fchips wrap">${Object.entries(SEAT_PRESETS).map(([k, [l]]) => `<button class="fc ${S.layout === k ? 'on' : ''}" data-seatpreset="${k}">${l}</button>`).join('')}</div>
+      <p class="pmlbl">איפה הלוח?</p><div class="seg boardside">${BOARD_SIDES.map(([k, l]) => `<button class="${(S.board || 'top') === k ? 'on' : ''}" data-seatboard="${k}">${l}</button>`).join('')}</div>
       ${step('gw', S.gw, 4, 16, 'רוחב החדר (משבצות)')}${step('gh', S.gh, 3, 14, 'עומק החדר (משבצות)')}
       <p class="hint">${S.desks.length} שולחנות · ${names.length} ילדים${S.desks.length < names.length ? ` – חסרים ${names.length - S.desks.length} שולחנות` : ''}</p>
       <p class="hint">גוררים שולחן למקום אחר – או לוחצים עליו ואז על המקום החדש. לחיצה על משבצת ריקה מוסיפה שולחן.</p></div>`;
@@ -4587,8 +4595,8 @@ function viewSeats() {
     if (!isDesk) return '<span class="seat gap"></span>';
     return `<button class="seat ${n ? 'full' : ''} ${sel === k ? 'sel' : ''}" data-seat="${k}" ${n ? `aria-label="${esc(n)}"` : ''}>${n ? `<b style="font-size:${Math.min(12.5, Math.max(7, 262 / S.gw / Math.max(3, n.split(" ")[0].length) / .66)).toFixed(1)}px">${esc(n.split(' ')[0])}</b>${n.split(' ')[1] && S.gw <= 8 ? `<small>${esc(n.split(' ').slice(1).join(' '))}</small>` : ''}${S.front.includes(n) ? '<i class="sfront"></i>' : ''}` : '<span class="plus">+</span>'}</button>`;
   };
-  h += `<div class="card seatroom ${edit ? 'editing' : ''}"><div class="board">הלוח</div>
-    <div class="seatwrap"><div class="seatgrid" style="--cols:${S.gw}">${Array.from({ length: S.gh }, (_, r) => Array.from({ length: S.gw }, (_, c) => cell(r, c)).join('')).join('')}</div></div>
+  h += `<div class="card seatroom ${edit ? 'editing' : ''}">${boardWrap(S, `<div class="board">הלוח</div>`, `<div class="seatwrap"><div class="seatgrid" style="--cols:${S.gw}">${Array.from({ length: S.gh }, (_, r) => Array.from({ length: S.gw }, (_, c) => cell(r, c)).join('')).join('')}</div></div>`)}
+    ${!edit ? `<p class="hint boardhint">הלוח בצד אחר? <span class="seg boardside mini">${BOARD_SIDES.map(([k, l]) => `<button class="${(S.board || 'top') === k ? 'on' : ''}" data-seatboard="${k}">${l}</button>`).join('')}</span></p>` : ''}
     ${!edit && sel ? `<p class="hint seathint">${S.map[sel] ? `נבחר/ה: <b>${esc(S.map[sel])}</b> – לוחצים על שולחן אחר להחלפה, או ` : 'שולחן ריק – בוחרים ילד/ה מהרשימה למטה, או '}<button class="linkbtn" data-act="seatclear1">${S.map[sel] ? 'פינוי השולחן' : 'ביטול'}</button></p>` : ''}
     ${!edit && free.length ? `<div class="seatfree"><p class="pmlbl">עוד לא יושבים (${free.length})${sel && !S.map[sel] ? ' – לוחצים על שם כדי להושיב' : ''}</p><div class="fchips wrap">${free.map(n => `<button class="fc" data-seatkid="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>` : ''}
     ${edit && state._deskSel ? `<div class="btnrow"><button class="cta soft" data-act="deskdel">${ic('trash')} הסרת השולחן${S.map[state._deskSel] ? ` (${esc(S.map[state._deskSel].split(' ')[0])} יחזור לרשימה)` : ''}</button><button class="cta soft" data-act="deskunsel">${ic('x')} ביטול</button></div>` : ''}
@@ -4608,11 +4616,11 @@ function viewSeats() {
   return h;
 }
 // the same room for print, the classroom screen and the substitute page
-const seatsPlain = S => ({ gw: S.gw, gh: S.gh, desks: S.desks, map: S.map });
+const seatsPlain = S => ({ gw: S.gw, gh: S.gh, desks: S.desks, map: S.map, board: S.board || 'top' });
 function seatsHtmlFor(S) {
   const desks = new Set(S.desks); let cells = '';
   for (let r = 0; r < S.gh; r++) for (let c = 0; c < S.gw; c++) { const k = seatKey(r, c), n = S.map[k]; cells += desks.has(k) ? `<div class="ps ${n ? '' : 'e'}">${n ? esc(n) : ''}</div>` : '<div class="ps g"></div>'; }
-  return `<div class="pseats" style="--cols:${S.gw}"><div class="pboard">הלוח</div><div class="pgrid">${cells}</div></div>`;
+  return `<div class="pseats" style="--cols:${S.gw}">${boardWrap(S, '<div class="pboard">הלוח</div>', `<div class="pgrid">${cells}</div>`)}</div>`;
 }
 function seatPrint() {
   const S = seatsOf(), c = curCls();

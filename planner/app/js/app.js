@@ -25,7 +25,7 @@ const SEAT_PRESETS = {
   none: ['ריק', () => []],
 };
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 101; // keep in step with CACHE in sw.js
+const APP_V = 102; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -412,6 +412,8 @@ function viewNow(w) {
       : `<div class="card">${cardHead('calendar', 'ובהמשך היום')}${rest.map(p => miniRow(w, day, p)).join('')}</div>`;
   }
   h += todayList(busy) + (busy ? '' : planNotes(w));
+  const sc = subInboxCard(); // the substitute's update goes right under the header
+  if (sc) { const i = h.indexOf('</header>'); h = i >= 0 ? h.slice(0, i + 9) + sc + h.slice(i + 9) : sc + h; }
   return h;
 }
 
@@ -3731,7 +3733,9 @@ document.addEventListener('click', async e => {
   if (D.subtog) { state._sub[D.subtog] = !state._sub[D.subtog]; subSheet(); return; }
   if (D.subhours) { state._sub.hours = D.subhours; subSheet(); return; }
   if (D.subshare) { subShare(D.subshare); return; }
-  if (D.subend) { fetch('/api/sub?op=end', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: D.subend }) }).catch(() => {}); state.prefs.subLast = null; save(); toast('הקישור בוטל ✓'); subSheet(); return; }
+  if (D.subend) { fetch('/api/sub?op=end', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: D.subend }) }).catch(() => {}); if (state.prefs.subLast && state.prefs.subLast.token === D.subend) state.prefs.subLast = null; state.prefs.subLinks = subLinks().filter(l => l.token !== D.subend); save(); toast('הקישור בוטל ✓'); subSheet(); return; }
+  if (D.subin) { subInbox(D.subin); return; }
+  if (D.subimport) { subImport(D.subimport); return; }
   if (D.insoff) { state.prefs.insOff = state.prefs.insOff || {}; state.prefs.insOff[D.insoff] = Date.now(); save(); rerender(); return; }
   if (D.evalai) { const n = D.evalai, t0 = $('#evalText'); if (!t0 || !t0.value.trim()) return; if (!sync.user) { toast(AI_ERR.login, 3000); return; }
     t.disabled = true; t.innerHTML = `${ic('sparkle')} משפרת…`;
@@ -3934,6 +3938,7 @@ document.addEventListener('click', async e => {
     case 'aiprint': aiPrint(ai.out); break;
     case 'aibank': { const o = ai.out; state.bank.push({ id: uid(), at: Date.now(), p: { label: '', start: '', end: '', title: o.title, subtitle: o.goals.join(' · '), sections: [...o.sections.map(x => ({ label: `${x.label} (${x.minutes} דק׳)`, text: [x.teacherSays && `המורה: ${x.teacherSays}`, x.studentsDo && `הילדים: ${x.studentsDo}`, ...x.steps].filter(Boolean).join(' · ') })), ...(o.questions.length ? [{ label: 'שאלות', text: o.questions.map(x => `${x.q} (${x.answer})`).join(' · ') }] : []), ...(o.support || o.challenge ? [{ label: 'התאמות', text: [o.support && 'למתקשים: ' + o.support, o.challenge && 'למתקדמים: ' + o.challenge].filter(Boolean).join(' · ') }] : []), ...(o.exitTicket ? [{ label: 'כרטיס יציאה', text: o.exitTicket }] : [])], materials: o.materials.map(text => ({ text })), homework: o.homework ? [o.homework] : [], links: [], badges: ['נבנה עם AI'], from: 'AI' } }); save(); toast('נשמר במאגר השיעורים ⭐'); break; }
     case 'subcreate': subCreate(); break;
+    case 'subtsay': subTeacherSay(); break;
     case 'ics': icsExport(); break;
     case 'evalall': evalAllSheet(); break;
     case 'evalcopyall': { const all = state.kids.map(k => { const E = (state.evals || {})[k.name] || {}; return E.text ? `${k.name}\n${E.text}` : ''; }).filter(Boolean).join('\n\n———\n\n'); if (!all) { toast('עוד אין הערכות – בוחרים ילד/ה ובן/בת'); break; } try { await navigator.clipboard.writeText(all); toast(`הועתקו ${all.split('———').length} הערכות ✓`, 2000); } catch { toast('לא הצלחתי להעתיק'); } break; }
@@ -4798,14 +4803,14 @@ function subSheet(dow) {
   const S = state._sub = state._sub || { kids: false, seats: false, notes: '', hours: 'day' };
   S.dow = dow ?? S.dow;
   const day = w.days.find(d => d.dow === +S.dow) || w.days[0];
-  const last = state.prefs.subLast && state.prefs.subLast.exp > Date.now() ? state.prefs.subLast : null;
   const hasSeats = Object.keys(seatsOf().map).length > 0;
   const tg = (k, l, sm) => `<div class="setrow"><span>${l}${sm ? `<small class="dim">${sm}</small>` : ''}</span><button class="switch ${S[k] ? 'on' : ''}" data-subtog="${k}" role="switch" aria-checked="${!!S[k]}"><i></i></button></div>`;
   openOverlay(`<div class="ov sheet subsheet"><button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
     <div class="ovh">${ic('users')}<h2>קישור למורה מחליפה</h2></div>
-    <p class="dim">דף פשוט שנפתח בכל טלפון, בלי אפליקציה ובלי התחברות: מערכת היום, מה מלמדים, הקבצים והדגשים שלך. בלי ציונים, בלי היומן ובלי פרטי הורים.</p>
-    ${last ? `<div class="sublast"><b>יש קישור פעיל</b> עד ${new Date(last.exp).toLocaleString('he-IL', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}
-      <div class="btnrow"><button class="cta soft" data-subshare="${esc(last.token)}">${ic('link')} שליחה שוב</button><button class="cta soft" data-subend="${esc(last.token)}">${ic('x')} ביטול הקישור</button></div></div>` : ''}
+    <p class="dim">אפליקציה קטנה שנפתחת בכל טלפון בלי התחברות, ואפשר להוסיף אותה למסך הבית: מערכת היום, מה מלמדים, חוקים ושגרות, נוכחות ומקומות ישיבה. ${g('המחליפה מדווחת לך', 'המחליף/ה מדווח/ת לך')} איך היה בכל שיעור, מי חסר והערות על ילדים, ואפשר להתכתב. בלי ציונים, בלי היומן ובלי פרטי הורים.</p>
+    ${subLinks().filter(l => l.exp > Date.now()).map(l => { const it = subItem(l.token), u = it ? subUnread(it) : 0; return `<div class="sublast"><b>קישור פעיל · ${esc(l.day || '')}</b> עד ${new Date(l.exp).toLocaleString('he-IL', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}
+      <button class="cta" data-subin="${esc(l.token)}">${ic('bell')} עדכונים והודעות${u ? ` <span class="cnt">${u}</span>` : ''}</button>
+      <div class="btnrow"><button class="cta soft" data-subshare="${esc(l.token)}">${ic('link')} שליחה שוב</button><button class="cta soft" data-subend="${esc(l.token)}">${ic('x')} ביטול הקישור</button></div></div>`; }).join('')}
     <p class="pmlbl">איזה יום?</p><div class="fchips">${w.days.filter(d => d.periods.length).map(d => `<button class="fc ${d.dow === day.dow ? 'on' : ''}" data-subday="${d.dow}">יום ${esc(d.name)}${d.date ? ' ' + esc(d.date) : ''}</button>`).join('')}</div>
     <label class="field">חוקי הכיתה <small class="dim">(נשמר לפעם הבאה)</small><textarea id="subRules" rows="4" placeholder="מצביעים ומחכים לתור&#10;מדברים בשקט ובכבוד&#10;יוצאים מהכיתה רק באישור">${esc(clsRules().rules)}</textarea></label>
     <label class="field">שגרות בכיתה <small class="dim">(נשמר לפעם הבאה)</small><textarea id="subRoutines" rows="4" placeholder="בכניסה: מוציאים מחברת ועט ומתחילים במשימת הפתיחה שעל הלוח&#10;סימן שקט: יד מורמת + ספירה לאחור מ־5&#10;להפסקה יוצאים בטור, אחרי סידור השולחן">${esc(clsRules().routines)}</textarea></label>
@@ -4827,12 +4832,15 @@ async function subCreate() {
     periods: day.periods.map(p => ({ start: p.start, end: p.end, title: p.title, subtitle: (p.subtitle || '').split('·').slice(1).join('·').trim(), sections: p.sections.map(x => ({ label: x.label, text: x.text })), materials: p.materials.map(m => m.text), links: p.links.filter(l => l.url).map(l => ({ text: l.text, url: l.url })) })),
     kids: S.kids ? state.kids.map(k => k.name) : null,
     seats: S.seats ? seatsPlain(seatsOf()) : null,
+    male: !!state.prefs.male,
   };
   try {
     try { await ID.refreshSession(); } catch { /* fine */ }
     const r = await fetch('/api/sub?op=create', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ data, hours }) });
     const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
-    state.prefs.subLast = { token: j.token, exp: j.exp }; save();
+    state.prefs.subLast = { token: j.token, exp: j.exp };
+    state.prefs.subLinks = [{ token: j.token, exp: j.exp, wid: w.id, dow: day.dow, day: data.day, cls: state.curClass || '', pids: day.periods.map(p => `${day.dow}:${p.label}`), titles: day.periods.map(p => p.title) }, ...subLinks()].slice(0, 8);
+    save();
     await subShare(j.token);
     subSheet();
   } catch (e) { toast(`לא הצלחתי ליצור קישור – ${g('בדקי', 'בדוק')} חיבור לאינטרנט 😕`, 3500); }
@@ -4849,6 +4857,119 @@ document.addEventListener('input', e => {
 let rulesT = 0;
 // class rules and routines, kept per class (the substitute page shows them)
 function clsRules() { state.crules = state.crules || {}; const id = state.curClass || 'main'; return state.crules[id] || (state.crules[id] = { rules: '', routines: '' }); }
+
+// ---- what the substitute sent back: day report + chat (polled while a link is live, and 3 days after)
+function subLinks() {
+  const P = state.prefs; P.subLinks = (P.subLinks || []).filter(l => l.exp + 3 * 86400e3 > Date.now());
+  if (P.subLast && P.subLast.exp > Date.now() && !P.subLinks.some(l => l.token === P.subLast.token)) P.subLinks.unshift({ token: P.subLast.token, exp: P.subLast.exp });
+  return P.subLinks;
+}
+const subItem = t => ((state._subIn || {}).items || []).find(x => x.token === t);
+function subUnread(it) {
+  const seen = (state.prefs.subSeen || {})[it.token] || 0;
+  return it.msgs.filter(m => m.from === 's' && m.at > seen).length + (it.report && it.report.at > seen ? 1 : 0);
+}
+let subPollBusy = false;
+async function subPoll(force) {
+  if (!sync.user || subPollBusy || (!force && document.hidden) || !subLinks().length) return;
+  subPollBusy = true;
+  try {
+    const r = await fetch('/api/sub?op=mine', { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const j = await r.json(), before = JSON.stringify((state._subIn || {}).items || []);
+    state._subIn = { items: j.items || [], at: Date.now() };
+    if (JSON.stringify(state._subIn.items) === before) return;
+    const open = $('#overlay.show .subinbox');
+    if (open) subInboxDraw(open.dataset.tok, true);
+    else if (!$('#overlay.show') && state.tab === 'now') rerender();
+  } catch { /* offline */ } finally { subPollBusy = false; }
+}
+setInterval(() => subPoll(), 45000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) subPoll(); });
+setTimeout(() => subPoll(true), 4000);
+{ const q = new URLSearchParams(location.search).get('subinbox'); if (q && /^[a-z0-9]{16,40}$/.test(q)) setTimeout(async () => { await subPoll(true); subInbox(q); }, 1200); }
+
+const SUB_S = { done: ['done', 'הספקנו'], part: ['part', 'חלקית'], skip: ['skip', 'לא הגיעו'] };
+function subInboxCard() {
+  const list = ((state._subIn || {}).items || []).filter(it => subUnread(it) || (it.report && (state.prefs.subImported || {})[it.token] !== it.report.at));
+  return list.map(it => {
+    const r = it.report, last = it.msgs.filter(m => m.from === 's').slice(-1)[0], who = (r && r.name) || g('המחליפה', 'המחליף/ה');
+    const bits = r ? [Object.keys(r.lessons).length ? `${Object.keys(r.lessons).length} שיעורים עודכנו` : '', r.absent.length ? `${r.absent.length} חסרים` : '', r.notes.length ? `${r.notes.length} הערות` : ''].filter(Boolean).join(' · ') : '';
+    return `<button class="card subcard" data-subin="${esc(it.token)}">${illImg('class', 'sm')}<span class="grow"><b>${r ? 'עדכון מהכיתה' : 'הודעה חדשה'} · ${esc(who)}</b><small>${esc(bits || (last ? last.text.slice(0, 80) : it.day))}</small></span>${subUnread(it) ? `<span class="cnt">${subUnread(it)}</span>` : ''}${ic('chevL', 'chev')}</button>`;
+  }).join('');
+}
+function subInbox(t) {
+  const link = subLinks().find(l => l.token === t);
+  if (!link && !subItem(t)) { toast('הקישור כבר לא פעיל'); return; }
+  subInboxDraw(t);
+  subPoll(true);
+}
+function subInboxDraw(t, refresh) {
+  const it = subItem(t) || { token: t, msgs: [], report: null, periods: [] }, link = subLinks().find(l => l.token === t) || {};
+  state.prefs.subSeen = state.prefs.subSeen || {}; state.prefs.subSeen[t] = Date.now(); save();
+  const r = it.report, titles = link.titles || (it.periods || []).map(p => p.title), who = (r && r.name) || g('המחליפה', 'המחליף/ה');
+  const fmt = at => new Date(at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  const imported = r && (state.prefs.subImported || {})[t] === r.at;
+  const chat = `${it.msgs.length ? it.msgs.map(m => `<div class="sbub ${m.from}">${esc(m.text)}<small>${m.from === 's' ? esc(who) + ' · ' : ''}${fmt(m.at)}</small></div>`).join('') : `<p class="dim">עוד אין הודעות. אפשר לכתוב ${g('למחליפה', 'למחליף/ה')} – ההודעה תופיע אצלה באפליקציה.</p>`}`;
+  if (refresh && $('#subChat')) { // keep what the teacher is typing
+    $('#subChat').innerHTML = chat; const rep = $('#subRep'); if (rep) rep.outerHTML = subRepHtml(t, r, titles, imported); return;
+  }
+  openOverlay(`<div class="ov sheet subinbox" data-tok="${esc(t)}"><button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('users')}<h2>${esc(link.day || it.day || 'הכיתה')} · ${esc(who)}</h2></div>
+    ${subRepHtml(t, r, titles, imported)}
+    <p class="pmlbl">הודעות</p><div class="schat" id="subChat">${chat}</div>
+    <div class="ssay"><textarea id="subSay" rows="2" placeholder="${g('כתבי', 'כתוב')} הודעה – למשל: תודה! השיעור השלישי מתבטל"></textarea><button class="cta" data-act="subtsay">שליחה</button></div>
+  </div>`);
+  const c = $('#subChat'); if (c) c.scrollTop = c.scrollHeight;
+}
+function subRepHtml(t, r, titles, imported) {
+  if (!r) return `<div class="card subrep" id="subRep"><p class="dim">${g('המחליפה', 'המחליף/ה')} עוד לא ${g('דיווחה', 'דיווח/ה')}. ברגע שיסומנו שיעורים, נוכחות או הערות – זה יופיע כאן.</p></div>`;
+  const L = Object.entries(r.lessons).sort((a, b) => +a[0] - +b[0]);
+  return `<div class="card subrep" id="subRep">
+    ${L.length ? `<p class="pmlbl">השיעורים</p>${L.map(([i, v]) => `<div class="srow">${v.s ? `<span class="lg">${LOGMARK[v.s]}</span>` : ''}<span class="grow">${esc(titles[+i] || 'שיעור ' + (+i + 1))}${v.s ? ` – ${SUB_S[v.s][1]}` : ''}${v.note ? `<small>${esc(v.note)}</small>` : ''}</span></div>`).join('')}` : ''}
+    ${r.absent.length || r.late.length ? `<p class="pmlbl">נוכחות</p><p>${r.absent.length ? 'חסרו: ' + r.absent.map(esc).join(', ') : ''}${r.late.length ? `${r.absent.length ? '<br>' : ''}איחרו: ${r.late.map(esc).join(', ')}` : ''}</p>` : ''}
+    ${r.notes.length ? `<p class="pmlbl">הערות על ילדים</p>${r.notes.map(n => `<div class="srow"><span class="grow"><b>${esc(n.kid || 'כללי')}</b><small>${esc(n.text)}</small></span></div>`).join('')}` : ''}
+    ${r.summary ? `<p class="pmlbl">סיכום היום</p><p class="ssum">${esc(r.summary)}</p>` : ''}
+    <p class="dim" style="font-size:12.5px">עודכן ב־${new Date(r.at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</p>
+    <button class="cta ${imported ? 'soft' : ''}" data-subimport="${esc(t)}">${ic('check')} ${imported ? 'הועבר ✓ · העברה שוב' : 'העברה לתכנון, לנוכחות וליומן'}</button>
+  </div>`;
+}
+function subImport(t) {
+  const it = subItem(t), r = it && it.report, link = subLinks().find(l => l.token === t);
+  if (!r) return;
+  const w = link && state.weeks[link.wid], d = w && w.days.find(x => x.dow === link.dow);
+  const when = (w && d && dayDate(w, d)) || now();
+  let n = 0;
+  withUndo(['logs', 'att', 'cnotes'], 'הדיווח הועבר ✓', () => {
+    if (w && link.pids) for (const [i, v] of Object.entries(r.lessons)) { const id = link.pids[+i]; if (!id) continue; if (v.s) { setLog(w, id, { s: v.s, note: v.note || '' }); n++; } }
+    const names = new Set(state.kids.map(k => k.name));
+    if (r.absent.length || r.late.length) {
+      state.att = state.att || {}; const k = `${isoDay(when)}|${link && link.cls != null ? link.cls : state.curClass || ''}`, A = state.att[k] = state.att[k] || {};
+      for (const x of r.absent) if (names.has(x)) A[x] = 'a';
+      for (const x of r.late) if (names.has(x)) A[x] = 'l';
+    }
+    const by = r.name ? ` (${r.name})` : '';
+    const add = (kids, text) => state.cnotes.push({ id: uid(), w: w ? w.id : null, dow: d ? d.dow : null, label: null, tag: 'note', kids, text, at: new Date().toISOString(), done: false });
+    for (const x of r.notes) add(names.has(x.kid) ? [x.kid] : [], `מהמחליפה${by}: ${x.kid && !names.has(x.kid) ? x.kid + ' – ' : ''}${x.text}`);
+    if (r.summary) add([], `סיכום יום מהמחליפה${by}: ${r.summary}`);
+    const lnotes = Object.entries(r.lessons).filter(([, v]) => v.note && !v.s);
+    for (const [i, v] of lnotes) add([], `מהמחליפה${by} – ${(link && link.titles && link.titles[+i]) || 'שיעור'}: ${v.note}`);
+    state.prefs.subImported = state.prefs.subImported || {}; state.prefs.subImported[t] = r.at;
+  });
+  if ($('#overlay.show .subinbox')) subInboxDraw(t, true);
+}
+async function subTeacherSay() {
+  const ta = $('#subSay'), t = ($('#overlay .subinbox') || {}).dataset?.tok, text = ta && ta.value.trim();
+  if (!text || !t) return;
+  ta.value = '';
+  try {
+    try { await ID.refreshSession(); } catch { /* fine */ }
+    const r = await fetch('/api/sub?op=tsay', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: t, text }) });
+    const j = await r.json(); if (!r.ok) throw 0;
+    const it = subItem(t); if (it) it.msgs = j.msgs; else (state._subIn = state._subIn || { items: [] }).items.push({ token: t, msgs: j.msgs, report: null, periods: [] });
+    subInboxDraw(t, true); const c = $('#subChat'); if (c) c.scrollTop = c.scrollHeight;
+  } catch { ta.value = text; toast(`ההודעה לא נשלחה – ${g('בדקי', 'בדוק')} חיבור`, 3000); }
+}
 
 // ================================================================ AI: a lesson or a three-level worksheet, thought through (Claude, high effort, in the background)
 async function aiFetch(op, body, q = '') {

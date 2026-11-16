@@ -4,71 +4,331 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>הכיתה שלי · למורה המחליפה</title>
+<meta name="theme-color" content="#F6F0E8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="מורה מחליפה">
+<title>למורה המחליפה</title>
 <link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script>
+// the install manifest is per link, so the home-screen icon opens straight into this class's day
+(() => { const t = new URLSearchParams(location.search).get('t') || ''; if (!/^[a-z0-9]{16,40}$/.test(t)) return;
+  const l = document.createElement('link'); l.rel = 'manifest'; l.href = '/api/sub?op=manifest&t=' + t; document.head.appendChild(l); })();
+</script>
 <style>
 @font-face { font-family: 'Heebo'; font-weight: 400; src: url(fonts/heebo-hebrew-400-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
 @font-face { font-family: 'Heebo'; font-weight: 500; src: url(fonts/heebo-hebrew-500-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Heebo'; font-weight: 700; src: url(fonts/heebo-hebrew-700-normal.woff2) format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
 @font-face { font-family: 'Heebo'; font-weight: 400; src: url(fonts/heebo-latin-400-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
-:root { --bg: #F6F0E8; --card: #FFFAF3; --ink: #3B2A4A; --soft: rgba(59, 42, 74, .6); --plum: #5B4190; --line: rgba(74, 53, 102, .08);
-  --clay: 0 14px 26px -16px rgba(96, 70, 44, .35), 0 2px 5px -2px rgba(96, 70, 44, .1), inset 0 2px 1px rgba(255, 255, 255, .95), inset 0 -4px 8px rgba(122, 92, 60, .1); }
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.55 Heebo, system-ui, sans-serif; padding: max(18px, env(safe-area-inset-top)) 16px 40px; }
+@font-face { font-family: 'Heebo'; font-weight: 500; src: url(fonts/heebo-latin-500-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+:root { --bg: #F6F0E8; --card: #FFFAF3; --well: #EFE6DA; --ink: #3B2A4A; --soft: rgba(59, 42, 74, .62); --plum: #5B4190; --plum-l: #EEE4F6; --line: rgba(74, 53, 102, .09);
+  --ok: #3F8F5A; --ok-l: #E2F2E6; --mid: #B7791F; --mid-l: #FBEFD6; --no: #B54A4A; --no-l: #F8E1E1; --note: #FFF6DA;
+  --clay: 0 14px 26px -16px rgba(96, 70, 44, .35), 0 2px 5px -2px rgba(96, 70, 44, .1), inset 0 2px 1px rgba(255, 255, 255, .95), inset 0 -4px 8px rgba(122, 92, 60, .1);
+  --press: inset 0 3px 7px rgba(96, 70, 44, .2), inset 0 -1px 1px rgba(255, 255, 255, .7); color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #1F1A26; --card: #2A2433; --well: #231E2B; --ink: #F1EAF7; --soft: rgba(241, 234, 247, .62); --plum: #C9B2F0; --plum-l: #3A3050; --line: rgba(255, 255, 255, .08);
+  --ok: #7BCB94; --ok-l: #23382B; --mid: #E7B25A; --mid-l: #3D3222; --no: #EE8D8D; --no-l: #432A2E; --note: #3A3424;
+  --clay: 0 14px 26px -16px rgba(0, 0, 0, .6), 0 2px 5px -2px rgba(0, 0, 0, .3), inset 0 1px 1px rgba(255, 255, 255, .07), inset 0 -4px 8px rgba(0, 0, 0, .2);
+  --press: inset 0 3px 7px rgba(0, 0, 0, .4); color-scheme: dark; } }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { background: var(--bg); }
+body { margin: 0; color: var(--ink); font: 400 16px/1.55 Heebo, system-ui, sans-serif; padding: max(14px, env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom)); }
 main { max-width: 640px; margin: 0 auto; }
-.hero { text-align: center; margin: 10px 0 18px; }
-.hero img { width: 120px; height: 120px; object-fit: contain; filter: drop-shadow(0 10px 12px rgba(96, 70, 44, .25)); }
-h1 { font-size: 26px; font-weight: 500; margin: 6px 0 2px; }
-.sub { color: var(--soft); }
-.card { background: var(--card); border-radius: 26px; padding: 16px 18px; margin: 14px 0; box-shadow: var(--clay); }
-.card h2 { font-size: 17px; margin: 0 0 8px; color: var(--plum); }
-.notes { background: #FFF6DA; white-space: pre-wrap; }
-.les { display: grid; grid-template-columns: 62px 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
-.les:first-of-type { border-top: 0; }
-.tm { font-weight: 500; color: var(--plum); font-variant-numeric: tabular-nums; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; }
+.hero { display: flex; align-items: center; gap: 14px; margin: 4px 0 6px; }
+.hero img { width: 74px; height: 74px; object-fit: contain; filter: drop-shadow(0 8px 10px rgba(96, 70, 44, .25)); flex: none; }
+h1 { font-size: 22px; font-weight: 700; margin: 0; line-height: 1.25; }
+.sub { color: var(--soft); font-size: 14.5px; }
+.card { background: var(--card); border-radius: 24px; padding: 16px 18px; margin: 14px 0; box-shadow: var(--clay); }
+.card h2 { font-size: 16.5px; margin: 0 0 8px; color: var(--plum); font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.notes { background: var(--note); white-space: pre-wrap; }
+.now { border: 2px solid var(--plum); }
+.chip-now { font-size: 12px; font-weight: 500; background: var(--plum); color: var(--card); border-radius: 99px; padding: 1px 9px; margin-inline-start: auto; }
+.les { display: grid; grid-template-columns: 58px 1fr; gap: 12px; }
+.tm { font-weight: 700; color: var(--plum); font-variant-numeric: tabular-nums; }
 .tm small { display: block; color: var(--soft); font-weight: 400; font-size: 12px; }
 .les b { font-size: 16.5px; }
 .les .st { color: var(--soft); font-size: 14px; }
 .sec { margin: 6px 0 0; font-size: 14.5px; }
 .sec i { font-style: normal; font-weight: 500; color: var(--plum); }
 .mat { margin: 6px 0 0; padding: 0 18px 0 0; font-size: 14px; }
-.lk { display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 0 8px; padding: 6px 12px; border-radius: 99px; background: #EEE4F6; color: var(--plum); text-decoration: none; font-size: 14px; }
+.lk { display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 0 8px; padding: 6px 12px; border-radius: 99px; background: var(--plum-l); color: var(--plum); text-decoration: none; font-size: 14px; }
+.how { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.how p { margin: 0 0 6px; font-size: 13.5px; color: var(--soft); }
+.seg { display: flex; gap: 6px; }
+.seg button { flex: 1; min-height: 40px; border-radius: 14px; background: var(--well); font-size: 14px; transition: transform .12s, background .15s; }
+.seg button:active { transform: scale(.97); }
+.seg button.on.done { background: var(--ok-l); color: var(--ok); font-weight: 500; box-shadow: var(--press); }
+.seg button.on.part { background: var(--mid-l); color: var(--mid); font-weight: 500; box-shadow: var(--press); }
+.seg button.on.skip { background: var(--no-l); color: var(--no); font-weight: 500; box-shadow: var(--press); }
+textarea, input[type=text], select { width: 100%; border: 0; border-radius: 14px; background: var(--well); padding: 10px 12px; box-shadow: var(--press); resize: vertical; }
+textarea:focus, input:focus, select:focus { outline: 2px solid var(--plum); outline-offset: 1px; }
+.how textarea { margin-top: 8px; min-height: 44px; }
 .kids { display: flex; flex-wrap: wrap; gap: 8px; }
-.kids span { padding: 6px 12px; border-radius: 99px; background: #fff; box-shadow: var(--clay); font-size: 14px; }
-.board { margin: 0 auto 12px; width: 60%; text-align: center; padding: 6px; border-radius: 99px; background: var(--plum); color: #fff; font-size: 13px; }
+.kid { padding: 8px 14px; border-radius: 99px; background: var(--card); box-shadow: var(--clay); font-size: 14.5px; min-height: 40px; transition: transform .12s; }
+.kid:active { transform: scale(.96); }
+.kid.absent { background: var(--no-l); color: var(--no); box-shadow: var(--press); text-decoration: line-through; }
+.kid.late { background: var(--mid-l); color: var(--mid); box-shadow: var(--press); }
+.legend { font-size: 13px; color: var(--soft); margin: 0 0 10px; }
+.count { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; font-size: 14px; }
+.count span { background: var(--well); border-radius: 99px; padding: 3px 12px; }
+.board { margin: 0 auto 12px; width: 60%; text-align: center; padding: 6px; border-radius: 99px; background: var(--plum); color: var(--card); font-size: 13px; }
 .seats { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 8px 4px; }
-.seat { min-height: 40px; display: grid; place-items: center; border-radius: 12px; background: #fff; box-shadow: var(--clay); font-size: 12px; text-align: center; padding: 3px; overflow-wrap: anywhere; }
-.seat.e { background: transparent; box-shadow: inset 0 2px 5px rgba(96, 70, 44, .15); }
+.seat { min-height: 40px; display: grid; place-items: center; border-radius: 12px; background: var(--card); box-shadow: var(--clay); font-size: 12px; text-align: center; padding: 3px; overflow-wrap: anywhere; line-height: 1.2; }
+.seat.e { background: transparent; box-shadow: var(--press); }
 .seat.g { background: none; box-shadow: none; }
-.rules { margin: 0; padding: 0 20px 0 0; } .rules li { margin: 6px 0; }
-.foot { text-align: center; color: var(--soft); font-size: 13px; margin-top: 20px; }
+.seat.absent { color: var(--no); text-decoration: line-through; opacity: .7; }
+.rules { margin: 0; padding: 0 20px 0 0; } .rules li { margin: 7px 0; }
+.empty { color: var(--soft); font-size: 14.5px; margin: 0; }
+/* chat */
+.chat { display: flex; flex-direction: column; gap: 8px; min-height: 120px; }
+.bub { max-width: 82%; padding: 9px 13px; border-radius: 18px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; }
+.bub small { display: block; font-size: 11.5px; color: var(--soft); margin-top: 2px; }
+.bub.t { align-self: flex-start; background: var(--plum-l); border-start-start-radius: 6px; }
+.bub.s { align-self: flex-end; background: var(--card); box-shadow: var(--clay); border-start-end-radius: 6px; }
+.bub.pending { opacity: .6; }
+.say { position: sticky; bottom: calc(84px + env(safe-area-inset-bottom)); display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; }
+.say textarea { min-height: 46px; max-height: 140px; }
+.send { flex: none; width: 46px; height: 46px; border-radius: 50%; background: var(--plum); color: var(--card); display: grid; place-items: center; box-shadow: var(--clay); }
+.send:disabled { opacity: .45; }
+.quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.quick button { font-size: 13.5px; padding: 6px 12px; border-radius: 99px; background: var(--well); }
+/* report */
+.rrow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.rrow:first-of-type { border-top: 0; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--well); box-shadow: var(--press); flex: none; }
+.dot.done { background: var(--ok); } .dot.part { background: var(--mid); } .dot.skip { background: var(--no); }
+.rrow .grow { flex: 1; min-width: 0; }
+.rrow small { color: var(--soft); display: block; }
+.knote { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.nlist .rrow button { color: var(--soft); padding: 6px; }
+.field { display: block; font-size: 14px; color: var(--soft); margin: 10px 0 4px; }
+.cta { display: flex; width: 100%; align-items: center; justify-content: center; gap: 8px; min-height: 50px; border-radius: 99px; background: var(--plum); color: var(--card); font-weight: 700; font-size: 16px; box-shadow: var(--clay); margin-top: 14px; transition: transform .12s; }
+.cta:active { transform: scale(.97); }
+.cta.soft { background: var(--plum-l); color: var(--plum); font-weight: 500; }
+.saved { text-align: center; font-size: 13px; color: var(--soft); margin-top: 8px; min-height: 1.4em; }
+.sent { background: var(--ok-l); color: var(--ok); }
+/* install */
+.inst { display: flex; gap: 12px; align-items: center; background: var(--plum-l); border-radius: 20px; padding: 12px 14px; margin: 10px 0 4px; font-size: 14.5px; }
+.inst img { width: 40px; height: 40px; border-radius: 10px; flex: none; }
+.inst .grow { flex: 1; }
+.inst b { display: block; color: var(--plum); }
+.inst .go { background: var(--plum); color: var(--card); border-radius: 99px; padding: 7px 14px; font-weight: 500; flex: none; }
+.inst .x { color: var(--soft); padding: 4px; flex: none; }
+.ios { margin: 8px 0 0; padding: 0 18px 0 0; font-size: 14px; }
+.ios svg { width: 16px; height: 16px; vertical-align: -3px; }
+/* tab bar */
+nav { position: fixed; inset: auto 0 0 0; background: color-mix(in srgb, var(--card) 92%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  box-shadow: 0 -8px 24px -18px rgba(60, 40, 30, .5); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); display: flex; justify-content: center; z-index: 5; }
+nav .in { display: flex; width: 100%; max-width: 640px; }
+nav button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0 4px; border-radius: 14px; font-size: 12px; color: var(--soft); position: relative; min-height: 52px; }
+nav button svg { width: 24px; height: 24px; }
+nav button.on { color: var(--plum); font-weight: 700; }
+nav button.on svg { stroke-width: 2.2; }
+nav .bdg { position: absolute; top: 3px; inset-inline-end: calc(50% - 20px); min-width: 18px; height: 18px; border-radius: 9px; background: var(--no); color: #fff; font-size: 11px; display: grid; place-items: center; padding: 0 5px; font-weight: 700; }
+.view { animation: vin .22s cubic-bezier(.23, 1, .32, 1); }
+@keyframes vin { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .view { animation: none; } }
+.foot { text-align: center; color: var(--soft); font-size: 12.5px; margin-top: 20px; }
 .msg { text-align: center; margin-top: 30vh; color: var(--soft); }
+.toast { position: fixed; bottom: calc(92px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 99px; font-size: 14px; z-index: 9; animation: vin .2s; }
 </style>
 </head>
 <body>
-<main id="m"><p class="msg">טוענת…</p></main>
+<main id="m"><p class="msg">טוען…</p></main>
+<nav id="nav" hidden><div class="in"></div></nav>
 <script>
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = s => document.querySelector(s);
 const t = new URLSearchParams(location.search).get('t') || '';
-fetch('/api/sub?op=get&t=' + encodeURIComponent(t)).then(r => r.json()).then(({ data: D, exp, error }) => {
-  const m = document.getElementById('m');
-  if (error || !D) { m.innerHTML = '<p class="msg">הקישור הזה כבר לא פעיל.<br>אפשר לבקש מהמורה קישור חדש 🙂</p>'; return; }
-  const P = D.periods || [];
-  let h = `<div class="hero"><img src="img/ill/dark/school.webp" alt=""><h1>תודה על ההחלפה היום!</h1><div class="sub">${esc(D.cls || '')}${D.cls ? ' · ' : ''}${esc(D.day || '')}${D.teacher ? ' · הכיתה של ' + esc(D.teacher) : ''}</div></div>`;
+const LS = k => 'sub:' + t + ':' + k;
+const get = (k, d) => { try { const v = localStorage.getItem(LS(k)); return v == null ? d : JSON.parse(v); } catch { return d; } };
+const put = (k, v) => { try { localStorage.setItem(LS(k), JSON.stringify(v)); } catch { /* private mode */ } };
+const SV = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const ICON = {
+  day: SV('<rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M7.5 13.5h3M7.5 17h6"/>'),
+  cls: SV('<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14.2c2.3-.2 4 1.3 4.5 4"/>'),
+  rules: SV('<path d="M6 3.5h9l3.5 3.5v13.5H6z"/><path d="M15 3.5V7h3.5M9 11.5h6M9 15h6M9 18h3.5"/>'),
+  chat: SV('<path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4z"/><path d="M8 9.5h8M8 12.5h5"/>'),
+  rep: SV('<rect x="5" y="3.5" width="14" height="17" rx="3"/><path d="M9 3.5h6v2.5H9zM8.5 11l2 2 4-4M8.5 16.5h7"/>'),
+  send: SV('<path d="M19 12H5.5M11 6l-6 6 6 6"/>'),
+  share: SV('<path d="M12 15V3.5M8 7l4-3.5L16 7"/><path d="M8 11H6v9.5h12V11h-2"/>'),
+  plus: SV('<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/>'),
+  x: SV('<path d="M6 6l12 12M18 6 6 18"/>'),
+};
+const TABS = [['day', 'היום'], ['cls', 'הכיתה'], ['rules', 'חוקים'], ['chat', 'הודעות'], ['rep', 'דיווח']];
+let D = null, EXP = 0, MSGS = [], tab = get('tab', 'day'), deferredInstall = null;
+const R = Object.assign({ lessons: {}, absent: [], late: [], notes: [], summary: '' }, get('report', {}));
+let myName = get('name', '');
+const P = () => D.periods || [];
+const TW = (f, m) => D && D.male ? m : f; // the homeroom teacher may be a man
+const TN = () => D.teacher || TW('המחנכת', 'המחנך');
+const hm = s => { const m = /(\d{1,2}):(\d{2})/.exec(s || ''); return m ? +m[1] * 60 + +m[2] : null; };
+function nowIdx() { // the lesson happening now (or the next one), by today's clock
+  const n = new Date(), mins = n.getHours() * 60 + n.getMinutes(), L = P();
+  for (let i = 0; i < L.length; i++) { const a = hm(L[i].start), b = hm(L[i].end) ?? (hm(L[i + 1]?.start) ?? (a != null ? a + 45 : null)); if (a != null && mins >= a && mins < b) return i; }
+  return -1;
+}
+function toast(s) { const d = document.createElement('div'); d.className = 'toast'; d.textContent = s; document.body.appendChild(d); setTimeout(() => d.remove(), 2200); }
+
+// ---------- views
+function vDay() {
+  const ni = nowIdx();
+  let h = '';
   if (D.notes) h += `<div class="card notes"><h2>חשוב לדעת היום</h2>${esc(D.notes)}</div>`;
-  if ((D.rules || []).length) h += `<div class="card"><h2>חוקי הכיתה</h2><ul class="rules">${D.rules.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
-  if ((D.routines || []).length) h += `<div class="card"><h2>שגרות</h2><ul class="rules">${D.routines.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
-  h += `<div class="card"><h2>מערכת היום</h2>${P.length ? P.map(p => `<div class="les"><div class="tm">${esc(p.start || '')}${p.end ? `<small>עד ${esc(p.end)}</small>` : ''}</div><div>
-    <b>${esc(p.title)}</b>${p.subtitle ? `<div class="st">${esc(p.subtitle)}</div>` : ''}
-    ${(p.sections || []).filter(s => s.text).map(s => `<p class="sec">${s.label ? `<i>${esc(s.label)}:</i> ` : ''}${esc(s.text)}</p>`).join('')}
-    ${(p.materials || []).length ? `<ul class="mat">${p.materials.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
-    ${(p.links || []).filter(l => /^https?:/.test(l.url)).map(l => `<a class="lk" href="${esc(l.url)}" target="_blank" rel="noopener">📎 ${esc(l.text || 'קובץ')}</a>`).join('')}
-  </div></div>`).join('') : '<p class="sub">אין שיעורים רשומים ליום הזה.</p>'}</div>`;
-  if (D.seats) { const S = D.seats, set = new Set(S.desks || []), c = []; for (let r = 0; r < S.gh; r++) for (let k = 0; k < S.gw; k++) { const key = r + '-' + k, n = (S.map || {})[key]; c.push(set.has(key) ? `<div class="seat ${n ? '' : 'e'}">${esc(n || '')}</div>` : '<div class="seat g"></div>'); }
+  if (!P().length) return h + '<div class="card"><p class="empty">אין שיעורים רשומים ליום הזה.</p></div>';
+  h += P().map((p, i) => { const L = R.lessons[i] || {};
+    return `<div class="card ${i === ni ? 'now' : ''}" id="les${i}"><div class="les"><div class="tm">${esc(p.start || '')}${p.end ? `<small>עד ${esc(p.end)}</small>` : ''}</div><div>
+      <h2 style="color:var(--ink);margin:0">${esc(p.title)}${i === ni ? '<span class="chip-now">עכשיו</span>' : ''}</h2>${p.subtitle ? `<div class="st">${esc(p.subtitle)}</div>` : ''}
+      ${(p.sections || []).filter(s => s.text).map(s => `<p class="sec">${s.label ? `<i>${esc(s.label)}:</i> ` : ''}${esc(s.text)}</p>`).join('')}
+      ${(p.materials || []).length ? `<ul class="mat">${p.materials.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+      ${(p.links || []).filter(l => /^https?:/.test(l.url)).map(l => `<a class="lk" href="${esc(l.url)}" target="_blank" rel="noopener">📎 ${esc(l.text || 'קובץ')}</a>`).join('')}
+    </div></div>
+    <div class="how"><p>איך היה? (עובר ישר ל${TW('מחנכת', 'מחנך')})</p><div class="seg">${[['done', 'הספקנו'], ['part', 'חלקית'], ['skip', 'לא הגענו']].map(([v, l]) => `<button class="${v} ${L.s === v ? 'on' : ''}" data-les="${i}" data-s="${v}">${l}</button>`).join('')}</div>
+    ${L.s && L.s !== 'done' || L.note ? `<textarea rows="2" data-lnote="${i}" placeholder="מה נשאר / מה כדאי לדעת?">${esc(L.note || '')}</textarea>` : ''}</div></div>`; }).join('');
+  return h;
+}
+function vCls() {
+  let h = '';
+  if (D.kids && D.kids.length) {
+    const a = R.absent.length, l = R.late.length;
+    h += `<div class="card"><h2>נוכחות</h2><p class="legend">נגיעה אחת = חסר/ה · שתיים = איחור · שלוש = חזרה</p>
+      <div class="kids">${D.kids.map(n => `<button class="kid ${R.absent.includes(n) ? 'absent' : R.late.includes(n) ? 'late' : ''}" data-kid="${esc(n)}">${esc(n)}</button>`).join('')}</div>
+      <div class="count"><span>${D.kids.length - a} בכיתה</span>${a ? `<span>${a} חסרים</span>` : ''}${l ? `<span>${l} איחרו</span>` : ''}</div></div>`;
+  }
+  if (D.seats) { const S = D.seats, set = new Set(S.desks || []), c = []; for (let r = 0; r < S.gh; r++) for (let k = 0; k < S.gw; k++) { const key = r + '-' + k, n = (S.map || {})[key]; c.push(set.has(key) ? `<div class="seat ${n ? '' : 'e'} ${n && R.absent.includes(n) ? 'absent' : ''}">${esc(n || '')}</div>` : '<div class="seat g"></div>'); }
     h += `<div class="card"><h2>מקומות ישיבה</h2><div class="board">הלוח</div><div class="seats" style="--cols:${S.gw}">${c.join('')}</div></div>`; }
-  if (D.kids && D.kids.length) h += `<div class="card"><h2>הילדים בכיתה (${D.kids.length})</h2><div class="kids">${D.kids.map(n => `<span>${esc(n)}</span>`).join('')}</div></div>`;
-  h += `<p class="foot">הקישור פעיל עד ${new Date(exp).toLocaleString('he-IL', { weekday: 'long', hour: '2-digit', minute: '2-digit' })} · נוצר באפליקציה "הכיתה שלי"</p>`;
-  m.innerHTML = h;
-}).catch(() => { document.getElementById('m').innerHTML = '<p class="msg">אין חיבור לאינטרנט – נסו שוב בעוד רגע.</p>'; });
+  return h || `<div class="card"><p class="empty">${TW('המחנכת לא שיתפה', 'המחנך לא שיתף')} את רשימת הילדים בקישור הזה. אפשר לרשום מי חסר בלשונית "דיווח".</p></div>`;
+}
+function vRules() {
+  const rl = D.rules || [], rt = D.routines || [];
+  if (!rl.length && !rt.length) return `<div class="card"><p class="empty">לא נרשמו חוקים ושגרות. אפשר לשאול את ${TW('המחנכת', 'המחנך')} בלשונית "הודעות".</p></div>`;
+  return (rl.length ? `<div class="card"><h2>חוקי הכיתה</h2><ul class="rules">${rl.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '')
+    + (rt.length ? `<div class="card"><h2>שגרות</h2><ul class="rules">${rt.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '');
+}
+function vChat() {
+  const tn = TN();
+  const fmt = at => new Date(at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  return `<div class="card"><h2>הודעות עם ${esc(tn)}</h2><div class="chat" id="chat">${MSGS.length ? MSGS.map(m => `<div class="bub ${m.from} ${m.pending ? 'pending' : ''}">${esc(m.text)}<small>${m.from === 't' ? esc(tn) + ' · ' : ''}${m.pending ? 'שולח…' : fmt(m.at)}</small></div>`).join('')
+    : `<p class="empty">כאן אפשר לשאול שאלה או לעדכן – ${esc(tn)} ${TW('מקבלת', 'מקבל')} התראה לטלפון ועונה לכאן.</p>`}</div>
+    ${MSGS.length ? '' : `<div class="quick">${['הגעתי לכיתה 👋', 'איפה נמצא החומר לשיעור?', 'יש ילד שלא מרגיש טוב'].map(q => `<button data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>`}
+    ${nameField()}
+    <div class="say"><textarea id="sayT" rows="1" placeholder="כתיבת הודעה…" aria-label="הודעה"></textarea><button class="send" id="sayB" aria-label="שליחה">${ICON.send}</button></div></div>`;
+}
+function nameField() { return myName ? '' : `<label class="field" for="myName">השם שלך (${TW('יופיע למחנכת', 'יופיע למחנך')})</label><input type="text" id="myName" autocomplete="name" placeholder="למשל: רותם">`; }
+function vRep() {
+  const tn = TN(), lab = { done: 'הספקנו', part: 'חלקית', skip: 'לא הגענו' };
+  const kidsOpt = (D.kids || []).map(n => `<option>${esc(n)}</option>`).join('');
+  return `<div class="card"><h2>השיעורים</h2>${P().map((p, i) => { const L = R.lessons[i] || {}; return `<div class="rrow"><span class="dot ${L.s || ''}"></span><span class="grow">${esc(p.start || '')} · ${esc(p.title)}<small>${L.s ? lab[L.s] : 'עוד לא סומן'}${L.note ? ' – ' + esc(L.note) : ''}</small></span><button class="lk" style="margin:0" data-golesson="${i}">עדכון</button></div>`; }).join('') || '<p class="empty">אין שיעורים ביום הזה.</p>'}</div>
+    <div class="card"><h2>מי חסר היום</h2>${D.kids && D.kids.length ? `<p class="empty">${R.absent.length ? 'חסרים: ' + R.absent.map(esc).join(', ') : 'כולם כאן (או שעוד לא סימנת)'}${R.late.length ? '<br>איחרו: ' + R.late.map(esc).join(', ') : ''}</p><button class="cta soft" data-tab="cls">סימון נוכחות</button>`
+      : `<textarea id="absT" rows="2" placeholder="שמות הילדים שחסרו, מופרדים בפסיק">${esc(R.absent.join(', '))}</textarea>`}</div>
+    <div class="card"><h2>הערות על ילדים</h2><div class="nlist">${R.notes.map((n, i) => `<div class="rrow"><span class="grow"><b>${esc(n.kid || 'כללי')}</b><small>${esc(n.text)}</small></span><button data-delnote="${i}" aria-label="מחיקה">${ICON.x}</button></div>`).join('')}</div>
+      <div class="knote">${kidsOpt ? `<select id="nKid"><option value="">על מי?</option>${kidsOpt}</select>` : `<input type="text" id="nKid" placeholder="על מי?">`}<textarea id="nText" rows="2" placeholder="מה קרה? (התנהגות, משהו יפה, פציעה בהפסקה…)"></textarea><button class="cta soft" id="nAdd" style="margin-top:0">הוספת הערה</button></div></div>
+    <div class="card"><h2>סיכום היום ל${esc(tn)}</h2><textarea id="sumT" rows="4" placeholder="איך היה היום? משהו שחשוב ש${TW('המחנכת תדע', 'המחנך ידע')} מחר בבוקר">${esc(R.summary)}</textarea>
+      ${nameField()}
+      <button class="cta ${get('sentAt', 0) ? 'sent' : ''}" id="sendRep">${get('sentAt', 0) ? 'נשלח ✓ · שליחה מעודכנת' : 'שליחת הדיווח ל' + esc(tn)}</button><div class="saved" id="saved">${get('sentAt', 0) ? 'נשלח ב־' + new Date(get('sentAt', 0)).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : `הסימונים נשמרים ומתעדכנים אצל ${TW('המחנכת', 'המחנך')} תוך כדי`}</div></div>`;
+}
+const VIEWS = { day: vDay, cls: vCls, rules: vRules, chat: vChat, rep: vRep };
+
+function installCard() {
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (standalone || get('noInstall', false)) return '';
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return `<div class="inst" id="inst"><img src="icons/icon-192.png" alt=""><div class="grow"><b>להוסיף למסך הבית?</b>ככה הכל בשלוף במשך היום, כמו אפליקציה.
+    ${ios ? `<ol class="ios"><li>לוחצים על ${ICON.share} (שיתוף) בתחתית ספארי</li><li>בוחרים "הוספה למסך הבית" ${ICON.plus}</li></ol>` : ''}</div>
+    ${!ios && deferredInstall ? '<button class="go" id="instGo">הוספה</button>' : ''}<button class="x" id="instX" aria-label="לא עכשיו">${ICON.x}</button></div>`;
+}
+function unread() { const seen = get('seen', 0); return MSGS.filter(m => m.from === 't' && m.at > seen).length; }
+function drawNav() {
+  const n = $('#nav'); n.hidden = false; const u = unread();
+  n.firstElementChild.innerHTML = TABS.map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" data-tab="${k}" aria-current="${tab === k ? 'page' : 'false'}">${ICON[k]}<span>${l}</span>${k === 'chat' && u && tab !== 'chat' ? `<i class="bdg">${u}</i>` : ''}</button>`).join('');
+}
+function draw(scroll) {
+  if (tab === 'chat' && MSGS.length) put('seen', MSGS[MSGS.length - 1].at);
+  const tn = D.teacher ? `הכיתה של ${esc(D.teacher)}` : '';
+  $('#m').innerHTML = `<div class="hero"><img src="img/ill/dark/school.webp" alt=""><div><h1>${tab === 'day' ? 'תודה על ההחלפה היום!' : esc(TABS.find(x => x[0] === tab)[1])}</h1><div class="sub">${[esc(D.cls || ''), esc(D.day || ''), tn].filter(Boolean).join(' · ')}</div></div></div>
+    ${tab === 'day' ? installCard() : ''}<div class="view">${VIEWS[tab]()}</div>
+    <p class="foot">הקישור פעיל עד ${new Date(EXP).toLocaleString('he-IL', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}</p>`;
+  drawNav();
+  if (scroll !== false) scrollTo(0, 0);
+  if (tab === 'chat') { const c = $('#chat'); if (c) c.lastElementChild?.scrollIntoView({ block: 'nearest' }); }
+  if (tab === 'day' && scroll !== false) { const i = nowIdx(); if (i > 0) $('#les' + i)?.scrollIntoView({ block: 'start' }); }
+}
+
+// ---------- sync with the teacher
+let repT = 0;
+function saveR(push = true) { put('report', R); if (!push) return; clearTimeout(repT); repT = setTimeout(() => sendRep(false), 1500); }
+async function sendRep(final) {
+  clearTimeout(repT);
+  try {
+    const r = await fetch('/api/sub?op=report&t=' + t, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ report: R, name: myName, final }) });
+    if (!r.ok) throw 0;
+    if (final) { put('sentAt', Date.now()); toast('הדיווח נשלח – תודה רבה! 💜'); if (tab === 'rep') draw(false); }
+  } catch { if (final) toast('אין חיבור – הדיווח שמור, ננסה שוב'); put('dirty', true); }
+}
+async function say(text) {
+  text = text.trim(); if (!text) return;
+  const tmp = { from: 's', text, at: Date.now(), pending: true }; MSGS.push(tmp); draw(false);
+  try {
+    const r = await fetch('/api/sub?op=say&t=' + t, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, name: myName }) });
+    const j = await r.json(); if (!r.ok) throw 0; MSGS = j.msgs;
+  } catch { MSGS = MSGS.filter(m => m !== tmp); toast('ההודעה לא נשלחה – אין חיבור?'); const ta = $('#sayT'); if (ta && !ta.value) ta.value = text; }
+  if (tab === 'chat') draw(false); else drawNav();
+}
+async function poll() {
+  if (document.hidden) return;
+  try {
+    const j = await (await fetch('/api/sub?op=get&t=' + t)).json();
+    if (j.error) return;
+    const before = MSGS.filter(m => !m.pending).length, notesChanged = j.data && j.data.notes !== D.notes;
+    D = j.data; put('cache', { data: D, exp: j.exp });
+    if (j.msgs.length !== before) { const fresh = j.msgs.slice(before).filter(m => m.from === 't'); MSGS = j.msgs; if (fresh.length && tab !== 'chat') toast('הודעה חדשה מ' + TN()); }
+    const typing = document.activeElement && /TEXTAREA|INPUT|SELECT/.test(document.activeElement.tagName);
+    if (!typing && (tab === 'chat' || (notesChanged && tab === 'day'))) draw(false); else drawNav();
+    if (get('dirty', false)) { put('dirty', false); sendRep(false); }
+  } catch { /* offline: keep what we have */ }
+}
+
+// ---------- events
+document.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const d = b.dataset;
+  if (d.tab) { tab = d.tab; put('tab', tab); draw(); return; }
+  if (d.les != null) { const L = R.lessons[d.les] = R.lessons[d.les] || {}; L.s = L.s === d.s ? '' : d.s; saveR(); const y = scrollY; draw(false); scrollTo(0, y); if (L.s && L.s !== 'done') $(`[data-lnote="${d.les}"]`)?.focus({ preventScroll: true }); return; }
+  if (d.kid) { const n = d.kid, a = R.absent.indexOf(n), l = R.late.indexOf(n);
+    if (a >= 0) { R.absent.splice(a, 1); R.late.push(n); } else if (l >= 0) R.late.splice(l, 1); else R.absent.push(n);
+    saveR(); const y = scrollY; draw(false); scrollTo(0, y); return; }
+  if (d.golesson != null) { tab = 'day'; put('tab', tab); draw(false); $('#les' + d.golesson)?.scrollIntoView({ block: 'start' }); return; }
+  if (d.q) { say(d.q); return; }
+  if (d.delnote != null) { R.notes.splice(+d.delnote, 1); saveR(); draw(false); return; }
+  if (b.id === 'sayB') { const ta = $('#sayT'); const v = ta.value; ta.value = ''; say(v); return; }
+  if (b.id === 'nAdd') { const k = $('#nKid').value.trim(), x = $('#nText').value.trim(); if (!x) { $('#nText').focus(); return; } R.notes.push({ kid: k, text: x }); saveR(); draw(false); toast('ההערה נוספה ✓'); return; }
+  if (b.id === 'sendRep') { R.summary = ($('#sumT') || {}).value ?? R.summary; put('report', R); sendRep(true); return; }
+  if (b.id === 'instX') { put('noInstall', true); $('#inst')?.remove(); return; }
+  if (b.id === 'instGo' && deferredInstall) { deferredInstall.prompt(); deferredInstall.userChoice.finally(() => { deferredInstall = null; $('#inst')?.remove(); }); return; }
+});
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (el.dataset.lnote != null) { (R.lessons[el.dataset.lnote] = R.lessons[el.dataset.lnote] || {}).note = el.value; saveR(); }
+  if (el.id === 'sumT') { R.summary = el.value; saveR(); }
+  if (el.id === 'absT') { R.absent = el.value.split(/[,،\n]/).map(s => s.trim()).filter(Boolean); saveR(); }
+  if (el.id === 'myName') { myName = el.value.trim(); put('name', myName); }
+  if (el.id === 'sayT') { el.style.height = 'auto'; el.style.height = Math.min(140, el.scrollHeight) + 'px'; }
+});
+document.addEventListener('keydown', e => { if (e.target.id === 'sayT' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('#sayB').click(); } });
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; if (tab === 'day' && $('#inst') && !$('#instGo')) draw(false); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+
+// ---------- start
+function start(j) { D = j.data; EXP = j.exp; MSGS = j.msgs || []; if (!TABS.some(x => x[0] === tab)) tab = 'day'; draw(); setInterval(poll, 20000); setInterval(() => { if (tab === 'day' && !document.activeElement?.matches('textarea,input')) { const y = scrollY; draw(false); scrollTo(0, y); } }, 60000); }
+const gone = () => { $('#m').innerHTML = '<p class="msg">הקישור הזה כבר לא פעיל.<br>אפשר לבקש קישור חדש 🙂</p>'; };
+if (!/^[a-z0-9]{16,40}$/.test(t)) gone();
+else fetch('/api/sub?op=get&t=' + encodeURIComponent(t)).then(r => r.json()).then(j => {
+  if (j.error || !j.data) { gone(); return; }
+  put('cache', { data: j.data, exp: j.exp }); start(j);
+}).catch(() => { const c = get('cache', null); if (c && c.exp > Date.now()) start({ ...c, msgs: [] }); else $('#m').innerHTML = '<p class="msg">אין חיבור לאינטרנט – נסו שוב בעוד רגע.</p>'; });
 </script>
 </body>
 </html>

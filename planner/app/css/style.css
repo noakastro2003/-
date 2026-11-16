@@ -2040,3 +2040,25 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 .editing .seat.dropto { box-shadow: 0 0 0 2.5px #5B4190 !important; background: color-mix(in srgb, #5B4190 22%, var(--card)) !important; }
 .editing .seat.dragfrom { opacity: .3; }
 .deskghost { position: fixed; top: 0; left: 0; z-index: 90; pointer-events: none; margin: 0; background: #5B4190 !important; color: #fff; border-radius: 10px; box-shadow: 0 14px 24px -10px rgba(74, 53, 102, .6) !important; display: grid; place-items: center; }
+
+/* v102 — the substitute's report + chat, on the teacher's side */
+.subcard { display: flex; align-items: center; gap: 12px; width: 100%; text-align: start; border: 2px solid color-mix(in srgb, var(--plum, #5B4190) 40%, transparent); }
+.subcard b { display: block; font-size: var(--fs-h3); }
+.subcard small { color: var(--soft); font-size: var(--fs-sm); display: block; }
+.subcard .cnt, .sublast .cnt { background: #D85A5A; color: #fff; }
+.sublast > .cta { margin-top: 10px; }
+.subrep { margin: 6px 0 4px; }
+.subrep p { margin: 4px 0; }
+.srow { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; border-top: 1px solid var(--line); }
+.srow:first-of-type { border-top: 0; }
+.srow small { display: block; color: var(--soft); font-size: var(--fs-sm); }
+.srow .lg svg { width: 18px; height: 18px; }
+.ssum { white-space: pre-wrap; }
+.schat { display: flex; flex-direction: column; gap: 8px; max-height: 42vh; overflow-y: auto; padding: 4px 2px 8px; }
+.sbub { max-width: 82%; padding: 9px 13px; border-radius: 18px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-body, 15px); }
+.sbub small { display: block; font-size: 11.5px; color: var(--soft); margin-top: 2px; }
+.sbub.t { align-self: flex-start; background: color-mix(in srgb, var(--plum, #5B4190) 14%, var(--card)); border-start-start-radius: 6px; }
+.sbub.s { align-self: flex-end; background: var(--card); box-shadow: var(--clay, 0 2px 6px rgba(0,0,0,.08)); border-start-end-radius: 6px; }
+.ssay { display: flex; gap: 8px; align-items: flex-end; margin-top: 6px; }
+.ssay textarea { flex: 1; }
+.ssay .cta { width: auto; flex: none; padding-inline: 18px; margin: 0; }

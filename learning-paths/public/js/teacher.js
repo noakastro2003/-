@@ -45,12 +45,16 @@ async function logout() {
 // The logo: a winding path with stations.
 export function brandMark() {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 40 40');
+  svg.setAttribute('viewBox', '0 0 120 120');
   svg.setAttribute('class', 'brand-mark');
   svg.setAttribute('aria-hidden', 'true');
-  svg.innerHTML = '<rect width="40" height="40" rx="11" fill="currentColor"/>'
-    + '<path d="M9 30c7 0 6-9 12-9s5-9 11-9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="0.5 5.5"/>'
-    + '<circle cx="9" cy="30" r="3.4" fill="#ffd166"/><circle cx="21" cy="21" r="3.4" fill="#fff"/><circle cx="32" cy="12" r="3.4" fill="#06d6a0"/>';
+  // The logo: an open book with a path rising from it to a star (same as favicon.svg).
+  svg.innerHTML = '<rect width="120" height="120" rx="32" fill="#e8f7f1"/>'
+    + '<path d="M60 92 C 44 82, 26 82, 14 86 V 50 C 26 46, 44 46, 60 56 Z" fill="#00a884"/>'
+    + '<path d="M60 92 C 76 82, 94 82, 106 86 V 50 C 94 46, 76 46, 60 56 Z" fill="#06d6a0"/>'
+    + '<path d="M60 56 V 92" stroke="#fff" stroke-width="2.5"/>'
+    + '<path d="M60 56 C 60 42, 74 40, 74 28" fill="none" stroke="#6c5ce7" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 7"/>'
+    + '<path d="M76 10 l4.2 8.6 9.4 1.4-6.8 6.6 1.6 9.4-8.4-4.4-8.4 4.4 1.6-9.4-6.8-6.6 9.4-1.4z" fill="#ffd166" stroke="#f4a261" stroke-width="1.5" stroke-linejoin="round"/>';
   return svg;
 }
 

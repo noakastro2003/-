@@ -2140,8 +2140,8 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 #printroot .ai-opt.match span { margin-inline-end: 26pt; }
 @media print { body::after, body::before, html::after, html::before { display: none !important; content: none !important; } }
 /* fairy dust on the reminder popup */
-.todopop { position: relative; overflow: visible; }
-.fdust { position: absolute; inset: -30px 0 auto 0; height: 0; pointer-events: none; z-index: 3; }
+/* (the popup keeps the sheet’s own positioning; the dust sits inside it) */
+.fdust { position: absolute; inset: 0 0 auto 0; height: 0; pointer-events: none; z-index: 3; }
 .fdust i { position: absolute; top: 0; left: var(--x); width: var(--s); height: var(--s); border-radius: 50%; background: var(--c);
   box-shadow: 0 0 6px 1px color-mix(in srgb, var(--c) 70%, transparent); opacity: 0; animation: fdust var(--t) cubic-bezier(.23, 1, .32, 1) var(--d) forwards; }
 .fdust i.st { border-radius: 0; background: none; box-shadow: none; }

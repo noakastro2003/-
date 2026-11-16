@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 86; // keep in step with CACHE in sw.js
+const APP_V = 87; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1105,8 +1105,8 @@ function castHtml() {
   const r = castSend('html', h.html);
   toast(r === 'too-big' ? 'הקובץ גדול מדי לחיבור דרך השרת – נסו רשת אחרת' : 'מוצג במסך הכיתה 📺', 2400);
 }
-const CAST_THEMES = [['night', 'לילה', '#2B2138'], ['cream', 'שמנת', '#F6EEE2'], ['board', 'לוח ירוק', '#24493A'], ['sky', 'שמיים', '#D7EAFB'], ['black', 'שחור', '#000'], ['white', 'לבן', '#fff']];
-const castLook = () => ({ theme: 'night', size: 1, font: 'plain', ...(state.prefs.castStyle || {}) });
+const CAST_THEMES = [['clay', 'חימר', '#F6F0E8'], ['night', 'לילה', '#2B2138'], ['cream', 'שמנת', '#F6EEE2'], ['board', 'לוח ירוק', '#24493A'], ['sky', 'שמיים', '#D7EAFB'], ['black', 'שחור', '#000'], ['white', 'לבן', '#fff']];
+const castLook = () => ({ theme: 'clay', size: 1, font: 'plain', ...(state.prefs.castStyle || {}) });
 const canvaEmbed = raw => { const m = String(raw || '').match(/canva\.com\/design\/([\w-]+)(?:\/([\w-]+))?/); return m ? `https://www.canva.com/design/${m[1]}/${m[2] ? m[2] + '/' : ''}view?embed` : ''; };
 // a computer or a big tablet is most likely the one connected to the projector
 const isBigScreen = () => matchMedia('(min-width: 900px) and (pointer: fine)').matches || matchMedia('(min-width: 1000px)').matches;

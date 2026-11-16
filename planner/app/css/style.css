@@ -1908,3 +1908,5 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 #printroot .ps.e { border-style: dashed; color: #bbb; }
 #printroot .ps.pr { margin-left: 10pt; }
 .seat b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+/* the phone's own projector, clay look */
+#proj[data-look=clay] { background: radial-gradient(900px 600px at 50% 0%, #FFFCF7, transparent 70%), #F6F0E8; color: #3B2A4A; }

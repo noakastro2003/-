@@ -111,9 +111,28 @@ iframe { position: fixed; inset: 0; width: 100vw; height: 100vh; border: 0; back
   box-shadow: 0 1.4vh 2.4vh -1.6vh rgba(96, 70, 44, .45), inset 0 .4vh .3vh #fff, inset 0 -.8vh 1.4vh rgba(122, 92, 60, .12); }
 .seats .st.e { background: rgba(255, 255, 255, .08); box-shadow: inset 0 .5vh 1vh rgba(0,0,0,.25); }
 .seats .st.pr { margin-left: 2vw; }
+/* ================= CLAY: the app's own world on the big screen – cream ground, puffy plum and cream pieces */
+body.t-clay { --ink: #3B2A4A; --soft: rgba(59, 42, 74, .58); --gold: #5B4190; background: radial-gradient(1100px 700px at 50% 0%, #FFFCF7, transparent 70%), #F6F0E8; }
+body.t-clay .logo { background: #FFFAF3; box-shadow: 0 2.4vh 4vh -2vh rgba(96, 70, 44, .4), inset 0 .5vh .4vh #fff, inset 0 -1vh 1.6vh rgba(122, 92, 60, .12); }
+body.t-clay .code { color: #5B4190; text-shadow: none; font-weight: 400; }
+body.t-clay .timer { color: #5B4190; font-weight: 400; }
+body.t-clay .timer.done { color: #E2566E; }
+body.t-clay .bar { height: 3vh; border-radius: 9vh; background: #EDE4D8; box-shadow: inset 0 .6vh 1.2vh rgba(96, 70, 44, .22), inset 0 -.2vh .2vh #fff; }
+body.t-clay .bar i { background: #5B4190; border-radius: 9vh; box-shadow: inset 0 .5vh .4vh rgba(255, 255, 255, .3), inset 0 -.8vh 1vh rgba(30, 18, 50, .3); }
+body.t-clay .name { color: #fff; background: #5B4190; padding: 3vh 7vw; border-radius: 99vh; font-size: 16vh;
+  box-shadow: 0 4vh 6vh -3vh rgba(74, 53, 102, .7), inset 0 1vh 1vh rgba(255, 255, 255, .25), inset 0 -2vh 3vh rgba(30, 18, 50, .3); }
+body.t-clay .pts div, body.t-clay .groups div { background: #FFFAF3; border: 0;
+  box-shadow: 0 2.4vh 4vh -2.4vh rgba(96, 70, 44, .45), inset 0 .5vh .4vh #fff, inset 0 -1.2vh 2vh rgba(122, 92, 60, .12); }
+body.t-clay .pts span { color: #5B4190; font-weight: 500; }
+body.t-clay .groups b { color: #5B4190; }
+body.t-clay .lesson .sec { color: #5B4190; }
+body.t-clay .list li::marker { color: #5B4190; }
+body.t-clay #fs, body.t-clay #snd { color: #3B2A4A; background: #FFFAF3; border: 0; box-shadow: 0 1vh 2vh -1vh rgba(96, 70, 44, .4), inset 0 .3vh .3vh #fff; }
+body.t-clay #status { color: rgba(59, 42, 74, .6); }
+body.t-clay #shh .bub { background: #FFFAF3; }
 </style>
 </head>
-<body>
+<body class="t-clay">
 <div id="stage"></div>
 <div id="shh" aria-hidden="true">
   <svg viewBox="0 0 200 230" aria-hidden="true"><defs><radialGradient id="shB" cx="36%" cy="28%" r="78%"><stop offset="0" stop-color="#FFF2C4"/><stop offset=".5" stop-color="#F5D27C"/><stop offset="1" stop-color="#D6A245"/></radialGradient><radialGradient id="shF" cx="35%" cy="25%" r="85%"><stop offset="0" stop-color="#FFE6CF"/><stop offset="1" stop-color="#E5A272"/></radialGradient></defs><ellipse cx="100" cy="222" rx="64" ry="8" fill="rgba(60,40,20,.2)"/><circle cx="100" cy="112" r="86" fill="url(#shB)"/><ellipse cx="68" cy="60" rx="24" ry="13" fill="#fff" opacity=".5" transform="rotate(-28 68 60)"/><path d="M58 100q13 11 26 0M116 100q13 11 26 0" fill="none" stroke="#4A3B5C" stroke-width="6.5" stroke-linecap="round"/><ellipse cx="56" cy="128" rx="14" ry="8" fill="#F29BAE" opacity=".7"/><ellipse cx="144" cy="128" rx="14" ry="8" fill="#F29BAE" opacity=".7"/><ellipse cx="100" cy="146" rx="10" ry="8" fill="#4A3B5C"/><rect x="92" y="116" width="17" height="62" rx="8.5" fill="url(#shF)"/><circle cx="106" cy="184" r="22" fill="url(#shF)"/><ellipse cx="97" cy="124" rx="3" ry="6" fill="#fff" opacity=".45"/><ellipse cx="99" cy="176" rx="7" ry="4" fill="#fff" opacity=".35"/></svg>
@@ -136,7 +155,7 @@ const fmt = s => `${Math.floor(s / 60)}:${String(Math.max(0, s) % 60).padStart(2
 const pieces = {};
 function applyStyle(st) {
   if (!st) return;
-  document.body.className = `t-${st.theme || 'night'} f-${st.font || 'plain'}`;
+  document.body.className = `t-${st.theme || 'clay'} f-${st.font || 'plain'}`;
   document.body.style.setProperty('--tsize', st.size || 1);
   try { localStorage.setItem('cast-style', JSON.stringify(st)); } catch {}
 }
@@ -202,6 +221,7 @@ function show(m) {
   st.innerHTML = /^(html|file|canva)$/.test(k) ? h : `<div class="fade">${h}</div>`;
   if (!k || k === 'idle') { const tick = () => { const n = new Date(); $('#ck').textContent = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; $('#dt').textContent = n.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }); }; tick(); clockT = setInterval(tick, 5000); }
 }
+if (/[?&]preview\b/.test(location.search)) window.__show = show; // design previews only
 function showCode(code) {
   $('#stage').innerHTML = `<div class="fade"><div class="logo"><img src="icons/icon-192.png" alt=""></div>
     <div class="howto">בטלפון: <b>הכיתה שלי ← מצב בכיתה ← למחשב בכיתה</b><br>ומקלידים את הקוד:</div>

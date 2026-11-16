@@ -25,6 +25,7 @@ const SEAT_PRESETS = {
   none: ['ריק', () => []],
 };
 const BOARD_SIDES = [['top', 'למעלה'], ['bottom', 'למטה'], ['right', 'מימין'], ['left', 'משמאל']];
+const seatShown = (S, force) => (force || state.prefs.seatView === 'teacher') ? { ...S, board: { top: 'bottom', bottom: 'top', right: 'left', left: 'right' }[S.board || 'top'] } : S;
 const boardWrap = (S, board, grid, cls = 'sroom') => `<div class="${cls} b-${S.board || 'top'}">${board}${grid}</div>`;
 const RULE_IDEAS = { rules: ['מצביעים ומחכים לתור', 'מקשיבים כשמישהו מדבר', 'מדברים בשקט ובכבוד', 'שומרים על הציוד של כולם', 'יוצאים מהכיתה רק באישור', 'עוזרים לחבר שצריך', 'טועים ולומדים – לא צוחקים על אף אחד'],
   routines: ['בכניסה: מוציאים מחברת ועט ומתחילים במשימת הפתיחה שעל הלוח', 'סימן שקט: יד מורמת + ספירה לאחור מ־5', 'סיימתי מוקדם? קורא/ת ספר או עובד/ת על משימת אתגר', 'שירותים: לוקחים את הכרטיס ומחזירים', 'לפני ההפסקה: מסדרים את השולחן ומרימים כיסא', 'סוף היום: מעתיקים שיעורי בית מהלוח'] };
@@ -32,7 +33,7 @@ const WS_KINDS = [['open', 'שאלה פתוחה', 'pencil'], ['fill', 'השלמ�
 const wsCur = () => (state.sheets = state.sheets || []).find(x => x.id === state._wsId);
 const wsOut = sh => ({ kind: 'sheet', title: sh.title || 'דף עבודה', goal: sh.goal || '', story: sh.story, teacherNote: sh.teacherNote, selfCheck: sh.selfCheck, levels: sh.levels.map(l => ({ name: sh.levels.length > 1 ? l.name : '', instructions: l.instructions, example: l.example || '', items: l.items.map(x => ({ kind: x.kind, prompt: x.prompt || '', options: x.options || [], hint: x.hint || '', answer: x.answer || '' })) })) });
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 110; // keep in step with CACHE in sw.js
+const APP_V = 111; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules', 'sheets'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -3931,6 +3932,7 @@ document.addEventListener('click', async e => {
   if (D.ruleidea) { const [k, x] = D.ruleidea.split('|'); ruleSet(k, [...toLines(clsRules()[k]), x]); return; }
   if (D.ruleproj) { const k = D.ruleproj; projector('rules', { title: k === 'rules' ? 'החוקים שלנו' : 'השגרות שלנו', items: toLines(clsRules()[k]) }); return; }
   if (D.ruleprint) { rulePrint(D.ruleprint); return; }
+  if (D.seatview) { state.prefs.seatView = D.seatview; save(); rerender(); return; }
   if (D.seatflip) { const S = seatsOf(), v = D.seatflip === 'v';
     const f = k => { const [r, c] = k.split('-').map(Number); return v ? seatKey(S.gh - 1 - r, c) : seatKey(r, S.gw - 1 - c); };
     withUndo(['seats'], v ? 'הסידור התהפך – למעלה ↔ למטה' : 'הסידור התהפך – ימין ↔ שמאל', () => {
@@ -4792,8 +4794,13 @@ function viewSeats() {
     if (!isDesk) return '<span class="seat gap"></span>';
     return `<button class="seat ${n ? 'full' : ''} ${sel === k ? 'sel' : ''}" data-seat="${k}" ${n ? `aria-label="${esc(n)}"` : ''}>${n ? `<b style="font-size:${Math.min(12.5, Math.max(7, 262 / S.gw / Math.max(3, n.split(" ")[0].length) / .66)).toFixed(1)}px">${esc(n.split(' ')[0])}</b>${n.split(' ')[1] && S.gw <= 8 ? `<small>${esc(n.split(' ').slice(1).join(' '))}</small>` : ''}${S.front.includes(n) ? '<i class="sfront"></i>' : ''}` : '<span class="plus">+</span>'}</button>`;
   };
-  h += `<div class="card seatroom ${edit ? 'editing' : ''}">${boardWrap(S, `<div class="board">הלוח</div>`, `<div class="seatwrap"><div class="seatgrid" style="--cols:${S.gw}">${Array.from({ length: S.gh }, (_, r) => Array.from({ length: S.gw }, (_, c) => cell(r, c)).join('')).join('')}</div></div>`)}
-    <div class="flipbar"><p class="pmlbl">הפיכת כל הסידור (שולחנות וילדים)</p><div class="seg"><button data-seatflip="v">למעלה ↔ למטה</button><button data-seatflip="h">ימין ↔ שמאל</button></div></div>
+  // "my view": the teacher stands at the board facing the class – the whole room turned around, the board at the bottom, near her.
+  // Only the picture turns; who sits where stays the same.
+  const tv = state.prefs.seatView === 'teacher';
+  const rows = Array.from({ length: S.gh }, (_, r) => tv ? S.gh - 1 - r : r), colsI = Array.from({ length: S.gw }, (_, c) => tv ? S.gw - 1 - c : c);
+  h += `<div class="seg seatview"><button class="${tv ? '' : 'on'}" data-seatview="class">מבט מהכיתה · הלוח רחוק</button><button class="${tv ? 'on' : ''}" data-seatview="teacher">המבט שלי · ליד הלוח</button></div>`;
+  h += `<div class="card seatroom ${edit ? 'editing' : ''} ${tv ? 'tview' : ''}">${boardWrap(seatShown(S), `<div class="board">הלוח${tv ? ' · כאן אני' : ''}</div>`, `<div class="seatwrap"><div class="seatgrid" style="--cols:${S.gw}">${rows.map(r => colsI.map(c => cell(r, c)).join('')).join('')}</div></div>`)}
+    ${edit ? `<div class="flipbar"><p class="pmlbl">להזיז את כל השולחנות לצד השני של החדר</p><div class="seg"><button data-seatflip="v">למעלה ↔ למטה</button><button data-seatflip="h">ימין ↔ שמאל</button></div></div>` : ''}
     ${!edit && sel ? `<p class="hint seathint">${S.map[sel] ? `נבחר/ה: <b>${esc(S.map[sel])}</b> – לוחצים על שולחן אחר להחלפה, או ` : 'שולחן ריק – בוחרים ילד/ה מהרשימה למטה, או '}<button class="linkbtn" data-act="seatclear1">${S.map[sel] ? 'פינוי השולחן' : 'ביטול'}</button></p>` : ''}
     ${!edit && free.length ? `<div class="seatfree"><p class="pmlbl">עוד לא יושבים (${free.length})${sel && !S.map[sel] ? ' – לוחצים על שם כדי להושיב' : ''}</p><div class="fchips wrap">${free.map(n => `<button class="fc" data-seatkid="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>` : ''}
     ${edit && state._deskSel ? `<div class="btnrow"><button class="cta soft" data-act="deskdel">${ic('trash')} הסרת השולחן${S.map[state._deskSel] ? ` (${esc(S.map[state._deskSel].split(' ')[0])} יחזור לרשימה)` : ''}</button><button class="cta soft" data-act="deskunsel">${ic('x')} ביטול</button></div>` : ''}
@@ -4814,15 +4821,15 @@ function viewSeats() {
 }
 // the same room for print, the classroom screen and the substitute page
 const seatsPlain = S => ({ gw: S.gw, gh: S.gh, desks: S.desks, map: S.map, board: S.board || 'top' });
-function seatsHtmlFor(S) {
+function seatsHtmlFor(S, tv) {
   const desks = new Set(S.desks); let cells = '';
-  for (let r = 0; r < S.gh; r++) for (let c = 0; c < S.gw; c++) { const k = seatKey(r, c), n = S.map[k]; cells += desks.has(k) ? `<div class="ps ${n ? '' : 'e'}">${n ? esc(n) : ''}</div>` : '<div class="ps g"></div>'; }
-  return `<div class="pseats" style="--cols:${S.gw}">${boardWrap(S, '<div class="pboard">הלוח</div>', `<div class="pgrid">${cells}</div>`)}</div>`;
+  for (let r0 = 0; r0 < S.gh; r0++) for (let c0 = 0; c0 < S.gw; c0++) { const r = tv ? S.gh - 1 - r0 : r0, c = tv ? S.gw - 1 - c0 : c0; const k = seatKey(r, c), n = S.map[k]; cells += desks.has(k) ? `<div class="ps ${n ? '' : 'e'}">${n ? esc(n) : ''}</div>` : '<div class="ps g"></div>'; }
+  return `<div class="pseats" style="--cols:${S.gw}">${boardWrap(tv ? seatShown(S, true) : S, '<div class="pboard">הלוח</div>', `<div class="pgrid">${cells}</div>`)}</div>`;
 }
 function seatPrint() {
   const S = seatsOf(), c = curCls();
   let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
-  doPrint(`<div class="pw-pg pw-land"><header><h1>מקומות ישיבה${c && c.name ? ' · ' + esc(c.name) : ''}</h1><p>${new Date().toLocaleDateString('he-IL')}</p></header>${seatsHtmlFor(S)}</div>`);
+  doPrint(`<div class="pw-pg pw-land"><header><h1>מקומות ישיבה${c && c.name ? ' · ' + esc(c.name) : ''}</h1><p>${new Date().toLocaleDateString('he-IL')}</p></header>${seatsHtmlFor(S, state.prefs.seatView === 'teacher')}</div>`);
 }
 function seatTap(k) {
   const S = seatsOf(), sel = state._seatSel;

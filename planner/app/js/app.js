@@ -16,7 +16,7 @@ const KEY = 'noa-planner-v1';
 const team = { data: {}, at: {}, busy: {} }; // shared-week progress of the other teachers (see TEAM below)
 let teamT = 0;
 const ai = { busy: false, kind: 'lesson', out: null, err: '' }; // the AI builder's screen state (see AI below)
-const APP_V = 98; // keep in step with CACHE in sw.js
+const APP_V = 99; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -4825,7 +4825,7 @@ async function aiFetch(op, body, q = '') {
   return j;
 }
 const AI_ERR = { login: 'צריך להתחבר לחשבון (בהגדרות)', limit: 'הגעת למכסה היומית – אפשר שוב מחר', month: 'נגמרה המכסה החודשית של האתר', 'not-ready': 'הבינה המלאכותית עוד לא פעילה באתר – היא נדלקת אחרי ההעלאה הבאה',
-  get refusal() { return `לא הצלחתי לבנות את זה – ${g('נסי', 'נסה')} לנסח אחרת`; }, get cut() { return `יצא ארוך מדי – ${g('נסי', 'נסה')} נושא מצומצם יותר`; }, get error() { return `משהו השתבש – ${g('נסי', 'נסה')} שוב בעוד רגע`; }, gone: 'הבנייה כבר לא זמינה' };
+  get refusal() { return `לא הצלחתי לבנות את זה – ${g('נסי', 'נסה')} לנסח אחרת`; }, get cut() { return `יצא ארוך מדי – ${g('נסי', 'נסה')} נושא מצומצם יותר`; }, get error() { return `משהו השתבש – ${g('נסי', 'נסה')} שוב בעוד רגע`; }, gone: 'הבנייה כבר לא זמינה', empty: 'התוצאה חזרה ריקה – הבנייה לא נספרה כהצלחה. בפרטים הטכניים למטה רואים מה חזר.' };
 // what the teacher already teaches: the closest lesson in the plan, and one full lesson as a style reference
 function aiContext(topic) {
   const w = pickWeek(), all = w ? w.days.flatMap(d => d.periods.map(p => ({ d, p }))) : [];
@@ -4851,7 +4851,7 @@ function viewAi() {
     <p class="hint">ה־AI חושב לעומק ונעזר בתכנון ${g("שלך", "שלך")} כדי לשמור על הסגנון – זה לוקח 1–3 דקות. אפשר לעבור למסך אחר בינתיים. כדאי תמיד לעבור על התוצאה לפני השיעור.</p>
   </div>`;
   if (ai.busy) h += `<div class="card aiwait"><span class="ld-ill">${slotImg('welcome', 'md')}</span><b id="aiStep">${AI_STEPS[ai.kind][0]}</b><small id="aiProg">עוד רגע…</small></div>`;
-  if (ai.err) h += `<div class="card"><p class="dim">${esc(ai.err)}</p></div>`;
+  if (ai.err) h += `<div class="card"><p class="dim">${esc(ai.err)}</p>${ai.diag ? `<details class="aiq"><summary>פרטים טכניים (לשליחה לתמיכה)</summary><pre class="board-t" dir="ltr" style="background:var(--tint2);color:var(--ink);font-size:11px">${esc(JSON.stringify(ai.diag, null, 1))}</pre></details>` : ''}</div>`;
   const o = ai.out;
   if (o && o.kind === 'lesson') h += `<div class="card ailesson">${cardHead('book', esc(o.title))}
     ${o.goals.length ? `<h4>מטרות</h4><ul>${o.goals.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}${o.prior ? `<p class="dim">ידע קודם: ${esc(o.prior)}</p>` : ''}
@@ -4877,7 +4877,7 @@ async function aiGo() {
   if (!state._aiTopic) { toast(g('כתבי נושא קודם', 'כתוב נושא קודם')); return; }
   if (!sync.user) { toast(AI_ERR.login, 3000); return; }
   const kind = ai.kind;
-  Object.assign(ai, { busy: true, out: null, err: '' }); rerender();
+  Object.assign(ai, { busy: true, out: null, err: '', diag: null }); rerender();
   const t0 = Date.now(); let k = 0;
   const tick = setInterval(() => { const s = $('#aiStep'), p = $('#aiProg'), sec = Math.round((Date.now() - t0) / 1000); if (sec % 9 === 0) k = Math.min(k + 1, AI_STEPS[kind].length - 1); if (s) s.textContent = AI_STEPS[kind][k]; if (p) p.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; }, 1000);
   try {
@@ -4885,8 +4885,8 @@ async function aiGo() {
     for (;;) {
       await new Promise(r => setTimeout(r, 4000));
       const j = await aiFetch('get', null, `&id=${encodeURIComponent(id)}`);
-      if (j.status === 'done') { ai.out = { kind, ...j.result }; break; }
-      if (j.status === 'error') throw Object.assign(new Error(j.error), { code: j.error });
+      if (j.status === 'done') { const r = j.result || {}; if (!r.title || !(kind === 'sheet' ? (r.levels || []).length : (r.sections || []).length)) throw Object.assign(new Error('empty'), { code: 'empty' }); ai.out = { kind, ...r }; break; }
+      if (j.status === 'error') { ai.diag = j.diag; throw Object.assign(new Error(j.error), { code: j.error }); }
       if (Date.now() - t0 > 16 * 60e3) throw Object.assign(new Error('timeout'), { code: 'error' });
     }
   } catch (e) { ai.err = AI_ERR[e.code] || AI_ERR.error; }

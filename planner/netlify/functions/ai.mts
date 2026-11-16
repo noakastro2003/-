@@ -21,7 +21,7 @@ export default async (req: Request) => {
   if (op === 'get') {
     const job = (await st.get(`job/${u.searchParams.get('id')}`, { type: 'json' })) as any
     if (!job || job.owner !== user.id) return json({ error: 'gone' }, 404)
-    return json({ status: job.status, result: job.result || null, error: job.error || null })
+    return json({ status: job.status, result: job.result || null, error: job.error || null, diag: job.status === 'error' ? job.diag || null : null })
   }
   if (req.method !== 'POST') return json({ error: 'method' }, 405)
   const b = (await req.json().catch(() => ({}))) as any
@@ -63,7 +63,7 @@ ${text}` }],
     if (raw.length > 12_000) return json({ error: 'too-big' }, 413)
     await st.set(dk, String(usedDay + 1)); await st.set(mk, String(usedMonth + 1))
     const id = crypto.randomUUID()
-    await st.setJSON(`job/${id}`, { id, owner: user.id, kind, params: b, status: 'queued', at: Date.now() })
+    await st.setJSON(`job/${id}`, { id, owner: user.id, kind, params: b, status: 'queued', at: Date.now(), counted: [dk, mk] })
     await fetch(new URL('/api/ai-run', req.url).toString(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) })
     return json({ id })
   }

@@ -13,12 +13,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 85; // keep in step with CACHE in sw.js
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
+const APP_V = 86; // keep in step with CACHE in sw.js
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null, att: {},
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null, att: {}, seats: {},
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -262,7 +262,7 @@ const greet = () => { const h = now().getHours(); return h < 5 ? 'לילה טו�
 // one illustration family (soft clay, plum / cream / gold), shown in a rounded tile
 const ILL = { books: 'desk', notepad: 'prep', star: 'tools', heart: 'class', clock: 'week', calendar: 'week', cake: 'notebook', medal: 'medal', sunrise: 'school', school: 'school', notebook: 'notebook' };
 // which picture belongs to which screen
-const TAB_ILL = { now: 'desk', day: 'week', prep: 'prep', cls: 'class', kids: 'class', class: 'class', friends: 'class', more: 'tools', tools: 'tools', files: 'tools', journal: 'notebook', todos: 'notebook', lists: 'prep', autos: 'notebook', calendar: 'week', bells: 'week', bank: 'desk', msgs: 'notebook', summary: 'medal', grades: 'medal', settings: 'tools', reports: 'notebook' };
+const TAB_ILL = { seats: 'class', now: 'desk', day: 'week', prep: 'prep', cls: 'class', kids: 'class', class: 'class', friends: 'class', more: 'tools', tools: 'tools', files: 'tools', journal: 'notebook', todos: 'notebook', lists: 'prep', autos: 'notebook', calendar: 'week', bells: 'week', bank: 'desk', msgs: 'notebook', summary: 'medal', grades: 'medal', settings: 'tools', reports: 'notebook' };
 const ILLF = new Set(['desk', 'week', 'prep', 'class', 'tools', 'school', 'notebook', 'medal']);
 const illFile = name => ILLF.has(name) ? name : ILL[name];
 // every picture has a night twin cut out of its cream background (img/ill/dark/*.webp); it loads only when night shows it
@@ -1748,7 +1748,7 @@ function viewHub() {
   let h = top(c ? esc(c.name) : 'הכיתה', multiCls() ? 'בוחרים כיתה – והכל מתעדכן לפיה' : 'הילדים, ההורים והמעקב – במקום אחד', 'users');
   h += `<div class="hubcls">${multiCls() ? clsChips(state.curClass) : ''}<button class="linkbtn" data-act="classes">${ic('settings')} ${multiCls() ? 'ניהול כיתות' : 'יש לי עוד כיתות'}</button></div>`;
   const tiles = [['phone2', 'הודעה להורים', 'data-go="msgs"', ''], ['star', 'ציונים', 'data-go="grades"', state.grades.filter(g => !g.cls || g.cls === state.curClass).length || ''],
-    ['pencil', 'יומן כיתה', 'data-go="journal"', openActions().length || ''], ['medal', 'ניקוד ורמזור', 'data-go="class"', ''], ['users', 'עריכת הרשימה', 'data-go="kids"', state.kids.length || ''], ['calendar', 'לוח אירועים', 'data-go="calendar"', '']];
+    ['pencil', 'יומן כיתה', 'data-go="journal"', openActions().length || ''], ['medal', 'ניקוד ורמזור', 'data-go="class"', ''], ['users', 'עריכת הרשימה', 'data-go="kids"', state.kids.length || ''], ['calendar', 'לוח אירועים', 'data-go="calendar"', ''], ['grid', 'מקומות ישיבה', 'data-go="seats"', '']];
   const HUES = ['hue-rose', 'hue-gold', 'hue-lav', 'hue-apr', 'hue-sage', 'hue-blue'];
   h += attLine();
   h += `<button class="attline ${cast.on ? '' : 'todo'}" data-act="cast">${ic('screen')}<span class="grow"><b>מסך הכיתה</b> · ${cast.on ? 'מחובר – לחיצה לשליטה' : 'להקרין מהטלפון למחשב בכיתה'}</span>${ic('chevL', 'chev')}</button>`;
@@ -3481,8 +3481,8 @@ function readyMoment(day) {
 
 // ================================================================ render
 const TABS = ['now', 'day', 'prep', 'cls', 'more'];
-const SUB = { files: 'more', friends: 'more', bells: 'more', kids: 'cls', grades: 'cls', journal: 'cls', class: 'cls', msgs: 'cls', calendar: 'cls', todos: 'more', reports: 'more', summary: 'more', settings: 'more',  lists: 'more', autos: 'more', tools: 'more',   bank: 'more',  };
-const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, cls: viewHub, friends: viewFriends, bells: viewBells, reports: viewReports, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar };
+const SUB = { seats: 'cls', files: 'more', friends: 'more', bells: 'more', kids: 'cls', grades: 'cls', journal: 'cls', class: 'cls', msgs: 'cls', calendar: 'cls', todos: 'more', reports: 'more', summary: 'more', settings: 'more',  lists: 'more', autos: 'more', tools: 'more',   bank: 'more',  };
+const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, cls: viewHub, friends: viewFriends, bells: viewBells, reports: viewReports, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar, seats: viewSeats };
 let lastTab = null;
 function render(animate) {
   let w = pickWeek();
@@ -3497,7 +3497,7 @@ function render(animate) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   requestAnimationFrame(moveTabInd);
   const v = $('#view');
-  const needWeek = !['more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells', 'reports'].includes(state.tab);
+  const needWeek = !['seats', 'more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells', 'reports'].includes(state.tab);
   document.body.classList.toggle('onboarding', !state.onboarded);
   let html = !state.onboarded ? viewOnboard() : !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
   const busyNow = (() => { const w0 = realWeek(), d0 = w0 && todayInWeek(w0), ph0 = d0 && phase(d0); return ph0 && (ph0.kind === 'lesson' || ph0.kind === 'break'); })();
@@ -3666,6 +3666,15 @@ document.addEventListener('click', async e => {
   if (D.cnote != null && D.tag) { noteSheet(D.cnote || null, D.tag); return; }
   if (D.picktag) { state._note.tag = D.picktag; state._note.tagSet = true; document.querySelectorAll('.tp').forEach(b => b.classList.toggle('on', b.dataset.picktag === D.picktag)); return; }
   if (D.pickkid) { const k = state._note.kids, i = k.indexOf(D.pickkid); if (i >= 0) k.splice(i, 1); else k.push(D.pickkid); t.classList.toggle('on', i < 0); return; }
+  if (D.seat) { seatTap(D.seat); return; }
+  if (D.seatkid) { const S = seatsOf(); let k = state._seatSel && !S.map[state._seatSel] ? state._seatSel : null;
+    if (!k) for (let r = 0; r < S.rows && !k; r++) for (let c = 0; c < S.cols && !k; c++) if (!S.map[seatKey(r, c)]) k = seatKey(r, c);
+    if (!k) { toast('אין מקום פנוי – מוסיפים שורה או שולחן'); return; }
+    S.map[k] = D.seatkid; state._seatSel = null; save(); rerender(); return; }
+  if (D.seatdim) { const [k, d] = D.seatdim.split('|'); const S = seatsOf(); S[k] = Math.max(1, Math.min(10, S[k] + +d));
+    for (const key of Object.keys(S.map)) { const [r, c] = key.split('-').map(Number); if (r >= S.rows || c >= S.cols) delete S.map[key]; } save(); rerender(); return; }
+  if (D.seatfront) { const S = seatsOf(); const i = S.front.indexOf(D.seatfront); if (i >= 0) S.front.splice(i, 1); else S.front.push(D.seatfront); save(); rerender(); return; }
+  if (D.seatapartdel != null) { seatsOf().apart.splice(+D.seatapartdel, 1); save(); rerender(); return; }
   if (D.cdone) { const n = state.cnotes.find(x => x.id === D.cdone); if (n) { n.done = !n.done; save(); if (n.done) miniBurst(t); setTimeout(rerender, 250); } return; }
   if (D.cdel) { { withUndo(['cnotes'], 'ההערה נמחקה', () => { state.cnotes = state.cnotes.filter(x => x.id !== D.cdel); }); } return; }
   if (D.jf != null) { state.jfilter = D.jf; rerender(); return; }
@@ -3838,6 +3847,13 @@ document.addEventListener('click', async e => {
     case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
     case 'classes': classesSheet(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
+    case 'seatpair': { const S = seatsOf(); S.pair = !S.pair; save(); rerender(); break; }
+    case 'seatshuffle': { const S = seatsOf(); withUndo(['seats'], 'סידור חדש', () => { const r = seatShuffle(S); S.map = r.map; if (r.bad) setTimeout(() => toast(`לא הצלחתי להפריד בין כולם (${r.bad}) – אפשר לתקן ידנית`, 3500), 50); }); state._seatSel = null; if (cast.on && cast.last && cast.last.kind === 'seats') castSend('seats', { ...seatsOf() }); break; }
+    case 'seatwipe': { withUndo(['seats'], 'המקומות נוקו', () => { seatsOf().map = {}; }); state._seatSel = null; break; }
+    case 'seatclear1': { const S = seatsOf(); if (state._seatSel && S.map[state._seatSel]) delete S.map[state._seatSel]; state._seatSel = null; save(); rerender(); break; }
+    case 'seatprint': seatPrint(); break;
+    case 'seatcast': { if (!cast.on) { castSheet(); toast('קודם מתחברים למסך הכיתה', 2500); break; } castSend('seats', { ...seatsOf() }); toast('מקומות הישיבה מוצגים במסך הכיתה', 1800); break; }
+    case 'seatapart': { const a = $('#apA') && $('#apA').value, b = $('#apB') && $('#apB').value; if (!a || !b || a === b) { toast('בוחרים שני ילדים שונים'); break; } const S = seatsOf(); if (!S.apart.some(([x, y]) => (x === a && y === b) || (x === b && y === a))) S.apart.push([a, b]); save(); rerender(); break; }
     case 'minviteno': state.prefs.mInvite = 1; save(); rerender(); toast('אפשר להפעיל מתי שרוצים: עוד ← התראות ואוטומציות', 3600); break;
     case 'search': searchSheet(); break;
     case 'notemic': noteMic(); break;
@@ -4418,3 +4434,89 @@ document.addEventListener('touchend', () => {
   const go = () => list.forEach(src => { const i = new Image(); i.src = src; if (i.decode) i.decode().catch(() => {}); });
   if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 2500 }); else setTimeout(go, 800);
 })();
+
+// ================================================================ SEATING: desks in rows, tap two seats to swap, smart shuffle with rules
+function seatsOf() {
+  const id = state.curClass || 'main';
+  state.seats = state.seats || {};
+  return state.seats[id] || (state.seats[id] = { rows: 4, cols: 6, pair: true, map: {}, front: [], apart: [] });
+}
+const seatKey = (r, c) => `${r}-${c}`;
+function seatNear(S, a, b) {
+  const [r1, c1] = a.split('-').map(Number), [r2, c2] = b.split('-').map(Number);
+  if (r1 === r2 && Math.abs(c1 - c2) === 1) return true;
+  return c1 === c2 && Math.abs(r1 - r2) === 1;
+}
+function seatShuffle(S) {
+  const names = state.kids.map(k => k.name);
+  const seats = []; for (let r = 0; r < S.rows; r++) for (let c = 0; c < S.cols; c++) seats.push(seatKey(r, c));
+  const front = S.front.filter(n => names.includes(n));
+  const rest = names.filter(n => !front.includes(n));
+  const shuf = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  let best = null, bestBad = 1e9;
+  for (let t = 0; t < 400 && bestBad; t++) {
+    const order = [...shuf(front), ...shuf(rest)].slice(0, seats.length);
+    const map = {}; order.forEach((n, i) => { map[seats[i]] = n; });
+    // the rest of the class spreads over the room instead of packing the front: move empty seats around a little
+    const where = {}; for (const [k, n] of Object.entries(map)) where[n] = k;
+    let bad = 0; for (const [a, b] of S.apart) if (where[a] && where[b] && seatNear(S, where[a], where[b])) bad++;
+    if (bad < bestBad) { bestBad = bad; best = map; }
+  }
+  return { map: best || {}, bad: bestBad };
+}
+function viewSeats() {
+  const S = seatsOf();
+  const names = state.kids.map(k => k.name);
+  const placed = new Set(Object.values(S.map));
+  const free = names.filter(n => !placed.has(n));
+  const sel = state._seatSel || null;
+  let h = top('מקומות ישיבה', 'לוחצים על שני מקומות כדי להחליף ביניהם', 'users', { back: 'cls' });
+  if (!names.length) return h + `<div class="card">${estate('e-kids', 'צריך קודם רשימת ילדים', 'מוסיפים את הילדים – ואז מסדרים אותם בכיתה.')}<button class="cta" data-go="kids">${ic('plus')} הוספת הילדים</button></div>`;
+  const step = (k, v, min, max) => `<span class="stepper"><button data-seatdim="${k}|-1" ${v <= min ? 'disabled' : ''} aria-label="פחות">−</button><b>${v}</b><button data-seatdim="${k}|1" ${v >= max ? 'disabled' : ''} aria-label="עוד">+</button></span>`;
+  h += `<div class="card setcard seatcfg">
+    <div class="setrow"><span>שורות</span>${step('rows', S.rows, 1, 10)}</div>
+    <div class="setrow"><span>שולחנות בשורה</span>${step('cols', S.cols, 1, 10)}</div>
+    <div class="setrow"><span>ישיבה בזוגות<small class="dim">רווח בין כל שני שולחנות</small></span><button class="switch ${S.pair ? 'on' : ''}" data-act="seatpair" role="switch" aria-checked="${S.pair}"><i></i></button></div>
+  </div>`;
+  const cell = (r, c) => {
+    const k = seatKey(r, c), n = S.map[k];
+    const isFront = n && S.front.includes(n);
+    return `<button class="seat ${n ? 'full' : ''} ${sel === k ? 'sel' : ''} ${S.pair && c % 2 === 1 ? 'pr' : ''}" data-seat="${k}">${n ? `<b>${esc(n.split(' ')[0])}</b>${n.split(' ')[1] ? `<small>${esc(n.split(' ').slice(1).join(' '))}</small>` : ''}${isFront ? '<i class="sfront"></i>' : ''}` : '<span class="plus">+</span>'}</button>`;
+  };
+  h += `<div class="card seatroom"><div class="board">הלוח</div>
+    <div class="seatgrid" style="--cols:${S.cols}">${Array.from({ length: S.rows }, (_, r) => Array.from({ length: S.cols }, (_, c) => cell(r, c)).join('')).join('')}</div>
+    ${sel ? `<p class="hint seathint">${S.map[sel] ? `נבחר/ה: <b>${esc(S.map[sel])}</b> – לוחצים על מקום אחר להחלפה, או ` : 'מקום ריק – בוחרים ילד/ה מהרשימה למטה, או '}<button class="linkbtn" data-act="seatclear1">${S.map[sel] ? 'פינוי המקום' : 'ביטול'}</button></p>` : ''}
+    ${free.length ? `<div class="seatfree"><p class="pmlbl">עוד לא יושבים (${free.length})${sel && !S.map[sel] ? ' – לוחצים על שם כדי להושיב' : ''}</p><div class="fchips wrap">${free.map(n => `<button class="fc" data-seatkid="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>` : ''}
+  </div>
+  <div class="btnrow seatbtns"><button class="cta" data-act="seatshuffle">${ic('dice')} סידור חדש</button><button class="cta soft" data-act="seatcast">${ic('screen')} למסך הכיתה</button></div>
+  <div class="btnrow seatbtns"><button class="cta soft" data-act="seatprint">${ic('printer')} הדפסה</button><button class="cta soft" data-act="seatwipe">${ic('trash')} ניקוי הכל</button></div>
+  <div class="card">${cardHead('flag', 'כללים לסידור החדש')}
+    <p class="pmlbl">יושבים מקדימה (קרוב ללוח)</p>
+    <div class="fchips wrap">${names.map(n => `<button class="fc ${S.front.includes(n) ? 'on' : ''}" data-seatfront="${esc(n)}">${esc(n)}</button>`).join('')}</div>
+    <p class="pmlbl">לא לשבת ליד</p>
+    ${S.apart.length ? `<div class="apartlist">${S.apart.map(([a, b], i) => `<span class="apart">${esc(a)} ↔ ${esc(b)}<button class="iconbtn" data-seatapartdel="${i}" aria-label="הסרה">${ic('x')}</button></span>`).join('')}</div>` : ''}
+    <div class="apartadd"><select id="apA"><option value="">בוחרים…</option>${names.map(n => `<option>${esc(n)}</option>`).join('')}</select><span>↔</span><select id="apB"><option value="">בוחרים…</option>${names.map(n => `<option>${esc(n)}</option>`).join('')}</select><button class="iconbtn" data-act="seatapart" aria-label="הוספה">${ic('plus')}</button></div>
+    <p class="hint">"סידור חדש" מגריל מקומות ושומר על הכללים. אפשר תמיד לתקן ידנית בלחיצה על שני מקומות.</p>
+  </div>`;
+  return h;
+}
+function seatsHtmlFor(S, big) {
+  const rows = Array.from({ length: S.rows }, (_, r) => Array.from({ length: S.cols }, (_, c) => { const n = S.map[seatKey(r, c)]; return `<div class="ps ${n ? '' : 'e'} ${S.pair && c % 2 === 1 ? 'pr' : ''}">${n ? esc(n) : ''}</div>`; }).join('')).join('');
+  return `<div class="pseats" style="--cols:${S.cols}"><div class="pboard">הלוח</div><div class="pgrid">${rows}</div></div>`;
+}
+function seatPrint() {
+  const S = seatsOf(), c = curCls();
+  let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
+  r.innerHTML = `<div class="pw-pg pw-land"><header><h1>מקומות ישיבה${c && c.name ? ' · ' + esc(c.name) : ''}</h1><p>${new Date().toLocaleDateString('he-IL')}</p></header>${seatsHtmlFor(S)}</div>`;
+  document.body.classList.add('printing'); setTimeout(() => window.print(), 60);
+}
+function seatTap(k) {
+  const S = seatsOf(), sel = state._seatSel;
+  if (!sel) { state._seatSel = k; rerender(); return; }
+  if (sel === k) { state._seatSel = null; rerender(); return; }
+  const a = S.map[sel], b = S.map[k];
+  if (a) S.map[k] = a; else delete S.map[k];
+  if (b) S.map[sel] = b; else delete S.map[sel];
+  state._seatSel = null; save(); rerender();
+  if (cast.on && cast.last && cast.last.kind === 'seats') castSend('seats', { ...S });
+}

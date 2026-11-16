@@ -104,6 +104,13 @@ iframe { position: fixed; inset: 0; width: 100vw; height: 100vh; border: 0; back
 @keyframes lampR { 50% { transform: scale(1.14, 1.02); } }
 #shh .bub { background: #FFFAF3; color: #4A3566; box-shadow: 0 2vh 4vh -1vh rgba(0, 0, 0, .35), inset 0 .6vh .4vh #fff, inset 0 -1vh 1.6vh rgba(122, 92, 60, .14); }
 #shh .bub::after { border-left-color: #FFFAF3; }
+.seats { width: min(94vw, 160vh); }
+.seats .sb { margin: 0 auto 3vh; width: 50%; padding: 1.2vh; border-radius: 99vh; background: #5B4190; color: #fff; font-size: 2.6vh; text-align: center; box-shadow: 0 1.5vh 3vh -1.5vh rgba(0,0,0,.5), inset 0 .4vh .4vh rgba(255,255,255,.25); }
+.seats .sg { display: grid; grid-template-columns: repeat(var(--cols), 1fr); gap: 1.6vh 1vw; }
+.seats .st { min-height: 8vh; display: grid; place-items: center; padding: .8vh .6vw; border-radius: 2vh; background: #FFFAF3; color: #3B2A4A; font-size: calc(2.6vh * var(--tsize, 1)); font-weight: 600; text-align: center;
+  box-shadow: 0 1.4vh 2.4vh -1.6vh rgba(96, 70, 44, .45), inset 0 .4vh .3vh #fff, inset 0 -.8vh 1.4vh rgba(122, 92, 60, .12); }
+.seats .st.e { background: rgba(255, 255, 255, .08); box-shadow: inset 0 .5vh 1vh rgba(0,0,0,.25); }
+.seats .st.pr { margin-left: 2vw; }
 </style>
 </head>
 <body>
@@ -175,6 +182,8 @@ function show(m) {
   if (k === 'text') h = `<div class="big">${esc(d)}</div>`;
   else if (k === 'picker') h = `<div class="sub">עונה עכשיו</div><div class="name">${esc(d)}</div>`;
   else if (k === 'points') h = `<div class="pts">${(d || []).map(t => `<div><b>${esc(t.name)}</b><span>${t.pts}</span></div>`).join('')}</div>`;
+  else if (k === 'seats') { const S = d || {}; const cells = []; for (let r = 0; r < (S.rows || 0); r++) for (let c = 0; c < (S.cols || 0); c++) { const n = (S.map || {})[r + '-' + c]; cells.push(`<div class="st ${n ? '' : 'e'} ${S.pair && c % 2 === 1 ? 'pr' : ''}">${n ? esc(n) : ''}</div>`); }
+    h = `<div class="seats" style="--cols:${S.cols || 1}"><div class="sb">הלוח</div><div class="sg">${cells.join('')}</div></div>`; }
   else if (k === 'groups') h = `<div class="groups">${(d || []).map((g, i) => `<div><b>קבוצה ${i + 1}</b>${g.map(n => `<span>${esc(n)}</span>`).join('')}</div>`).join('')}</div>`;
   else if (k === 'dict') h = `<ol class="list">${(d || []).map(x => `<li>${esc(x)}</li>`).join('')}</ol>`;
   else if (k === 'lesson') h = `<div class="lesson">${d.sec ? `<div class="sec">${esc(d.sec)}</div>` : ''}<h1>${esc(d.title)}</h1>${d.text ? `<p>${esc(d.text)}</p>` : ''}</div>`;

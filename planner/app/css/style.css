@@ -1874,3 +1874,37 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 .adv[open] > summary .chev { transform: rotate(180deg); }
 .adv .danger { margin: 14px 0 4px; width: 100%; }
 .hint.ver { text-align: center; margin-top: 18px; }
+
+/* ================================================================ v86 · seating */
+.stepper { display: inline-flex; align-items: center; gap: 10px; }
+.stepper button { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--card); color: var(--accent-ink); font-size: 20px; line-height: 1; box-shadow: var(--clay-sm, 0 1px 3px rgba(0,0,0,.1)); }
+.stepper button:disabled { opacity: .35; }
+.stepper b { min-width: 22px; text-align: center; font-size: var(--fs-body); }
+.seatroom { padding: 16px 12px; overflow-x: auto; }
+.board { margin: 0 auto 16px; width: 60%; padding: 7px; border-radius: 999px; background: #5B4190; color: #fff; text-align: center; font-size: var(--fs-note); font-weight: 600;
+  box-shadow: 0 10px 18px -10px rgba(74, 53, 102, .7), inset 0 2px 2px rgba(255, 255, 255, .25), inset 0 -4px 6px rgba(30, 18, 50, .3); }
+.seatgrid { display: grid; grid-template-columns: repeat(var(--cols), minmax(44px, 1fr)); gap: 10px 5px; min-width: calc(var(--cols) * 48px); }
+.seat { position: relative; min-height: 50px; padding: 5px 2px; border: 0; border-radius: 14px; background: var(--card); color: var(--ink); font: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;
+  box-shadow: var(--clay-sm, 0 1px 3px rgba(0,0,0,.1)); }
+.seat b { font-size: 12.5px; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat small { font-size: 10px; color: var(--soft); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat:not(.full) { background: color-mix(in srgb, var(--bg) 70%, var(--card)); box-shadow: var(--clay-pressed, inset 0 1px 3px rgba(0,0,0,.1)); }
+.seat .plus { color: var(--soft); font-size: 18px; opacity: .6; }
+.seat.pr { margin-left: 10px; }
+.seat.sel { background: #5B4190 !important; color: #fff; transform: scale(1.06); box-shadow: 0 8px 14px -8px rgba(74, 53, 102, .8), inset 0 2px 2px rgba(255,255,255,.25) !important; }
+.seat.sel small { color: rgba(255, 255, 255, .8); }
+.sfront { position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: #F7C64B; }
+.seathint { margin: 14px 4px 0; }
+.seatfree { margin-top: 14px; }
+.seatbtns { margin: 12px 0 0; }
+.apartlist { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.apart { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 12px; border-radius: 999px; background: color-mix(in srgb, #F26B6B 14%, var(--card)); font-size: var(--fs-sm); }
+.apart .iconbtn { width: 26px; height: 26px; }
+.apartadd { display: flex; align-items: center; gap: 8px; }
+.apartadd select { flex: 1; min-width: 0; padding: 10px; border-radius: 12px; border: 0; background: color-mix(in srgb, var(--bg) 70%, var(--card)); box-shadow: var(--clay-pressed, none); font: inherit; color: var(--ink); }
+#printroot .pseats .pboard { margin: 0 auto 12pt; width: 40%; text-align: center; padding: 5pt; border: 1pt solid #5B4190; border-radius: 20pt; font-size: 11pt; }
+#printroot .pgrid { display: grid; grid-template-columns: repeat(var(--cols), 1fr); gap: 9pt 5pt; }
+#printroot .ps { min-height: 34pt; display: grid; place-items: center; text-align: center; border: .8pt solid #cfc6d8; border-radius: 6pt; font-size: 11pt; padding: 3pt; }
+#printroot .ps.e { border-style: dashed; color: #bbb; }
+#printroot .ps.pr { margin-left: 10pt; }
+.seat b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }

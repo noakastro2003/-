@@ -16,7 +16,16 @@ const KEY = 'noa-planner-v1';
 const team = { data: {}, at: {}, busy: {} }; // shared-week progress of the other teachers (see TEAM below)
 let teamT = 0;
 const ai = { busy: false, kind: 'lesson', out: null, err: '' }; // the AI builder's screen state (see AI below)
-const APP_V = 99; // keep in step with CACHE in sw.js
+// seating layouts and the stepper's minus sign (see SEATING below) – defined early because the screen can open first
+const SEAT_PRESETS = {
+  rows: ['שורות', (W, H) => { const d = []; for (let r = 1; r < H; r += 2) for (let c = 0; c < W; c++) if (c % 3 !== 2) d.push(seatKey(r, c)); return d; }],
+  u: ['ח', (W, H) => { const d = []; for (let r = 1; r < H; r++) { d.push(seatKey(r, 0)); d.push(seatKey(r, W - 1)); } for (let c = 1; c < W - 1; c++) d.push(seatKey(H - 1, c)); return d; }],
+  uu: ['ח בתוך ח', (W, H) => { const d = new Set(SEAT_PRESETS.u[1](W, H)); for (let r = 2; r < H - 2; r++) { d.add(seatKey(r, 2)); d.add(seatKey(r, W - 3)); } for (let c = 2; c < W - 2; c++) d.add(seatKey(H - 3, c)); return [...d]; }],
+  groups: ['קבוצות', (W, H) => { const d = []; for (let r = 1; r + 1 < H; r += 3) for (let c = 0; c + 1 < W; c += 3) d.push(seatKey(r, c), seatKey(r, c + 1), seatKey(r + 1, c), seatKey(r + 1, c + 1)); return d; }],
+  none: ['ריק', () => []],
+};
+const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const APP_V = 100; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -3736,11 +3745,15 @@ document.addEventListener('click', async e => {
   if (D.meetprint) { closeOverlay(); meetPrint([D.meetprint]); return; }
   if (D.seat) { seatTap(D.seat); return; }
   if (D.seatkid) { const S = seatsOf(); let k = state._seatSel && !S.map[state._seatSel] ? state._seatSel : null;
-    if (!k) for (let r = 0; r < S.rows && !k; r++) for (let c = 0; c < S.cols && !k; c++) if (!S.map[seatKey(r, c)]) k = seatKey(r, c);
-    if (!k) { toast('אין מקום פנוי – מוסיפים שורה או שולחן'); return; }
+    if (!k) k = seatOrder(S).find(x => !S.map[x]);
+    if (!k) { toast('אין שולחן פנוי – מוסיפים שולחן ב"עריכת המבנה"'); return; }
     S.map[k] = D.seatkid; state._seatSel = null; save(); rerender(); return; }
-  if (D.seatdim) { const [k, d] = D.seatdim.split('|'); const S = seatsOf(); S[k] = Math.max(1, Math.min(10, S[k] + +d));
-    for (const key of Object.keys(S.map)) { const [r, c] = key.split('-').map(Number); if (r >= S.rows || c >= S.cols) delete S.map[key]; } save(); rerender(); return; }
+  if (D.seatdim) { const [k, d] = D.seatdim.split('|'); const S = seatsOf(); S[k] = Math.max(k === 'gw' ? 4 : 3, Math.min(k === 'gw' ? 16 : 14, S[k] + +d));
+    const inside = key => { const [r, c] = key.split('-').map(Number); return r < S.gh && c < S.gw; };
+    S.desks = S.desks.filter(inside); for (const key of Object.keys(S.map)) if (!inside(key)) delete S.map[key]; S.layout = 'custom'; save(); rerender(); return; }
+  if (D.seatmode) { state._seatEdit = D.seatmode === 'edit'; state._seatSel = null; rerender(); return; }
+  if (D.seatcell) { const S = seatsOf(), k = D.seatcell, i = S.desks.indexOf(k); if (i >= 0) { S.desks.splice(i, 1); delete S.map[k]; } else S.desks.push(k); S.layout = 'custom'; save(); rerender(); return; }
+  if (D.seatpreset) { const S = seatsOf(); withUndo(['seats'], `תבנית: ${SEAT_PRESETS[D.seatpreset][0]}`, () => { S.desks = SEAT_PRESETS[D.seatpreset][1](S.gw, S.gh); S.layout = D.seatpreset; const set = new Set(S.desks); for (const key of Object.keys(S.map)) if (!set.has(key)) delete S.map[key]; }); return; }
   if (D.seatfront) { const S = seatsOf(); const i = S.front.indexOf(D.seatfront); if (i >= 0) S.front.splice(i, 1); else S.front.push(D.seatfront); save(); rerender(); return; }
   if (D.seatapartdel != null) { seatsOf().apart.splice(+D.seatapartdel, 1); save(); rerender(); return; }
   if (D.cdone) { const n = state.cnotes.find(x => x.id === D.cdone); if (n) { n.done = !n.done; save(); if (n.done) miniBurst(t); setTimeout(rerender, 250); } return; }
@@ -3925,12 +3938,11 @@ document.addEventListener('click', async e => {
     case 'evalall': evalAllSheet(); break;
     case 'evalcopyall': { const all = state.kids.map(k => { const E = (state.evals || {})[k.name] || {}; return E.text ? `${k.name}\n${E.text}` : ''; }).filter(Boolean).join('\n\n———\n\n'); if (!all) { toast('עוד אין הערכות – בוחרים ילד/ה ובן/בת'); break; } try { await navigator.clipboard.writeText(all); toast(`הועתקו ${all.split('———').length} הערכות ✓`, 2000); } catch { toast('לא הצלחתי להעתיק'); } break; }
     case 'meetall': meetPrint(state.kids.map(k => k.name)); break;
-    case 'seatpair': { const S = seatsOf(); S.pair = !S.pair; save(); rerender(); break; }
-    case 'seatshuffle': { const S = seatsOf(); withUndo(['seats'], 'סידור חדש', () => { const r = seatShuffle(S); S.map = r.map; if (r.bad) setTimeout(() => toast(`לא הצלחתי להפריד בין כולם (${r.bad}) – אפשר לתקן ידנית`, 3500), 50); }); state._seatSel = null; if (cast.on && cast.last && cast.last.kind === 'seats') castSend('seats', { ...seatsOf() }); break; }
+    case 'seatshuffle': { const S = seatsOf(); withUndo(['seats'], 'סידור חדש', () => { const r = seatShuffle(S); S.map = r.map; if (r.bad) setTimeout(() => toast(`לא הצלחתי להפריד בין כולם (${r.bad}) – אפשר לתקן ידנית`, 3500), 50); }); state._seatSel = null; if (cast.on && cast.last && cast.last.kind === 'seats') castSend('seats', seatsPlain(seatsOf())); break; }
     case 'seatwipe': { withUndo(['seats'], 'המקומות נוקו', () => { seatsOf().map = {}; }); state._seatSel = null; break; }
     case 'seatclear1': { const S = seatsOf(); if (state._seatSel && S.map[state._seatSel]) delete S.map[state._seatSel]; state._seatSel = null; save(); rerender(); break; }
     case 'seatprint': seatPrint(); break;
-    case 'seatcast': { if (!cast.on) { castSheet(); toast('קודם מתחברים למסך הכיתה', 2500); break; } castSend('seats', { ...seatsOf() }); toast('מקומות הישיבה מוצגים במסך הכיתה', 1800); break; }
+    case 'seatcast': { if (!cast.on) { castSheet(); toast('קודם מתחברים למסך הכיתה', 2500); break; } castSend('seats', seatsPlain(seatsOf())); toast('מקומות הישיבה מוצגים במסך הכיתה', 1800); break; }
     case 'seatapart': { const a = $('#apA') && $('#apA').value, b = $('#apB') && $('#apB').value; if (!a || !b || a === b) { toast('בוחרים שני ילדים שונים'); break; } const S = seatsOf(); if (!S.apart.some(([x, y]) => (x === a && y === b) || (x === b && y === a))) S.apart.push([a, b]); save(); rerender(); break; }
     case 'minviteno': state.prefs.mInvite = 1; save(); rerender(); toast('אפשר להפעיל מתי שרוצים: עוד ← התראות ואוטומציות', 3600); break;
     case 'search': searchSheet(); break;
@@ -4513,74 +4525,85 @@ document.addEventListener('touchend', () => {
   if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 2500 }); else setTimeout(go, 800);
 })();
 
-// ================================================================ SEATING: desks in rows, tap two seats to swap, smart shuffle with rules
+// ================================================================ SEATING: the room as the teacher built it – desks anywhere on a grid (rows, ח, ח inside ח, groups…),
+// tap two desks to swap, a new arrangement that keeps "in front" and "not next to"
+function seatKey(r, c) { return `${r}-${c}`; }
 function seatsOf() {
   const id = state.curClass || 'main';
   state.seats = state.seats || {};
-  return state.seats[id] || (state.seats[id] = { rows: 4, cols: 6, pair: true, map: {}, front: [], apart: [] });
+  let S = state.seats[id];
+  if (!S) S = state.seats[id] = { gw: 11, gh: 8, desks: SEAT_PRESETS.u[1](11, 8), map: {}, front: [], apart: [], layout: 'u' };
+  if (!S.desks) { // older rows/cols layout -> desks on a grid, pairs kept apart by an empty column
+    const gw = S.pair ? S.cols + Math.floor((S.cols - 1) / 2) : S.cols, desks = [], map = {};
+    for (let r = 0; r < S.rows; r++) for (let c = 0; c < S.cols; c++) { const cc = S.pair ? c + Math.floor(c / 2) : c, k = seatKey(r * 2 + 1, cc); desks.push(k); const n = S.map[seatKey(r, c)]; if (n) map[k] = n; }
+    Object.assign(S, { gw: Math.max(gw, 4), gh: S.rows * 2 + 1, desks, map, layout: 'rows' }); delete S.rows; delete S.cols; delete S.pair;
+  }
+  return S;
 }
-function seatKey(r, c) { return `${r}-${c}`; }
-function seatNear(S, a, b) {
-  const [r1, c1] = a.split('-').map(Number), [r2, c2] = b.split('-').map(Number);
-  if (r1 === r2 && Math.abs(c1 - c2) === 1) return true;
-  return c1 === c2 && Math.abs(r1 - r2) === 1;
-}
+const seatNear = (a, b) => { const [r1, c1] = a.split('-').map(Number), [r2, c2] = b.split('-').map(Number); return Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1; };
+function seatOrder(S) { return S.desks.slice().sort((a, b) => { const [r1, c1] = a.split('-').map(Number), [r2, c2] = b.split('-').map(Number); return r1 - r2 || c1 - c2; }); }
 function seatShuffle(S) {
-  const names = state.kids.map(k => k.name);
-  const seats = []; for (let r = 0; r < S.rows; r++) for (let c = 0; c < S.cols; c++) seats.push(seatKey(r, c));
-  const front = S.front.filter(n => names.includes(n));
-  const rest = names.filter(n => !front.includes(n));
+  const names = state.kids.map(k => k.name), seats = seatOrder(S);
+  const front = S.front.filter(n => names.includes(n)), rest = names.filter(n => !front.includes(n));
   const shuf = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  // the front kids get the desks nearest the board; everyone else spreads over the rest of the room
+  const frontSeats = seats.slice(0, front.length), restSeats = seats.slice(front.length);
   let best = null, bestBad = 1e9;
-  for (let t = 0; t < 400 && bestBad; t++) {
-    const order = [...shuf(front), ...shuf(rest)].slice(0, seats.length);
-    const map = {}; order.forEach((n, i) => { map[seats[i]] = n; });
-    // the rest of the class spreads over the room instead of packing the front: move empty seats around a little
+  for (let t = 0; t < 500 && bestBad; t++) {
+    const map = {}; const f = shuf(front), r = shuf(rest), rs = shuf(restSeats);
+    f.forEach((n, i) => { if (frontSeats[i]) map[frontSeats[i]] = n; }); r.forEach((n, i) => { if (rs[i]) map[rs[i]] = n; });
     const where = {}; for (const [k, n] of Object.entries(map)) where[n] = k;
-    let bad = 0; for (const [a, b] of S.apart) if (where[a] && where[b] && seatNear(S, where[a], where[b])) bad++;
+    let bad = 0; for (const [a, b] of S.apart) if (where[a] && where[b] && seatNear(where[a], where[b])) bad++;
     if (bad < bestBad) { bestBad = bad; best = map; }
   }
   return { map: best || {}, bad: bestBad };
 }
 function viewSeats() {
-  const S = seatsOf();
-  const names = state.kids.map(k => k.name);
-  const placed = new Set(Object.values(S.map));
-  const free = names.filter(n => !placed.has(n));
+  const S = seatsOf(), edit = !!state._seatEdit;
+  const names = state.kids.map(k => k.name), desks = new Set(S.desks);
+  const placed = new Set(Object.values(S.map)), free = names.filter(n => !placed.has(n));
   const sel = state._seatSel || null;
-  let h = top('מקומות ישיבה', 'לוחצים על שני מקומות כדי להחליף ביניהם', 'users', { back: 'cls' });
+  let h = top('מקומות ישיבה', edit ? 'לוחצים על משבצת כדי להוסיף או להוריד שולחן' : 'לוחצים על שני שולחנות כדי להחליף ביניהם', 'users', { back: 'cls' });
   if (!names.length) return h + `<div class="card">${estate('e-kids', 'צריך קודם רשימת ילדים', 'מוסיפים את הילדים – ואז מסדרים אותם בכיתה.')}<button class="cta" data-go="kids">${ic('plus')} הוספת הילדים</button></div>`;
-  const step = (k, v, min, max) => `<span class="stepper"><button data-seatdim="${k}|-1" ${v <= min ? 'disabled' : ''} aria-label="פחות">−</button><b>${v}</b><button data-seatdim="${k}|1" ${v >= max ? 'disabled' : ''} aria-label="עוד">+</button></span>`;
-  h += `<div class="card setcard seatcfg">
-    <div class="setrow"><span>שורות</span>${step('rows', S.rows, 1, 10)}</div>
-    <div class="setrow"><span>שולחנות בשורה</span>${step('cols', S.cols, 1, 10)}</div>
-    <div class="setrow"><span>ישיבה בזוגות<small class="dim">רווח בין כל שני שולחנות</small></span><button class="switch ${S.pair ? 'on' : ''}" data-act="seatpair" role="switch" aria-checked="${S.pair}"><i></i></button></div>
-  </div>`;
+  h += `<div class="seg seatmode"><button class="${edit ? '' : 'on'}" data-seatmode="sit">${ic('users')}הושבה</button><button class="${edit ? 'on' : ''}" data-seatmode="edit">${ic('grid')}עריכת המבנה</button></div>`;
+  if (edit) {
+    const step = (k, v, min, max, l) => `<div class="setrow"><span>${l}</span><span class="stepper"><button data-seatdim="${k}|-1" ${v <= min ? 'disabled' : ''} aria-label="פחות">${MINUS}</button><b>${v}</b><button data-seatdim="${k}|1" ${v >= max ? 'disabled' : ''} aria-label="עוד">${ic('plus')}</button></span></div>`;
+    h += `<div class="card setcard"><p class="pmlbl">מתחילים מתבנית ומתאימים לכיתה</p>
+      <div class="fchips wrap">${Object.entries(SEAT_PRESETS).map(([k, [l]]) => `<button class="fc ${S.layout === k ? 'on' : ''}" data-seatpreset="${k}">${l}</button>`).join('')}</div>
+      ${step('gw', S.gw, 4, 16, 'רוחב החדר (משבצות)')}${step('gh', S.gh, 3, 14, 'עומק החדר (משבצות)')}
+      <p class="hint">${S.desks.length} שולחנות · ${names.length} ילדים${S.desks.length < names.length ? ` – חסרים ${names.length - S.desks.length} שולחנות` : ''}</p></div>`;
+  }
   const cell = (r, c) => {
-    const k = seatKey(r, c), n = S.map[k];
-    const isFront = n && S.front.includes(n);
-    return `<button class="seat ${n ? 'full' : ''} ${sel === k ? 'sel' : ''} ${S.pair && c % 2 === 1 ? 'pr' : ''}" data-seat="${k}">${n ? `<b>${esc(n.split(' ')[0])}</b>${n.split(' ')[1] ? `<small>${esc(n.split(' ').slice(1).join(' '))}</small>` : ''}${isFront ? '<i class="sfront"></i>' : ''}` : '<span class="plus">+</span>'}</button>`;
+    const k = seatKey(r, c), isDesk = desks.has(k), n = S.map[k];
+    if (edit) return `<button class="seat ${isDesk ? 'desk' : 'cellx'} ${n ? 'full' : ''}" data-seatcell="${k}" aria-label="${isDesk ? 'הסרת שולחן' : 'הוספת שולחן'}">${isDesk ? (n ? `<b>${esc(n.split(' ')[0])}</b>` : '') : ''}</button>`;
+    if (!isDesk) return '<span class="seat gap"></span>';
+    return `<button class="seat ${n ? 'full' : ''} ${sel === k ? 'sel' : ''}" data-seat="${k}" ${n ? `aria-label="${esc(n)}"` : ''}>${n ? `<b style="font-size:${Math.min(12.5, Math.max(7, 262 / S.gw / Math.max(3, n.split(" ")[0].length) / .66)).toFixed(1)}px">${esc(n.split(' ')[0])}</b>${n.split(' ')[1] && S.gw <= 8 ? `<small>${esc(n.split(' ').slice(1).join(' '))}</small>` : ''}${S.front.includes(n) ? '<i class="sfront"></i>' : ''}` : '<span class="plus">+</span>'}</button>`;
   };
-  h += `<div class="card seatroom"><div class="board">הלוח</div>
-    <div class="seatgrid" style="--cols:${S.cols}">${Array.from({ length: S.rows }, (_, r) => Array.from({ length: S.cols }, (_, c) => cell(r, c)).join('')).join('')}</div>
-    ${sel ? `<p class="hint seathint">${S.map[sel] ? `נבחר/ה: <b>${esc(S.map[sel])}</b> – לוחצים על מקום אחר להחלפה, או ` : 'מקום ריק – בוחרים ילד/ה מהרשימה למטה, או '}<button class="linkbtn" data-act="seatclear1">${S.map[sel] ? 'פינוי המקום' : 'ביטול'}</button></p>` : ''}
-    ${free.length ? `<div class="seatfree"><p class="pmlbl">עוד לא יושבים (${free.length})${sel && !S.map[sel] ? ' – לוחצים על שם כדי להושיב' : ''}</p><div class="fchips wrap">${free.map(n => `<button class="fc" data-seatkid="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>` : ''}
-  </div>
-  <div class="btnrow seatbtns"><button class="cta" data-act="seatshuffle">${ic('dice')} סידור חדש</button><button class="cta soft" data-act="seatcast">${ic('screen')} למסך הכיתה</button></div>
-  <div class="btnrow seatbtns"><button class="cta soft" data-act="seatprint">${ic('printer')} הדפסה</button><button class="cta soft" data-act="seatwipe">${ic('trash')} ניקוי הכל</button></div>
+  h += `<div class="card seatroom ${edit ? 'editing' : ''}"><div class="board">הלוח</div>
+    <div class="seatwrap"><div class="seatgrid" style="--cols:${S.gw}">${Array.from({ length: S.gh }, (_, r) => Array.from({ length: S.gw }, (_, c) => cell(r, c)).join('')).join('')}</div></div>
+    ${!edit && sel ? `<p class="hint seathint">${S.map[sel] ? `נבחר/ה: <b>${esc(S.map[sel])}</b> – לוחצים על שולחן אחר להחלפה, או ` : 'שולחן ריק – בוחרים ילד/ה מהרשימה למטה, או '}<button class="linkbtn" data-act="seatclear1">${S.map[sel] ? 'פינוי השולחן' : 'ביטול'}</button></p>` : ''}
+    ${!edit && free.length ? `<div class="seatfree"><p class="pmlbl">עוד לא יושבים (${free.length})${sel && !S.map[sel] ? ' – לוחצים על שם כדי להושיב' : ''}</p><div class="fchips wrap">${free.map(n => `<button class="fc" data-seatkid="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>` : ''}
+    ${edit ? `<button class="cta" data-seatmode="sit">${ic('check')} סיום עריכה</button>` : ''}
+  </div>`;
+  if (edit) return h;
+  h += `<div class="btnrow seatbtns"><button class="cta" data-act="seatshuffle">${ic('dice')} סידור חדש</button><button class="cta soft" data-act="seatcast">${ic('screen')} למסך הכיתה</button></div>
+  <div class="btnrow seatbtns"><button class="cta soft" data-act="seatprint">${ic('printer')} הדפסה</button><button class="cta soft" data-act="seatwipe">${ic('trash')} פינוי כל השולחנות</button></div>
   <div class="card">${cardHead('flag', 'כללים לסידור החדש')}
     <p class="pmlbl">יושבים מקדימה (קרוב ללוח)</p>
     <div class="fchips wrap">${names.map(n => `<button class="fc ${S.front.includes(n) ? 'on' : ''}" data-seatfront="${esc(n)}">${esc(n)}</button>`).join('')}</div>
     <p class="pmlbl">לא לשבת ליד</p>
     ${S.apart.length ? `<div class="apartlist">${S.apart.map(([a, b], i) => `<span class="apart">${esc(a)} ↔ ${esc(b)}<button class="iconbtn" data-seatapartdel="${i}" aria-label="הסרה">${ic('x')}</button></span>`).join('')}</div>` : ''}
     <div class="apartadd"><select id="apA"><option value="">בוחרים…</option>${names.map(n => `<option>${esc(n)}</option>`).join('')}</select><span>↔</span><select id="apB"><option value="">בוחרים…</option>${names.map(n => `<option>${esc(n)}</option>`).join('')}</select><button class="iconbtn" data-act="seatapart" aria-label="הוספה">${ic('plus')}</button></div>
-    <p class="hint">"סידור חדש" מגריל מקומות ושומר על הכללים. אפשר תמיד לתקן ידנית בלחיצה על שני מקומות.</p>
+    <p class="hint">"סידור חדש" מגריל מקומות ושומר על הכללים ("ליד" = שולחן צמוד). אפשר תמיד לתקן ידנית בלחיצה על שני שולחנות.</p>
   </div>`;
   return h;
 }
-function seatsHtmlFor(S, big) {
-  const rows = Array.from({ length: S.rows }, (_, r) => Array.from({ length: S.cols }, (_, c) => { const n = S.map[seatKey(r, c)]; return `<div class="ps ${n ? '' : 'e'} ${S.pair && c % 2 === 1 ? 'pr' : ''}">${n ? esc(n) : ''}</div>`; }).join('')).join('');
-  return `<div class="pseats" style="--cols:${S.cols}"><div class="pboard">הלוח</div><div class="pgrid">${rows}</div></div>`;
+// the same room for print, the classroom screen and the substitute page
+const seatsPlain = S => ({ gw: S.gw, gh: S.gh, desks: S.desks, map: S.map });
+function seatsHtmlFor(S) {
+  const desks = new Set(S.desks); let cells = '';
+  for (let r = 0; r < S.gh; r++) for (let c = 0; c < S.gw; c++) { const k = seatKey(r, c), n = S.map[k]; cells += desks.has(k) ? `<div class="ps ${n ? '' : 'e'}">${n ? esc(n) : ''}</div>` : '<div class="ps g"></div>'; }
+  return `<div class="pseats" style="--cols:${S.gw}"><div class="pboard">הלוח</div><div class="pgrid">${cells}</div></div>`;
 }
 function seatPrint() {
   const S = seatsOf(), c = curCls();
@@ -4596,9 +4619,8 @@ function seatTap(k) {
   if (a) S.map[k] = a; else delete S.map[k];
   if (b) S.map[sel] = b; else delete S.map[sel];
   state._seatSel = null; save(); rerender();
-  if (cast.on && cast.last && cast.last.kind === 'seats') castSend('seats', { ...S });
+  if (cast.on && cast.last && cast.last.kind === 'seats') castSend('seats', seatsPlain(S));
 }
-
 // ================================================================ PARENT MEETING: one page per child – strengths, to work on, grades, attendance, room to write
 function meetPage(name) {
   const c = curCls(), ns = kidNotes(name), gs = kidGrades(name), att = kidAtt(name);
@@ -4798,7 +4820,7 @@ async function subCreate() {
     teacher: state.name || '', cls: (curCls() || {}).name || state.prefs.cls || '', day: `יום ${day.name}${day.date ? ' ' + day.date : ''}`, notes: S.notes,
     periods: day.periods.map(p => ({ start: p.start, end: p.end, title: p.title, subtitle: (p.subtitle || '').split('·').slice(1).join('·').trim(), sections: p.sections.map(x => ({ label: x.label, text: x.text })), materials: p.materials.map(m => m.text), links: p.links.filter(l => l.url).map(l => ({ text: l.text, url: l.url })) })),
     kids: S.kids ? state.kids.map(k => k.name) : null,
-    seats: S.seats ? (({ rows, cols, pair, map }) => ({ rows, cols, pair, map }))(seatsOf()) : null,
+    seats: S.seats ? seatsPlain(seatsOf()) : null,
   };
   try {
     try { await ID.refreshSession(); } catch { /* fine */ }

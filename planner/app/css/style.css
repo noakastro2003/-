@@ -2008,3 +2008,29 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 #printroot .aisheet pre, #printroot .ai-print { white-space: pre-wrap; font: inherit; font-size: 12pt; line-height: 1.7; }
 #printroot .ai-opt { display: flex; flex-wrap: wrap; gap: 6pt 16pt; margin: 4pt 0; }
 #printroot .ai-box { height: 70pt; border: .8pt dashed #cfc6d8; border-radius: 6pt; margin-top: 4pt; }
+
+/* ================================================================ v100 · seating as the room really is: desks anywhere on a grid */
+.seatmode { margin: 0 0 12px; }
+.seatmode button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.seatwrap { overflow-x: auto; margin: 0 -4px; padding: 4px; -webkit-overflow-scrolling: touch; }
+.seatgrid { grid-template-columns: repeat(var(--cols), minmax(42px, 1fr)) !important; gap: 6px 4px !important; min-width: calc(var(--cols) * 46px) !important; }
+.seat { min-height: 46px !important; }
+.seat.gap { background: none !important; box-shadow: none !important; pointer-events: none; }
+.seat.pr { margin-left: 0 !important; }
+.editing .seat.cellx { background: transparent; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent-ink) 18%, transparent) !important; border-radius: 10px; }
+.editing .seat.desk { background: color-mix(in srgb, #5B4190 16%, var(--card)); box-shadow: var(--clay-sm) !important; }
+.editing .seat b { font-size: 10px; }
+.stepper button { display: grid; place-items: center; }
+.stepper button .ic, .stepper button svg { width: 18px; height: 18px; }
+#printroot .ps.g { border: 0; }
+#printroot .pgrid { gap: 6pt 3pt; }
+#printroot .ps { min-height: 28pt; font-size: 9.5pt; }
+/* the whole room always fits the screen: desks shrink with the room's width, first names only when it's wide */
+.seatwrap { overflow: visible !important; margin: 0 !important; padding: 0 !important; }
+.seatgrid { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)) !important; min-width: 0 !important; gap: 4px 3px !important; }
+.seat { min-height: 40px !important; padding: 3px 1px !important; border-radius: 10px !important; }
+.seat b { font-size: clamp(8.5px, calc(130px / var(--cols)), 12.5px) !important; line-height: 1.15; }
+.seat small { font-size: clamp(7.5px, calc(105px / var(--cols)), 10px) !important; }
+
+.seat.sel { transform: scale(1.08); z-index: 1; }
+.seat b { white-space: nowrap !important; overflow-wrap: normal !important; overflow: hidden; max-width: 100%; letter-spacing: -.2px; }

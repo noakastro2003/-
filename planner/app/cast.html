@@ -110,7 +110,9 @@ iframe { position: fixed; inset: 0; width: 100vw; height: 100vh; border: 0; back
 .seats .st { min-height: 8vh; display: grid; place-items: center; padding: .8vh .6vw; border-radius: 2vh; background: #FFFAF3; color: #3B2A4A; font-size: calc(2.6vh * var(--tsize, 1)); font-weight: 600; text-align: center;
   box-shadow: 0 1.4vh 2.4vh -1.6vh rgba(96, 70, 44, .45), inset 0 .4vh .3vh #fff, inset 0 -.8vh 1.4vh rgba(122, 92, 60, .12); }
 .seats .st.e { background: rgba(255, 255, 255, .08); box-shadow: inset 0 .5vh 1vh rgba(0,0,0,.25); }
-.seats .st.pr { margin-left: 2vw; }
+.seats .st.g { background: none; box-shadow: none; }
+.seats .sg { gap: 1.2vh .6vw; }
+.seats .st { min-height: 7vh; font-size: calc(2.2vh * var(--tsize, 1)); }
 /* ================= CLAY: the app's own world on the big screen – cream ground, puffy plum and cream pieces */
 body.t-clay { --ink: #3B2A4A; --soft: rgba(59, 42, 74, .58); --gold: #5B4190; background: radial-gradient(1100px 700px at 50% 0%, #FFFCF7, transparent 70%), #F6F0E8; }
 body.t-clay .logo { background: #FFFAF3; box-shadow: 0 2.4vh 4vh -2vh rgba(96, 70, 44, .4), inset 0 .5vh .4vh #fff, inset 0 -1vh 1.6vh rgba(122, 92, 60, .12); }
@@ -201,8 +203,8 @@ function show(m) {
   if (k === 'text') h = `<div class="big">${esc(d)}</div>`;
   else if (k === 'picker') h = `<div class="sub">עונה עכשיו</div><div class="name">${esc(d)}</div>`;
   else if (k === 'points') h = `<div class="pts">${(d || []).map(t => `<div><b>${esc(t.name)}</b><span>${t.pts}</span></div>`).join('')}</div>`;
-  else if (k === 'seats') { const S = d || {}; const cells = []; for (let r = 0; r < (S.rows || 0); r++) for (let c = 0; c < (S.cols || 0); c++) { const n = (S.map || {})[r + '-' + c]; cells.push(`<div class="st ${n ? '' : 'e'} ${S.pair && c % 2 === 1 ? 'pr' : ''}">${n ? esc(n) : ''}</div>`); }
-    h = `<div class="seats" style="--cols:${S.cols || 1}"><div class="sb">הלוח</div><div class="sg">${cells.join('')}</div></div>`; }
+  else if (k === 'seats') { const S = d || {}, set = new Set(S.desks || []), cells = []; for (let r = 0; r < (S.gh || 0); r++) for (let c = 0; c < (S.gw || 0); c++) { const key = r + '-' + c, n = (S.map || {})[key]; cells.push(set.has(key) ? `<div class="st ${n ? '' : 'e'}">${n ? esc(n) : ''}</div>` : '<div class="st g"></div>'); }
+    h = `<div class="seats" style="--cols:${S.gw || 1}"><div class="sb">הלוח</div><div class="sg">${cells.join('')}</div></div>`; }
   else if (k === 'groups') h = `<div class="groups">${(d || []).map((g, i) => `<div><b>קבוצה ${i + 1}</b>${g.map(n => `<span>${esc(n)}</span>`).join('')}</div>`).join('')}</div>`;
   else if (k === 'dict') h = `<ol class="list">${(d || []).map(x => `<li>${esc(x)}</li>`).join('')}</ol>`;
   else if (k === 'lesson') h = `<div class="lesson">${d.sec ? `<div class="sec">${esc(d.sec)}</div>` : ''}<h1>${esc(d.title)}</h1>${d.text ? `<p>${esc(d.text)}</p>` : ''}</div>`;

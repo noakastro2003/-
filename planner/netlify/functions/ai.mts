@@ -8,8 +8,8 @@ import type { Config } from '@netlify/functions'
 import { SYSTEM } from '../lib/ai-prompts.mts'
 
 const json = (x: unknown, status = 200) => Response.json(x, { status, headers: { 'cache-control': 'no-store' } })
-const DAY_CAP = Number(Netlify.env.get('AI_DAY_CAP') || 6)
-const MONTH_CAP = Number(Netlify.env.get('AI_MONTH_CAP') || 40)
+const DAY_CAP = Number(Netlify.env.get('AI_DAY_CAP') || 3)
+const MONTH_CAP = Number(Netlify.env.get('AI_MONTH_CAP') || 4) // AI is paid from the site's Netlify credits: keep the default small; raise it with the AI_MONTH_CAP variable
 
 export default async (req: Request) => {
   const user = await getUser()

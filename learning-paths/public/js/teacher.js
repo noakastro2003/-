@@ -457,7 +457,7 @@ function moreMenu(state) {
       class: 'btn block', onclick: () => api('POST', `/api/paths/${state.path.id}/duplicate`)
         .then((r) => { setCredits(r.credits); m.close(); toast('נוצר עותק', 'ok'); go(`#/path/${r.path.id}`); })
         .catch((err) => { m.close(); showError(err); }),
-    }, `📄 שכפול המסלול${cost('createPath') ? ` (${creditWord(cost('createPath'))})` : ''}`),
+    }, `📄 שכפול המסלול${cost('copyPath') ? ` (${creditWord(cost('copyPath'))})` : ''}`),
     state.path.mine === false
       ? h('p', { class: 'muted small' }, 'זה מסלול של כיתה משותפת: רק המורה שיצרה אותו יכולה למחוק אותו. שכפול יוצר עותק משלך.')
       : h('button', {

@@ -93,7 +93,7 @@ test('shared library: share, browse, preview, copy', async () => {
   assert.equal((await b('GET', `/api/library/${empty.id}`)).status, 404, 'unshared paths stay private');
   const copy = await b('POST', `/api/library/${path.id}/copy`);
   assert.equal(copy.status, 201);
-  assert.equal(copy.body.credits, 19);
+  assert.equal(copy.body.credits, 18, 'a copy costs 2');
   assert.notEqual(copy.body.path.code, path.code);
   assert.equal(copy.body.path.published, false);
   assert.equal((await b('GET', '/api/library')).body.items.find((x) => x.id === path.id).copies, 1);

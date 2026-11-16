@@ -49,8 +49,9 @@ test('the API through web Requests, with a media store and background jobs', asy
 
   const gen = await call('POST', '/api/ai/generate', { topic: 'שברים', grade: 'ד׳', types: ['read', 'truefalse'] });
   assert.equal(gen.status, 202);
-  assert.equal((await call('GET', '/api/billing')).body.available, 15, 'charged when queued');
   await jobRun;
+  // 5 + 1 per task for the 7 asked for; the 5 tasks that didn't come out are refunded.
+  assert.equal((await call('GET', '/api/billing')).body.available, 20 - 12 + 5);
   const job = await call('GET', `/api/ai/jobs/${gen.body.jobId}`);
   assert.equal(job.body.status, 'done');
   assert.equal(job.body.result.taskCount, 2);
@@ -61,7 +62,7 @@ test('the API through web Requests, with a media store and background jobs', asy
   await jobRun;
   const failed = await call('GET', `/api/ai/jobs/${bad.body.jobId}`);
   assert.equal(failed.body.status, 'failed');
-  assert.equal((await call('GET', '/api/billing')).body.available, 15, 'refunded');
+  assert.equal((await call('GET', '/api/billing')).body.available, 13, 'refunded');
   await app.runJob(bad.body.jobId); // a second call does nothing
 
   const other = webHandler(() => app);

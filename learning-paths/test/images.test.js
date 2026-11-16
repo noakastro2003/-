@@ -57,7 +57,7 @@ test('the generator adds pictures and drawings when asked', async () => {
   assert.equal(r.status, 201);
   assert.equal(r.body.pictures, 2);
   assert.deepEqual(asked, ['a pizza cut in half', 'a cake cut in 4']);
-  assert.equal(r.body.credits, 20 - 5 - 2 * 2);
+  assert.equal(r.body.credits, 20 - (5 + 3) - 2 * 2, '5 + 1 per task that came out, and 2 per picture');
   const tasks = (await req('GET', `/api/paths/${r.body.path.id}`)).body.tasks;
   assert.match(tasks[0].content.image, /^\/api\/media\//);
   assert.deepEqual(tasks[0].content.visual, { kind: 'fraction', n: 1, d: 2, shape: 'pie' });

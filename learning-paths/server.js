@@ -38,7 +38,9 @@ export function billingConfig(env = process.env) {
     priceLabel: env.PRICE_LABEL || d.priceLabel,
     costs: {
       createPath: num(env.COST_CREATE_PATH, d.costs.createPath),
+      copyPath: num(env.COST_COPY_PATH, d.costs.copyPath),
       aiGenerate: num(env.COST_AI_GENERATE, d.costs.aiGenerate),
+      aiPerTask: num(env.COST_AI_PER_TASK, d.costs.aiPerTask),
       aiImprove: num(env.COST_AI_IMPROVE, d.costs.aiImprove),
       aiNikud: num(env.COST_AI_NIKUD, d.costs.aiNikud),
       aiImage: num(env.COST_AI_IMAGE, d.costs.aiImage),
@@ -530,9 +532,9 @@ export function createApp(db, {
   }
 
   // Takes the cost of `action` (inside the caller's transaction) and records it.
-  async function charge(teacherId, action, note) {
+  async function charge(teacherId, action, note, amount) {
     return await changeAccount(teacherId, async (acc) => {
-      const taken = billing.spend(acc, action, billingCfg);
+      const taken = billing.spend(acc, action, billingCfg, Date.now(), amount);
       await q.ledgerInsert.run(teacherId, -taken.cost, action, note.slice(0, 200));
       return taken;
     });
@@ -942,7 +944,7 @@ export function createApp(db, {
     const me = ctx.teacher.id; // a co-teacher's copy is hers
     const title = `${p.title} (עותק)`.slice(0, 120);
     const id = await tx(db, async () => {
-      await charge(me, 'createPath', title);
+      await charge(me, 'copyPath', title);
       const r = await insertPath(me, title, p.description, await newCode(), p.theme);
       const newId = Number(r.lastInsertRowid);
       for (const t of await q.tasks.all(p.id)) {
@@ -1073,6 +1075,8 @@ export function createApp(db, {
       throw err;
     }
     const { title, description, theme, tasks, skipped } = result;
+    const missing = Math.max(0, input.taskCount - tasks.length) * (billingCfg.costs.aiPerTask || 0);
+    if (missing > 0) await refundCharge(teacherId, billing.partOf(taken, missing), `${input.topic}: פחות משימות`);
     // Pictures the generator asked for (only when the teacher chose them): each one costs
     // credits like the editor's button; when credits run out, the rest are left out.
     let pictures = 0;
@@ -1115,7 +1119,8 @@ export function createApp(db, {
 
     // Credits are taken before the (slow) generation so two requests can't both spend
     // the last ones, and handed back if no path comes out of it.
-    const taken = await tx(db, async () => await charge(teacher.id, 'aiGenerate', input.topic));
+    // The price grows with the number of tasks asked for; tasks that don't come out are refunded.
+    const taken = await tx(db, async () => await charge(teacher.id, 'aiGenerate', input.topic, billing.generateCost(billingCfg.costs, input.taskCount)));
     if (!startJob) return [201, await generateInto(teacher.id, input, taken)];
 
     // Hosted on Netlify: requests may not run long, so a background function does the work.
@@ -1593,7 +1598,7 @@ export function createApp(db, {
     const teacher = requireTeacher(ctx);
     const e = await libraryEntry(ctx.params.id);
     const id = await tx(db, async () => {
-      await charge(teacher.id, 'createPath', e.title);
+      await charge(teacher.id, 'copyPath', e.title);
       const r = await insertPath(teacher.id, e.title, e.description, await newCode(), JSON.stringify(e.theme));
       const newId = Number(r.lastInsertRowid);
       for (const t of e.tasks) await insertTask(newId, structuredClone(t));

@@ -86,8 +86,8 @@ function record(delta, action, note = '') {
   store.save('meta', meta);
 }
 
-function charge(action, note) {
-  const taken = billing.spend(meta.account, action, BILLING);
+function charge(action, note, amount) {
+  const taken = billing.spend(meta.account, action, BILLING, Date.now(), amount);
   record(-taken.cost, action, note);
   return taken;
 }
@@ -254,7 +254,7 @@ async function generate(body) {
   const sample = await getSample();
   if (!sample) throw new HttpError(503, 'המחולל זמין כשפותחים את ההדגמה ב-claude.ai עם חשבון מחובר.');
   const input = parseAiInput(body);
-  const taken = charge('aiGenerate', input.topic);
+  const taken = charge('aiGenerate', input.topic, billing.generateCost(BILLING.costs, input.taskCount));
   try {
     return await generateWith(sample, input);
   } catch (err) {
@@ -375,7 +375,7 @@ route('DELETE', '/api/paths/:id', ({ params }) => {
 route('POST', '/api/paths/:id/duplicate', ({ params }) => {
   const p = getPath(params.id);
   const title = `${p.title} (עותק)`.slice(0, 120);
-  charge('createPath', title);
+  charge('copyPath', title);
   const copy = createPath({ title, description: p.description, theme: p.theme, tasks: p.tasks.map(({ id, ...t }) => t) });
   return { path: pathOut(copy), credits: credits() };
 });
@@ -915,7 +915,7 @@ route('GET', '/api/library/:id', ({ params }) => {
 });
 route('POST', '/api/library/:id/copy', ({ params }) => {
   const p = sharedPath(params.id);
-  charge('createPath', p.title);
+  charge('copyPath', p.title);
   const copy = createPath({ title: p.title, description: p.description, theme: p.theme, tasks: p.tasks.map(({ id, ...t }) => clone(t)) });
   return { path: pathOut(copy), credits: credits() };
 });

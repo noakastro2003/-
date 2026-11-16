@@ -11,7 +11,7 @@ import * as billing from '../billing.js';
 
 const CFG = {
   freeCredits: 7, monthlyCredits: 12, periodDays: 30, priceLabel: '₪1',
-  costs: { createPath: 1, aiGenerate: 5 }, paymentsMode: 'test',
+  costs: { createPath: 1, copyPath: 1, aiGenerate: 5 }, paymentsMode: 'test',
 };
 
 const AI_PATH = {
@@ -48,7 +48,9 @@ test('billing settings come from the environment', () => {
   const cfg = billingConfig({ FREE_CREDITS: '3', COST_AI_GENERATE: '8', PAYMENTS_MODE: 'test', MONTHLY_CREDITS: 'lots' });
   assert.equal(cfg.freeCredits, 3);
   assert.equal(cfg.costs.aiGenerate, 8);
-  assert.equal(cfg.costs.createPath, 1);
+  assert.equal(cfg.costs.createPath, 5);
+  assert.equal(cfg.costs.copyPath, 2);
+  assert.equal(cfg.costs.aiPerTask, 1);
   assert.equal(cfg.monthlyCredits, billing.BILLING_DEFAULTS.monthlyCredits, 'invalid values fall back to defaults');
   assert.equal(billingConfig({}).paymentsMode, 'off');
 });
@@ -118,7 +120,7 @@ test('new teachers get free credits; creating paths spends them', async () => {
 
   const b = (await c('GET', '/api/billing')).body;
   assert.equal(b.available, 0);
-  assert.deepEqual(b.history.map((x) => [x.action, x.delta]), [['aiGenerate', -5], ['createPath', -1], ['createPath', -1], ['signup', 7]]);
+  assert.deepEqual(b.history.map((x) => [x.action, x.delta]), [['aiGenerate', -5], ['copyPath', -1], ['createPath', -1], ['signup', 7]]);
   assert.equal(b.history[3].label, billing.ACTION_LABELS.signup);
 });
 
@@ -174,4 +176,16 @@ test('admin tool grants credits and subscriptions', async () => {
   assert.match(run('subscribe', 'dana@x.org', '3'), /קרדיטים זמינים: 630 \(חד-פעמיים 30, מהמנוי 600\)/);
   assert.match(run('show', 'DANA@x.org'), /מנוי: active/);
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('generator price: a base plus a price per task; tasks that do not come out are refunded', () => {
+  const costs = { aiGenerate: 5, aiPerTask: 1 };
+  assert.equal(billing.generateCost(costs, 7), 12);
+  assert.equal(billing.generateCost(costs, 12), 17);
+  assert.equal(billing.generateCost({ aiGenerate: 5 }, 7), 5, 'no per-task price set');
+  const acc = { credits: 3, subStatus: 'active', subPeriodEnd: new Date(Date.now() + 86400000).toISOString(), subCreditsLeft: 10 };
+  const taken = billing.spend(acc, 'aiGenerate', { costs }, Date.now(), 12);
+  assert.deepEqual(taken, { cost: 12, fromSub: 10, fromCredits: 2 });
+  assert.deepEqual(billing.partOf(taken, 5), { cost: 5, fromCredits: 2, fromSub: 3 });
+  assert.deepEqual(billing.partOf(taken, 50).cost, 12);
 });

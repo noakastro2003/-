@@ -3,7 +3,7 @@ import { api } from './api.js';
 import { h, mount, toast, modal, field, busy, formatDate } from './ui.js';
 import { go } from './app.js';
 import { TASK_TYPES, MOODS } from './themes.js';
-import { setCredits, showError } from './credits.js';
+import { setCredits, showError, cost, creditWord } from './credits.js';
 import { DEMO } from './env.js';
 
 // Same list as GRADES in ai-prompt.js.
@@ -127,7 +127,7 @@ function libCard(x) {
       : [x.mine ? 'שלכם' : `שיתף/ה: ${x.author || 'מורה'}`, x.copies ? ` · הועתק ${x.copies} פעמים` : '']),
     h('div', { class: 'row' },
       h('button', { class: 'btn small secondary', onclick: () => previewLib(x) }, '👀 הצצה'),
-      h('button', { class: 'btn small primary', onclick: (e) => copyLib(x, e.currentTarget) }, '📥 העתקה אליי')));
+      h('button', { class: 'btn small primary', onclick: (e) => copyLib(x, e.currentTarget) }, `📥 העתקה אליי${cost('copyPath') ? ` (${creditWord(cost('copyPath'))})` : ''}`)));
 }
 
 async function previewLib(x) {
@@ -147,7 +147,7 @@ async function previewLib(x) {
       t.content.text && h('div', { class: 'small' }, t.content.text.slice(0, 160))))),
     h('div', { class: 'row end' },
       h('button', { class: 'btn ghost', onclick: () => m.close() }, 'סגירה'),
-      h('button', { class: 'btn primary', onclick: (e) => copyLib(x, e.currentTarget, () => m.close()) }, '📥 העתקה אליי')),
+      h('button', { class: 'btn primary', onclick: (e) => copyLib(x, e.currentTarget, () => m.close()) }, `📥 העתקה אליי${cost('copyPath') ? ` (${creditWord(cost('copyPath'))})` : ''}`)),
   ], { wide: true });
 }
 

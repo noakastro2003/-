@@ -104,13 +104,25 @@ export async function generatorPage(app, topbar) {
     h('strong', {}, 'גררו לכאן קבצים או לחצו לבחירה'),
     h('span', { class: 'muted small' }, `דפי עבודה, סיכומים, פרק מהספר · ${DEMO ? 'Word, תמונות או טקסט (PDF רק בגרסה המלאה)' : 'PDF, Word, תמונות או טקסט'} · עד ${MAX_FILES} קבצים`));
 
-  const price = cost('aiGenerate');
+  // The price grows with the number of tasks: a base price plus a price per task.
+  const priceFor = (n) => cost('aiGenerate') + cost('aiPerTask') * n;
   const credits = session.teacher?.credits ?? 0;
-  const short = price > credits;
-  const submit = h('button', { class: 'btn primary big', type: 'submit', disabled: !status.enabled || short }, '✨ צרו לי מסלול');
-  const costLine = price > 0 && h('p', { class: `cost-line${short ? ' short' : ''}` },
-    `יצירת מסלול עולה ${creditWord(price)} · יש לך ${credits}`,
-    short && [' · ', h('a', { href: '#/billing' }, 'למנוי ולקרדיטים נוספים')]);
+  const submit = h('button', { class: 'btn primary big', type: 'submit', disabled: !status.enabled }, '✨ צרו לי מסלול');
+  const costLine = h('p', { class: 'cost-line' });
+  const showPrice = () => {
+    const price = priceFor(Number(count.value));
+    const short = price > credits;
+    submit.disabled = !status.enabled || short;
+    costLine.className = `cost-line${short ? ' short' : ''}`;
+    costLine.hidden = price <= 0;
+    costLine.replaceChildren(
+      `מסלול של ${count.value} משימות עולה ${creditWord(price)}`,
+      cost('aiPerTask') ? h('span', { class: 'muted' }, ` (${cost('aiGenerate')} + ${cost('aiPerTask')} לכל משימה)`) : '',
+      ` · יש לך ${credits}`,
+      short ? [' · ', h('a', { href: '#/billing' }, 'למנוי ולקרדיטים נוספים')] : '');
+  };
+  count.addEventListener('input', showPrice);
+  showPrice();
 
   const onSubmit = async (e) => {
     e.preventDefault();

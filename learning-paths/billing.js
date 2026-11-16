@@ -15,8 +15,10 @@ export const BILLING_DEFAULTS = Object.freeze({
   periodDays: 30,
   priceLabel: '₪39 לחודש',
   costs: Object.freeze({
-    createPath: 1, // a new path built by hand, from the example, or as a copy
-    aiGenerate: 5, // a path built by the AI generator
+    createPath: 5, // a new path built by hand or from the example
+    copyPath: 2,   // a copy: a ready-made or shared path from the library, or a duplicate
+    aiGenerate: 5, // a path built by the AI generator: this, plus aiPerTask for each task
+    aiPerTask: 1,
     aiImprove: 2,  // "improve this task" with AI
     aiNikud: 1,    // automatic nikud for one text field
     aiImage: 2,    // one illustration made by AI
@@ -26,6 +28,7 @@ export const BILLING_DEFAULTS = Object.freeze({
 export const ACTION_LABELS = {
   signup: 'קרדיטים חינמיים בהרשמה',
   createPath: 'מסלול חדש',
+  copyPath: 'העתקת מסלול',
   aiGenerate: 'מסלול מהמחולל',
   aiImprove: 'שיפור משימה עם AI',
   aiNikud: 'ניקוד אוטומטי',
@@ -56,9 +59,13 @@ export const available = (acc) => acc.credits + (subscribed(acc) ? acc.subCredit
 
 // Takes the action's cost, monthly credits first (they expire), then one-off credits.
 // Returns what was taken, for a refund if the action then fails. Throws 402 when short.
-export function spend(acc, action, cfg = BILLING_DEFAULTS, now = Date.now()) {
+// The generator's price grows with the path: a base price and a price per task.
+export const generateCost = (costs, taskCount) => (costs.aiGenerate ?? 0) + (costs.aiPerTask ?? 0) * taskCount;
+
+// amount: a price worked out for this action (the generator's), instead of the fixed one.
+export function spend(acc, action, cfg = BILLING_DEFAULTS, now = Date.now(), amount = undefined) {
   refresh(acc, now);
-  const cost = cfg.costs[action];
+  const cost = amount ?? cfg.costs[action];
   if (cost === undefined) throw new Error(`unknown billable action: ${action}`);
   if (available(acc) < cost) {
     throw Object.assign(new HttpError(402, `נגמרו הקרדיטים: הפעולה הזו עולה ${cost} ויש לך ${available(acc)}.`), { code: 'no_credits' });
@@ -67,6 +74,13 @@ export function spend(acc, action, cfg = BILLING_DEFAULTS, now = Date.now()) {
   acc.subCreditsLeft -= fromSub;
   acc.credits -= cost - fromSub;
   return { cost, fromSub, fromCredits: cost - fromSub };
+}
+
+// Part of what was taken, for a partial refund (one-off credits back first).
+export function partOf(taken, amount) {
+  const cost = Math.min(amount, taken.cost);
+  const fromCredits = Math.min(cost, taken.fromCredits);
+  return { cost, fromCredits, fromSub: cost - fromCredits };
 }
 
 export function refund(acc, taken) {

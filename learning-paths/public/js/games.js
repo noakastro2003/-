@@ -295,7 +295,6 @@ function order(t) {
   let items = [...t.content.items];
   let wrongSet = new Set();
   const list = h('ol', { class: 'order-list' });
-  let dragFrom = null;
   const move = (i, j) => {
     if (j < 0 || j >= items.length) return;
     const [x] = items.splice(i, 1);
@@ -304,20 +303,70 @@ function order(t) {
     render();
     list.children[j]?.querySelector(j > i ? '.down' : '.up')?.focus();
   };
-  const render = () => mount(list, items.map((txt, i) => h('li', {
-    class: `order-item${wrongSet.has(i) ? ' wrong' : ''}`, draggable: 'true',
-    ondragstart: () => { dragFrom = i; },
-    ondragover: (e) => e.preventDefault(),
-    ondrop: (e) => { e.preventDefault(); if (dragFrom !== null) move(dragFrom, i); dragFrom = null; },
-  },
-    h('span', { class: 'order-num' }, i + 1),
-    h('span', { class: 'order-text path-font' }, txt),
-    h('span', { class: 'order-btns' },
-      h('button', { class: 'icon-btn up', 'aria-label': `להזיז למעלה: ${txt}`, disabled: i === 0, onclick: () => move(i, i - 1) }, '▲'),
-      h('button', { class: 'icon-btn down', 'aria-label': `להזיז למטה: ${txt}`, disabled: i === items.length - 1, onclick: () => move(i, i + 1) }, '▼')))));
+
+  // Dragging with a finger or a mouse: the grip (touch), or the whole row (mouse). Nothing
+  // moves in the page while dragging (that would drop the finger's hold): the row follows
+  // the pointer, the others slide aside, and the new order is set when it is let go.
+  function startDrag(e, li) {
+    if (e.button > 0) return;
+    e.preventDefault();
+    const rows = [...list.children];
+    const from = rows.indexOf(li);
+    const rects = rows.map((r) => r.getBoundingClientRect());
+    const step = rects.length > 1 ? rects[1].top - rects[0].top : rects[0].height;
+    const startY = e.clientY;
+    let to = from;
+    li.classList.add('dragging');
+    const onMove = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      const dy = ev.clientY - startY;
+      li.style.transform = `translateY(${dy}px) scale(1.02)`;
+      const center = rects[from].top + rects[from].height / 2 + dy;
+      to = rects.reduce((best, r, k) => (Math.abs(r.top + r.height / 2 - center) < Math.abs(rects[best].top + rects[best].height / 2 - center) ? k : best), 0);
+      rows.forEach((r, k) => {
+        if (r === li) return;
+        const shift = from < to && k > from && k <= to ? -step : from > to && k >= to && k < from ? step : 0;
+        r.style.transform = shift ? `translateY(${shift}px)` : '';
+      });
+    };
+    const onUp = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      rows.forEach((r) => { r.style.transform = ''; });
+      li.classList.remove('dragging');
+      if (to !== from) {
+        const [x] = items.splice(from, 1);
+        items.splice(to, 0, x);
+        wrongSet = new Set();
+      }
+      render();
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+  const render = () => mount(list, items.map((txt, i) => {
+    const li = h('li', {
+      class: `order-item${wrongSet.has(i) ? ' wrong' : ''}`, dataset: { i: String(i) },
+      onpointerdown: (e) => { if (e.pointerType === 'mouse' && !e.target.closest('button')) startDrag(e, li); },
+    },
+      h('span', {
+        class: 'order-grip', 'aria-hidden': 'true', title: 'גררו כדי להזיז',
+        onpointerdown: (e) => { if (e.pointerType !== 'mouse') startDrag(e, li); },
+      }, '⠿'),
+      h('span', { class: 'order-num' }, i + 1),
+      h('span', { class: 'order-text path-font' }, txt),
+      h('span', { class: 'order-btns' },
+        h('button', { class: 'icon-btn up', 'aria-label': `להזיז למעלה: ${txt}`, disabled: i === 0, onclick: () => move(i, i - 1) }, '▲'),
+        h('button', { class: 'icon-btn down', 'aria-label': `להזיז למטה: ${txt}`, disabled: i === items.length - 1, onclick: () => move(i, i + 1) }, '▼')));
+    return li;
+  }));
   render();
   return {
-    el: h('div', { class: 'game' }, h('p', { class: 'game-counter' }, 'הזיזו עם החצים (או גררו) עד שהסדר נכון'), list),
+    el: h('div', { class: 'game' }, h('p', { class: 'game-counter' }, 'גררו בעזרת ⠿ או הזיזו עם החצים, עד שהסדר נכון'), list),
     answer: () => items,
     ready: () => null,
     wrong: (idx) => { wrongSet = new Set(idx); render(); },

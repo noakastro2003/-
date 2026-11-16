@@ -1093,3 +1093,10 @@ a.icon-btn { display: inline-grid; place-items: center; text-decoration: none; }
 .mem-front .frac, .match-item .frac, .lines-item .frac, .option .frac { font-size: 1em; }
 .mem-front .math { font-size: 1.3em; }
 .blanks-text .frac, .tf-text .frac { font-size: .85em; }
+
+/* ordering: drag by the grip with a finger, or the whole row with a mouse */
+.order-item { cursor: grab; user-select: none; -webkit-user-select: none; }
+.order-grip { flex: none; width: 40px; height: 44px; display: grid; place-items: center; font-size: 1.5rem; color: var(--k-muted); touch-action: none; cursor: grab; border-radius: 10px; }
+.order-grip:active { background: var(--accent-soft); }
+.order-item { transition: transform .15s; }
+.order-item.dragging { border-color: var(--accent); box-shadow: 0 8px 20px rgb(0 0 0 / .18); background: var(--k-surface); position: relative; z-index: 2; transition: none; }

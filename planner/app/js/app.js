@@ -16,7 +16,7 @@ const KEY = 'noa-planner-v1';
 const team = { data: {}, at: {}, busy: {} }; // shared-week progress of the other teachers (see TEAM below)
 let teamT = 0;
 const ai = { busy: false, kind: 'lesson', out: null, err: '' }; // the AI builder's screen state (see AI below)
-const APP_V = 95; // keep in step with CACHE in sw.js
+const APP_V = 96; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -4504,7 +4504,7 @@ function seatsOf() {
   state.seats = state.seats || {};
   return state.seats[id] || (state.seats[id] = { rows: 4, cols: 6, pair: true, map: {}, front: [], apart: [] });
 }
-const seatKey = (r, c) => `${r}-${c}`;
+function seatKey(r, c) { return `${r}-${c}`; }
 function seatNear(S, a, b) {
   const [r1, c1] = a.split('-').map(Number), [r2, c2] = b.split('-').map(Number);
   if (r1 === r2 && Math.abs(c1 - c2) === 1) return true;

@@ -1953,3 +1953,13 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 #printroot .mp-t td { border: .6pt solid #e3dde8; padding: 4pt; text-align: center; }
 #printroot .mp-t td b { display: block; font-size: 12pt; }
 #printroot .mp-line { border-bottom: .7pt solid #cfc6d8; height: 20pt; }
+/* v90 · team progress on a shared week */
+.tmrow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.tmrow:first-of-type { border-top: 0; }
+.tmrow .av { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--dough, #EEE4F6); color: var(--accent-ink); font-weight: 700; box-shadow: var(--clay-sm, none); }
+.tmrow .grow { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tmrow b { font-size: var(--fs-sm); }
+.tmrow small { color: var(--soft); font-size: var(--fs-note); }
+.tmbar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: color-mix(in srgb, var(--bg) 70%, var(--card)); box-shadow: var(--clay-pressed, none); }
+.tmbar i { display: block; width: var(--w); height: 100%; }
+.tmbar .d { background: #5CC983; } .tmbar .p { background: #F7C64B; }

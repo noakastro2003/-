@@ -13,7 +13,9 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 89; // keep in step with CACHE in sw.js
+const team = { data: {}, at: {}, busy: {} }; // shared-week progress of the other teachers (see TEAM below)
+let teamT = 0;
+const APP_V = 90; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -187,6 +189,7 @@ function setLog(w, id, v) {
   state.logs[w.id] = state.logs[w.id] || {};
   if (v) state.logs[w.id][id] = v; else delete state.logs[w.id][id];
   save();
+  if (w.team) teamPush(w);
 }
 const logIcon = (w, id) => { const l = getLog(w, id); return l ? `<span class="lg">${LOG[l.s][0]}</span>` : ''; };
 function logRow(w, id, compact) {
@@ -531,6 +534,7 @@ function viewDay(w) {
   const hw = day.periods.filter(p => p.homework.length);
   if (hw.length) h += `<div class="card">${cardHead('homework', 'שיעורי בית היום')}${hw.map(p => `<div class="note"><b>${esc(p.title)}</b><span>${esc(p.homework.join(' · '))}</span></div>`).join('')}</div>`;
   h += `<button class="addbtn" data-printweek="${esc(w.id)}">${ic('printer')} הדפסת התכנון השבועי</button>`;
+  h += teamCard(w);
   return h;
 }
 
@@ -1897,6 +1901,8 @@ function shareLessonSheet(dow, label) {
 function shareWeekSheet(id) {
   const w = state.weeks[id];
   if (!sync.user || !soc.data || !soc.data.friends.length) { shareWeek(w); return; }
+  // the week gets a team id, so everyone it's shared with can see each other's progress
+  if (!w.team && soc.data && soc.data.me && soc.data.me.id) { w.team = `${soc.data.me.id}:${w.id}`; save(); teamPush(w); }
   state._share = { kind: 'week', title: w.number ? `שבוע ${w.number}` : (w.title || 'תכנון שבועי'), data: w, to: [] };
   shareSheet();
 }
@@ -3905,7 +3911,7 @@ document.addEventListener('click', async e => {
     case 'shpub': { const S2 = state._share; socApi('publish', { title: S2.title, data: S2.data }).then(() => { closeOverlay(); toast('השיעור בספרייה שלך – כל החברות רואות אותו ⭐'); }).catch(() => toast('לא הצלחתי לשתף 😕')); break; }
     case 'shfile': closeOverlay(); shareWeek(state._share.data); break;
     case 'intakelesson': { const it = state._inbox; takeLesson(it.data, it.fromName); socApi('inbox-del', { id: it.id }).then(() => socLoad(true)); closeOverlay(); break; }
-    case 'intakeweek': { const it = state._inbox, wk = it.data; if (state.weeks[wk.id] && !await ask('כבר יש לך שבוע בתאריכים האלה. להחליף אותו?')) break; socApi('inbox-del', { id: it.id }).then(() => socLoad(true)); state.logs[wk.id] = {}; saveGenericWeek(wk); toast(`השבוע של ${it.fromName || 'החברה'} נוסף ✨`); break; }
+    case 'intakeweek': { const it = state._inbox, wk = it.data; if (state.weeks[wk.id] && !await ask('כבר יש לך שבוע בתאריכים האלה. להחליף אותו?')) break; socApi('inbox-del', { id: it.id }).then(() => socLoad(true)); state.logs[wk.id] = {}; saveGenericWeek(wk); if (wk.team) teamPush(wk); toast(`השבוע של ${it.fromName || 'החברה'} נוסף ✨`); break; }
     case 'indel': socApi('inbox-del', { id: state._inbox.id }).then(() => { closeOverlay(); socLoad(true); }); break;
     case 'cmclose': closeClassMode(); break;
     case 'projtext': projector('text'); break;
@@ -4633,3 +4639,36 @@ function evalAllSheet() {
 }
 document.addEventListener('input', e => { const t = e.target; if (t.id === 'evalText') { state.evals = state.evals || {}; const n = t.dataset.evalname; state.evals[n] = { ...(state.evals[n] || {}), text: t.value }; clearTimeout(evalSaveT); evalSaveT = setTimeout(save, 600); } });
 let evalSaveT = 0;
+
+// ================================================================ TEAM: a week shared with friends – where each teacher stands
+function teamPush(w) {
+  clearTimeout(teamT);
+  teamT = setTimeout(() => {
+    const logs = {}; for (const [k, v] of Object.entries(state.logs[w.id] || {})) if (v && v.s) logs[k] = v.s;
+    socApi('prog-set', { team: w.team, logs, cls: (curCls() || {}).name || '' }).then(() => { team.at[w.team] = 0; }).catch(() => {});
+  }, 1500);
+}
+function teamCard(w) {
+  if (!w.team || !sync.user) return '';
+  const T = w.team;
+  if (!team.busy[T] && Date.now() - (team.at[T] || 0) > 60e3) {
+    team.busy[T] = true;
+    socApi('prog-get', null, `&team=${encodeURIComponent(T)}`).then(r => { team.data[T] = r.team || []; team.at[T] = Date.now(); team.busy[T] = false; if (state.tab === 'day') rerender(); })
+      .catch(() => { team.busy[T] = false; team.at[T] = Date.now(); });
+  }
+  const rows = team.data[T];
+  const lessons = w.days.flatMap(d => d.periods.filter(p => p.start || p.title).map(p => ({ d, p, k: `${d.dow}:${p.label}` })));
+  const total = lessons.length;
+  const mine = { id: 'me', me: true, name: 'אני', logs: Object.fromEntries(Object.entries(state.logs[w.id] || {}).filter(([, v]) => v && v.s).map(([k, v]) => [k, v.s])) };
+  const list = rows ? [mine, ...rows.filter(r => !r.me)] : null;
+  const line = r => {
+    const vals = Object.values(r.logs || {}), done = vals.filter(v => v === 'done').length, part = vals.filter(v => v === 'part').length, skip = vals.filter(v => v === 'skip').length;
+    const behind = lessons.filter(x => r.logs && (r.logs[x.k] === 'part' || r.logs[x.k] === 'skip')).slice(0, 3).map(x => x.p.title);
+    return `<div class="tmrow"><span class="av">${esc((r.name || '?')[0])}</span><span class="grow"><b>${esc(r.name)}${r.cls ? ` · ${esc(r.cls)}` : ''}</b>
+      <span class="tmbar"><i class="d" style="--w:${total ? done / total * 100 : 0}%"></i><i class="p" style="--w:${total ? part / total * 100 : 0}%"></i></span>
+      <small>${done}/${total} בוצעו${part ? ` · ${part} חלקית` : ''}${skip ? ` · ${skip} לא הספיקו` : ''}${behind.length ? ` · נשאר: ${esc(behind.join(', '))}` : ''}</small></span></div>`;
+  };
+  return `<div class="card teamcard">${cardHead('users', 'הצוות בשבוע הזה', rows ? `<span class="cnt">${list.length}</span>` : '')}
+    ${list ? (list.length > 1 ? list.map(line).join('') : `<p class="dim">עוד אף אחת מהצוות לא סימנה שיעורים בשבוע הזה. ברגע שיסמנו – זה יופיע כאן.</p>${line(mine)}`) : '<p class="dim">טוענת…</p>'}
+    <p class="hint">כל מורה מסמנת אצלה "בוצע / חלקית / לא הספקנו" – וכולן רואות איפה כל כיתה עומדת.</p></div>`;
+}

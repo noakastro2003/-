@@ -87,6 +87,22 @@ export default async (req: Request) => {
     for (const id of to) { if (!(await isFriend(id))) continue; const l: Item[] = await list(`inbox/${id}`); l.unshift(item); await st.setJSON(`inbox/${id}`, l.slice(0, 80)); sent++ }
     return json({ sent })
   }
+  // a week shared with the team: each teacher's progress (done / partly / skipped per lesson), seen only by the sharer's friends
+  if (op === 'prog-set' || op === 'prog-get') {
+    const team = String((body && body.team) || u.searchParams.get('team') || '')
+    const owner = team.split(':')[0]
+    if (!team || team.length > 120 || (owner !== me.id && !(await isFriend(owner)))) return json({ error: 'forbidden' }, 403)
+    const key = `prog/${team}`
+    const all = ((await st.get(key, { type: 'json' })) as Record<string, any> | null) || {}
+    if (op === 'prog-set' && req.method === 'POST') {
+      const logs: Record<string, string> = {}
+      for (const [k, v] of Object.entries(body.logs || {}).slice(0, 120)) if (['done', 'part', 'skip'].includes(String(v))) logs[String(k).slice(0, 60)] = String(v)
+      all[me.id] = { name: me.name || 'מורה', cls: String(body.cls || '').slice(0, 30), logs, at: new Date().toISOString() }
+      await st.setJSON(key, all)
+      return json({ ok: true })
+    }
+    return json({ team: Object.entries(all).map(([id, v]) => ({ id, me: id === me.id, ...v })) })
+  }
   if (op === 'inbox-get') { const l: Item[] = await list(`inbox/${me.id}`); return json({ item: l.find(x => x.id === u.searchParams.get('id')) || null }) }
   if (op === 'inbox-del' && req.method === 'POST') { const l: Item[] = await list(`inbox/${me.id}`); await st.setJSON(`inbox/${me.id}`, l.filter(x => x.id !== body.id)); return json({ ok: true }) }
   // my lessons shared with all my friends

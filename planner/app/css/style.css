@@ -1972,3 +1972,7 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 .insrow.up .ii { background: color-mix(in srgb, #5CC983 22%, var(--card)); color: #2E8A55; }
 .insrow .linkbtn { white-space: nowrap; }
 .insrow .iconbtn { width: 28px; height: 28px; flex: none; }
+/* v93 · substitute link */
+.sublast { padding: 12px 14px; border-radius: 18px; background: color-mix(in srgb, #5CC983 14%, var(--card)); margin: 8px 0 4px; font-size: var(--fs-sm); }
+.sublast .btnrow { margin-top: 8px; }
+.subsheet .fchips { flex-wrap: wrap; }

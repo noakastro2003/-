@@ -15,7 +15,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 const KEY = 'noa-planner-v1';
 const team = { data: {}, at: {}, busy: {} }; // shared-week progress of the other teachers (see TEAM below)
 let teamT = 0;
-const APP_V = 92; // keep in step with CACHE in sw.js
+const APP_V = 93; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -534,6 +534,7 @@ function viewDay(w) {
   const hw = day.periods.filter(p => p.homework.length);
   if (hw.length) h += `<div class="card">${cardHead('homework', 'שיעורי בית היום')}${hw.map(p => `<div class="note"><b>${esc(p.title)}</b><span>${esc(p.homework.join(' · '))}</span></div>`).join('')}</div>`;
   h += `<button class="addbtn" data-printweek="${esc(w.id)}">${ic('printer')} הדפסת התכנון השבועי</button>`;
+  h += `<button class="addbtn" data-subday="${day.dow}">${ic('users')} קישור למורה מחליפה ליום ${esc(day.name)}</button>`;
   h += teamCard(w);
   return h;
 }
@@ -3699,6 +3700,11 @@ document.addEventListener('click', async e => {
   if (D.cnote != null && D.tag) { noteSheet(D.cnote || null, D.tag); return; }
   if (D.picktag) { state._note.tag = D.picktag; state._note.tagSet = true; document.querySelectorAll('.tp').forEach(b => b.classList.toggle('on', b.dataset.picktag === D.picktag)); return; }
   if (D.pickkid) { const k = state._note.kids, i = k.indexOf(D.pickkid); if (i >= 0) k.splice(i, 1); else k.push(D.pickkid); t.classList.toggle('on', i < 0); return; }
+  if (D.subday != null) { subSheet(+D.subday); return; }
+  if (D.subtog) { state._sub[D.subtog] = !state._sub[D.subtog]; subSheet(); return; }
+  if (D.subhours) { state._sub.hours = D.subhours; subSheet(); return; }
+  if (D.subshare) { subShare(D.subshare); return; }
+  if (D.subend) { fetch('/api/sub?op=end', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: D.subend }) }).catch(() => {}); state.prefs.subLast = null; save(); toast('הקישור בוטל ✓'); subSheet(); return; }
   if (D.insoff) { state.prefs.insOff = state.prefs.insOff || {}; state.prefs.insOff[D.insoff] = Date.now(); save(); rerender(); return; }
   if (D.evaldraft) { evalSheet(D.evaldraft); return; }
   if (D.evalsex) { const [n, sx] = D.evalsex.split('|'); state.evals = state.evals || {}; const E = state.evals[n] = state.evals[n] || {}; const changed = E.sex && E.sex !== sx; E.sex = sx; const k = state.kids.find(x => x.name === n); if (k) k.sex = sx; if (changed || !E.text) E.text = evalDraft(n, sx); save(); evalSheet(n); return; }
@@ -3886,6 +3892,7 @@ document.addEventListener('click', async e => {
     case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
     case 'classes': classesSheet(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
+    case 'subcreate': subCreate(); break;
     case 'ics': icsExport(); break;
     case 'evalall': evalAllSheet(); break;
     case 'evalcopyall': { const all = state.kids.map(k => { const E = (state.evals || {})[k.name] || {}; return E.text ? `${k.name}\n${E.text}` : ''; }).filter(Boolean).join('\n\n———\n\n'); if (!all) { toast('עוד אין הערכות – בוחרים ילד/ה ובן/בת'); break; } try { await navigator.clipboard.writeText(all); toast(`הועתקו ${all.split('———').length} הערכות ✓`, 2000); } catch { toast('לא הצלחתי להעתיק'); } break; }
@@ -4729,3 +4736,53 @@ function insightsCard() {
       ${x.kid ? `<button class="linkbtn" data-kid="${esc(x.kid)}">לכרטיס</button>` : ''}<button class="iconbtn" data-insoff="${esc(x.key)}" aria-label="הסתרה">${ic('x')}</button></div>`).join('')}
   </div>`;
 }
+
+// ================================================================ SUBSTITUTE: a temporary read-only page with one day's lessons and the teacher's notes
+function subSheet(dow) {
+  const w = pickWeek(); if (!w) return;
+  const S = state._sub = state._sub || { kids: false, seats: false, notes: '', hours: 'day' };
+  S.dow = dow ?? S.dow;
+  const day = w.days.find(d => d.dow === +S.dow) || w.days[0];
+  const last = state.prefs.subLast && state.prefs.subLast.exp > Date.now() ? state.prefs.subLast : null;
+  const hasSeats = Object.keys(seatsOf().map).length > 0;
+  const tg = (k, l, sm) => `<div class="setrow"><span>${l}${sm ? `<small class="dim">${sm}</small>` : ''}</span><button class="switch ${S[k] ? 'on' : ''}" data-subtog="${k}" role="switch" aria-checked="${!!S[k]}"><i></i></button></div>`;
+  openOverlay(`<div class="ov sheet subsheet"><button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('users')}<h2>קישור למורה מחליפה</h2></div>
+    <p class="dim">דף פשוט שנפתח בכל טלפון, בלי אפליקציה ובלי התחברות: מערכת היום, מה מלמדים, הקבצים והדגשים שלך. בלי ציונים, בלי היומן ובלי פרטי הורים.</p>
+    ${last ? `<div class="sublast"><b>יש קישור פעיל</b> עד ${new Date(last.exp).toLocaleString('he-IL', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}
+      <div class="btnrow"><button class="cta soft" data-subshare="${esc(last.token)}">${ic('link')} שליחה שוב</button><button class="cta soft" data-subend="${esc(last.token)}">${ic('x')} ביטול הקישור</button></div></div>` : ''}
+    <p class="pmlbl">איזה יום?</p><div class="fchips">${w.days.filter(d => d.periods.length).map(d => `<button class="fc ${d.dow === day.dow ? 'on' : ''}" data-subday="${d.dow}">יום ${esc(d.name)}${d.date ? ' ' + esc(d.date) : ''}</button>`).join('')}</div>
+    <label class="field">דגשים למחליפה<textarea id="subNotes" rows="4" placeholder="למשל: יואב יושב ליד הדלת ויוצא לפרטני ב־10:00 · בהפסקה תורנות בחצר · המפתח של הארון במגירה העליונה">${esc(S.notes)}</textarea></label>
+    ${tg('kids', 'רשימת שמות הילדים', 'שמות בלבד – לנוכחות')}
+    ${hasSeats ? tg('seats', 'מקומות הישיבה') : ''}
+    <div class="setrow"><span>הקישור פעיל</span><div class="seg">${[['day', 'היום'], ['24', '24 שעות'], ['week', 'עד סוף השבוע']].map(([v, l]) => `<button class="${S.hours === v ? 'on' : ''}" data-subhours="${v}">${l}</button>`).join('')}</div></div>
+    <button class="cta" data-act="subcreate">${ic('link')} יצירת קישור ושליחה</button>
+  </div>`);
+}
+async function subCreate() {
+  if (!sync.user) { toast('צריך להתחבר לחשבון כדי ליצור קישור (בהגדרות)', 3500); return; }
+  const w = pickWeek(), S = state._sub, day = w.days.find(d => d.dow === +S.dow) || w.days[0];
+  S.notes = ($('#subNotes') || {}).value || S.notes || '';
+  const end = new Date(now()); end.setHours(19, 0, 0, 0);
+  const hours = S.hours === '24' ? 24 : S.hours === 'week' ? Math.max(2, (addDays(new Date(now().toDateString()), 7 - now().getDay()) - now()) / 3600e3) : Math.max(2, (end - now()) / 3600e3);
+  const data = {
+    teacher: state.name || '', cls: (curCls() || {}).name || state.prefs.cls || '', day: `יום ${day.name}${day.date ? ' ' + day.date : ''}`, notes: S.notes,
+    periods: day.periods.map(p => ({ start: p.start, end: p.end, title: p.title, subtitle: (p.subtitle || '').split('·').slice(1).join('·').trim(), sections: p.sections.map(x => ({ label: x.label, text: x.text })), materials: p.materials.map(m => m.text), links: p.links.filter(l => l.url).map(l => ({ text: l.text, url: l.url })) })),
+    kids: S.kids ? state.kids.map(k => k.name) : null,
+    seats: S.seats ? (({ rows, cols, pair, map }) => ({ rows, cols, pair, map }))(seatsOf()) : null,
+  };
+  try {
+    try { await ID.refreshSession(); } catch { /* fine */ }
+    const r = await fetch('/api/sub?op=create', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ data, hours }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+    state.prefs.subLast = { token: j.token, exp: j.exp }; save();
+    await subShare(j.token);
+    subSheet();
+  } catch (e) { toast('לא הצלחתי ליצור קישור – בדקי חיבור לאינטרנט 😕', 3500); }
+}
+async function subShare(t) {
+  const url = `${location.origin}/sub.html?t=${t}`, text = `היי! הנה כל מה שצריך להיום בכיתה${state.name ? ' של ' + state.name : ''} – מערכת, שיעורים וקבצים. תודה רבה! 💜`;
+  if (navigator.share) { try { await navigator.share({ title: 'למורה המחליפה', text, url }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('הקישור הועתק – מדביקים בווטסאפ ✓', 2500); } catch { prompt('הקישור:', url); }
+}
+document.addEventListener('input', e => { if (e.target.id === 'subNotes' && state._sub) state._sub.notes = e.target.value; });

@@ -1910,3 +1910,32 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 .seat b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
 /* the phone's own projector, clay look */
 #proj[data-look=clay] { background: radial-gradient(900px 600px at 50% 0%, #FFFCF7, transparent 70%), #F6F0E8; color: #3B2A4A; }
+
+/* ================================================================ v88 · child snapshot */
+.ksnap { margin: 2px 0 14px; }
+.ks-who { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; }
+.ks-who h2 { margin: 0; font-size: var(--fs-h2); }
+.ks-who small { color: var(--soft); font-size: var(--fs-note); }
+.av.big { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; font-weight: 700; flex: none;
+  background: var(--dough, #EEE4F6); color: var(--accent-ink); box-shadow: var(--clay-sm, none); }
+.ks-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ks-tiles div { padding: 10px 4px 8px; border-radius: 18px; background: var(--card); text-align: center; box-shadow: var(--clay-sm, 0 1px 3px rgba(0,0,0,.08)); }
+.ks-tiles b { display: flex; align-items: baseline; justify-content: center; gap: 2px; font-size: 24px; font-weight: 700; line-height: 1.1; color: var(--ink); }
+.ks-tiles b i { font-style: normal; font-size: 13px; font-weight: 500; color: var(--soft); }
+.ks-tiles small { display: block; margin-top: 3px; font-size: 11px; color: var(--soft); line-height: 1.25; }
+.ks-tiles .warn b { color: #C2456B; }
+.tr { font-size: 11px; margin-inline-start: 3px; }
+.tr.up { color: #3FA66A; } .tr.down { color: #C2456B; }
+.ks-chart { margin-top: 10px; padding: 10px 12px 8px; border-radius: 18px; background: color-mix(in srgb, var(--bg) 60%, var(--card)); box-shadow: var(--clay-pressed, none); }
+.kspark { width: 100%; height: 56px; display: block; }
+.kspark .kl { fill: none; stroke: #5B4190; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.kspark circle { fill: #5B4190; stroke: var(--card); stroke-width: 1.5; }
+.kspark circle.lo { fill: #E2566E; }
+.kspark .k60 { stroke: var(--soft); stroke-dasharray: 3 4; stroke-width: 1; opacity: .6; }
+.ks-chart small { display: block; font-size: 11px; color: var(--soft); margin-top: 2px; }
+.ks-open { margin-top: 10px; padding: 10px 12px; border-radius: 18px; background: color-mix(in srgb, #F7C64B 14%, var(--card)); }
+.ks-open > b { display: block; font-size: var(--fs-sm); margin-bottom: 4px; }
+.ks-open .row { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: var(--fs-sm); }
+.ks-open .nchk { width: 26px; height: 26px; flex: none; border-radius: 8px; border: 0; display: grid; place-items: center; background: var(--card); color: transparent; box-shadow: var(--clay-sm, 0 0 0 1.5px var(--line)); }
+.ks-open .nchk .ic { width: 15px; height: 15px; }
+.ks-open .nchk:active { color: #3FA66A; }

@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 87; // keep in step with CACHE in sw.js
+const APP_V = 88; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1419,12 +1419,7 @@ function kidSheet(name) {
   const lt = lastTouch(name);
   openOverlay(`<div class="ov sheet kidsheet">
     <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
-    <div class="ovh">${ic('user')}<h2>${esc(name)}</h2></div>
-    <div class="kstats">
-      <div><b>${k.bd || '—'}</b><small>יום הולדת</small></div>
-      <div><b>${avg != null ? avg + '%' : '—'}</b><small>ממוצע</small></div>
-      <div><b>${lt ? Math.floor((Date.now() - lt) / 864e5) : '—'}</b><small>ימים מאז שנרשם משהו</small></div>
-    </div>
+    ${kidSnapshot(name, k, ns, gs, avg, lt)}
     <div class="btnrow"><button class="cta" data-kidmsg="${esc(name)}">${ic('phone2')} הודעה להורה</button><button class="cta soft" data-kidnote="${esc(name)}">${ic('pencil')} פתק</button></div>
     ${k.phone ? `<p class="hint">📞 <bdi dir="ltr">${esc(k.phone)}</bdi></p>` : '<p class="hint">אין טלפון של הורה – מוסיפים ב"הכיתה שלי"</p>'}
     ${(() => { const x = kidAtt(name); return x.a || x.l ? `<p class="hint">נוכחות: ${x.a} חיסורים · ${x.l} איחורים</p>` : ''; })()}
@@ -1432,6 +1427,33 @@ function kidSheet(name) {
     <h4>מהיומן</h4>${ns.length ? ns.slice(0, 12).map(n => `<div class="row"><span>${(TAGS[n.tag] || TAGS.note)[0]}</span><span class="grow">${esc(n.text || TAGS[n.tag][1])}</span><small class="dim">${new Date(n.at).getDate()}.${new Date(n.at).getMonth() + 1}</small></div>`).join('') : '<p class="dim">עוד לא נרשם כלום</p>'}
     ${ms.length ? `<h4>הודעות להורים</h4>${ms.slice(0, 6).map(m => `<div class="row"><span class="tpill">${new Date(m.at).getDate()}.${new Date(m.at).getMonth() + 1}</span><span class="grow">${esc(m.text.split('\n').find(l => l.trim() && !/^היי|טובים/.test(l)) || '')}</span></div>`).join('')}` : ''}
   </div>`);
+}
+// the top of a child's card: who, how it's going, what's open – at a glance
+function kidSnapshot(name, k, ns, gs, avg, lt) {
+  const ps = gs.map(x => pct(x.v, x.g.max));
+  const recent = ps.slice(-2), before = ps.slice(0, -2);
+  const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const trend = before.length && recent.length ? mean(recent) - mean(before) : 0;
+  const tr = trend >= 5 ? ['up', 'במגמת עלייה'] : trend <= -5 ? ['down', 'במגמת ירידה'] : null;
+  const stars = ns.filter(n => n.tag === 'star').length, dis = ns.filter(n => n.tag === 'disrupt').length;
+  const att = kidAtt(name);
+  const open = ns.filter(n => ACTION.includes(n.tag) && !n.done);
+  const spark = ps.length >= 2 ? (() => {
+    const W = 260, H = 54, pad = 6, xs = i => pad + i * (W - 2 * pad) / (ps.length - 1), lo = Math.max(0, Math.min(50, Math.min(...ps) - 8)), ys = v => H - pad - ((Math.max(lo, Math.min(100, v)) - lo) / (100 - lo)) * (H - 2 * pad);
+    const d = ps.map((v, i) => `${i ? 'L' : 'M'}${xs(i).toFixed(1)} ${ys(v).toFixed(1)}`).join(' ');
+    return `<svg class="kspark" viewBox="0 0 ${W} ${H}" aria-label="גרף ציונים"><line x1="${pad}" x2="${W - pad}" y1="${ys(60)}" y2="${ys(60)}" class="k60"/><path d="${d}" class="kl"/>${ps.map((v, i) => `<circle cx="${xs(i).toFixed(1)}" cy="${ys(v).toFixed(1)}" r="3.4" class="${v < 60 ? 'lo' : ''}"/>`).join('')}</svg>`;
+  })() : '';
+  return `<div class="ksnap">
+    <div class="ks-who"><span class="av big">${esc(name.trim()[0] || '?')}</span><span class="grow"><h2 id="ovTitle">${esc(name)}</h2><small>${k.bd ? `יום הולדת ${esc(k.bd)}` : 'אין תאריך יום הולדת'}${lt ? ` · נרשם משהו לפני ${Math.max(0, Math.floor((Date.now() - lt) / 864e5))} ימים` : ''}</small></span></div>
+    <div class="ks-tiles">
+      <div class="${avg != null && avg < 60 ? 'warn' : ''}"><b>${avg != null ? avg : '—'}${avg != null ? '<i>%</i>' : ''}${tr ? `<span class="tr ${tr[0]}" title="${tr[1]}">${tr[0] === 'up' ? '▲' : '▼'}</span>` : ''}</b><small>ממוצע</small></div>
+      <div><b>${stars}</b><small>הצטיינויות</small></div>
+      <div class="${dis >= 3 ? 'warn' : ''}"><b>${dis}</b><small>הפרעות</small></div>
+      <div class="${att.a >= 3 ? 'warn' : ''}"><b>${att.a}</b><small>חיסורים${att.l ? ` · ${att.l} איחורים` : ''}</small></div>
+    </div>
+    ${spark ? `<div class="ks-chart">${spark}<small>${gs.length} ציונים · הקו המקווקו: 60%${tr ? ' · ' + tr[1] : ''}</small></div>` : ''}
+    ${open.length ? `<div class="ks-open"><b>פתוח לטיפול</b>${open.map(n => `<div class="row"><button class="nchk" data-cdone="${n.id}" aria-label="טופל">${ic('check')}</button><span class="grow">${(TAGS[n.tag] || TAGS.note)[1]}${n.text ? ' · ' + esc(n.text) : ''}</span></div>`).join('')}</div>` : ''}
+  </div>`;
 }
 const GKINDS = ['מבחן', 'בוחן', 'הכתבה', 'מבדק', 'עבודה', 'פרויקט', 'משימה', 'אחר'];
 function viewGrades() {

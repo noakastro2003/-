@@ -8,7 +8,8 @@ let pathAllows = true;
 export const setPathSound = (on) => { pathAllows = on !== false; };
 export const muted = () => storage('lp-muted') === '1';
 export const setMuted = (on) => storage('lp-muted', on ? '1' : null);
-const on = () => pathAllows && !muted();
+// Calm mode (a reading setting) is quiet too.
+const on = () => pathAllows && !muted() && !document.documentElement.classList.contains('rd-calm-on');
 
 // notes: [frequency Hz, start s, length s, type?]
 function tones(notes, volume = 0.16) {

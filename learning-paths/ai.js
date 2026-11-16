@@ -136,7 +136,7 @@ export function aiConfigured() {
 
 // Which AI settings exist (never their values), for the admin to diagnose a disabled generator.
 export const aiEnvReport = () => Object.fromEntries(
-  ['ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'NETLIFY_AI_GATEWAY_KEY', 'NETLIFY_AI_GATEWAY_URL'].map((k) => [k, Boolean(envVar(k))]),
+  ['ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'GEMINI_API_KEY', 'OPENAI_API_KEY', 'OPENAI_BASE_URL', 'NETLIFY_AI_GATEWAY_KEY', 'NETLIFY_AI_GATEWAY_URL'].map((k) => [k, Boolean(envVar(k))]),
 );
 
 const ERRORS = {

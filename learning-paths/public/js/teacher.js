@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { h, mount, toast, modal, confirmDialog, field, busy, formatDate, debounce, copyText } from './ui.js';
+import { h, mount, toast, modal, confirmDialog, field, busy, formatDate, debounce, copyText, storage } from './ui.js';
 import { session, go } from './app.js';
 import {
   COLORS, BACKGROUNDS, FONTS, MAPS, ICONS, TASK_EMOJIS, TASK_TYPES, TASK_GROUPS, MODES, STATIONS, CARDS, CELEBRATIONS,
@@ -17,6 +17,8 @@ import { classesSection } from './classes.js';
 import { scheduleCard, libraryShareCard } from './library.js';
 import { DEMO } from './env.js';
 import { creditBadge, creditWord, cost, setCredits, showError } from './credits.js';
+import { readingControls, READING_DEFAULTS } from './reading.js';
+import { parentLinkDialog } from './family.js';
 
 // ---------- shared chrome ----------
 
@@ -135,12 +137,18 @@ export function authPage(app, mode) {
   const promo = h('input', { type: 'text', dir: 'ltr', maxlength: 30, autocapitalize: 'characters', value: new URLSearchParams(location.hash.split('?')[1] || '').get('code') || '' });
   const error = h('p', { class: 'error', role: 'alert' });
   const submit = h('button', { class: 'btn primary block', type: 'submit' }, isReg ? 'יצירת חשבון' : 'כניסה');
+  const terms = h('input', { type: 'checkbox', required: true });
+  const termsRow = h('label', { class: 'check-row terms-row' }, terms,
+    h('span', {}, 'קראתי ואני מסכימה ל',
+      h('a', { href: '#/legal/terms', target: '_blank' }, 'תנאי השימוש'), ' ול',
+      h('a', { href: '#/legal/privacy', target: '_blank' }, 'מדיניות הפרטיות'),
+      ', ואפעל לפי הנחיות בית הספר בשימוש עם תלמידים.'));
 
   const onSubmit = (e) => {
     e.preventDefault();
     error.textContent = '';
     const body = { email: email.value, password: pw.value };
-    if (isReg) { body.name = name.value; body.promo = promo.value; }
+    if (isReg) { body.name = name.value; body.promo = promo.value; body.acceptTerms = terms.checked; }
     busy(submit, api('POST', `/api/auth/${isReg ? 'register' : 'login'}`, body)
       .then((r) => {
         if (r.promo) toast(r.promo.message, r.promo.ok ? 'ok' : 'error');
@@ -157,6 +165,7 @@ export function authPage(app, mode) {
       field('אימייל', email),
       field('סיסמה', pw, isReg ? 'לפחות 8 תווים' : null),
       isReg && !DEMO && field('קוד הטבה (לא חובה)', promo),
+      isReg && termsRow,
       error, submit,
       !isReg && h('p', { class: 'center small' }, h('a', { href: '#/forgot' }, 'שכחתי סיסמה')),
       h('p', { class: 'muted center' },
@@ -217,10 +226,12 @@ export async function dashboardPage(app) {
   const list = h('div', { class: 'path-grid' }, h('p', { class: 'muted' }, 'טוען…'));
   const summary = h('div', { class: 'dash-summary' });
   const classesBox = h('section', { class: 'classes-box' });
+  const guide = h('div');
   const hour = new Date().getHours();
   const hello = hour < 12 ? 'בוקר טוב' : hour < 17 ? 'צהריים טובים' : 'ערב טוב';
   mount(app, topbar(), h('main', { class: 'page' },
     h('p', { class: 'dash-hello' }, DEMO ? `${hello}!` : `${hello}, ${session.teacher.name}!`),
+    guide,
     summary,
     h('div', { class: 'page-head' },
       h('h1', {}, 'המסלולים שלי'),
@@ -238,6 +249,7 @@ export async function dashboardPage(app) {
   } catch (err) {
     return mount(list, h('p', { class: 'error' }, err.message));
   }
+  if (!DEMO) gettingStarted(guide, paths);
   if (!paths.length) {
     return mount(list, h('div', { class: 'empty card' },
       h('div', { class: 'empty-icon', 'aria-hidden': 'true' }, '🗺️'),
@@ -267,6 +279,7 @@ export async function dashboardPage(app) {
       h('div', { class: 'path-card-body' },
         h('h3', {}, p.title),
         h('div', { class: 'chips' },
+          p.mine === false && h('span', { class: 'chip chip-shared', title: 'מסלול של כיתה משותפת' }, `👭 של ${p.ownerName}`),
           h('span', { class: `chip ${p.published ? 'chip-ok' : ''}` }, p.published ? 'פורסם' : 'טיוטה'),
           h('span', { class: 'chip' }, `${p.taskCount} משימות`),
           h('span', { class: 'chip' }, `${p.studentCount} תלמידים`),
@@ -275,6 +288,65 @@ export async function dashboardPage(app) {
     applyTheme(card, p.theme, { surfaces: false });
     return card;
   }));
+}
+
+// ---------- getting started ----------
+
+// A new teacher's first steps, ticked off as they happen; can be closed. Plus a short
+// welcome tour on the very first visit.
+const tourKey = (k) => `lp-${k}-${session.teacher?.id}`;
+export const markTour = (step) => storage(tourKey(`tour-${step}`), '1');
+
+function gettingStarted(box, paths) {
+  if (storage(tourKey('guide-closed'))) return;
+  if (!storage(tourKey('welcome'))) { storage(tourKey('welcome'), '1'); welcomeTour(); }
+  const sample = paths.find((p) => /מסלול לדוגמה/.test(p.title));
+  const steps = [
+    { done: Boolean(storage(tourKey('tour-preview'))), text: 'לראות את מסלול הדוגמה בעיני תלמיד', hint: 'בעורך: "👀 תצוגה מקדימה"', href: sample ? `#/path/${sample.id}` : null },
+    { done: paths.length > (sample ? 1 : 0), text: 'ליצור מסלול משלכם', hint: 'לבד, מהספרייה או עם המחולל', href: '#/library' },
+    { done: paths.some((p) => p.published), text: 'לפרסם מסלול ולשתף את הקוד', hint: 'לשונית "שיתוף" בעורך', href: sample ? `#/path/${sample.id}/share` : null },
+    { done: paths.some((p) => p.studentCount > 0), text: 'תלמיד ראשון מצטרף', hint: 'נכנסים עם הקוד במסך "יש לי קוד"' },
+    { done: Boolean(storage(tourKey('tour-progress'))), text: 'להציץ בהתקדמות', hint: 'לשונית "התקדמות": מי סיים, מי נתקע', href: sample ? `#/path/${sample.id}/progress` : null },
+  ];
+  const left = steps.filter((st) => !st.done).length;
+  const close = () => { storage(tourKey('guide-closed'), '1'); box.replaceChildren(); };
+  if (!left) return close();
+  mount(box, h('section', { class: 'card guide-card' },
+    h('div', { class: 'row space' },
+      h('h2', {}, '🚀 צעדים ראשונים'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn ghost small', onclick: welcomeTour }, 'סיור קצר'),
+        h('button', { class: 'icon-btn', 'aria-label': 'סגירת הצעדים הראשונים', title: 'הסתרה', onclick: close }, '✕'))),
+    h('div', { class: 'guide-bar', 'aria-hidden': 'true' }, h('span', { style: { width: `${((steps.length - left) / steps.length) * 100}%` } })),
+    h('ol', { class: 'guide-steps' }, steps.map((st) => h('li', { class: st.done ? 'done' : '' },
+      h('span', { class: 'guide-check', 'aria-hidden': 'true' }, st.done ? '✓' : ''),
+      h('span', {}, st.href && !st.done ? h('a', { href: st.href }, st.text) : st.text, h('span', { class: 'muted small block' }, st.hint)),
+      h('span', { class: 'sr-only' }, st.done ? 'בוצע' : 'עוד לא'))))));
+}
+
+function welcomeTour() {
+  const slides = [
+    ['🗺️', 'ברוכה הבאה למסלולי למידה!', 'כל מסלול הוא רצף של משימות קטנות – משחקים, קריאה, הקלטה וציור – שהתלמידים עוברים בקצב שלהם. מחכה לך כבר מסלול לדוגמה בחשבון.'],
+    ['🧩', 'בונים מסלול', 'מסלול ריק, מסלול מוכן מהספרייה (יותר מ-130 מסלולים לפי תוכנית הלימודים), או המחולל שבונה מסלול שלם מנושא ומטרות. כל משימה ניתנת לעריכה.'],
+    ['🔑', 'משתפים קוד', 'בלשונית "שיתוף" מפרסמים ומקבלים קוד. התלמידים נכנסים בלי אימייל – רק שם וסיסמה מתמונות. כיתה נותנת קוד אחד לכמה מסלולים.'],
+    ['📊', 'עוקבים ומתאימים', 'רואים מי סיים, מי ביקש עזרה ואיפה נתקעים. ⚙️ התאמה אישית: להסתיר משימות, הפסקות, גופן ברור, טקסט גדול והקראה. 👪 קישור להורים.'],
+  ];
+  let i = 0;
+  const body = h('div', { class: 'tour' });
+  const m = modal('סיור קצר', body);
+  const render = () => {
+    const [icon, title, text] = slides[i];
+    body.replaceChildren(
+      h('div', { class: 'tour-icon', 'aria-hidden': 'true' }, icon),
+      h('h3', {}, title), h('p', {}, text),
+      h('div', { class: 'tour-dots', 'aria-label': `${i + 1} מתוך ${slides.length}` }, slides.map((_, j) => h('span', { class: j === i ? 'on' : '' }))),
+      h('div', { class: 'row space' },
+        h('button', { class: 'btn ghost', disabled: i === 0, onclick: () => { i--; render(); } }, '→ הקודם'),
+        i < slides.length - 1
+          ? h('button', { class: 'btn primary', onclick: () => { i++; render(); } }, 'הבא ←')
+          : h('button', { class: 'btn primary', onclick: () => m.close() }, 'יאללה, מתחילים!')));
+  };
+  render();
 }
 
 function newPathDialog() {
@@ -357,7 +429,7 @@ export async function editorPage(app, id, tab) {
       h('span', { class: 'editor-icon', 'aria-hidden': 'true' }, state.path.theme.icon),
       titleInput, statusChip,
       h('div', { class: 'row wrap editor-actions' },
-        h('a', { class: 'btn small secondary', href: `#/s/${state.path.code}`, target: DEMO ? null : '_blank', rel: 'noopener' }, '👀 תצוגה מקדימה'),
+        h('a', { class: 'btn small secondary', href: `#/s/${state.path.code}`, target: DEMO ? null : '_blank', rel: 'noopener', onclick: () => markTour('preview') }, '👀 תצוגה מקדימה'),
         publishBtn,
         h('button', { class: 'icon-btn', title: 'אפשרויות נוספות', 'aria-label': 'אפשרויות נוספות', onclick: () => moreMenu(state) }, '⋯'))),
     h('nav', { class: 'tabs', role: 'tablist' },
@@ -371,7 +443,7 @@ export async function editorPage(app, id, tab) {
 async function savePath(state, patch) {
   try {
     const r = await api('PUT', `/api/paths/${state.path.id}`, patch);
-    state.path = r.path;
+    state.path = { ...r.path, mine: state.path.mine };
     return r.path;
   } catch (err) {
     toast(err.message, 'error');
@@ -386,7 +458,9 @@ function moreMenu(state) {
         .then((r) => { setCredits(r.credits); m.close(); toast('נוצר עותק', 'ok'); go(`#/path/${r.path.id}`); })
         .catch((err) => { m.close(); showError(err); }),
     }, `📄 שכפול המסלול${cost('createPath') ? ` (${creditWord(cost('createPath'))})` : ''}`),
-    h('button', {
+    state.path.mine === false
+      ? h('p', { class: 'muted small' }, 'זה מסלול של כיתה משותפת: רק המורה שיצרה אותו יכולה למחוק אותו. שכפול יוצר עותק משלך.')
+      : h('button', {
       class: 'btn danger block', onclick: async () => {
         m.close();
         if (!(await confirmDialog(`למחוק את "${state.path.title}"? כל המשימות וההתקדמות של התלמידים יימחקו.`, { okText: 'מחיקה', danger: true }))) return;
@@ -1070,7 +1144,7 @@ function pinCard(state, { compact = false } = {}) {
   showBtn.onclick = () => { shown = !shown; draw(); };
   const custom = h('input', { type: 'text', inputmode: 'numeric', maxlength: 6, placeholder: 'קוד משלך', dir: 'ltr', class: 'pin-input', 'aria-label': 'קוד משלך (4-6 ספרות)' });
   const set = (body) => api('PUT', `/api/paths/${state.path.id}/pin`, body)
-    .then((r) => { state.path = r.path; shown = true; custom.value = ''; draw(); toast('קוד האישור עודכן', 'ok'); })
+    .then((r) => { state.path = { ...r.path, mine: state.path.mine }; shown = true; custom.value = ''; draw(); toast('קוד האישור עודכן', 'ok'); })
     .catch((err) => toast(err.message, 'error'));
   draw();
   return h('div', { class: `card pin-card${compact ? ' compact' : ''}` },
@@ -1129,6 +1203,7 @@ function shareTab(body, state) {
 // ----- progress tab -----
 
 function progressTab(body, state) {
+  markTour('progress');
   const content = h('div', {}, h('p', { class: 'muted' }, 'טוען…'));
   const updated = h('span', { class: 'muted small' });
   const refreshBtn = h('button', { class: 'btn small ghost', onclick: () => load() }, '🔄 רענון');
@@ -1266,7 +1341,8 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
         h('tbody', {}, students.map((s) => {
           const mine = tasksFor(s).length;
           const pct = mine ? Math.round((done(s) / mine) * 100) : 0;
-          const adapted = hiddenFor(s).size > 0 || (s.adapt?.breakEvery ?? null) !== null;
+          const adapted = hiddenFor(s).size > 0 || (s.adapt?.breakEvery ?? null) !== null
+            || Object.entries(READING_DEFAULTS).some(([k, val]) => s.reading && s.reading[k] !== val);
           return h('tr', {},
             h('th', { class: 'sticky', scope: 'row' }, s.avatar && h('span', { class: 'row-avatar', 'aria-hidden': 'true' }, s.avatar), s.name,
               (s.moods?.start || s.moods?.end) && h('span', {
@@ -1297,7 +1373,9 @@ function renderProgress(el, { tasks, students, help, wrong = {} }, reload, state
             h('td', { class: 'small muted' }, formatDate(s.lastActive)),
             h('td', { class: 'row-actions' }, h('button', {
               class: 'icon-btn', 'aria-label': `התאמה אישית ל${s.name}`, title: 'התאמה אישית', onclick: () => adaptDialog(s, tasks, reload),
-            }, '⚙️'), pathId && h('a', {
+            }, '⚙️'), pathId && h('button', {
+              class: 'icon-btn', 'aria-label': `קישור להורים של ${s.name}`, title: 'קישור להורים', onclick: () => parentLinkDialog(`/api/students/${s.id}/parent-link`, s.name),
+            }, '👪'), pathId && h('a', {
               class: 'icon-btn', href: `#/path/${pathId}/report/${s.id}`, 'aria-label': `דוח של ${s.name}`, title: 'דוח להדפסה',
             }, '🖨️'), h('button', {
               class: 'icon-btn', 'aria-label': `איפוס הסיסמה הסודית של ${s.name}`, title: 'איפוס הסיסמה הסודית', disabled: !s.hasSecret,
@@ -1324,11 +1402,12 @@ function adaptDialog(s, tasks, reload) {
     [['', 'כמו בכל המסלול'], ['0', 'בלי הפסקות'], ['1', 'אחרי כל משימה'], ['2', 'אחרי כל 2 משימות'], ['3', 'אחרי כל 3 משימות'], ['4', 'אחרי כל 4 משימות']]
       .map(([val, label]) => h('option', { value: val, selected: String(s.adapt?.breakEvery ?? '') === val }, label)));
   const save = h('button', { class: 'btn primary', type: 'submit' }, 'שמירה');
+  const reading = { ...READING_DEFAULTS, ...s.reading };
   const m = modal(`⚙️ התאמה אישית ל${s.name}`, h('form', {
     class: 'stack',
     onsubmit: (e) => {
       e.preventDefault();
-      const body = { hidden: boxes.filter((b) => !b.checked).map((b) => Number(b.value)), breakEvery: brk.value === '' ? null : Number(brk.value) };
+      const body = { hidden: boxes.filter((b) => !b.checked).map((b) => Number(b.value)), breakEvery: brk.value === '' ? null : Number(brk.value), reading };
       busy(save, api('PUT', `/api/students/${s.id}/adapt`, body).then(() => { m.close(); toast('נשמר ✓', 'ok'); reload(); })
         .catch((err) => toast(err.message, 'error')));
     },
@@ -1340,5 +1419,8 @@ function adaptDialog(s, tasks, reload) {
       h('div', { class: 'row' },
         h('button', { type: 'button', class: 'btn small ghost', onclick: () => boxes.forEach((b) => { b.checked = true; }) }, 'הכול'))),
     field('הפסקות', brk),
+    h('fieldset', {}, h('legend', {}, 'הגדרות קריאה ונגישות'),
+      h('p', { class: 'muted small' }, 'גם התלמיד/ה יכולים לשנות אותן בכפתור Aa.', s.classMember ? ' ההגדרות חלות על כל מסלולי הכיתה.' : ''),
+      readingControls(reading, () => {})),
     h('div', { class: 'row end' }, h('button', { type: 'button', class: 'btn ghost', onclick: () => m.close() }, 'ביטול'), save)));
 }

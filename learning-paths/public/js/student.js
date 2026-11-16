@@ -5,6 +5,7 @@ import { TASK_TYPES, BREAK_IDEAS, MOVE_BREAKS, CALM_BREAKS, MOODS, stickerFor, a
 import { GAMES, gameSpeech } from './games.js';
 import { DEMO } from './env.js';
 import { play, setPathSound, muted, setMuted } from './sound.js';
+import { applyReading, readingButton, speakText, stopSpeaking, isCalm, READING_DEFAULTS } from './reading.js';
 import { watchFractions, speakableMath } from './math.js';
 import { visualEl } from './visuals.js';
 
@@ -67,6 +68,8 @@ export async function studentPage(app, code) {
     closed: Boolean(data.path.closed),
     theme: data.path.theme,
     preview: data.preview,
+    naturalVoice: Boolean(data.naturalVoice),
+    reading: { ...READING_DEFAULTS },
     token: data.preview ? null : storage(tokenKey(code)),
     name: '',
     done: {},
@@ -110,7 +113,11 @@ function applyState(s, st) {
   s.adapt = st.adapt || { hidden: [], breakEvery: null };
   s.tasks = s.allTasks.filter((t) => !s.adapt.hidden.includes(t.id));
   s.badgesShown ||= new Set(earnedBadges(s)); // a returning student isn't re-congratulated
+  s.reading = { ...READING_DEFAULTS, ...st.reading };
+  applyReading(s.app, s.reading);
 }
+
+const readAloudOn = (s) => s.theme.readAloud || s.reading?.readAloud;
 
 // ----- badges -----
 
@@ -263,6 +270,7 @@ function kidHeader(s, extra) {
   return h('header', { class: 'kid-header' },
     h('div', { class: 'kid-hello path-font' }, `${s.avatar || s.theme.icon} היי ${s.name}!`),
     h('div', { class: 'row' },
+      readingButton(s),
       s.theme.sound !== false && h('button', {
         class: 'icon-btn mute-btn', 'aria-label': muted() ? 'הפעלת צלילים' : 'השתקת צלילים', title: muted() ? 'הפעלת צלילים' : 'השתקה',
         onclick: (e) => { setMuted(!muted()); e.currentTarget.textContent = muted() ? '🔇' : '🔊'; },
@@ -382,27 +390,18 @@ function teacherVoiceButton(src) {
   audio.onended = audio.onpause = () => btn.classList.remove('playing');
   btn.onclick = () => {
     if (!audio.paused) return audio.pause();
-    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    stopSpeaking();
     audio.currentTime = 0;
     audio.play().then(() => btn.classList.add('playing')).catch(() => toast('לא הצלחנו להשמיע את ההקלטה', 'error'));
   };
   return btn;
 }
 
-function speak(text) {
-  if (!('speechSynthesis' in window)) return toast('ההקראה לא נתמכת בדפדפן הזה', 'error');
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(speakableMath(text));
-  u.lang = 'he-IL';
-  u.rate = 0.9;
-  speechSynthesis.speak(u);
-}
-
 function showTask(s, i) {
   window.scrollTo(0, 0);
   // Tells the teacher's "where students get stuck" how long this took.
   if (!s.preview && !isDone(s, s.tasks[i])) api('POST', `/api/s/${s.code}/tasks/${s.tasks[i].id}/open`, {}, auth(s)).catch(() => {});
-  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  stopSpeaking();
   const t = s.tasks[i];
   const c = t.content;
   const done = isDone(s, t);
@@ -564,7 +563,7 @@ function showTask(s, i) {
             t.needsApproval && h('span', { class: 'chip chip-approval' }, '🧑‍🏫 בסוף המורה מאשרת')),
           c.audio
             ? teacherVoiceButton(c.audio)
-            : s.theme.readAloud && h('button', { class: 'icon-btn read-btn', 'aria-label': 'הקראה', title: 'הקראה בקול', onclick: () => speak(readText) }, '🔊')),
+            : readAloudOn(s) && h('button', { class: 'icon-btn read-btn', 'aria-label': 'הקראה', title: 'הקראה בקול', onclick: (e) => speakText(s, readText, e.currentTarget) }, '🔊')),
         parts,
         feedback,
         h('div', { class: 'task-buttons' }, finishBtn, helpBtn))));
@@ -730,6 +729,7 @@ const PARTICLES = {
 
 // A short burst over the page. style: 'confetti' or one of PARTICLES.
 export function celebrate(container, style = 'confetti') {
+  if (isCalm()) return;
   const emoji = PARTICLES[style];
   if (emoji) {
     const layer = h('div', { class: `confetti emoji${emoji.rise ? ' rise' : ''}`, 'aria-hidden': 'true' });
@@ -818,11 +818,8 @@ function guidedBreak(s, next, act, list) {
   const actions = h('div', { class: 'stack' });
   const go = () => { clearInterval(timer); openTask(s, next); };
   const say = (words) => {
-    if (!s.theme.readAloud || muted() || !('speechSynthesis' in window)) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(words);
-    u.lang = 'he-IL';
-    speechSynthesis.speak(u);
+    if (!readAloudOn(s) || muted() || isCalm()) return;
+    speakText(s, words);
   };
   const showStep = () => {
     const st = act.steps[stepIdx];

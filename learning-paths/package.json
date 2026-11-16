@@ -19,6 +19,7 @@
     "@google/genai": "^2.31.0",
     "@netlify/blobs": "^11.1.9",
     "@netlify/database": "^2.0.3",
+    "openai": "^7.57.0",
     "pg": "^8.23.1"
   }
 }

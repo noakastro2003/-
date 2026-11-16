@@ -408,3 +408,19 @@ export function task(input = {}) {
     content: taskContent(input.type, input.content),
   };
 }
+
+// A student's reading settings: easier-to-read font, bigger text, wider spacing, high
+// contrast, calm mode (no animations or sounds), and whether read-aloud uses the natural voice.
+export const READING_DEFAULTS = { font: 'default', size: 1, spacing: false, contrast: false, calm: false, readAloud: false, voice: 'natural' };
+export function reading(input = {}) {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) throw bad('הגדרות קריאה לא תקינות');
+  const r = { ...READING_DEFAULTS };
+  if (input.font !== undefined) r.font = input.font === 'clear' ? 'clear' : 'default';
+  if (input.size !== undefined) r.size = [1, 2, 3].includes(Number(input.size)) ? Number(input.size) : 1;
+  for (const k of ['spacing', 'contrast', 'calm', 'readAloud']) if (input[k] !== undefined) r[k] = input[k] === true;
+  if (input.voice !== undefined) r.voice = input.voice === 'device' ? 'device' : 'natural';
+  return r;
+}
+export const readingFrom = (json) => {
+  try { return reading(JSON.parse(json || '{}')); } catch { return { ...READING_DEFAULTS }; }
+};

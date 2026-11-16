@@ -9,6 +9,8 @@ import { classAdminPage } from './classes.js';
 import { libraryPage, reportPage } from './library.js';
 import { adminPage } from './adminpage.js';
 import { settingsPage } from './settings.js';
+import { legalPage } from './legal.js';
+import { parentPage } from './family.js';
 
 const app = document.getElementById('app');
 export const session = { teacher: null, loaded: false };
@@ -36,6 +38,8 @@ const routes = [
   [/^#\/register(?:\?.*)?$/, () => authPage(app, 'register')],
   [/^#\/settings$/, () => needTeacher(() => settingsPage(app, topbar))],
   [/^#\/admin$/, () => needTeacher(() => adminPage(app, topbar))],
+  [/^#\/legal\/(privacy|terms|accessibility)$/, (m) => legalPage(app, m[1])],
+  [/^#\/p\/([A-Za-z0-9_-]{20,40})$/, (m) => parentPage(app, m[1])],
   [/^#\/forgot$/, () => forgotPage(app)],
   [/^#\/reset\/([0-9a-f]{64})$/, (m) => resetPage(app, m[1])],
   [/^#\/join$/, () => joinCodePage(app)],
@@ -64,6 +68,10 @@ export async function render() {
   document.body.className = '';
   app.removeAttribute('style');
   app.className = '';
+  document.documentElement.classList.remove('rd-calm-on'); // a student's reading settings end with the student screen
+  document.documentElement.style.fontSize = '';
+  // Student screens fill the page; everywhere else the legal links sit at the bottom.
+  document.getElementById('site-footer').hidden = /^#\/(s|c)\//.test(location.hash);
   for (const [re, fn] of routes) {
     const m = location.hash.match(re);
     if (m) return fn(m);

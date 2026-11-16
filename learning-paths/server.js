@@ -8,8 +8,9 @@ import * as v from './validate.js';
 import { HttpError } from './validate.js';
 import { PROMO_KINDS, normalizeCode, promoInput, promoProblem, promoMessage, promoOut } from './promo.js';
 import { TEMPLATES } from './templates.js';
-import { createAiTools, aiConfigured, aiEnvReport, GRADES, AI_TASK_TYPES } from './ai.js';
+import { createAiTools, aiConfigured, aiEnvReport, envVar, GRADES, AI_TASK_TYPES } from './ai.js';
 import { imagesConfigured, createImageTool } from './images.js';
+import { createTts, TTS_MAX_CHARS } from './tts.js';
 import READY_PATHS from './content/library-data.js';
 import { stripNikud } from './validate.js';
 import {
@@ -21,6 +22,8 @@ import { DICTA_URL, dictaRequest, dictaToText } from './dicta.js';
 
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url)); // not __dirname: bundlers define that name themselves
 const PUBLIC_DIR = path.join(APP_DIR, 'public');
+const CO_TEACHER_PATHS = `SELECT cp.path_id FROM class_paths cp JOIN class_teachers ct ON ct.class_id = cp.class_id WHERE ct.teacher_id = ?1`;
+const SAMPLE_SLUG = 'life-1'; // the ready-made path a new teacher finds in the account
 const SESSION_MS = 30 * 24 * 3600 * 1000;
 const MAX_BODY = 256 * 1024;
 const MAX_UPLOAD_BODY = 30 * 1024 * 1024; // AI generator: files arrive base64-encoded
@@ -203,6 +206,8 @@ export function createApp(db, {
   ai, billingCfg = billingConfig(), mailer = createMailer(), dicta = callDicta,
   // images: { enabled, generate(subject) → { data, mime } } – injectable for tests.
   images = { get enabled() { return imagesConfigured(); }, generate: createImageTool() },
+  // tts: { enabled, voiceId, speak(text) → { data, mime, voiceId } } – natural read-aloud.
+  tts = createTts(),
   // startJob(id): runs a generation job elsewhere (Netlify: a background function). When
   // unset, generation runs inside the request.
   startJob = null,
@@ -223,6 +228,8 @@ export function createApp(db, {
   const dictaLimit = rateLimiter(db, 'dicta', 120, 60 * 60 * 1000);
   const promoLimit = rateLimiter(db, 'promo', 10, 60 * 60 * 1000); // stops guessing codes
   const uploadLimit = rateLimiter(db, 'upload', 40, 60 * 60 * 1000); // per student: recordings, photos, drawings
+  const ttsLimit = rateLimiter(db, 'tts', 60, 60 * 60 * 1000); // new recordings, per student and per path owner
+  const ttsPathLimit = rateLimiter(db, 'tts-path', 400, 24 * 60 * 60 * 1000);
   // Tests pass their own tools; otherwise the real ones are made on first use.
   let tools = ai && (ai.generatePath || ai.nikud || ai.improveTask) ? ai : null;
   const aiTools = () => (tools ||= createAiTools());
@@ -230,6 +237,7 @@ export function createApp(db, {
 
   const q = {
     teacherByEmail: db.prepare('SELECT * FROM teachers WHERE email = ?'),
+    acceptTerms: db.prepare('UPDATE teachers SET terms_accepted_at = ? WHERE id = ?'),
     insertTeacher: db.prepare('INSERT INTO teachers (name, email, password_hash, credits) VALUES (?, ?, ?, ?)'),
     teacherById: db.prepare('SELECT * FROM teachers WHERE id = ?'),
     saveAccount: db.prepare('UPDATE teachers SET credits = ?, sub_status = ?, sub_period_end = ?, sub_credits_left = ? WHERE id = ?'),
@@ -242,7 +250,11 @@ export function createApp(db, {
     deleteTeacherSessions: db.prepare('DELETE FROM sessions WHERE teacher_id = ?'),
     insertMedia: db.prepare('INSERT INTO media (id, teacher_id, mime, size, data) VALUES (?, ?, ?, ?, ?)'),
     mediaById: db.prepare('SELECT mime, data FROM media WHERE id = ?'),
-    mediaUsage: db.prepare('SELECT COALESCE(SUM(size), 0)::bigint AS total FROM media WHERE teacher_id = ?'),
+    // Read-aloud recordings don't count toward the teacher's storage.
+    mediaUsage: db.prepare(`SELECT COALESCE(SUM(size), 0)::bigint AS total FROM media
+                            WHERE teacher_id = ? AND id NOT IN (SELECT media_id FROM tts_cache)`),
+    ttsCached: db.prepare('SELECT media_id FROM tts_cache WHERE key = ?'),
+    ttsInsert: db.prepare('INSERT INTO tts_cache (key, media_id, created_at) VALUES (?, ?, ?) ON CONFLICT (key) DO NOTHING RETURNING key'),
     insertReset: db.prepare('INSERT INTO password_resets (token_hash, teacher_id, expires_at) VALUES (?, ?, ?)'),
     resetByHash: db.prepare('SELECT * FROM password_resets WHERE token_hash = ?'),
     useReset: db.prepare('UPDATE password_resets SET used = 1 WHERE token_hash = ?'),
@@ -256,7 +268,33 @@ export function createApp(db, {
                                WHERE s.path_id = p.id AND h.resolved = 0) AS open_help,
                              (SELECT COUNT(*) FROM progress pr JOIN students s ON s.id = pr.student_id
                                WHERE s.path_id = p.id AND pr.approved = 0) AS pending_approval
-                           FROM paths p WHERE teacher_id = ? ORDER BY updated_at DESC, id DESC`),
+                             , (SELECT name FROM teachers WHERE id = p.teacher_id) AS owner_name
+                           FROM paths p WHERE teacher_id = ?1 OR id IN (${CO_TEACHER_PATHS})
+                           ORDER BY updated_at DESC, id DESC`),
+    // A teacher shares a path when it belongs to a class they co-teach.
+    pathCoTeacher: db.prepare(`SELECT 1 FROM class_paths cp JOIN class_teachers ct ON ct.class_id = cp.class_id
+                               WHERE cp.path_id = ? AND ct.teacher_id = ?`),
+    classCoTeacher: db.prepare('SELECT 1 FROM class_teachers WHERE class_id = ? AND teacher_id = ?'),
+    coTeachersOf: db.prepare(`SELECT t.id, t.name, t.email FROM class_teachers ct JOIN teachers t ON t.id = ct.teacher_id
+                              WHERE ct.class_id = ? ORDER BY t.name`),
+    addCoTeacher: db.prepare('INSERT INTO class_teachers (class_id, teacher_id) VALUES (?, ?) ON CONFLICT DO NOTHING'),
+    removeCoTeacher: db.prepare('DELETE FROM class_teachers WHERE class_id = ? AND teacher_id = ?'),
+    setStudentParentToken: db.prepare('UPDATE students SET parent_token = ? WHERE id = ?'),
+    setMemberParentToken: db.prepare('UPDATE class_members SET parent_token = ? WHERE id = ?'),
+    studentByParentToken: db.prepare('SELECT * FROM students WHERE parent_token = ?'),
+    memberByParentToken: db.prepare('SELECT * FROM class_members WHERE parent_token = ?'),
+    studentsOfMember: db.prepare('SELECT * FROM students WHERE class_member_id = ? ORDER BY id'),
+    // Everything a class's members finished, for the progress-over-time view.
+    classActivity: db.prepare(`SELECT s.class_member_id AS member_id, s.path_id, pr.task_id, pr.completed_at
+                               FROM progress pr JOIN students s ON s.id = pr.student_id
+                               JOIN class_members m ON m.id = s.class_member_id
+                               WHERE m.class_id = ? AND pr.approved = 1`),
+    classAttempts: db.prepare(`SELECT s.class_member_id AS member_id, a.task_id, a.wrong FROM task_attempts a
+                               JOIN students s ON s.id = a.student_id JOIN class_members m ON m.id = s.class_member_id
+                               WHERE m.class_id = ? AND a.wrong > 0`),
+    classHelp: db.prepare(`SELECT s.class_member_id AS member_id, h.task_id FROM help_requests h
+                           JOIN students s ON s.id = h.student_id JOIN class_members m ON m.id = s.class_member_id
+                           WHERE m.class_id = ? AND h.resolved = 0`),
     pathById: db.prepare('SELECT * FROM paths WHERE id = ?'),
     pathByCode: db.prepare('SELECT * FROM paths WHERE code = ?'),
     // Path and class codes share one namespace: a student types either.
@@ -264,7 +302,9 @@ export function createApp(db, {
 
     classesOf: db.prepare(`SELECT c.*, (SELECT COUNT(*) FROM class_members WHERE class_id = c.id) AS member_count,
                              (SELECT COUNT(*) FROM class_paths WHERE class_id = c.id) AS path_count
-                           FROM classes c WHERE teacher_id = ? ORDER BY c.created_at DESC, c.id DESC`),
+                             , (SELECT name FROM teachers WHERE id = c.teacher_id) AS owner_name
+                           FROM classes c WHERE teacher_id = ?1 OR id IN (SELECT class_id FROM class_teachers WHERE teacher_id = ?1)
+                           ORDER BY c.created_at DESC, c.id DESC`),
     classById: db.prepare('SELECT * FROM classes WHERE id = ?'),
     classByCode: db.prepare('SELECT * FROM classes WHERE code = ?'),
     insertClass: db.prepare('INSERT INTO classes (teacher_id, name, code) VALUES (?, ?, ?)'),
@@ -316,8 +356,10 @@ export function createApp(db, {
     touchStudent: db.prepare("UPDATE students SET last_active = datetime('now') WHERE id = ?"),
     deleteStudent: db.prepare('DELETE FROM students WHERE id = ?'),
     studentsOfPath: db.prepare(`SELECT id, name, avatar, secret_hash IS NOT NULL AS has_secret, created_at, last_active,
-                                hidden_tasks, break_every FROM students WHERE path_id = ? ORDER BY name`),
+                                hidden_tasks, break_every, reading, class_member_id, parent_token FROM students WHERE path_id = ? ORDER BY name`),
     setSchedule: db.prepare('UPDATE paths SET opens_at = ?, closes_at = ? WHERE id = ?'),
+    setStudentReading: db.prepare('UPDATE students SET reading = ? WHERE id = ?'),
+    setMemberReading: db.prepare('UPDATE class_members SET reading = ? WHERE id = ?'),
     setAdapt: db.prepare('UPDATE students SET hidden_tasks = ?, break_every = ? WHERE id = ?'),
     setShared: db.prepare('UPDATE paths SET shared = ?, shared_grade = ?, shared_subject = ?, shared_at = ? WHERE id = ?'),
     library: db.prepare(`SELECT p.*, t.name AS author, (SELECT COUNT(*) FROM tasks k WHERE k.path_id = p.id) AS task_count,
@@ -429,10 +471,15 @@ export function createApp(db, {
     return sessionCookie(req, token, SESSION_MS / 1000);
   }
 
-  async function ownPath(ctx, id) {
+  // The path, if this teacher owns it or co-teaches a class it belongs to. Some actions
+  // (deleting it) are the owner's only.
+  async function ownPath(ctx, id, { ownerOnly = false } = {}) {
     const teacher = requireTeacher(ctx);
     const p = await q.pathById.get(Number(id));
-    if (!p || p.teacher_id !== teacher.id) throw new HttpError(404, 'המסלול לא נמצא');
+    if (!p) throw new HttpError(404, 'המסלול לא נמצא');
+    if (p.teacher_id === teacher.id) return p;
+    if (!await q.pathCoTeacher.get(p.id, teacher.id)) throw new HttpError(404, 'המסלול לא נמצא');
+    if (ownerOnly) throw new HttpError(403, 'רק המורה שיצרה את המסלול יכולה לעשות את זה');
     return p;
   }
 
@@ -558,8 +605,24 @@ export function createApp(db, {
     const help = (await q.openHelpForStudent.all(s.id)).map((r) => r.task_id);
     return {
       student: { id: s.id, name: s.name, avatar: s.avatar || '' }, done, pending, help, firstTry: (await q.firstTry.get(s.id)).n,
-      moods: await latestMoods(s.id), adapt: adaptOf(s),
+      moods: await latestMoods(s.id), adapt: adaptOf(s), reading: await readingOf(s),
     };
+  }
+
+  // Reading settings live on the class member when the student came through a class, so
+  // they follow the student into every path of the class.
+  async function readingOf(s) {
+    if (s.class_member_id) {
+      const m = await q.memberById.get(s.class_member_id);
+      if (m) return v.readingFrom(m.reading);
+    }
+    return v.readingFrom(s.reading);
+  }
+  async function saveReading(s, input) {
+    const r = v.reading(input);
+    if (s.class_member_id) await q.setMemberReading.run(JSON.stringify(r), s.class_member_id);
+    else await q.setStudentReading.run(JSON.stringify(r), s.id);
+    return r;
   }
 
   // The latest "how do I feel" at the start and at the end of a session.
@@ -629,6 +692,20 @@ export function createApp(db, {
   };
 
   // Used by the hosting platform to know the server is up and the database answers.
+  // Shown on the legal pages: who runs the site and how to reach them.
+  route('GET', '/api/site', async () => ({
+    owner: envVar('SITE_OWNER') || '',
+    contactEmail: envVar('CONTACT_EMAIL') || '',
+  }));
+
+  // A new teacher finds one ready-made path in the account, free, to try before building.
+  async function addSamplePath(teacherId) {
+    const sample = READY_PATHS.find((p) => p.slug === SAMPLE_SLUG) || READY_PATHS[0];
+    if (!sample) return;
+    const r = await insertPath(teacherId, `${sample.title} (מסלול לדוגמה)`, sample.description, await newCode(), JSON.stringify(sample.theme));
+    for (const t of sample.tasks) await insertTask(Number(r.lastInsertRowid), structuredClone(t));
+  }
+
   route('GET', '/api/health', async () => {
     await db.prepare('SELECT 1').get();
     return { ok: true };
@@ -643,6 +720,8 @@ export function createApp(db, {
       const r = await q.insertTeacher.run(name, mail, hashPassword(pw), billingCfg.freeCredits);
       const tid = Number(r.lastInsertRowid);
       await q.ledgerInsert.run(tid, billingCfg.freeCredits, 'signup', '');
+      if (ctx.body.acceptTerms === true) await q.acceptTerms.run(Date.now(), tid);
+      await addSamplePath(tid);
       return tid;
     });
     // A promo code given at sign-up. The account exists either way; a bad code is reported.
@@ -806,7 +885,7 @@ export function createApp(db, {
     return {
       paths: (await q.listPaths.all(teacher.id)).map((p) => ({
         ...pathOut(p), taskCount: p.task_count, studentCount: p.student_count, openHelp: p.open_help,
-        pendingApproval: p.pending_approval,
+        pendingApproval: p.pending_approval, mine: p.teacher_id === teacher.id, ownerName: p.teacher_id === teacher.id ? '' : p.owner_name,
       })),
     };
   });
@@ -827,7 +906,7 @@ export function createApp(db, {
 
   route('GET', '/api/paths/:id', async (ctx) => {
     const p = await ownPath(ctx, ctx.params.id);
-    return { path: pathOut(p), tasks: (await q.tasks.all(p.id)).map((t) => taskOut(t)) };
+    return { path: { ...pathOut(p), mine: p.teacher_id === ctx.teacher.id }, tasks: (await q.tasks.all(p.id)).map((t) => taskOut(t)) };
   });
 
   route('PUT', '/api/paths/:id', async (ctx) => {
@@ -853,17 +932,18 @@ export function createApp(db, {
   });
 
   route('DELETE', '/api/paths/:id', async (ctx) => {
-    const p = await ownPath(ctx, ctx.params.id);
+    const p = await ownPath(ctx, ctx.params.id, { ownerOnly: true });
     await q.deletePath.run(p.id);
     return { ok: true };
   });
 
   route('POST', '/api/paths/:id/duplicate', async (ctx) => {
     const p = await ownPath(ctx, ctx.params.id);
+    const me = ctx.teacher.id; // a co-teacher's copy is hers
     const title = `${p.title} (עותק)`.slice(0, 120);
     const id = await tx(db, async () => {
-      await charge(p.teacher_id, 'createPath', title);
-      const r = await insertPath(p.teacher_id, title, p.description, await newCode(), p.theme);
+      await charge(me, 'createPath', title);
+      const r = await insertPath(me, title, p.description, await newCode(), p.theme);
       const newId = Number(r.lastInsertRowid);
       for (const t of await q.tasks.all(p.id)) {
         await insertTask(newId, {
@@ -873,7 +953,7 @@ export function createApp(db, {
       }
       return newId;
     });
-    return [201, { path: pathOut(await q.pathById.get(id)), credits: await availableCredits(p.teacher_id) }];
+    return [201, { path: pathOut(await q.pathById.get(id)), credits: await availableCredits(me) }];
   });
 
   route('POST', '/api/paths/:id/tasks', async (ctx) => {
@@ -978,7 +1058,7 @@ export function createApp(db, {
   route('GET', '/api/ai/status', async (ctx) => {
     requireTeacher(ctx);
     return {
-      enabled: aiEnabledNow(), imagesEnabled: Boolean(images.enabled), grades: GRADES, types: AI_TASK_TYPES, costs: billingCfg.costs,
+      enabled: aiEnabledNow(), imagesEnabled: Boolean(images.enabled), ttsEnabled: Boolean(tts.enabled), ttsVoice: tts.voiceId, grades: GRADES, types: AI_TASK_TYPES, costs: billingCfg.costs,
       env: aiEnvReport(), // only which settings exist, never their values
     };
   });
@@ -1099,7 +1179,7 @@ export function createApp(db, {
     const students = await Promise.all((await q.studentsOfPath.all(p.id)).map(async (s) => ({
       id: s.id, name: s.name, avatar: s.avatar, hasSecret: Boolean(s.has_secret),
       joinedAt: s.created_at, lastActive: s.last_active, done: {},
-      moods: await latestMoods(s.id), adapt: adaptOf(s),
+      moods: await latestMoods(s.id), adapt: adaptOf(s), reading: await readingOf(s), classMember: Boolean(s.class_member_id),
     })));
     const byId = new Map(students.map((s) => [s.id, s]));
     for (const r of await q.progressOfPath.all(p.id)) {
@@ -1137,10 +1217,13 @@ export function createApp(db, {
 
   // --- classes: one code and one login for several paths ---
 
-  async function ownClass(ctx, id) {
+  async function ownClass(ctx, id, { ownerOnly = false } = {}) {
     const teacher = requireTeacher(ctx);
     const c = await q.classById.get(Number(id));
-    if (!c || c.teacher_id !== teacher.id) throw new HttpError(404, 'הכיתה לא נמצאה');
+    if (!c) throw new HttpError(404, 'הכיתה לא נמצאה');
+    if (c.teacher_id === teacher.id) return c;
+    if (!await q.classCoTeacher.get(c.id, teacher.id)) throw new HttpError(404, 'הכיתה לא נמצאה');
+    if (ownerOnly) throw new HttpError(403, 'רק המורה שפתחה את הכיתה יכולה לעשות את זה');
     return c;
   }
 
@@ -1152,7 +1235,10 @@ export function createApp(db, {
   route('GET', '/api/classes', async (ctx) => {
     const teacher = requireTeacher(ctx);
     return {
-      classes: (await q.classesOf.all(teacher.id)).map((c) => ({ ...classOut(c), memberCount: c.member_count, pathCount: c.path_count })),
+      classes: (await q.classesOf.all(teacher.id)).map((c) => ({
+        ...classOut(c), memberCount: c.member_count, pathCount: c.path_count,
+        mine: c.teacher_id === teacher.id, ownerName: c.teacher_id === teacher.id ? '' : c.owner_name,
+      })),
     };
   });
 
@@ -1166,13 +1252,17 @@ export function createApp(db, {
   route('GET', '/api/classes/:id', async (ctx) => {
     const c = await ownClass(ctx, ctx.params.id);
     const pathIds = (await q.classPathIds.all(c.id)).map((r) => r.path_id);
+    const owner = await q.teacherById.get(c.teacher_id);
     return {
       class: classOut(c),
+      isOwner: c.teacher_id === ctx.teacher.id, me: ctx.teacher.id,
+      owner: { id: owner.id, name: owner.name },
+      coTeachers: (await q.coTeachersOf.all(c.id)).map((t) => ({ id: t.id, name: t.name, email: t.email })),
       pathIds,
       taskCounts: Object.fromEntries(await Promise.all(pathIds.map(async (id) => [id, (await q.taskCount.get(id)).n]))),
       members: await Promise.all((await q.membersOf.all(c.id)).map(async (m) => ({
         id: m.id, name: m.name, avatar: m.avatar, hasSecret: Boolean(m.secret_hash), lastActive: m.last_active,
-        done: await memberProgress(m.id),
+        done: await memberProgress(m.id), reading: v.readingFrom(m.reading),
       }))),
     };
   });
@@ -1191,8 +1281,60 @@ export function createApp(db, {
     return { class: classOut(await q.classById.get(c.id)) };
   });
 
+  // --- co-teachers: the owner adds another teacher (who has an account) by email ---
+
+  route('POST', '/api/classes/:id/teachers', async (ctx) => {
+    const c = await ownClass(ctx, ctx.params.id, { ownerOnly: true });
+    const t = await q.teacherByEmail.get(v.email(ctx.body.email));
+    if (!t) throw new HttpError(404, 'אין חשבון עם האימייל הזה. בקשו מהמורה להירשם קודם, ואז הוסיפו אותה.');
+    if (t.id === c.teacher_id) throw new HttpError(400, 'זו כבר הכיתה שלך');
+    await q.addCoTeacher.run(c.id, t.id);
+    return [201, { coTeachers: (await q.coTeachersOf.all(c.id)).map((x) => ({ id: x.id, name: x.name, email: x.email })) }];
+  });
+
+  // The owner removes a co-teacher, or a co-teacher leaves the class.
+  route('DELETE', '/api/classes/:id/teachers/:teacherId', async (ctx) => {
+    const c = await ownClass(ctx, ctx.params.id);
+    const tid = Number(ctx.params.teacherId);
+    if (c.teacher_id !== ctx.teacher.id && tid !== ctx.teacher.id) throw new HttpError(403, 'רק המורה שפתחה את הכיתה יכולה להסיר מורות');
+    await q.removeCoTeacher.run(c.id, tid);
+    return { ok: true };
+  });
+
+  // Progress over time: per student, what they finished on each of the last 14 days, when
+  // they were last active, and where they are stuck (wrong attempts, open help requests).
+  route('GET', '/api/classes/:id/activity', async (ctx) => {
+    const c = await ownClass(ctx, ctx.params.id);
+    const DAYS = 14;
+    const dayKey = (d) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' }); // YYYY-MM-DD
+    const days = [];
+    for (let i = DAYS - 1; i >= 0; i--) days.push(dayKey(new Date(Date.now() - i * 86400000)));
+    const members = await q.membersOf.all(c.id);
+    const byMember = new Map(members.map((m) => [m.id, { id: m.id, name: m.name, avatar: m.avatar, lastActive: m.last_active, perDay: Object.fromEntries(days.map((d) => [d, 0])), total: 0, stuck: [] }]));
+    for (const r of await q.classActivity.all(c.id)) {
+      const row = byMember.get(r.member_id);
+      if (!row) continue;
+      row.total++;
+      // completed_at is UTC text "YYYY-MM-DD HH:MM:SS".
+      const d = dayKey(new Date(`${String(r.completed_at).replace(' ', 'T')}Z`));
+      if (d in row.perDay) row.perDay[d]++;
+    }
+    const taskTitles = new Map();
+    const title = async (id) => {
+      if (!taskTitles.has(id)) { const t = await q.taskById.get(id); taskTitles.set(id, t ? t.title : ''); }
+      return taskTitles.get(id);
+    };
+    for (const a of await q.classAttempts.all(c.id)) {
+      if (a.wrong >= 3) byMember.get(a.member_id)?.stuck.push({ taskId: a.task_id, title: await title(a.task_id), wrong: a.wrong });
+    }
+    for (const hr of await q.classHelp.all(c.id)) {
+      byMember.get(hr.member_id)?.stuck.push({ taskId: hr.task_id, title: await title(hr.task_id), help: true });
+    }
+    return { days, members: [...byMember.values()] };
+  });
+
   route('DELETE', '/api/classes/:id', async (ctx) => {
-    await q.deleteClass.run((await ownClass(ctx, ctx.params.id)).id);
+    await q.deleteClass.run((await ownClass(ctx, ctx.params.id, { ownerOnly: true })).id);
     return { ok: true };
   });
 
@@ -1341,6 +1483,7 @@ export function createApp(db, {
       },
       tasks: (await q.tasks.all(p.id)).map((t) => taskOut(t, { forStudent: true })),
       preview: !p.published || ctx.teacher?.id === p.teacher_id,
+      naturalVoice: tts.enabled,
       join: { secretEmojis: SECRET_EMOJIS, avatars: AVATARS },
     };
   });
@@ -1391,13 +1534,14 @@ export function createApp(db, {
     const be = ctx.body.breakEvery;
     const breakEvery = be === null || be === undefined || be === '' ? null : v.int(be, { min: 0, max: 20, def: 0 });
     await q.setAdapt.run(JSON.stringify(hidden), breakEvery, s.id);
-    return { adapt: { hidden, breakEvery } };
+    const reading = ctx.body.reading !== undefined ? await saveReading(s, ctx.body.reading) : await readingOf(s);
+    return { adapt: { hidden, breakEvery }, reading };
   });
 
   // --- shared library: teachers share paths and copy each other's ---
 
   route('PUT', '/api/paths/:id/share', async (ctx) => {
-    const p = await ownPath(ctx, ctx.params.id);
+    const p = await ownPath(ctx, ctx.params.id, { ownerOnly: true });
     const shared = Boolean(ctx.body.shared);
     if (shared && !(await q.tasks.all(p.id)).length) throw new HttpError(400, 'אי אפשר לשתף מסלול בלי משימות');
     const grade = GRADES.includes(ctx.body.grade) ? ctx.body.grade : '';
@@ -1459,6 +1603,79 @@ export function createApp(db, {
     return [201, { path: pathOut(await q.pathById.get(id)), credits: await availableCredits(teacher.id) }];
   });
 
+  // --- a parent's read-only link to one child's progress ---
+
+  const newParentToken = () => crypto.randomBytes(18).toString('base64url');
+
+  // For a student who came through a class the link covers the whole class.
+  route('POST', '/api/students/:id/parent-link', async (ctx) => {
+    const s = await q.studentById.get(Number(ctx.params.id));
+    if (!s) throw new HttpError(404, 'התלמיד לא נמצא');
+    await ownPath(ctx, s.path_id);
+    if (s.class_member_id) {
+      const m = await q.memberById.get(s.class_member_id);
+      if (m) {
+        if (!m.parent_token) await q.setMemberParentToken.run(m.parent_token = newParentToken(), m.id);
+        return { token: m.parent_token };
+      }
+    }
+    if (!s.parent_token) await q.setStudentParentToken.run(s.parent_token = newParentToken(), s.id);
+    return { token: s.parent_token };
+  });
+  route('DELETE', '/api/students/:id/parent-link', async (ctx) => {
+    const s = await q.studentById.get(Number(ctx.params.id));
+    if (!s) throw new HttpError(404, 'התלמיד לא נמצא');
+    await ownPath(ctx, s.path_id);
+    if (s.class_member_id) await q.setMemberParentToken.run(null, s.class_member_id);
+    await q.setStudentParentToken.run(null, s.id);
+    return { ok: true };
+  });
+  route('POST', '/api/class-members/:id/parent-link', async (ctx) => {
+    const m = await ownMember(ctx, ctx.params.id);
+    if (!m.parent_token) await q.setMemberParentToken.run(m.parent_token = newParentToken(), m.id);
+    return { token: m.parent_token };
+  });
+  route('DELETE', '/api/class-members/:id/parent-link', async (ctx) => {
+    await q.setMemberParentToken.run(null, (await ownMember(ctx, ctx.params.id)).id);
+    return { ok: true };
+  });
+
+  // What the parent sees: the child's first name, and per path which tasks are done and when.
+  // No answers, recordings or other students.
+  route('GET', '/api/parent/:token', async (ctx) => {
+    const token = String(ctx.params.token);
+    if (!/^[A-Za-z0-9_-]{20,40}$/.test(token)) throw new HttpError(404, 'הקישור לא תקין או שבוטל');
+    const member = await q.memberByParentToken.get(token);
+    const single = member ? null : await q.studentByParentToken.get(token);
+    if (!member && !single) throw new HttpError(404, 'הקישור לא תקין או שבוטל');
+    const cls = member && await q.classById.get(member.class_id);
+    let rows = member ? await q.studentsOfMember.all(member.id) : [single];
+    if (member) {
+      // Paths of the class the child hasn't opened yet show too, as not started.
+      const opened = new Set(rows.map((r) => r.path_id));
+      for (const r of await q.classPathIds.all(member.class_id)) if (!opened.has(r.path_id)) rows.push({ path_id: r.path_id, id: null, hidden_tasks: '[]' });
+    }
+    const paths = [];
+    for (const s of rows) {
+      const p = await q.pathById.get(s.path_id);
+      if (!p || !p.published) continue;
+      const hidden = new Set(JSON.parse(s.hidden_tasks || '[]'));
+      const done = new Map(s.id ? (await q.progressOfStudent.all(s.id)).filter((r) => r.approved).map((r) => [r.task_id, r.completed_at]) : []);
+      const tasks = (await q.tasks.all(p.id)).filter((t) => !hidden.has(t.id));
+      const theme = v.theme(JSON.parse(p.theme));
+      paths.push({
+        title: p.title, icon: theme.icon, color: theme.color, lastActive: s.id ? s.last_active : null,
+        moods: s.id ? await latestMoods(s.id) : {},
+        tasks: tasks.map((t) => ({ title: t.title, emoji: t.emoji, type: t.type, minutes: t.est_minutes, completedAt: done.get(t.id) || null })),
+      });
+    }
+    const teacher = await q.teacherById.get(cls ? cls.teacher_id : (await q.pathById.get(single.path_id)).teacher_id);
+    return {
+      child: { name: (member || single).name, avatar: (member || single).avatar || '' },
+      className: cls?.name || '', teacherName: teacher?.name || '', paths,
+    };
+  });
+
   route('POST', '/api/students/:id/reset-secret', async (ctx) => {
     const s = await q.studentById.get(Number(ctx.params.id));
     if (!s) throw new HttpError(404, 'התלמיד לא נמצא');
@@ -1472,6 +1689,35 @@ export function createApp(db, {
     const s = await currentStudent(ctx.req, p);
     await q.touchStudent.run(s.id);
     return await studentState(s);
+  });
+
+  // Natural read-aloud of a task's text. A student of the path (or its teacher, in preview)
+  // asks; each text is synthesized once and kept for everyone.
+  route('POST', '/api/s/:code/tts', async (ctx) => {
+    const p = await publicPath(ctx, ctx.params.code);
+    const isTeacher = ctx.teacher?.id === p.teacher_id;
+    const s = isTeacher && !ctx.req.headers['x-student-token'] ? null : await currentStudent(ctx.req, p);
+    if (!tts.enabled) throw new HttpError(503, 'הקראה בקול טבעי לא זמינה');
+    const text = typeof ctx.body.text === 'string' ? ctx.body.text.replace(/\s+/g, ' ').trim() : '';
+    if (!text) throw new HttpError(400, 'אין טקסט להקראה');
+    if (text.length > TTS_MAX_CHARS) throw new HttpError(400, 'הטקסט ארוך מדי להקראה');
+    const keyOf = (voiceId) => crypto.createHash('sha256').update(`${voiceId}\n${text}`).digest('hex');
+    const hit = await q.ttsCached.get(keyOf(tts.voiceId));
+    if (hit) return { url: `/api/media/${hit.media_id}` };
+    await ttsLimit(s ? `s${s.id}` : `t${ctx.teacher.id}`);
+    await ttsPathLimit(p.teacher_id);
+    const out = await tts.speak(text);
+    const id = crypto.randomBytes(16).toString('hex');
+    await saveMedia(id, p.teacher_id, out.mime, out.data);
+    await q.ttsInsert.run(keyOf(out.voiceId || tts.voiceId), id, Date.now());
+    return { url: `/api/media/${id}` };
+  });
+
+  // The student changes their own reading settings.
+  route('PUT', '/api/s/:code/reading', async (ctx) => {
+    const p = await publicPath(ctx, ctx.params.code);
+    const s = await currentStudent(ctx.req, p);
+    return { reading: await saveReading(s, ctx.body) };
   });
 
   route('POST', '/api/s/:code/mood', async (ctx) => {

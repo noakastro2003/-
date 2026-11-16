@@ -2079,3 +2079,5 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 #printroot .sroom .pboard { margin: 0 auto; }
 #printroot .sroom.b-right .pboard, #printroot .sroom.b-left .pboard { width: 22pt; margin: 0; writing-mode: vertical-rl; display: flex; align-items: center; justify-content: center; }
 #printroot .sroom.b-right .pgrid, #printroot .sroom.b-left .pgrid { flex: 1; }
+.flipbar { margin-top: 14px; }
+.flipbar .seg button { font-size: var(--fs-sm); }

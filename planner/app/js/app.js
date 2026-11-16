@@ -27,7 +27,7 @@ const SEAT_PRESETS = {
 const BOARD_SIDES = [['top', 'למעלה'], ['bottom', 'למטה'], ['right', 'מימין'], ['left', 'משמאל']];
 const boardWrap = (S, board, grid, cls = 'sroom') => `<div class="${cls} b-${S.board || 'top'}">${board}${grid}</div>`;
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 103; // keep in step with CACHE in sw.js
+const APP_V = 104; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -3759,6 +3759,13 @@ document.addEventListener('click', async e => {
     S.desks = S.desks.filter(inside); for (const key of Object.keys(S.map)) if (!inside(key)) delete S.map[key]; S.layout = 'custom'; save(); rerender(); return; }
   if (D.seatmode) { state._seatEdit = D.seatmode === 'edit'; state._seatSel = null; state._deskSel = null; rerender(); return; }
   if (D.seatcell) { if (performance.now() - deskDrag.endAt < 350) return; deskTap(D.seatcell); return; }
+  if (D.seatflip) { const S = seatsOf(), v = D.seatflip === 'v';
+    const f = k => { const [r, c] = k.split('-').map(Number); return v ? seatKey(S.gh - 1 - r, c) : seatKey(r, S.gw - 1 - c); };
+    withUndo(['seats'], v ? 'הסידור התהפך – למעלה ↔ למטה' : 'הסידור התהפך – ימין ↔ שמאל', () => {
+      S.desks = S.desks.map(f); const m = {}; for (const [k, n] of Object.entries(S.map)) m[f(k)] = n; S.map = m; S.layout = 'custom';
+      state._seatSel = null; state._deskSel = null;
+    });
+    if (cast.on && cast.last && cast.last.kind === 'seats') castSend('seats', seatsPlain(S)); return; }
   if (D.seatboard) { const S = seatsOf(); S.board = D.seatboard; save(); rerender(); if (cast.on && cast.last && cast.last.kind === 'seats') castSend('seats', seatsPlain(S)); return; }
   if (D.seatpreset) { const S = seatsOf(); withUndo(['seats'], `תבנית: ${SEAT_PRESETS[D.seatpreset][0]}`, () => { S.desks = SEAT_PRESETS[D.seatpreset][1](S.gw, S.gh); S.layout = D.seatpreset; const set = new Set(S.desks); for (const key of Object.keys(S.map)) if (!set.has(key)) delete S.map[key]; }); return; }
   if (D.seatfront) { const S = seatsOf(); const i = S.front.indexOf(D.seatfront); if (i >= 0) S.front.splice(i, 1); else S.front.push(D.seatfront); save(); rerender(); return; }
@@ -4596,7 +4603,7 @@ function viewSeats() {
     return `<button class="seat ${n ? 'full' : ''} ${sel === k ? 'sel' : ''}" data-seat="${k}" ${n ? `aria-label="${esc(n)}"` : ''}>${n ? `<b style="font-size:${Math.min(12.5, Math.max(7, 262 / S.gw / Math.max(3, n.split(" ")[0].length) / .66)).toFixed(1)}px">${esc(n.split(' ')[0])}</b>${n.split(' ')[1] && S.gw <= 8 ? `<small>${esc(n.split(' ').slice(1).join(' '))}</small>` : ''}${S.front.includes(n) ? '<i class="sfront"></i>' : ''}` : '<span class="plus">+</span>'}</button>`;
   };
   h += `<div class="card seatroom ${edit ? 'editing' : ''}">${boardWrap(S, `<div class="board">הלוח</div>`, `<div class="seatwrap"><div class="seatgrid" style="--cols:${S.gw}">${Array.from({ length: S.gh }, (_, r) => Array.from({ length: S.gw }, (_, c) => cell(r, c)).join('')).join('')}</div></div>`)}
-    ${!edit ? `<p class="hint boardhint">הלוח בצד אחר? <span class="seg boardside mini">${BOARD_SIDES.map(([k, l]) => `<button class="${(S.board || 'top') === k ? 'on' : ''}" data-seatboard="${k}">${l}</button>`).join('')}</span></p>` : ''}
+    <div class="flipbar"><p class="pmlbl">הפיכת כל הסידור (שולחנות וילדים)</p><div class="seg"><button data-seatflip="v">למעלה ↔ למטה</button><button data-seatflip="h">ימין ↔ שמאל</button></div></div>
     ${!edit && sel ? `<p class="hint seathint">${S.map[sel] ? `נבחר/ה: <b>${esc(S.map[sel])}</b> – לוחצים על שולחן אחר להחלפה, או ` : 'שולחן ריק – בוחרים ילד/ה מהרשימה למטה, או '}<button class="linkbtn" data-act="seatclear1">${S.map[sel] ? 'פינוי השולחן' : 'ביטול'}</button></p>` : ''}
     ${!edit && free.length ? `<div class="seatfree"><p class="pmlbl">עוד לא יושבים (${free.length})${sel && !S.map[sel] ? ' – לוחצים על שם כדי להושיב' : ''}</p><div class="fchips wrap">${free.map(n => `<button class="fc" data-seatkid="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>` : ''}
     ${edit && state._deskSel ? `<div class="btnrow"><button class="cta soft" data-act="deskdel">${ic('trash')} הסרת השולחן${S.map[state._deskSel] ? ` (${esc(S.map[state._deskSel].split(' ')[0])} יחזור לרשימה)` : ''}</button><button class="cta soft" data-act="deskunsel">${ic('x')} ביטול</button></div>` : ''}

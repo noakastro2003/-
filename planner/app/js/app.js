@@ -15,7 +15,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 const KEY = 'noa-planner-v1';
 const team = { data: {}, at: {}, busy: {} }; // shared-week progress of the other teachers (see TEAM below)
 let teamT = 0;
-const APP_V = 90; // keep in step with CACHE in sw.js
+const APP_V = 91; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -1561,6 +1561,7 @@ function allEvents(daysAhead = 60) {
 function viewCalendar() {
   let h = top('לוח אירועים', 'מבדקים, הכתבות, חגים, ימי הולדת ותזכורות – הכל על ציר אחד', 'calendar', { back: 'cls' });
   h += `<div class="card">${cardHead('plus', 'אירוע חדש')}<form data-evnew class="an-grid evnew"><input name="text" placeholder="טיול שנתי" required><input name="date" type="date" value="${isoDay(now())}" required><button class="cta" style="grid-column:1/-1">${ic('plus')} הוספה</button></form></div>`;
+  h += `<button class="attline" data-act="ics">${ic('calendar')}<span class="grow"><b>הוספה ליומן בטלפון</b> · מבדקים, הכתבות, אירועים וימי הולדת</span>${ic('chevL', 'chev')}</button>`;
   const ev = allEvents(60); let last = '';
   if (!ev.length) return h + '<p class="hint">אין אירועים בחודשיים הקרובים.</p>';
   h += '<div class="card evlist">';
@@ -3883,6 +3884,7 @@ document.addEventListener('click', async e => {
     case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
     case 'classes': classesSheet(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
+    case 'ics': icsExport(); break;
     case 'evalall': evalAllSheet(); break;
     case 'evalcopyall': { const all = state.kids.map(k => { const E = (state.evals || {})[k.name] || {}; return E.text ? `${k.name}\n${E.text}` : ''; }).filter(Boolean).join('\n\n———\n\n'); if (!all) { toast('עוד אין הערכות – בוחרים ילד/ה ובן/בת'); break; } try { await navigator.clipboard.writeText(all); toast(`הועתקו ${all.split('———').length} הערכות ✓`, 2000); } catch { toast('לא הצלחתי להעתיק'); } break; }
     case 'meetall': meetPrint(state.kids.map(k => k.name)); break;
@@ -4671,4 +4673,24 @@ function teamCard(w) {
   return `<div class="card teamcard">${cardHead('users', 'הצוות בשבוע הזה', rows ? `<span class="cnt">${list.length}</span>` : '')}
     ${list ? (list.length > 1 ? list.map(line).join('') : `<p class="dim">עוד אף אחת מהצוות לא סימנה שיעורים בשבוע הזה. ברגע שיסמנו – זה יופיע כאן.</p>${line(mine)}`) : '<p class="dim">טוענת…</p>'}
     <p class="hint">כל מורה מסמנת אצלה "בוצע / חלקית / לא הספקנו" – וכולן רואות איפה כל כיתה עומדת.</p></div>`;
+}
+
+// ================================================================ CALENDAR FILE: everything coming up, for the phone's own calendar (holidays left out – the phone has them)
+async function icsExport() {
+  const seen = new Set(), ev = allEvents(120).filter(e => e.kind !== 'holiday' && !seen.has(e.d.toDateString() + e.text) && seen.add(e.d.toDateString() + e.text));
+  if (!ev.length) { toast('אין אירועים קרובים להוספה'); return; }
+  const d8 = d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const escI = t => String(t).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  const hash = t => { let h = 0; for (const c of t) h = (h * 31 + c.charCodeAt(0)) | 0; return (h >>> 0).toString(36); };
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//hakita//he', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:הכיתה שלי'];
+  for (const e of ev) {
+    const name = `${e.icon} ${e.text}`;
+    lines.push('BEGIN:VEVENT', `UID:${d8(e.d)}-${hash(e.kind + e.text)}@hakita`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${d8(e.d)}`, `DTEND;VALUE=DATE:${d8(addDays(e.d, 1))}`, `SUMMARY:${escI(name)}`, 'TRANSP:TRANSPARENT', 'END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  const file = new File([lines.join('\r\n')], 'hakita-calendar.ics', { type: 'text/calendar' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'הכיתה שלי – יומן' }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  toast(`${ev.length} אירועים מוכנים – פותחים את הקובץ ובוחרים "הוספה ליומן"`, 4000);
 }

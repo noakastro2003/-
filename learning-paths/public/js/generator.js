@@ -51,6 +51,7 @@ export async function generatorPage(app, topbar) {
   const countLabel = h('strong', { class: 'range-value' }, '7');
   count.addEventListener('input', () => { countLabel.textContent = count.value; });
   const nikud = h('input', { type: 'checkbox', onchange: () => { nikudTouched = true; } });
+  const pictures = h('input', { type: 'checkbox' });
 
   const gradeRow = h('div', { class: 'grade-chips', role: 'radiogroup', 'aria-label': 'שכבת גיל' });
   const renderGrades = () => mount(gradeRow, status.grades.map((g) => h('button', {
@@ -119,7 +120,7 @@ export async function generatorPage(app, topbar) {
     try {
       const payload = {
         topic: topic.value, grade, goals: goals.value, notes: notes.value,
-        taskCount: Number(count.value), types: [...selectedTypes], nikud: nikud.checked,
+        taskCount: Number(count.value), types: [...selectedTypes], nikud: nikud.checked, images: pictures.checked,
         files: await Promise.all(files.map(async (f) => ({ name: f.name, type: f.type, data: await readAsBase64(f) }))),
       };
       let r = await api('POST', '/api/ai/generate', payload);
@@ -129,6 +130,7 @@ export async function generatorPage(app, topbar) {
       setCredits(r.credits);
       toast(`המסלול מוכן – ${r.taskCount} משימות! עברו עליו לפני הפרסום 🎉`, 'ok');
       if (r.skipped) setTimeout(() => toast(`${r.skipped} משימות לא עברו בדיקה ולא נוספו`, 'info'), 1200);
+      if (pictures.checked && !r.pictures) setTimeout(() => toast('לא נוספו תמונות (אולי נגמרו הקרדיטים). אפשר להוסיף תמונה לכל משימה בעורך.', 'info'), 2400);
       go(`#/path/${r.path.id}`);
     } catch (err) {
       overlay.done();
@@ -157,6 +159,9 @@ export async function generatorPage(app, topbar) {
       h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'אילו סוגי משימות?'), typeRow),
       h('label', { class: 'toggle gen-toggle' }, nikud, h('span', { class: 'toggle-ui', 'aria-hidden': 'true' }),
         h('span', {}, h('strong', {}, 'ניקוד מלא'), h('span', { class: 'muted small block' }, 'כל הטקסט לתלמידים יהיה מנוקד (מומלץ לגן–ב׳)'))),
+      status.imagesEnabled && h('label', { class: 'toggle gen-toggle' }, pictures, h('span', { class: 'toggle-ui', 'aria-hidden': 'true' }),
+        h('span', {}, h('strong', {}, '🎨 תמונות מאוירות'),
+          h('span', { class: 'muted small block' }, `עד 3 איורים למשימות שבהן תמונה עוזרת. ${status.costs?.aiImage ? `כל תמונה עולה ${status.costs.aiImage} קרדיטים.` : ''} ציורי שברים וחפצים לספירה המחולל מוסיף תמיד, בחינם.`))),
       h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'חומרי לימוד (לא חובה)'), drop, fileInput, fileList),
       field('עוד משהו שכדאי לדעת?', notes),
       h('p', { class: 'muted small privacy' }, DEMO

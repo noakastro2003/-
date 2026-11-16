@@ -9,6 +9,7 @@ import { HttpError } from './validate.js';
 import { PROMO_KINDS, normalizeCode, promoInput, promoProblem, promoMessage, promoOut } from './promo.js';
 import { TEMPLATES } from './templates.js';
 import { createAiTools, aiConfigured, aiEnvReport, GRADES, AI_TASK_TYPES } from './ai.js';
+import { imagesConfigured, createImageTool } from './images.js';
 import READY_PATHS from './content/library-data.js';
 import { stripNikud } from './validate.js';
 import {
@@ -37,6 +38,7 @@ export function billingConfig(env = process.env) {
       aiGenerate: num(env.COST_AI_GENERATE, d.costs.aiGenerate),
       aiImprove: num(env.COST_AI_IMPROVE, d.costs.aiImprove),
       aiNikud: num(env.COST_AI_NIKUD, d.costs.aiNikud),
+      aiImage: num(env.COST_AI_IMAGE, d.costs.aiImage),
     },
     // 'test': the subscribe button activates a subscription without charging anyone.
     // Unset: online payment is off (subscriptions can still be granted with admin.js).
@@ -198,6 +200,8 @@ export function whenText(ms) {
 
 export function createApp(db, {
   ai, billingCfg = billingConfig(), mailer = createMailer(), dicta = callDicta,
+  // images: { enabled, generate(subject) → { data, mime } } – injectable for tests.
+  images = { get enabled() { return imagesConfigured(); }, generate: createImageTool() },
   // startJob(id): runs a generation job elsewhere (Netlify: a background function). When
   // unset, generation runs inside the request.
   startJob = null,
@@ -881,7 +885,7 @@ export function createApp(db, {
 
   // Runs a paid AI action: takes the credits first, gives them back if it fails.
   async function withCredits(teacherId, action, note, fn) {
-    if (!aiEnabledNow()) throw new HttpError(503, 'הבינה המלאכותית עוד לא הופעלה בשרת הזה (חסר מפתח API).');
+    if (action === 'aiImage' ? !images.enabled : !aiEnabledNow()) throw new HttpError(503, 'הבינה המלאכותית עוד לא הופעלה בשרת הזה (חסר מפתח API).');
     await aiLimit(teacherId);
     const taken = await tx(db, async () => await charge(teacherId, action, note));
     try {
@@ -891,6 +895,23 @@ export function createApp(db, {
       throw err;
     }
   }
+
+  // An illustration for a task, made by an image model and saved like an uploaded picture.
+  async function makeImage(teacherId, subject) {
+    const img = await images.generate(subject);
+    const mime = sniffMedia(img.data);
+    if (!mime?.startsWith('image/')) throw new HttpError(502, 'התקבלה תמונה לא תקינה. נסו שוב.');
+    const id = crypto.randomBytes(16).toString('hex');
+    await saveMedia(id, teacherId, mime, img.data);
+    return `/api/media/${id}`;
+  }
+
+  route('POST', '/api/ai/image', async (ctx) => {
+    const teacher = requireTeacher(ctx);
+    const subject = v.str(ctx.body.prompt, { max: 500, required: true, field: 'תיאור התמונה' });
+    const url = await withCredits(teacher.id, 'aiImage', subject.slice(0, 40), () => makeImage(teacher.id, subject));
+    return { url, credits: await availableCredits(teacher.id) };
+  });
 
   // Nikud by Dicta's Nakdan: free for the teacher, no credits.
   route('POST', '/api/nikud/dicta', async (ctx) => {
@@ -956,7 +977,7 @@ export function createApp(db, {
   route('GET', '/api/ai/status', async (ctx) => {
     requireTeacher(ctx);
     return {
-      enabled: aiEnabledNow(), grades: GRADES, types: AI_TASK_TYPES, costs: billingCfg.costs,
+      enabled: aiEnabledNow(), imagesEnabled: Boolean(images.enabled), grades: GRADES, types: AI_TASK_TYPES, costs: billingCfg.costs,
       env: aiEnvReport(), // only which settings exist, never their values
     };
   });
@@ -971,13 +992,38 @@ export function createApp(db, {
       throw err;
     }
     const { title, description, theme, tasks, skipped } = result;
+    // Pictures the generator asked for (only when the teacher chose them): each one costs
+    // credits like the editor's button; when credits run out, the rest are left out.
+    let pictures = 0;
+    if (input.images && images.enabled) {
+      for (const t of tasks.filter((x) => x.imagePrompt && !x.content.image).slice(0, 3)) {
+        try {
+          let taken;
+          try {
+            taken = await tx(db, async () => await charge(teacherId, 'aiImage', t.title));
+          } catch (err) {
+            if (err.status === 402) break;
+            throw err;
+          }
+          try {
+            t.content.image = await makeImage(teacherId, t.imagePrompt);
+            pictures++;
+          } catch (err) {
+            await refundCharge(teacherId, taken, t.title);
+            console.error('generator picture failed:', err.message);
+          }
+        } catch (err) {
+          console.error('generator picture failed:', err.message);
+        }
+      }
+    }
     const id = await tx(db, async () => {
       const r = await insertPath(teacherId, title, description, await newCode(), JSON.stringify(theme));
       const pathId = Number(r.lastInsertRowid);
       for (const t of tasks) await insertTask(pathId, t);
       return pathId;
     });
-    return { path: pathOut(await q.pathById.get(id)), taskCount: tasks.length, skipped, credits: await availableCredits(teacherId) };
+    return { path: pathOut(await q.pathById.get(id)), taskCount: tasks.length, skipped, pictures, credits: await availableCredits(teacherId) };
   }
 
   route('POST', '/api/ai/generate', async (ctx) => {

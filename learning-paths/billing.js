@@ -19,6 +19,7 @@ export const BILLING_DEFAULTS = Object.freeze({
     aiGenerate: 5, // a path built by the AI generator
     aiImprove: 2,  // "improve this task" with AI
     aiNikud: 1,    // automatic nikud for one text field
+    aiImage: 2,    // one illustration made by AI
   }),
 });
 
@@ -28,6 +29,7 @@ export const ACTION_LABELS = {
   aiGenerate: 'מסלול מהמחולל',
   aiImprove: 'שיפור משימה עם AI',
   aiNikud: 'ניקוד אוטומטי',
+  aiImage: 'תמונה עם AI',
   refund: 'החזר (הפעולה לא הושלמה)',
   grant: 'קרדיטים שנוספו ידנית',
   subscribe: 'הצטרפות למנוי',

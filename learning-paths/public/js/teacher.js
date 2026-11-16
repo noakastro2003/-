@@ -841,7 +841,7 @@ function taskForm(state, type, existing, onDone, draft = null) {
   }
 
   const approval = h('input', { type: 'checkbox', checked: Boolean(src?.needsApproval) });
-  const imageF = imageField(c.image || c.imageUrl || '');
+  const imageF = imageField(c.image || c.imageUrl || '', { suggest: () => [title.value, text.value].filter(Boolean).join(': ').slice(0, 300) });
   const spotsEd = type === 'hotspot' ? spotEditor(c.spots || [], imageF) : null;
   // A <div>, not field()'s <label>: a click inside a label is passed on to the first button in it.
   if (spotsEd) {

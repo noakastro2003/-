@@ -1,6 +1,8 @@
 // Pictures and voice recordings in the task editor.
 import { api } from './api.js';
-import { h, mount, toast } from './ui.js';
+import { h, mount, toast, modal, field, busy } from './ui.js';
+import { cost, creditWord, setCredits, showError } from './credits.js';
+import { DEMO } from './env.js';
 
 const MAX_SIDE = 1600;
 
@@ -34,7 +36,37 @@ export async function shrinkImage(file) {
 }
 
 // A picture for the task: upload from the computer or phone, or paste a web address.
-export function imageField(current = '') {
+// Whether the server can draw pictures (asked once per page load).
+let imagesStatus;
+const imagesEnabled = () => (imagesStatus ||= api('GET', '/api/ai/status').then((s) => Boolean(s.imagesEnabled)).catch(() => false));
+
+// A dialog: the teacher describes a picture, the AI draws it. Resolves the new URL or null.
+function aiImageDialog(suggestion) {
+  return new Promise((resolve) => {
+    const area = h('textarea', { rows: 3, maxlength: 500, value: suggestion || '', placeholder: 'למשל: פיצה חתוכה לארבעה חלקים שווים, אחד מהם חסר' });
+    const go = h('button', { class: 'btn primary', type: 'submit' }, `🎨 יצירת התמונה${cost('aiImage') ? ` (${creditWord(cost('aiImage'))})` : ''}`);
+    const note = h('p', { class: 'muted small' }, 'כדאי לתאר דבר אחד, פשוט וברור. בתמונה לא יהיו מילים או מספרים (הבינה המלאכותית כותבת עברית עם שגיאות).');
+    let done = false;
+    const m = modal('🎨 תמונה עם AI', h('form', {
+      class: 'stack',
+      onsubmit: async (e) => {
+        e.preventDefault();
+        try {
+          const r = await busy(go, api('POST', '/api/ai/image', { prompt: area.value }));
+          setCredits(r.credits);
+          done = true;
+          m.close();
+          resolve(r.url);
+        } catch (err) {
+          showError(err);
+        }
+      },
+    }, field('מה יהיה בתמונה?', area), note, h('div', { class: 'row end' }, go)), { onClose: () => { if (!done) resolve(null); } });
+    area.focus();
+  });
+}
+
+export function imageField(current = '', { suggest = () => '' } = {}) {
   let value = current;
   const wrap = h('div', { class: 'media-field' });
   const input = h('input', {
@@ -53,6 +85,14 @@ export function imageField(current = '') {
     },
   });
   const urlInput = h('input', { type: 'url', dir: 'ltr', placeholder: 'או הדביקו קישור לתמונה: https://…', class: 'media-url' });
+  const aiBtn = h('button', {
+    type: 'button', class: 'btn small secondary', hidden: true,
+    onclick: async () => {
+      const url = await aiImageDialog(suggest());
+      if (url) { value = url; urlInput.value = ''; render(); }
+    },
+  }, '🎨 יצירה עם AI');
+  if (!DEMO) imagesEnabled().then((on) => { aiBtn.hidden = !on; });
   urlInput.addEventListener('change', () => { value = urlInput.value.trim(); render(); });
 
   function render(state) {
@@ -62,6 +102,7 @@ export function imageField(current = '') {
       h('div', { class: 'row wrap' },
         h('button', { type: 'button', class: 'btn small', disabled: state === 'uploading', onclick: () => input.click() },
           state === 'uploading' ? 'מעלה…' : value ? '🔄 החלפת תמונה' : '📷 העלאת תמונה'),
+        aiBtn,
         value && h('button', { type: 'button', class: 'btn small ghost', onclick: () => { value = ''; urlInput.value = ''; render(); } }, '🗑️ הסרה')),
       !value && urlInput);
     if (state !== 'uploading') wrap.dispatchEvent(new CustomEvent('media-change'));

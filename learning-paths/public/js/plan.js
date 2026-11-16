@@ -87,6 +87,7 @@ function render(app, topbar, b) {
         h('tbody', {},
           h('tr', {}, h('td', {}, '📄 מסלול חדש (בנייה עצמאית, ממסלול לדוגמה או שכפול)'), h('td', {}, creditWord(b.costs.createPath))),
           h('tr', {}, h('td', {}, '✨ מסלול מהמחולל'), h('td', {}, creditWord(b.costs.aiGenerate))),
+          b.costs.aiImage !== undefined && h('tr', {}, h('td', {}, '🎨 תמונה מאוירת עם AI'), h('td', {}, creditWord(b.costs.aiImage))),
           h('tr', {}, h('td', {}, '✏️ עריכת מסלולים, תלמידים ומעקב התקדמות'), h('td', {}, 'חינם'))))),
 
     h('section', { class: `card plan${subscribed ? ' plan-on' : ''}` },

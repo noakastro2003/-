@@ -67,6 +67,7 @@ export function buildRequestText(input) {
     input.notes && `Notes from the teacher about the students or the lesson:\n${input.notes}`,
     `Allowed task types: ${input.types.join(', ')}`,
     nikudInstruction(input.nikud),
+    input.images && 'Pictures: the teacher wants illustrations. For 2–3 tasks where a picture really helps (a read task, a question about something visible), add "imagePrompt": a short English description of one simple picture to draw (no text in it). Other tasks have no imagePrompt.',
     input.fileNames.length
       ? `The teacher attached source material (above): ${input.fileNames.join(', ')}. Base the content on it.`
       : 'No source material was attached; use accurate, curriculum-appropriate content for this grade.',

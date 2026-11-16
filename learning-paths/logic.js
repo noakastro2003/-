@@ -232,6 +232,7 @@ export function parseAiInput(b) {
     taskCount: v.int(b.taskCount, { min: 3, max: 12, def: 7 }),
     types: Array.isArray(b.types) ? AI_TASK_TYPES.filter((t) => b.types.includes(t)) : [...AI_TASK_TYPES],
     nikud: Boolean(b.nikud),
+    images: Boolean(b.images),
     files: Array.isArray(b.files) ? b.files : [],
   };
   if (!input.grade) throw new HttpError(400, 'בחרו שכבת גיל');
@@ -242,7 +243,7 @@ export function parseAiInput(b) {
 // Model output is untrusted: each task goes through the same validation as a teacher's edits.
 export function taskFromAi(t) {
   if (typeof t !== 'object' || t === null) throw new HttpError(400, 'משימה לא תקינה');
-  const { type, title, emoji, estMinutes, ...content } = t;
+  const { type, title, emoji, estMinutes, imagePrompt, ...content } = t;
   const clamp = (n, lo, hi, def) => (Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : def);
   if (type === 'timer') content.minutes = clamp(content.minutes, 1, 60, 10);
   const make = (c) => v.task({
@@ -252,13 +253,14 @@ export function taskFromAi(t) {
     estMinutes: clamp(estMinutes, 1, 120, 5),
     content: c,
   });
+  const withPrompt = (task) => (typeof imagePrompt === 'string' && imagePrompt.trim() ? { ...task, imagePrompt: imagePrompt.trim().slice(0, 400) } : task);
   try {
-    return make(content);
+    return withPrompt(make(content));
   } catch (err) {
     // A broken drawing shouldn't cost the whole task: try again without it.
     if (!content.visual) throw err;
     const { visual, ...rest } = content;
-    return make(rest);
+    return withPrompt(make(rest));
   }
 }
 

@@ -5,6 +5,7 @@ import { TASK_TYPES, BREAK_IDEAS, MOVE_BREAKS, CALM_BREAKS, MOODS, stickerFor, a
 import { GAMES, gameSpeech } from './games.js';
 import { DEMO } from './env.js';
 import { play, setPathSound, muted, setMuted } from './sound.js';
+import { watchFractions, speakableMath } from './math.js';
 
 // ---------- code entry ----------
 
@@ -142,6 +143,8 @@ export const FROM_CLASS_KEY = 'lp-from-class';
 
 export function frame(s, ...children) {
   const fromClass = !s.isClass && storage(FROM_CLASS_KEY);
+  // Fractions drawn as fractions on every student screen, also after games re-render.
+  if (!s.app.fractionsWatched) s.app.fractionsWatched = watchFractions(s.app);
   return mount(s.app,
     fromClass && h('a', { class: 'class-back', href: `#/c/${fromClass}` }, '→ כל המסלולים שלי'),
     DEMO && h('div', { class: 'demo-bar' }, 'גרסת הדגמה · ', h('a', { href: '#/dashboard' }, 'חזרה למסך המורה')),
@@ -388,7 +391,7 @@ function teacherVoiceButton(src) {
 function speak(text) {
   if (!('speechSynthesis' in window)) return toast('ההקראה לא נתמכת בדפדפן הזה', 'error');
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
+  const u = new SpeechSynthesisUtterance(speakableMath(text));
   u.lang = 'he-IL';
   u.rate = 0.9;
   speechSynthesis.speak(u);

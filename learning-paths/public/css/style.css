@@ -1081,3 +1081,15 @@ a.icon-btn { display: inline-grid; place-items: center; text-decoration: none; }
 }
 .promo-code-cell { white-space: nowrap; }
 .promo-code-cell code { margin-inline-end: .4rem; }
+
+/* fractions as fractions: numerator over a line over the denominator */
+.math { display: inline-flex; align-items: center; gap: .25em; unicode-bidi: isolate; direction: ltr; white-space: nowrap; vertical-align: middle; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; line-height: 1.05; font-size: .9em; margin: 0 .08em; }
+.frac-n, .frac-d { display: block; padding: 0 .15em; text-align: center; min-width: .9em; }
+.frac-n { border-bottom: .09em solid currentColor; padding-bottom: .06em; }
+.frac-d { padding-top: .06em; }
+.mixed { display: inline-flex; align-items: center; gap: .08em; }
+.mixed .whole { font-size: 1.15em; }
+.mem-front .frac, .match-item .frac, .lines-item .frac, .option .frac { font-size: 1em; }
+.mem-front .math { font-size: 1.3em; }
+.blanks-text .frac, .tf-text .frac { font-size: .85em; }

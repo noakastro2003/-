@@ -44,6 +44,7 @@ function memory(t, ctx) {
   const cards = shuffle(pairs.flatMap((p, id) => [{ id, label: p.a }, { id, label: p.b || p.a }]));
   let first = null;
   let lock = false;
+  let flipBack = null;
   let matched = 0;
   let moves = 0;
   const counter = h('p', { class: 'game-counter' });
@@ -53,7 +54,9 @@ function memory(t, ctx) {
     const btn = h('button', {
       class: 'mem-card', 'aria-label': `קלף ${i + 1}`,
       onclick: () => {
-        if (lock || card.matched || card === first) return;
+        // Two cards are showing and don't match: a tap turns them back now, without waiting.
+        if (lock) { flipBack?.(); return; }
+        if (card.matched || card === first) return;
         flip(btn, card, true);
         if (!first) { first = card; first.btn = btn; return; }
         moves++;
@@ -69,7 +72,15 @@ function memory(t, ctx) {
         } else {
           lock = true;
           drawCounter();
-          setTimeout(() => { flip(a.btn, a, false); flip(btn, card, false); lock = false; }, 1000);
+          // Long enough to read both cards; a tap on any card continues sooner.
+          const timer = setTimeout(() => flipBack(), 3000);
+          flipBack = () => {
+            clearTimeout(timer);
+            flip(a.btn, a, false);
+            flip(btn, card, false);
+            lock = false;
+            flipBack = null;
+          };
         }
       },
     }, h('span', { class: 'mem-back', 'aria-hidden': 'true' }, '?'),

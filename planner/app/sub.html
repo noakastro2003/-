@@ -52,7 +52,7 @@ fetch('/api/sub?op=get&t=' + encodeURIComponent(t)).then(r => r.json()).then(({ 
   const m = document.getElementById('m');
   if (error || !D) { m.innerHTML = '<p class="msg">הקישור הזה כבר לא פעיל.<br>אפשר לבקש מהמורה קישור חדש 🙂</p>'; return; }
   const P = D.periods || [];
-  let h = `<div class="hero"><img src="img/ill/dark/school.webp" alt=""><h1>תודה שמחליפה היום!</h1><div class="sub">${esc(D.cls || '')}${D.cls ? ' · ' : ''}${esc(D.day || '')}${D.teacher ? ' · הכיתה של ' + esc(D.teacher) : ''}</div></div>`;
+  let h = `<div class="hero"><img src="img/ill/dark/school.webp" alt=""><h1>תודה על ההחלפה היום!</h1><div class="sub">${esc(D.cls || '')}${D.cls ? ' · ' : ''}${esc(D.day || '')}${D.teacher ? ' · הכיתה של ' + esc(D.teacher) : ''}</div></div>`;
   if (D.notes) h += `<div class="card notes"><h2>חשוב לדעת</h2>${esc(D.notes)}</div>`;
   h += `<div class="card"><h2>מערכת היום</h2>${P.length ? P.map(p => `<div class="les"><div class="tm">${esc(p.start || '')}${p.end ? `<small>עד ${esc(p.end)}</small>` : ''}</div><div>
     <b>${esc(p.title)}</b>${p.subtitle ? `<div class="st">${esc(p.subtitle)}</div>` : ''}

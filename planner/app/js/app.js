@@ -16,7 +16,7 @@ const KEY = 'noa-planner-v1';
 const team = { data: {}, at: {}, busy: {} }; // shared-week progress of the other teachers (see TEAM below)
 let teamT = 0;
 const ai = { busy: false, kind: 'lesson', out: null, err: '' }; // the AI builder's screen state (see AI below)
-const APP_V = 96; // keep in step with CACHE in sw.js
+const APP_V = 97; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -909,7 +909,7 @@ function pmText(w) {
   let txt = out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
   if (P.noemoji) txt = stripEmoji(txt);
   if (P.sign && state.name) txt += `\n${state.name} 🌻`;
-  return txt;
+  return maleVoice(txt);
 }
 function viewMsgs(w) {
   let h = top('הודעה להורים', 'הודעה מוכנה לקבוצת ההורים, בסגנון שלך – בודקים, מתקנים ושולחים', 'heart', { back: 'cls' });
@@ -2128,6 +2128,20 @@ function tipOnce(tab) {
 
 // ================================================================ ADDRESS – את / אתה
 const g = (f, m) => (state.prefs.male ? m : f);
+// messages to parents are written in the teacher's own voice: for a male teacher, the first-person words turn masculine
+const MALE_WORDS = { 'מצרפת': 'מצרף', 'מזכירה': 'מזכיר', 'זמינה': 'זמין', 'מעדכנת': 'מעדכן', 'מאחלת': 'מאחל', 'מבקשת': 'מבקש', 'ממליצה': 'ממליץ', 'אוהבת': 'אוהב', 'יודעת': 'יודע', 'שולחת': 'שולח', 'מזמינה': 'מזמין', 'בטוחה': 'בטוח', 'שמחה לבשר': 'שמח לבשר', 'שמחה לעדכן': 'שמח לעדכן', 'מתרגשת': 'מתרגש', 'מודה לכם': 'מודה לכם', 'גאה': 'גאה' };
+// the friend-teachers screens speak about "חברות"; for a male teacher whole phrases turn masculine (whole phrases only, so dictation words are untouched)
+const MALE_FRIENDS = [['מורות חברות', 'מורים חברים'], ['למורה חברה', 'למורה חבר'], ['מורה חברה', 'מורה חבר'], ['הוספת חברה', 'הוספת חבר'], ['החברות שלי', 'החברים שלי'], ['עוד אין חברות', 'עוד אין חברים'],
+  ['קוד של חברה', 'קוד של חבר'], ['הקוד של החברה', 'הקוד של החבר'], ['כל החברות', 'כל החברים'], ['אתן חברות', 'אתם חברים'], ['תהיו חברות', 'תהיו חברים'], ['משתפות שיעורים ושבועות שלמים – ומקבלות שיעורים מחברות', 'משתפים שיעורים ושבועות שלמים – ומקבלים שיעורים מחברים'],
+  ['כל אחת צריכה להיות מחוברת', 'כל אחד צריך להיות מחובר'], ['עם מורות אחרות', 'עם מורים אחרים'], ['להסיר את החברה', 'להסיר את החבר'], ['שולחים את הקוד לחברה. היא מוסיפה אותו אצלה, ואת מאשרת את הבקשה', 'שולחים את הקוד לחבר לצוות. הוא מוסיף אותו אצלו, ואתה מאשר את הבקשה'],
+  ['כשהיא תאשר', 'כשהבקשה תאושר'], [' נוספה ✓', ' נוסף ✓'], ['מחברה', 'מחבר'], ['השבוע של החברה', 'השבוע של החבר'], ['שיתוף עם חברה', 'שיתוף עם חבר'], ['לשתף עם חברה', 'לשתף עם חבר'], ['חברות והגדרות', 'חברים והגדרות']];
+function maleFix(root) {
+  if (!state.prefs.male || !root) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let n;
+  while ((n = w.nextNode())) { let t = n.nodeValue; if (!/חבר|חובר|משתפ|אתן|אחת|מורות/.test(t)) continue; for (const [f, m] of MALE_FRIENDS) t = t.split(f).join(m); if (t !== n.nodeValue) n.nodeValue = t; }
+  root.querySelectorAll('input[placeholder*="חברה"]').forEach(i => { i.placeholder = i.placeholder.replace('החברה', 'החבר'); });
+}
+const maleVoice = t => !state.prefs.male ? t : Object.entries(MALE_WORDS).reduce((x, [f, m]) => x.replace(new RegExp(`(?<![\\u05D0-\\u05EA])${f}(?![\\u05D0-\\u05EA])`, 'g'), m), String(t));
 
 // ================================================================ TOOLKIT: research-based methods & tips
 const tipOfDay = () => { const t = now(); return BANK[(t.getFullYear() * 400 + t.getMonth() * 31 + t.getDate()) % BANK.length]; };
@@ -2376,7 +2390,7 @@ function reviewSheet(res) {
   if (withDate) { const [dd, mm] = withDate.date.split('.').map(Number); const y = res.year || now().getFullYear(); start = isoDay(addDays(new Date(y, mm - 1, dd), -withDate.dow)); }
   openOverlay(`<form class="ov sheet review" data-review>
     <button type="button" class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
-    <div class="ovh">${ic('sparkle')}<h2>${n ? `מצאתי ${n} שיעורים ✨` : 'בואי נסדר יחד'}</h2></div>
+    <div class="ovh">${ic('sparkle')}<h2>${n ? `מצאתי ${n} שיעורים ✨` : g('בואי נסדר יחד', 'בוא נסדר יחד')}</h2></div>
     ${n ? `<div class="card">${res.days.map(d => `<div class="row"><b style="white-space:nowrap">יום ${d.name}</b><span class="dim grow">${d.periods.slice(0, 3).map(p => esc(p.title)).join(' · ')}${d.periods.length > 3 ? ' …' : ''}</span><span class="cnt">${d.periods.length}</span></div>`).join('')}</div>
       <label class="field">השבוע מתחיל ביום ראשון:<input type="date" name="start" value="${start}" required></label>
       <label class="field">שם לשבוע (לא חובה)<input name="title" value="${esc(res.number ? 'שבוע ' + res.number : '')}" placeholder="למשל שבוע 9"></label>
@@ -2418,8 +2432,9 @@ function openOverlay(html) {
   let o = $('#overlay');
   if (!o) { o = document.createElement('div'); o.id = 'overlay'; document.body.appendChild(o); }
   const already = o.classList.contains('show') && $('#overlay .ov');
-  if (already) { $('#overlay .ov').outerHTML = html; return; }
+  if (already) { $('#overlay .ov').outerHTML = html; maleFix(o); return; }
   o.innerHTML = `<div class="ovbg" data-act="close"></div>${html}`;
+  maleFix(o);
   const ovEl = o.querySelector('.ov'); if (ovEl) { ovEl.setAttribute('role', 'dialog'); ovEl.setAttribute('aria-modal', 'true'); const h2 = ovEl.querySelector('h2'); if (h2) { h2.id = 'ovTitle'; ovEl.setAttribute('aria-labelledby', 'ovTitle'); } }
   $('#app').inert = true; $('#tabs').inert = true;
   void o.offsetWidth; o.classList.add('show');
@@ -2723,7 +2738,7 @@ async function wakeOn() {
 function wakeOff() { try { wakeLock && wakeLock.release(); } catch { /* fine */ } wakeLock = null; }
 async function toggleAwake() {
   if (wantAwake) { wantAwake = false; wakeOff(); toast('המסך יכבה כרגיל 🌙'); }
-  else { wantAwake = true; toast(await wakeOn() ? 'המסך יישאר דלוק עד שתכבי 🔆' : 'הטלפון הזה לא מאפשר להשאיר מסך דלוק 😕'); }
+  else { wantAwake = true; toast(await wakeOn() ? `המסך יישאר דלוק עד ש${g('תכבי', 'תכבה')} 🔆` : 'הטלפון הזה לא מאפשר להשאיר מסך דלוק 😕'); }
   document.querySelectorAll('[data-act=wake]').forEach(b => { b.classList.toggle('on', wantAwake); b.lastChild.textContent = wantAwake ? 'מסך דלוק ✓' : 'מסך דלוק'; });
 }
 
@@ -2795,7 +2810,7 @@ function assignSheet(pending, existing) {
     ${pending.map((f, i) => {
       const top = f.m && f.m[0];
       const sel = f.cur || (top && top.conf !== 'low' ? `${top.weekId}|${top.dow}|${top.label}` : '');
-      const why = top && !existing ? (top.conf === 'high' ? `✨ זיהיתי: ${esc(top.title)}${top.hits.length ? ` <i>(${esc(top.hits.slice(0, 3).join(', '))})</i>` : ''}` : top.conf === 'mid' ? `🤔 אולי: ${esc(top.title)} – כדאי לוודא` : g('לא זיהיתי – בחרי שיעור', 'לא זיהיתי – בחר שיעור')) : (!existing ? 'לא זיהיתי – בחרי שיעור' : '');
+      const why = top && !existing ? (top.conf === 'high' ? `✨ זיהיתי: ${esc(top.title)}${top.hits.length ? ` <i>(${esc(top.hits.slice(0, 3).join(', '))})</i>` : ''}` : top.conf === 'mid' ? `🤔 אולי: ${esc(top.title)} – כדאי לוודא` : g('לא זיהיתי – בחרי שיעור', 'לא זיהיתי – בחר שיעור')) : (!existing ? g('לא זיהיתי – בחרי שיעור', 'לא זיהיתי – בחר שיעור') : '');
       return `<div class="arow" style="--i:${i}">
         <div class="arow-h">${fileBadge(kindOf(f.name, f.type))}<span class="fx"><b>${esc(f.name)}</b><small>${fmtSize(f.size)}</small></span></div>
         ${why ? `<div class="why ${top ? top.conf : ''}">${why}</div>` : ''}
@@ -2829,7 +2844,7 @@ async function openFile(id) {
   const f = state.files.find(x => x.id === id); if (!f) return;
   let blob = await getBlob(id).catch(() => null);
   if (!blob && f.cloud && sync.user) { toast('מורידה מהענן… ☁️', 0); blob = await downloadCloud(f).catch(() => null); if (blob) await putBlob(id, blob); }
-  if (!blob) { toast(sync.user ? 'לא הצלחתי להוריד את הקובץ 😕' : 'הקובץ נמצא במכשיר אחר – התחברי כדי להוריד אותו ☁️', 3500); return; }
+  if (!blob) { toast(sync.user ? 'לא הצלחתי להוריד את הקובץ 😕' : `הקובץ נמצא במכשיר אחר – ${g('התחברי', 'התחבר')} כדי להוריד אותו ☁️`, 3500); return; }
   $('#toast').classList.remove('show');
   if (kindOf(f.name, f.type) === 'html') { htmlViewer(f, await blob.text()); return; }
   const url = URL.createObjectURL(new File([blob], f.name, { type: f.type || blob.type }));
@@ -3211,7 +3226,7 @@ function saveNote(f) {
   const N = state._note; if (!N) return;
   const kids = N.kids.length ? N.kids : (f.who && f.who.value.trim() ? [f.who.value.trim()] : []);
   const text = f.text.value.trim();
-  if (!kids.length && !text) { toast('כתבי על מי או מה קרה 🙂'); return; }
+  if (!kids.length && !text) { toast(g('כתבי על מי או מה קרה 🙂', 'כתוב על מי או מה קרה 🙂')); return; }
   const w = pickWeek();
   const [dow, label] = N.ref ? N.ref.split('|') : [null, null];
   state.cnotes.push({ id: uid(), w: N.ref ? w.id : null, dow: N.ref ? +dow : null, label: label || null, tag: N.tag, kids, text, at: new Date().toISOString(), done: false });
@@ -3546,7 +3561,7 @@ function render(animate) {
   keep('.brand .logo', () => true);
   keep('.titlerow .illus', (o, n) => { const a = o.querySelector('img'), b = n.querySelector('img'); return a && b && a.getAttribute('src') === b.getAttribute('src'); });
   v.replaceChildren(tpl.content);
-  a11yFix(v);
+  a11yFix(v); maleFix(v);
   if (animate) {
     const a = TABS.indexOf(SUB[state.tab] || state.tab), b = TABS.indexOf(SUB[lastTab] || lastTab);
     const dir = lastTab == null ? 0 : a !== b ? Math.sign(a - b) : SUB[state.tab] ? 1 : -1;
@@ -3822,7 +3837,7 @@ document.addEventListener('click', async e => {
   if (D.formdel) { if (true) { withUndo(['forms'], 'הטופס נמחק', () => { state.forms = state.forms.filter(x => x.id !== D.formdel); }); state.pm.opts.form = ''; save(); rerender(); } return; }
   if (D.wakid) {
     const P = state.pm, fm = P.type === 'forms' && state.forms.find(x => x.id === P.opts.form);
-    const v = fm ? formPersonal(fm.title, D.wakid) : $('#pmText').value;
+    const v = fm ? maleVoice(formPersonal(fm.title, D.wakid)) : $('#pmText').value;
     navigator.clipboard && navigator.clipboard.writeText(v).catch(() => {});
     sendWhatsApp(v, kidPhone(D.wakid)); pmLog(P.type, v, D.wakid); return;
   }
@@ -3930,7 +3945,7 @@ document.addEventListener('click', async e => {
     case 'tlopen': state._tlOpen = !state._tlOpen; rerender(); break;
     case 'stepsopen': state._stepsOpen = !state._stepsOpen; rerender(); break;
     case 'stepsback': state.prefs.stepsDone = false; save(); go('now'); break;
-    case 'sharecode': { const c = soc.data && soc.data.me.code; if (!c) break; const tx = `היי! אני משתמשת באפליקציה "הכיתה שלי" לתכנון השבועי 💜\nבואי נהיה חברות שם ונשתף שיעורים – הקוד שלי: ${c}\nhttps://noa-hakita.netlify.app`; if (navigator.share) navigator.share({ text: tx }).catch(() => {}); else navigator.clipboard.writeText(tx).then(() => toast('הועתק 📋')); break; }
+    case 'sharecode': { const c = soc.data && soc.data.me.code; if (!c) break; const tx = `היי! אני ${g('משתמשת', 'משתמש')} באפליקציה "הכיתה שלי" לתכנון השבועי 💜\nבואו נתחבר שם ונשתף שיעורים – הקוד שלי: ${c}\nhttps://noa-hakita.netlify.app`; if (navigator.share) navigator.share({ text: tx }).catch(() => {}); else navigator.clipboard.writeText(tx).then(() => toast('הועתק 📋')); break; }
     case 'shsend': { const S2 = state._share; socApi('send', { to: S2.to, kind: S2.kind, title: S2.title, data: S2.data }).then(r => { closeOverlay(); toast(`נשלח ל־${r.sent} ✓`); }).catch(e => toast(e.code === 'too-big' ? 'השבוע גדול מדי לשליחה – שולחים כקובץ' : 'לא הצלחתי לשלוח 😕')); break; }
     case 'shpub': { const S2 = state._share; socApi('publish', { title: S2.title, data: S2.data }).then(() => { closeOverlay(); toast('השיעור בספרייה שלך – כל החברות רואות אותו ⭐'); }).catch(() => toast('לא הצלחתי לשתף 😕')); break; }
     case 'shfile': closeOverlay(); shareWeek(state._share.data); break;
@@ -4012,7 +4027,7 @@ document.addEventListener('click', async e => {
     case 'logout': if (await ask('להתנתק? המידע יישאר בטלפון הזה.', { ok: 'התנתקות' })) ID.logout().catch(() => {}).finally(() => { sync.user = null; sync.pulled = false; state.syncV = 0; saveLocal(); rerender(); toast('התנתקת'); }); break;
     case 'forgot': {
       const em = $('[data-auth] [name=email]').value.trim();
-      if (!em) { $('#authErr').textContent = 'כתבי קודם את המייל 🙂'; break; }
+      if (!em) { $('#authErr').textContent = g('כתבי קודם את המייל 🙂', 'כתוב קודם את המייל 🙂'); break; }
       ID.requestPasswordRecovery(em).then(() => toast('שלחתי מייל לאיפוס סיסמה 📧')).catch(e => { $('#authErr').textContent = authError(e); });
       break;
     }
@@ -4322,7 +4337,7 @@ let toastT;
 // system messages speak in words: emoji are stripped here (✓ is a glyph, it stays)
 const noEmoji = m => String(m).replace(/(?![✓✔])[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, '').replace(/\s{2,}/g, ' ').replace(/\s+([.,!?…])/g, '$1').trim();
 function toast(msg, ms = 2800, action) {
-  msg = noEmoji(msg);
+  msg = noEmoji(msg); if (state.prefs.male) for (const [f, m] of MALE_FRIENDS) msg = msg.split(f).join(m);
   const t = $('#toast'); t.innerHTML = esc(msg) + (action ? ` <button class="tact" data-act="undo">${esc(action)}</button>` : ''); t.classList.toggle('hasact', !!action); t.classList.add('show');
   if (!action) state._undo = null;
   clearTimeout(toastT); if (ms) toastT = setTimeout(() => t.classList.remove('show'), ms);
@@ -4694,8 +4709,8 @@ function teamCard(w) {
       <small>${done}/${total} בוצעו${part ? ` · ${part} חלקית` : ''}${skip ? ` · ${skip} לא הספיקו` : ''}${behind.length ? ` · נשאר: ${esc(behind.join(', '))}` : ''}</small></span></div>`;
   };
   return `<div class="card teamcard">${cardHead('users', 'הצוות בשבוע הזה', rows ? `<span class="cnt">${list.length}</span>` : '')}
-    ${list ? (list.length > 1 ? list.map(line).join('') : `<p class="dim">עוד אף אחת מהצוות לא סימנה שיעורים בשבוע הזה. ברגע שיסמנו – זה יופיע כאן.</p>${line(mine)}`) : '<p class="dim">טוענת…</p>'}
-    <p class="hint">כל מורה מסמנת אצלה "בוצע / חלקית / לא הספקנו" – וכולן רואות איפה כל כיתה עומדת.</p></div>`;
+    ${list ? (list.length > 1 ? list.map(line).join('') : `<p class="dim">עוד אף אחד מהצוות לא סימן שיעורים בשבוע הזה. ברגע שיסמנו – זה יופיע כאן.</p>${line(mine)}`) : '<p class="dim">טוענת…</p>'}
+    <p class="hint">כל אחד בצוות מסמן אצלו "בוצע / חלקית / לא הספקנו" – וכולם רואים איפה כל כיתה עומדת.</p></div>`;
 }
 
 // ================================================================ CALENDAR FILE: everything coming up, for the phone's own calendar (holidays left out – the phone has them)
@@ -4792,7 +4807,7 @@ async function subCreate() {
     state.prefs.subLast = { token: j.token, exp: j.exp }; save();
     await subShare(j.token);
     subSheet();
-  } catch (e) { toast('לא הצלחתי ליצור קישור – בדקי חיבור לאינטרנט 😕', 3500); }
+  } catch (e) { toast(`לא הצלחתי ליצור קישור – ${g('בדקי', 'בדוק')} חיבור לאינטרנט 😕`, 3500); }
 }
 async function subShare(t) {
   const url = `${location.origin}/sub.html?t=${t}`, text = `היי! הנה כל מה שצריך להיום בכיתה${state.name ? ' של ' + state.name : ''} – מערכת, שיעורים וקבצים. תודה רבה! 💜`;
@@ -4811,7 +4826,7 @@ async function aiCall(body, onText) {
   const m = txt.match(/\n\u0000(\w+)$/); if (m) throw Object.assign(new Error(m[1]), { code: m[1] });
   return txt;
 }
-const AI_ERR = { login: 'צריך להתחבר לחשבון (בהגדרות)', limit: 'הגעת למכסה היומית – אפשר שוב מחר', 'not-ready': 'הבינה המלאכותית עוד לא פעילה באתר – היא נדלקת אחרי ההעלאה הבאה', refusal: 'לא הצלחתי לבנות את זה – נסי לנסח אחרת', cut: 'התשובה נקטעה – נסי נושא מצומצם יותר', error: 'משהו השתבש – נסי שוב בעוד רגע' };
+const AI_ERR = { login: 'צריך להתחבר לחשבון (בהגדרות)', limit: 'הגעת למכסה היומית – אפשר שוב מחר', 'not-ready': 'הבינה המלאכותית עוד לא פעילה באתר – היא נדלקת אחרי ההעלאה הבאה', get refusal() { return `לא הצלחתי לבנות את זה – ${g('נסי', 'נסה')} לנסח אחרת`; }, get cut() { return `התשובה נקטעה – ${g('נסי', 'נסה')} נושא מצומצם יותר`; }, get error() { return `משהו השתבש – ${g('נסי', 'נסה')} שוב בעוד רגע`; } };
 function viewAi() {
   const c = curCls();
   let h = top('בונים עם AI', 'שיעור מלא או דף עבודה בשלוש רמות – מנושא אחד', 'sparkle', { back: 'more' });

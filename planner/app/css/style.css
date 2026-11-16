@@ -2270,3 +2270,36 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 #printroot .ws-kcol li { break-inside: avoid; }
 #printroot .ws-key .mth, #printroot .ws-note .mth, #printroot .ws-goal .mth { white-space: nowrap; }
 #printroot .ws-note { line-height: 1.6; background: #fff; border: 1pt dashed var(--c); border-radius: 12pt; padding: 8pt 12pt; }
+
+/* v111 — the shared print pages (reminders, lists, journal, roster, grades, events, summary, bank) */
+#printroot .pd { font-family: 'Rubik', 'Heebo', sans-serif; color: #2B2440; font-size: 12pt; line-height: 1.5; }
+#printroot .pd.pd-land { page: land; }
+#printroot .pd-h { border-bottom: 1.6pt solid #5B4190; margin-bottom: 12pt; padding-bottom: 6pt; }
+#printroot .pd-h h1 { font-family: 'Playpen', 'Rubik', sans-serif; font-weight: 400; font-size: 22pt; color: #5B4190; margin: 0; }
+#printroot .pd-h p { margin: 2pt 0 0; color: #6B6280; font-size: 10pt; }
+#printroot .pd-chk { list-style: none; margin: 0; padding: 0; }
+#printroot .pd-chk li { display: flex; align-items: baseline; gap: 10pt; padding: 7pt 0; border-bottom: .6pt solid #E4DEEA; break-inside: avoid; font-size: 13pt; }
+#printroot .pd-chk li i { width: 11pt; height: 11pt; border: 1.3pt solid #5B4190; border-radius: 3pt; flex: none; transform: translateY(1pt); }
+#printroot .pd-chk li.done i { background: #5B4190; }
+#printroot .pd-chk li.done span { color: #8A8296; text-decoration: line-through; }
+#printroot .pd-chk li span { flex: 1; }
+#printroot .pd-chk li small { color: #6B6280; font-size: 10pt; white-space: nowrap; }
+#printroot .pd-t { width: 100%; border-collapse: collapse; font-size: 11pt; }
+#printroot .pd-t th { background: #F1ECF8; color: #4A3566; font-weight: 500; text-align: start; padding: 5pt 7pt; border: .6pt solid #DCD3E6; }
+#printroot .pd-t td { padding: 5pt 7pt; border: .6pt solid #DCD3E6; vertical-align: top; }
+#printroot .pd-t tr { break-inside: avoid; }
+#printroot .pd-t thead { display: table-header-group; }
+#printroot .pd-t .nw { white-space: nowrap; }
+#printroot .pd-grid td { height: 18pt; }
+#printroot .pd-grid .n { width: 18pt; text-align: center; color: #8A8296; }
+#printroot .pd-grid .nm { white-space: nowrap; font-weight: 500; }
+#printroot .pd-grid .c { text-align: center; }
+#printroot .pd-grid .gh b { display: block; font-weight: 500; }
+#printroot .pd-grid .gh small { color: #7D7689; font-size: 8.5pt; font-weight: 400; }
+#printroot .pd-day { color: #5B4190; font-size: 13pt; margin: 12pt 0 4pt; break-after: avoid; }
+#printroot .pd-ev { margin: 2pt 0; padding-inline-start: 6pt; }
+#printroot .pd-pre { white-space: pre-wrap; font: inherit; margin: 0; }
+#printroot .pd-foot { color: #7D7689; font-size: 9.5pt; margin-top: 8pt; }
+#printroot .pd-words { columns: 2; column-gap: 30pt; font-size: 20pt; line-height: 2.1; padding-inline-start: 30pt; margin: 6pt 0; }
+#printroot .pd-eval { break-inside: avoid; border-bottom: .6pt solid #E4DEEA; padding-bottom: 6pt; }
+#printroot .pd-eval p { margin: 2pt 0; white-space: pre-wrap; }

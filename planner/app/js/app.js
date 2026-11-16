@@ -32,7 +32,7 @@ const WS_KINDS = [['open', 'שאלה פתוחה', 'pencil'], ['fill', 'השלמ�
 const wsCur = () => (state.sheets = state.sheets || []).find(x => x.id === state._wsId);
 const wsOut = sh => ({ kind: 'sheet', title: sh.title || 'דף עבודה', goal: sh.goal || '', story: sh.story, teacherNote: sh.teacherNote, selfCheck: sh.selfCheck, levels: sh.levels.map(l => ({ name: sh.levels.length > 1 ? l.name : '', instructions: l.instructions, example: l.example || '', items: l.items.map(x => ({ kind: x.kind, prompt: x.prompt || '', options: x.options || [], hint: x.hint || '', answer: x.answer || '' })) })) });
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 108; // keep in step with CACHE in sw.js
+const APP_V = 109; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules', 'sheets'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -356,6 +356,7 @@ function top(title, sub, illus, opts = {}) {
     <div class="brandrow">
       <div class="brand">${opts.back ? `<button class="back" data-go="${opts.back}" aria-label="חזרה">${ic('chevR')}</button>` : ''}${logo('blogo')}<span>הכיתה שלי${squiggle('s')}</span>${syncDot()}</div>
       <div class="hbtns">
+        ${printFor(state.tab) ? `<button class="hb" data-act="printview" aria-label="${esc(printFor(state.tab).label)}" title="${esc(printFor(state.tab).label)}">${ic('printer')}</button>` : ''}
         <button class="hb" data-act="search" aria-label="חיפוש">${ic('search')}</button>
         <button class="hb" data-day="all" aria-label="מערכת">${ic('calendar')}</button>
         <button class="hb" data-go="todos" aria-label="תזכורות">${ic('bell')}${dot ? '<i class="dot"></i>' : ''}</button>
@@ -917,6 +918,7 @@ function dictSheet(k, words, order) {
     ${order && order.length ? `<ol class="dlist" style="grid-template-rows:repeat(${Math.ceil(order.length / 2)},auto);grid-auto-flow:column">${order.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : `<p class="dim">${words.length ? `${words.length} מילים מוכנות להגרלה` : 'כותבים את המילים כאן (פסיק או שורה חדשה בין מילה למילה)'}</p>`}
     <button class="cta" data-act="dictshuffle">${ic('dice')} ${order && order.length ? 'הגרלה חדשה' : 'להגריל סדר'}</button>
     ${order && order.length ? `<button class="cta soft" data-act="projdict">${ic('screen')} הקרנה ללוח</button>` : ''}
+    ${words.length ? `<button class="cta soft" data-act="dictprint">${ic('printer')} הדפסת המילים (לתרגול בבית)</button>` : ''}
     <label class="field">המילים<textarea id="dictIn" rows="4" placeholder="חבר, חברה, חברים…">${esc(words.join(', '))}</textarea></label>
   </div>`);
 }
@@ -926,9 +928,79 @@ function printWeek(w) {
   if (!w) return;
   let r = $('#printroot');
   if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
-  r.innerHTML = weekPrintHtml(w, { look, dayFull: DAY_FULL, classSize: classSize(w), name: state.name });
+  doPrint(weekPrintHtml(w, { look, dayFull: DAY_FULL, classSize: classSize(w), name: state.name }));
+}
+// one way to print everything: fill the print area, wait for fonts and pictures, then open the print dialog
+async function doPrint(html, o = {}) {
+  let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
+  r.className = o.bw ? 'bw' : ''; r.innerHTML = html;
   document.body.classList.add('printing');
-  setTimeout(() => window.print(), 60);
+  const imgs = [...r.querySelectorAll('img')].map(i => (i.complete ? null : new Promise(res => { i.onload = i.onerror = res; })));
+  try { await Promise.race([Promise.all([document.fonts && document.fonts.ready, ...imgs]), new Promise(res => setTimeout(res, 1800))]); } catch { /* print anyway */ }
+  setTimeout(() => { try { window.print(); } catch { toast('ההדפסה לא נפתחה – אפשר לנסות שוב', 2500); } }, 40);
+}
+// a plain, tidy printable page for lists and tables
+const pdoc = (title, sub, body, cls = '') => `<div class="pw-pg pd ${cls}"><header class="pd-h"><h1>${title}</h1><p>${sub || ''}</p></header>${body}</div>`;
+const pdSub = extra => [curCls() && curCls().name, state.name && 'המורה ' + state.name, new Date().toLocaleDateString('he-IL'), extra].filter(Boolean).map(esc).join(' · ');
+// what the printer button in the top bar prints on each screen
+function printFor(tab) {
+  const w = pickWeek();
+  const M = {
+    now: w && todayInWeek(w) ? ['הדפסת היום', () => { const d = todayInWeek(w); printDay(w, d); }] : null,
+    day: w ? ['הדפסה', () => { const sel = currentSelDay(w); if (sel === 'all') printWeek(w); else printDay(w, w.days.find(d => d.dow === sel)); }] : null,
+    prep: w ? ['הדפסת התכנון השבועי', () => printWeek(w)] : null,
+    todos: state.todos.some(t => !t.done) ? ['הדפסת התזכורות', printTodos] : null,
+    lists: state.lists.length ? ['הדפסת הרשימות', () => printLists()] : null,
+    journal: state.cnotes.length ? ['הדפסת היומן', printJournal] : null,
+    kids: state.kids.length ? ['הדפסת רשימת הכיתה', printRoster] : null,
+    cls: state.kids.length ? ['הדפסת רשימת הכיתה', printRoster] : null,
+    grades: state.grades.length ? ['הדפסת הציונים', printGrades] : null,
+    calendar: ['הדפסת לוח האירועים', printEvents],
+    summary: w ? ['הדפסת סיכום השבוע', () => printSummary(w)] : null,
+    rules: toLines(clsRules().rules).length || toLines(clsRules().routines).length ? ['הדפסת החוקים', () => rulePrint(toLines(clsRules().rules).length ? 'rules' : 'routines')] : null,
+    seats: Object.keys(seatsOf().map).length || seatsOf().desks.length ? ['הדפסת מקומות הישיבה', seatPrint] : null,
+    sheets: wsCur() ? ['הדפסת הדף', () => aiPrint(wsOut(wsCur()))] : null,
+    ai: ai.out ? ['הדפסה', () => aiPrint(ai.out)] : null,
+    bank: state.bank.length ? ['הדפסת מאגר השיעורים', printBank] : null,
+  };
+  const v = M[tab]; return v ? { label: v[0], run: v[1] } : null;
+}
+function printDay(w, d) { if (!w || !d) return; doPrint(weekPrintHtml({ ...w, days: [d] }, { look, dayFull: DAY_FULL, classSize: classSize(w), name: state.name })); }
+function printTodos() {
+  const L = state.todos.filter(t => !t.done).sort((a, b) => (todoWhen(a) || 0) - (todoWhen(b) || 0));
+  doPrint(pdoc('לא לשכוח', pdSub(), `<ul class="pd-chk">${L.map(t => `<li><i></i><span>${esc(t.text)}</span>${todoLabel(t) ? `<small>${esc(todoLabel(t))}</small>` : ''}</li>`).join('')}</ul>`));
+}
+function printLists(id) {
+  const L = state.lists.filter(x => !id || x.id === id);
+  doPrint(L.map(x => pdoc(esc(x.title), pdSub(`${x.items.length} פריטים`), `<ul class="pd-chk">${x.items.map(i => `<li class="${i.done ? 'done' : ''}"><i></i><span>${esc(i.text)}</span></li>`).join('')}</ul>`)).join(''));
+}
+function printJournal() {
+  const f = state.jfilter || '';
+  const L = state.cnotes.filter(n => !f || (f === 'open' ? ACTION.includes(n.tag) && !n.done : n.tag === f)).sort((a, b) => (a.at < b.at ? 1 : -1));
+  doPrint(pdoc('יומן כיתה', pdSub(f ? (f === 'open' ? 'פתוחים' : (TAGS[f] || [])[1]) : `${L.length} רשומות`), `<table class="pd-t"><thead><tr><th>תאריך</th><th>סוג</th><th>מי</th><th>מה</th></tr></thead><tbody>${L.map(n => `<tr><td class="nw">${new Date(n.at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</td><td class="nw">${esc((TAGS[n.tag] || TAGS.note)[1])}${n.done ? ' ✓' : ''}</td><td>${esc(n.kids.join(', '))}</td><td>${esc(n.text)}</td></tr>`).join('')}</tbody></table>`));
+}
+function printRoster() {
+  const cols = 10;
+  doPrint(pdoc('רשימת הכיתה', pdSub(`${state.kids.length} תלמידים`), `<table class="pd-t pd-grid"><thead><tr><th class="n">#</th><th>שם</th>${'<th></th>'.repeat(cols)}</tr></thead><tbody>${state.kids.map((k, i) => `<tr><td class="n">${i + 1}</td><td class="nm">${esc(k.name)}</td>${'<td></td>'.repeat(cols)}</tr>`).join('')}</tbody></table><p class="pd-foot">עמודות ריקות – לנוכחות, לבדיקת שיעורי בית, לאישורים או לכל מעקב.</p>`, 'pd-land'));
+}
+function printGrades() {
+  const G = state.grades.filter(g => !g.cls || g.cls === state.curClass).slice(-12);
+  const cell = (g, k) => { const v = g.scores[k.name]; return v === '' || v == null ? '' : esc(v); };
+  const avg = k => { const v = G.map(g => g.scores[k.name]).filter(x => x !== '' && x != null).map((x, i) => x); const P = G.filter(g => g.scores[k.name] !== '' && g.scores[k.name] != null).map(g => pct(+g.scores[k.name], g.max)); return P.length ? Math.round(P.reduce((a, b) => a + b, 0) / P.length) + '%' : ''; };
+  doPrint(pdoc('ציונים', pdSub(), `<table class="pd-t pd-grid"><thead><tr><th>שם</th>${G.map(g => `<th class="gh"><b>${esc(g.title)}</b><small>${esc(g.kind)} · מתוך ${g.max || 100}</small></th>`).join('')}<th>ממוצע</th></tr></thead><tbody>${state.kids.map(k => `<tr><td class="nm">${esc(k.name)}</td>${G.map(g => `<td class="c">${cell(g, k)}</td>`).join('')}<td class="c"><b>${avg(k)}</b></td></tr>`).join('')}</tbody></table>`, G.length > 5 ? 'pd-land' : ''));
+}
+function printEvents() {
+  const ev = allEvents(60); let last = '', h = '';
+  for (const e of ev) { const key = e.d.toDateString(); if (key !== last) { h += `<h3 class="pd-day">יום ${DAY_FULL[e.d.getDay()]} · ${e.d.getDate()}.${e.d.getMonth() + 1}</h3>`; last = key; } h += `<p class="pd-ev">${e.icon} ${esc(e.text)}</p>`; }
+  doPrint(pdoc('לוח אירועים', pdSub('חודשיים קדימה'), h || '<p>אין אירועים בחודשיים הקרובים.</p>'));
+}
+function printSummary(w) {
+  const S = summary(w);
+  const rows = S.all.map(x => { const l = S.logs[x.id]; return `<tr><td class="nw">יום ${esc(x.d.name)}</td><td>${esc(x.p.title)}</td><td class="nw">${l ? LOG[l.s][1] : '—'}</td><td>${esc(l && l.note || '')}</td></tr>`; }).join('');
+  doPrint(pdoc(`סיכום ${w.number ? 'שבוע ' + w.number : 'השבוע'}`, pdSub(`הספקנו ${S.done} · חלקית ${S.part} · לא הספקנו ${S.skip}`), `<table class="pd-t"><thead><tr><th>יום</th><th>שיעור</th><th>מצב</th><th>הערה</th></tr></thead><tbody>${rows}</tbody></table>${S.carry.length ? `<h3 class="pd-day">עובר לשבוע הבא</h3><pre class="pd-pre">${esc(carryText(w, S))}</pre>` : ''}`));
+}
+function printBank() {
+  doPrint(state.bank.slice().reverse().map(b => { const p = b.p; return pdoc(esc(p.title), esc([p.subtitle, ...(p.badges || [])].filter(Boolean).join(' · ')), `${p.sections.map(x => `<h3 class="pd-day">${esc(x.label)}</h3><p>${esc(x.text)}</p>`).join('')}${p.materials.length ? `<h3 class="pd-day">מה צריך</h3><p>${p.materials.map(m => esc(m.text)).join(' · ')}</p>` : ''}${(p.homework || []).length ? `<h3 class="pd-day">שיעורי בית</h3><p>${p.homework.map(esc).join(' · ')}</p>` : ''}`); }).join(''));
 }
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 
@@ -4041,6 +4113,9 @@ document.addEventListener('click', async e => {
     case 'bellauto': state.prefs.bellAuto = !state.prefs.bellAuto; save(); rerender(); break;
     case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
     case 'classes': classesSheet(); break;
+    case 'dictprint': { const W = toLines(($('#dictIn') || {}).value.replace(/[,،]/g, '\n')); doPrint(pdoc('מילים להכתבה', pdSub(`${W.length} מילים`), `<ol class="pd-words">${W.map(x => `<li>${esc(x)}</li>`).join('')}</ol><p class="pd-foot">לקרוא, לכתוב פעמיים, ולבקש ממישהו בבית להכתיב.</p>`)); break; }
+    case 'evalprint': { state.evals = state.evals || {}; doPrint(pdoc('הערכות', pdSub(), state.kids.map(k => { const E = state.evals[k.name] || {}, t = E.text || ((E.sex || k.sex) ? evalDraft(k.name, E.sex || k.sex) : ''); return t ? `<div class="pd-eval"><h3 class="pd-day">${esc(k.name)}</h3><p>${esc(t)}</p></div>` : ''; }).join('') || '<p>עוד אין טיוטות.</p>')); break; }
+    case 'printview': { const P = printFor(state.tab); if (P) P.run(); break; }
     case 'todopopall': state.prefs.todoPopOff = !state.prefs.todoPopOff; save(); rerender(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
     case 'sharewelcome': { const url = `${location.origin}/welcome.html`, text = 'מצאתי אפליקציה שמסדרת את כל התכנון השבועי, הכיתה וההורים במקום אחד – שווה להציץ:'; if (navigator.share) { try { await navigator.share({ title: 'הכיתה שלי', text, url }); } catch { /* closed */ } } else { try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('הקישור הועתק ✓'); } catch { prompt('הקישור:', url); } } break; }
@@ -4747,8 +4822,7 @@ function seatsHtmlFor(S) {
 function seatPrint() {
   const S = seatsOf(), c = curCls();
   let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
-  r.innerHTML = `<div class="pw-pg pw-land"><header><h1>מקומות ישיבה${c && c.name ? ' · ' + esc(c.name) : ''}</h1><p>${new Date().toLocaleDateString('he-IL')}</p></header>${seatsHtmlFor(S)}</div>`;
-  document.body.classList.add('printing'); setTimeout(() => window.print(), 60);
+  doPrint(`<div class="pw-pg pw-land"><header><h1>מקומות ישיבה${c && c.name ? ' · ' + esc(c.name) : ''}</h1><p>${new Date().toLocaleDateString('he-IL')}</p></header>${seatsHtmlFor(S)}</div>`);
 }
 function seatTap(k) {
   const S = seatsOf(), sel = state._seatSel;
@@ -4780,8 +4854,7 @@ function meetPage(name) {
 }
 function meetPrint(names) {
   let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
-  r.innerHTML = names.map(meetPage).join('');
-  document.body.classList.add('printing'); setTimeout(() => window.print(), 60);
+  doPrint(names.map(meetPage).join(''));
 }
 
 // ================================================================ REPORT-CARD COMMENTS: a draft from the year's record, in a warm teacher's voice; edited and kept per child
@@ -4835,7 +4908,7 @@ function evalAllSheet() {
   openOverlay(`<div class="ov sheet"><button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
     <div class="ovh">${ic('text')}<h2>טיוטות הערכה</h2></div>
     <p class="dim">לוחצים על ילד/ה, בוחרים בן או בת, ועורכים. כשמוכן – מעתיקים הכל בבת אחת.</p>
-    <button class="cta" data-act="evalcopyall">${ic('link')} העתקת כל ההערכות</button>
+    <div class="btnrow"><button class="cta" data-act="evalcopyall">${ic('link')} העתקת כל ההערכות</button><button class="cta soft" data-act="evalprint">${ic('printer')} הדפסה</button></div>
     <div class="gsg" style="margin-top:12px">${rows}</div></div>`);
 }
 document.addEventListener('input', e => { const t = e.target; if (t.id === 'evalText') { state.evals = state.evals || {}; const n = t.dataset.evalname; state.evals[n] = { ...(state.evals[n] || {}), text: t.value }; clearTimeout(evalSaveT); evalSaveT = setTimeout(save, 600); } });
@@ -5064,8 +5137,7 @@ function ruleSet(k, L) { clsRules()[k] = L.join('\n'); save(); rerender(); }
 function rulePrint(k) {
   const L = toLines(clsRules()[k]), c = curCls();
   let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
-  r.innerHTML = `<div class="pw-pg rposter"><h1>${k === 'rules' ? 'החוקים שלנו' : 'השגרות שלנו'}</h1>${c && c.name ? `<p class="rp-sub">${esc(c.name)}</p>` : ''}<ol>${L.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>`;
-  document.body.classList.add('printing'); setTimeout(() => window.print(), 60);
+  doPrint(`<div class="pw-pg rposter"><h1>${k === 'rules' ? 'החוקים שלנו' : 'השגרות שלנו'}</h1>${c && c.name ? `<p class="rp-sub">${esc(c.name)}</p>` : ''}<ol>${L.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>`);
 }
 
 // ---- what the substitute sent back: day report + chat (polled while a link is live, and 3 days after)
@@ -5314,7 +5386,7 @@ function aiPrint(o, bw) {
     ${o.board ? `<h2>על הלוח</h2><pre>${esc(o.board)}</pre>` : ''}${o.materials.length ? `<h2>מה צריך</h2><p>${o.materials.map(esc).join(' · ')}</p>` : ''}
     ${o.support ? `<p><b>למתקשים:</b> ${esc(o.support)}</p>` : ''}${o.challenge ? `<p><b>למתקדמים:</b> ${esc(o.challenge)}</p>` : ''}${o.exitTicket ? `<p><b>כרטיס יציאה:</b> ${esc(o.exitTicket)}</p>` : ''}${o.homework ? `<p><b>שיעורי בית:</b> ${esc(o.homework)}</p>` : ''}</div>
     ${o.printables.map(x => `<div class="pw-pg aisheet"><header><h1>${esc(x.title)}</h1></header><pre class="ai-print">${esc(x.content)}</pre></div>`).join('')}`;
-  document.body.classList.add('printing'); setTimeout(() => window.print(), 60);
+  doPrint(r.innerHTML, { bw });
 }
 
 // moving a desk (with whoever sits on it) to another square – by dragging, or tap the desk and then the new square

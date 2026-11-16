@@ -2192,3 +2192,36 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 #printroot .ws-kcol ol { margin: 0; padding-inline-start: 16pt; }
 #printroot .ws-kcol li { margin: 3pt 0; }
 #printroot .ws-note { font-size: 11pt; margin-top: 12pt; }
+
+/* v108 — a frame around every printed page of a worksheet, and a black-and-white version */
+#printroot .ws { border: 2.2pt solid var(--c); border-radius: 18pt; padding: 16pt 18pt 14pt; outline: .8pt solid color-mix(in srgb, var(--c) 35%, #fff); outline-offset: -6pt;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+@page ws { margin: 9mm; }
+#printroot.bw .ws { --c: #222 !important; --t: #F1F1F1 !important; color: #111; }
+#printroot.bw .ws-story { background: #fff; border: 1.2pt solid #222; }
+#printroot.bw .ws-story img { filter: grayscale(1) contrast(1.1); }
+#printroot.bw .ws-n { background: #fff; color: #111; border: 1.6pt solid #222; }
+#printroot.bw .ws-box { background: #fff; border-color: #777; }
+#printroot.bw .ws-box.calc { background-image: radial-gradient(circle, #999 .9pt, transparent 1.2pt); background-size: 12pt 12pt; }
+#printroot.bw .ws-opt.match > span { background: #fff; }
+#printroot.bw .ws-badge { background: #fff; }
+#printroot.bw .ws-kcol { background: #fff; border: 1pt solid #999; }
+#printroot.bw .ws { outline-color: #bbb; }
+/* the sheet builder */
+.wsrow { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 0; border: 0; border-top: 1px solid var(--line); background: none; text-align: start; font: inherit; color: inherit; }
+.wsrow:first-child { border-top: 0; }
+.wsrow b { display: block; }
+.wsrow small { color: var(--soft); font-size: var(--fs-sm); }
+.wsback { margin: 4px 0 8px; }
+.wsed textarea, .wslevel textarea { width: 100%; }
+.wslh { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.wsln { flex: 1; font-weight: 700; font-size: var(--fs-h3); color: var(--accent-ink); }
+.wsitem { border: 1.5px solid var(--line); border-radius: var(--r-item, 16px); padding: 10px 12px; margin: 10px 0; background: var(--tint2); display: grid; gap: 6px; }
+.wsih { display: flex; align-items: center; gap: 6px; }
+.wsih select { flex: 1; min-width: 0; }
+.wsn { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-ink); color: #fff; font-weight: 700; font-size: 13px; flex: none; }
+.field.sm { font-size: var(--fs-note); }
+.wslevel .fchips .fc { font-size: var(--fs-sm); }
+.wsln, .wsih select { border: 1.5px solid var(--line); background: var(--card); border-radius: var(--r-field, 12px); padding: 8px 12px; font: inherit; color: inherit; min-height: 40px; }
+.wsln { color: var(--accent-ink); font-weight: 700; }
+.wsitem textarea, .wsitem input { background: var(--card); }

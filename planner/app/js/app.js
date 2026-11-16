@@ -28,13 +28,16 @@ const BOARD_SIDES = [['top', 'למעלה'], ['bottom', 'למטה'], ['right', '�
 const boardWrap = (S, board, grid, cls = 'sroom') => `<div class="${cls} b-${S.board || 'top'}">${board}${grid}</div>`;
 const RULE_IDEAS = { rules: ['מצביעים ומחכים לתור', 'מקשיבים כשמישהו מדבר', 'מדברים בשקט ובכבוד', 'שומרים על הציוד של כולם', 'יוצאים מהכיתה רק באישור', 'עוזרים לחבר שצריך', 'טועים ולומדים – לא צוחקים על אף אחד'],
   routines: ['בכניסה: מוציאים מחברת ועט ומתחילים במשימת הפתיחה שעל הלוח', 'סימן שקט: יד מורמת + ספירה לאחור מ־5', 'סיימתי מוקדם? קורא/ת ספר או עובד/ת על משימת אתגר', 'שירותים: לוקחים את הכרטיס ומחזירים', 'לפני ההפסקה: מסדרים את השולחן ומרימים כיסא', 'סוף היום: מעתיקים שיעורי בית מהלוח'] };
+const WS_KINDS = [['open', 'שאלה פתוחה', 'pencil'], ['fill', 'השלמה ____', 'text'], ['choice', 'בחירה', 'check'], ['calc', 'תרגיל + מקום לפתרון', 'calc'], ['match', 'מתיחת קו', 'link'], ['order', 'סידור לפי הסדר', 'layers'], ['draw', 'ציור / מקום גדול', 'star']];
+const wsCur = () => (state.sheets = state.sheets || []).find(x => x.id === state._wsId);
+const wsOut = sh => ({ kind: 'sheet', title: sh.title || 'דף עבודה', story: sh.story, teacherNote: sh.teacherNote, selfCheck: sh.selfCheck, levels: sh.levels.map(l => ({ name: sh.levels.length > 1 ? l.name : '', instructions: l.instructions, items: l.items.map(x => ({ kind: x.kind, prompt: x.prompt || '', options: x.options || [], answer: x.answer || '' })) })) });
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 107; // keep in step with CACHE in sw.js
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules'];
+const APP_V = 108; // keep in step with CACHE in sw.js
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules', 'sheets'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null, att: {}, seats: {}, evals: {}, crules: {},
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null, att: {}, seats: {}, evals: {}, crules: {}, sheets: [],
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -336,7 +339,7 @@ const greet = () => { const h = now().getHours(); return h < 5 ? 'לילה טו�
 // one illustration family (soft clay, plum / cream / gold), shown in a rounded tile
 const ILL = { books: 'desk', notepad: 'prep', star: 'tools', heart: 'class', clock: 'week', calendar: 'week', cake: 'notebook', medal: 'medal', sunrise: 'school', school: 'school', notebook: 'notebook' };
 // which picture belongs to which screen
-const TAB_ILL = { rules: 'class', ai: 'prep', seats: 'class', now: 'desk', day: 'week', prep: 'prep', cls: 'class', kids: 'class', class: 'class', friends: 'class', more: 'tools', tools: 'tools', files: 'tools', journal: 'notebook', todos: 'notebook', lists: 'prep', autos: 'notebook', calendar: 'week', bells: 'week', bank: 'desk', msgs: 'notebook', summary: 'medal', grades: 'medal', settings: 'tools', reports: 'notebook' };
+const TAB_ILL = { sheets: 'prep', rules: 'class', ai: 'prep', seats: 'class', now: 'desk', day: 'week', prep: 'prep', cls: 'class', kids: 'class', class: 'class', friends: 'class', more: 'tools', tools: 'tools', files: 'tools', journal: 'notebook', todos: 'notebook', lists: 'prep', autos: 'notebook', calendar: 'week', bells: 'week', bank: 'desk', msgs: 'notebook', summary: 'medal', grades: 'medal', settings: 'tools', reports: 'notebook' };
 const ILLF = new Set(['desk', 'week', 'prep', 'class', 'tools', 'school', 'notebook', 'medal']);
 const illFile = name => ILLF.has(name) ? name : ILL[name];
 // every picture has a night twin cut out of its cream background (img/ill/dark/*.webp); it loads only when night shows it
@@ -2269,7 +2272,7 @@ function viewMore(w) {
   ${[
     ['השבוע שלי', [['upload', 'תכנון חדש', 'data-act="upload"'], ['layers', 'השבוע הבא', w ? 'data-act="nextweek"' : 'disabled'], ['grid', 'המערכת', 'data-day="all"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`], ['clock', 'לוח צלצולים', 'data-go="bells"']]],
     ['בכיתה', [['screen', 'מסך הכיתה', 'data-act="cast"'], ['flag', 'חוקי הכיתה', 'data-go="rules"'], ['chair', 'מקומות ישיבה', 'data-go="seats"'], ['medal', 'ניקוד ורמזור', 'data-go="class"'], ['users', 'מורה מחליפה', `data-subday="${w && todayInWeek(w) ? todayInWeek(w).dow : (w && w.days[0] ? w.days[0].dow : 0)}" ${w ? '' : 'disabled'}`], ['text', 'הגרלת הכתבה', 'data-act="dictfree"']]],
-    ['יוצרים חומרים', [['sparkle', 'שיעור / דף עם AI', 'data-go="ai"'], ['book', 'מאגר שיעורים', 'data-go="bank"'], ['folder', 'קבצים', 'data-go="files"'], ['star', 'שיטות וטיפים', 'data-go="tools"'], ['file', 'נקדן', 'data-act="nakdan"'], ['phone2', 'הודעה להורים', 'data-go="msgs"']]],
+    ['יוצרים חומרים', [['sparkle', 'שיעור / דף עם AI', 'data-go="ai"'], ['book', 'מאגר שיעורים', 'data-go="bank"'], ['folder', 'קבצים', 'data-go="files"'], ['star', 'שיטות וטיפים', 'data-go="tools"'], ['file', 'נקדן', 'data-act="nakdan"'], ['file', 'דפי עבודה שלי', 'data-go="sheets"']]],
     ['סדר ותזכורות', [['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['calendar', 'לוח אירועים', 'data-go="calendar"'], ['pencil', 'יומן כיתה', 'data-go="journal"'], ['bell', 'אוטומציות', 'data-go="autos"'], ['heart', 'מורות חברות', 'data-go="friends"']]],
   ].map(([t, items], k) => `<h4 class="sect msect">${t}</h4><div class="toolgrid ${['hue-lav', 'hue-sage', 'hue-apr', 'hue-rose'][k] || ''}">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
   <div class="helprow"><button data-act="guide">${ic('book')} איך זה עובד</button><button data-act="report">${ic('warn')} משהו לא עובד?</button></div>
@@ -3618,7 +3621,7 @@ function readyMoment(day) {
 // ================================================================ render
 const TABS = ['now', 'day', 'prep', 'cls', 'more'];
 const SUB = { ai: 'more', seats: 'cls', files: 'more', friends: 'more', bells: 'more', kids: 'cls', grades: 'cls', journal: 'cls', class: 'cls', msgs: 'cls', calendar: 'cls', todos: 'more', reports: 'more', summary: 'more', settings: 'more',  lists: 'more', autos: 'more', tools: 'more',   bank: 'more',  };
-const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, cls: viewHub, friends: viewFriends, bells: viewBells, reports: viewReports, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar, seats: viewSeats, ai: viewAi, rules: viewRules };
+const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, cls: viewHub, friends: viewFriends, bells: viewBells, reports: viewReports, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar, seats: viewSeats, ai: viewAi, rules: viewRules, sheets: viewSheets };
 let lastTab = null;
 function render(animate) {
   let w = pickWeek();
@@ -3633,7 +3636,7 @@ function render(animate) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   requestAnimationFrame(moveTabInd);
   const v = $('#view');
-  const needWeek = !['rules', 'ai', 'seats', 'more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells', 'reports'].includes(state.tab);
+  const needWeek = !['sheets', 'rules', 'ai', 'seats', 'more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells', 'reports'].includes(state.tab);
   document.body.classList.toggle('onboarding', !state.onboarded);
   let html = !state.onboarded ? viewOnboard() : !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
   const busyNow = (() => { const w0 = realWeek(), d0 = w0 && todayInWeek(w0), ph0 = d0 && phase(d0); return ph0 && (ph0.kind === 'lesson' || ph0.kind === 'break'); })();
@@ -3844,6 +3847,12 @@ document.addEventListener('click', async e => {
     if (!$('#overlay .tprow')) closeOverlay();
     return;
   }
+  if (D.wsopen) { state._wsId = D.wsopen; rerender(); scrollTo(0, 0); return; }
+  if (D.wstog) { const sh = wsCur(); sh[D.wstog] = sh[D.wstog] === false ? undefined : false; save(); rerender(); return; }
+  if (D.wsadd) { const [li, k] = D.wsadd.split('|'); const L = wsCur().levels[+li]; L.items.push({ kind: k, prompt: '', options: [], answer: '' }); save(); const y = scrollY; rerender(); scrollTo(0, y); setTimeout(() => { const n = $(`[data-wsf="${li}|${L.items.length - 1}|prompt"]`); if (n) { n.focus(); n.scrollIntoView({ block: 'center' }); } }, 60); return; }
+  if (D.wsdelitem) { const [li, ii] = D.wsdelitem.split('|').map(Number); withUndo(['sheets'], 'השאלה נמחקה', () => { wsCur().levels[li].items.splice(ii, 1); }); return; }
+  if (D.wsup) { const [li, ii] = D.wsup.split('|').map(Number); const it = wsCur().levels[li].items; [it[ii - 1], it[ii]] = [it[ii], it[ii - 1]]; save(); const y = scrollY; rerender(); scrollTo(0, y); return; }
+  if (D.wsdellevel) { const li = +D.wsdellevel; withUndo(['sheets'], 'הרמה נמחקה', () => { wsCur().levels.splice(li, 1); }); return; }
   if (D.ruletap) { state._ruleEdit = D.ruletap; rerender(); setTimeout(() => { const i = $('[data-ruleedit] input'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 30); return; }
   if (D.ruledel) { const [k, i] = D.ruledel.split(':'); const L = toLines(clsRules()[k]); withUndo(['crules'], 'נמחק', () => { L.splice(+i, 1); clsRules()[k] = L.join('\n'); }); return; }
   if (D.ruleup) { const [k, i] = D.ruleup.split(':'); const L = toLines(clsRules()[k]); [L[i - 1], L[i]] = [L[i], L[i - 1]]; ruleSet(k, L); return; }
@@ -4038,6 +4047,15 @@ document.addEventListener('click', async e => {
     case 'aigo': aiGo(); break;
     case 'aicopy': { try { await navigator.clipboard.writeText(aiText(ai.out)); toast('הועתק ✓', 1500); } catch { toast('לא הצלחתי להעתיק'); } break; }
     case 'aiprint': aiPrint(ai.out); break;
+    case 'aiprintbw': aiPrint(ai.out, true); break;
+    case 'aiedit': { state.sheets = state.sheets || []; const o = JSON.parse(JSON.stringify(ai.out)); const sh = { id: uid(), title: o.title, story: o.story || '', teacherNote: o.teacherNote || '', levels: o.levels, at: Date.now(), from: 'AI' }; state.sheets.unshift(sh); state._wsId = sh.id; save(); go('sheets'); break; }
+    case 'wsnew': { state.sheets = state.sheets || []; const sh = { id: uid(), title: '', story: '', teacherNote: '', levels: [{ name: 'רמה א׳', instructions: '', items: [] }], at: Date.now() }; state.sheets.unshift(sh); state._wsId = sh.id; save(); rerender(); setTimeout(() => { const i = $('[data-wsf="title"]'); if (i) i.focus(); }, 60); break; }
+    case 'wsback': state._wsId = null; rerender(); break;
+    case 'wsprint': { const sh = wsCur(); if (sh) aiPrint(wsOut(sh)); break; }
+    case 'wsprintbw': { const sh = wsCur(); if (sh) aiPrint(wsOut(sh), true); break; }
+    case 'wslevel': { const sh = wsCur(); const n = sh.levels.length; const src = sh.levels[n - 1]; sh.levels.push({ name: ['רמה א׳', 'רמה ב׳', 'רמה ג׳', 'רמה ד׳'][n] || `רמה ${n + 1}`, instructions: src ? src.instructions : '', items: src ? JSON.parse(JSON.stringify(src.items)) : [] }); if (n === 1 && !/רמה/.test(sh.levels[0].name)) sh.levels[0].name = 'רמה א׳'; save(); rerender(); toast('נוספה רמה – הועתקו אליה השאלות כדי שיהיה קל לשנות', 2600); break; }
+    case 'wsdel': { const id = state._wsId; withUndo(['sheets'], 'הדף נמחק', () => { state.sheets = state.sheets.filter(x => x.id !== id); }); state._wsId = null; break; }
+    case 'wsdup': { const sh = wsCur(); const c = { ...JSON.parse(JSON.stringify(sh)), id: uid(), title: sh.title + ' (עותק)', at: Date.now() }; state.sheets.unshift(c); state._wsId = c.id; save(); rerender(); toast('נוצר עותק'); break; }
     case 'aibank': { const o = ai.out; state.bank.push({ id: uid(), at: Date.now(), p: { label: '', start: '', end: '', title: o.title, subtitle: o.goals.join(' · '), sections: [...o.sections.map(x => ({ label: `${x.label} (${x.minutes} דק׳)`, text: [x.teacherSays && `המורה: ${x.teacherSays}`, x.studentsDo && `הילדים: ${x.studentsDo}`, ...x.steps].filter(Boolean).join(' · ') })), ...(o.questions.length ? [{ label: 'שאלות', text: o.questions.map(x => `${x.q} (${x.answer})`).join(' · ') }] : []), ...(o.support || o.challenge ? [{ label: 'התאמות', text: [o.support && 'למתקשים: ' + o.support, o.challenge && 'למתקדמים: ' + o.challenge].filter(Boolean).join(' · ') }] : []), ...(o.exitTicket ? [{ label: 'כרטיס יציאה', text: o.exitTicket }] : [])], materials: o.materials.map(text => ({ text })), homework: o.homework ? [o.homework] : [], links: [], badges: ['נבנה עם AI'], from: 'AI' } }); save(); toast('נשמר במאגר השיעורים ⭐'); break; }
     case 'subcreate': subCreate(); break;
     case 'subtsay': subTeacherSay(); break;
@@ -4970,6 +4988,56 @@ let rulesT = 0;
 // class rules and routines, kept per class (the substitute page shows them)
 function clsRules() { state.crules = state.crules || {}; const id = state.curClass || 'main'; return state.crules[id] || (state.crules[id] = { rules: '', routines: '' }); }
 
+// ================================================================ MY WORKSHEETS: the teacher builds her own sheet, printed in the same design
+function viewSheets() {
+  const sh = wsCur();
+  if (!sh) {
+    let h = top('דפי עבודה שלי', 'בונים דף בעצמך – ומדפיסים בעיצוב יפה, בצבע או בשחור־לבן', 'file', { back: 'more' });
+    h += `<div class="btnrow"><button class="cta" data-act="wsnew">${ic('plus')} דף עבודה חדש</button><button class="cta soft" data-go="ai">${ic('sparkle')} שה־AI יכין טיוטה</button></div>`;
+    if (!state.sheets.length) h += `<div class="card">${estate('e-files', 'עוד אין דפים', 'מתחילים דף חדש: כותרת, הוראה, ומוסיפים שאלות – פתוחה, השלמה, בחירה, תרגיל, מתיחת קו. אפשר גם רמות.')}</div>`;
+    else h += `<div class="card">${state.sheets.map(x => `<button class="wsrow" data-wsopen="${x.id}"><span class="chi">${ic('file')}</span><span class="grow"><b>${esc(x.title || 'דף בלי שם')}</b><small>${x.levels.reduce((a, l) => a + l.items.length, 0)} שאלות${x.levels.length > 1 ? ` · ${x.levels.length} רמות` : ''}${x.from === 'AI' ? ' · מה־AI' : ''} · ${new Date(x.at).toLocaleDateString('he-IL')}</small></span>${ic('chevL', 'chev')}</button>`).join('')}</div>`;
+    return h;
+  }
+  const inp = (f, v, ph, big) => big ? `<textarea data-wsf="${f}" rows="2" placeholder="${ph}">${esc(v || '')}</textarea>` : `<input data-wsf="${f}" value="${esc(v || '')}" placeholder="${ph}" autocomplete="off">`;
+  let h = top(sh.title ? esc(sh.title) : 'דף חדש', 'כותבים, ואז מדפיסים', 'file');
+  h += `<button class="linkbtn wsback" data-act="wsback">${ic('chevR')} כל הדפים</button>`;
+  h += `<div class="card setcard wsed">
+    <label class="field">כותרת הדף${inp('title', sh.title, 'למשל: בולי בקופה – חיבור במאונך')}</label>
+    <label class="field">סיפור / פתיחה <small class="dim">(לא חובה)</small>${inp('story', sh.story, 'משפט או שניים שמכניסים לעניין', true)}</label>
+    <div class="setrow"><span>"איך הרגשתי בדף?" בסוף כל דף</span><button class="switch ${sh.selfCheck === false ? '' : 'on'}" data-wstog="selfCheck" role="switch" aria-checked="${sh.selfCheck !== false}"><i></i></button></div>
+  </div>`;
+  sh.levels.forEach((l, li) => {
+    h += `<div class="card wslevel">
+      ${sh.levels.length > 1 ? `<div class="wslh"><input class="wsln" data-wsf="${li}|name" value="${esc(l.name)}" aria-label="שם הרמה"><button class="iconbtn" data-wsdellevel="${li}" aria-label="מחיקת הרמה">${ic('trash')}</button></div>` : ''}
+      <label class="field">הוראה לילדים${inp(`${li}|instructions`, l.instructions, 'למשל: פִּתְרוּ בַּמְּאֻנָּךְ. הַתְחִילוּ מֵהַיְּחִידוֹת.')}</label>
+      ${l.items.map((x, ii) => `<div class="wsitem">
+        <div class="wsih"><span class="wsn">${ii + 1}</span><select data-wsf="${li}|${ii}|kind" aria-label="סוג">${WS_KINDS.map(([k, n]) => `<option value="${k}" ${x.kind === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
+          ${ii ? `<button class="iconbtn" data-wsup="${li}|${ii}" aria-label="להעלות">${ic('chevD', 'flipup')}</button>` : ''}<button class="iconbtn" data-wsdelitem="${li}|${ii}" aria-label="מחיקה">${ic('x')}</button></div>
+        ${inp(`${li}|${ii}|prompt`, x.prompt, x.kind === 'fill' ? 'כותבים ____ במקום שצריך להשלים' : x.kind === 'calc' ? 'למשל: כִּתְבוּ בַּמְּאֻנָּךְ וּפִתְרוּ: 42 + 15' : 'השאלה', true)}
+        ${['choice', 'match', 'order'].includes(x.kind) ? `<label class="field sm">${x.kind === 'choice' ? 'תשובות לבחירה' : x.kind === 'match' ? 'הפריטים לחיבור בקו' : 'הפריטים לסידור'} <small class="dim">(שורה לכל אחת)</small><textarea data-wsf="${li}|${ii}|options" rows="3">${esc((x.options || []).join('\n'))}</textarea></label>` : ''}
+        <label class="field sm">תשובה <small class="dim">(לדף התשובות, לא חובה)</small><input data-wsf="${li}|${ii}|answer" value="${esc(x.answer || '')}" autocomplete="off"></label>
+      </div>`).join('')}
+      <p class="pmlbl">הוספת שאלה</p><div class="fchips wrap">${WS_KINDS.map(([k, n, i]) => `<button class="fc" data-wsadd="${li}|${k}">${ic(i)} ${n}</button>`).join('')}</div>
+    </div>`;
+  });
+  h += `<button class="addbtn" data-act="wslevel">${ic('layers')} ${sh.levels.length > 1 ? 'עוד רמה' : 'להוסיף רמות (דף מותאם לרמות שונות)'}</button>`;
+  h += `<div class="card setcard"><label class="field">הערה למורה <small class="dim">(מופיעה בדף התשובות)</small>${inp('teacherNote', sh.teacherNote, 'למשל: כדאי להביא מוטות וקוביות')}</label></div>`;
+  h += `<div class="btnrow"><button class="cta" data-act="wsprint">${ic('printer')} הדפסה בצבע</button><button class="cta soft" data-act="wsprintbw">${ic('printer')} שחור־לבן</button></div>
+    <div class="btnrow"><button class="cta soft" data-act="wsdup">${ic('layers')} עותק</button><button class="cta soft" data-act="wsdel">${ic('trash')} מחיקה</button></div>`;
+  return h;
+}
+let wsSaveT = 0;
+document.addEventListener('input', e => {
+  const f = e.target.dataset && e.target.dataset.wsf; if (!f) return;
+  const sh = wsCur(); if (!sh) return;
+  const p = f.split('|');
+  if (p.length === 1) sh[p[0]] = e.target.value;
+  else if (p.length === 2) sh.levels[+p[0]][p[1]] = e.target.value;
+  else { const x = sh.levels[+p[0]].items[+p[1]]; if (p[2] === 'options') x.options = e.target.value.split('\n').map(v => v.trim()).filter(Boolean); else x[p[2]] = e.target.value; }
+  sh.at = Date.now(); clearTimeout(wsSaveT); wsSaveT = setTimeout(save, 500);
+});
+document.addEventListener('change', e => { const f = e.target.dataset && e.target.dataset.wsf; if (f && f.endsWith('|kind')) { save(); const y = scrollY; rerender(); scrollTo(0, y); } });
+
 // ================================================================ CLASS RULES & ROUTINES (per class; the substitute page and the classroom screen show them)
 function viewRules() {
   const R = clsRules(), c = curCls(), ed = state._ruleEdit || null;
@@ -5163,7 +5231,8 @@ function viewAi() {
   if (o && o.kind === 'sheet') h += `<div class="card ailesson">${cardHead('file', esc(o.title))}${o.story ? `<p class="say">${esc(o.story)}</p>` : ''}
     ${o.levels.map(l => `<div class="aisec"><b>${esc(l.name)}</b><p class="dim">${esc(l.instructions)}</p><ol>${l.items.map(x => `<li>${esc(x.prompt)}${x.options.length ? `<div class="aiopts">${x.options.map(y => `<span>${esc(y)}</span>`).join('')}</div>` : ''}<small class="ans">תשובה: ${esc(x.answer)}</small></li>`).join('')}</ol></div>`).join('')}
     ${o.teacherNote ? `<p class="hint">${esc(o.teacherNote)}</p>` : ''}
-    <div class="btnrow"><button class="cta" data-act="aiprint">${ic('printer')} הדפסה (רמה בעמוד + תשובות)</button><button class="cta soft" data-act="aicopy">${ic('link')} העתקה</button></div></div>`;
+    <div class="btnrow"><button class="cta" data-act="aiprint">${ic('printer')} הדפסה בצבע</button><button class="cta soft" data-act="aiprintbw">${ic('printer')} שחור־לבן</button></div>
+    <div class="btnrow"><button class="cta soft" data-act="aiedit">${ic('pencil')} עריכה ושמירה בדפים שלי</button><button class="cta soft" data-act="aicopy">${ic('link')} העתקה</button></div></div>`;
   return h;
 }
 async function aiGo() {
@@ -5197,7 +5266,7 @@ function aiText(o) {
 }
 // the worksheet's fonts and picture are fetched ahead, so the print dialog never shows a half-styled page
 function wsPreload() { if (wsPreload.done) return; wsPreload.done = true; try { ['400 20px Playpen', '400 14px Rubik', '500 14px Rubik', '700 14px Rubik'].forEach(f => document.fonts.load(f, 'אבג')); } catch { /* fine */ } new Image().src = 'img/ill/dark/prep.webp'; }
-function aiPrint(o) {
+function aiPrint(o, bw) {
   wsPreload();
   let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
   // numbers and signs stay left-to-right inside Hebrew lines ("42 + 15" must not print as "15 + 42")
@@ -5205,6 +5274,7 @@ function aiPrint(o) {
   const plain = v => String(v || '').replace(/[\u0591-\u05C7]/g, '');
   const space = x => { const t = plain(x.prompt);
     if (x.kind === 'draw') return '<div class="ai-box"></div>';
+    if (x.kind === 'calc') return '<div class="ai-box calc"></div>';
     if (/מאונך|תרגיל|פתרו|חשבו/.test(t) && x.kind !== 'choice' && x.kind !== 'match' && x.kind !== 'order') return '<div class="ai-box calc"></div>';
     if (x.kind === 'open') return '<div class="mp-line"></div><div class="mp-line"></div>';
     return ''; };
@@ -5214,18 +5284,19 @@ function aiPrint(o) {
   const stars = n => '<span class="ws-stars">' + [0, 1, 2].map(k => `<svg viewBox="0 0 24 24" class="${k <= n ? 'on' : ''}"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2 6.3 20.3l1.2-6.4L2.8 9.5l6.4-.8z"/></svg>`).join('') + '</span>';
   const face = (k) => `<svg viewBox="0 0 40 40" class="ws-face"><circle cx="20" cy="20" r="17"/><circle cx="14" cy="16" r="1.8" class="f"/><circle cx="26" cy="16" r="1.8" class="f"/><path d="${['M12 24c4 5 12 5 16 0', 'M13 26h14', 'M12 28c4-5 12-5 16 0'][k]}"/></svg>`;
   const item = (x, i) => `<div class="ws-q"><span class="ws-n">${i + 1}</span><div class="ws-qb"><p class="ws-p">${blanks(M(x.prompt))}</p>${x.options.length ? `<div class="ws-opt ${x.kind}">${x.options.map(y => `<span>${x.kind === 'choice' ? '<i class="ws-bub"></i>' : x.kind === 'order' ? '<i class="ws-sq"></i>' : ''}${blanks(M(y))}</span>`).join('')}</div>` : ''}${space(x).replace('ai-box calc', 'ws-box calc').replace('ai-box', 'ws-box').replace(/mp-line/g, 'ws-line')}</div></div>`;
+  r.classList.toggle('bw', !!bw);
   if (o.kind === 'sheet') r.innerHTML = o.levels.map((l, li) => { const [c, t, cls] = LV[li % 3];
     return `<div class="pw-pg ws ${cls}" style="--c:${c};--t:${t}">
-      <div class="ws-top"><div class="ws-badge">${stars(li)}<b>${esc(l.name)}</b></div><div class="ws-who"><span>שם: <i></i></span><span>כיתה: <i class="sm"></i></span><span>תאריך: <i class="sm"></i></span></div></div>
+      <div class="ws-top">${l.name ? `<div class="ws-badge">${o.levels.length > 1 ? stars(li) : ''}<b>${esc(l.name)}</b></div>` : '<span></span>'}<div class="ws-who"><span>שם: <i></i></span><span>כיתה: <i class="sm"></i></span><span>תאריך: <i class="sm"></i></span></div></div>
       <h1 class="ws-h">${esc(o.title)}</h1>
       ${o.story ? `<div class="ws-story"><img src="img/ill/dark/prep.webp" alt=""><p>${M(o.story)}</p></div>` : ''}
-      <p class="ws-ins"><svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z M14 7l3 3"/></svg>${esc(l.instructions)}</p>
+      ${l.instructions ? `<p class="ws-ins"><svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z M14 7l3 3"/></svg>${esc(l.instructions)}</p>` : ''}
       ${l.items.map(item).join('')}
-      <div class="ws-end"><span>איך הרגשתי בדף?</span>${face(0)}${face(1)}${face(2)}<span class="ws-good">כל הכבוד! ✦</span></div>
+      ${o.selfCheck === false ? '' : `<div class="ws-end"><span>איך הרגשתי בדף?</span>${face(0)}${face(1)}${face(2)}<span class="ws-good">כל הכבוד! ✦</span></div>`}
     </div>`; }).join('')
-    + `<div class="pw-pg ws ws-key"><div class="ws-top"><div class="ws-badge"><b>למורה · תשובות</b></div></div><h1 class="ws-h">${esc(o.title)}</h1>
+    + (o.levels.some(l => l.items.some(x => x.answer)) ? `<div class="pw-pg ws ws-key"><div class="ws-top"><div class="ws-badge"><b>למורה · תשובות</b></div></div><h1 class="ws-h">${esc(o.title)}</h1>
       <div class="ws-keys">${o.levels.map((l, li) => `<div class="ws-kcol" style="--c:${LV[li % 3][0]};--t:${LV[li % 3][1]}"><h2>${esc(l.name)}</h2><ol>${l.items.map(x => `<li>${M(x.answer)}</li>`).join('')}</ol></div>`).join('')}</div>
-      ${o.teacherNote ? `<p class="ws-note"><b>הערה למורה:</b> ${esc(o.teacherNote)}</p>` : ''}</div>`;
+      ${o.teacherNote ? `<p class="ws-note"><b>הערה למורה:</b> ${esc(o.teacherNote)}</p>` : ''}</div>` : '');
   else r.innerHTML = `<div class="pw-pg aisheet"><header><h1>${esc(o.title)}</h1><p>${o.goals.map(esc).join(' · ')}</p></header>
     ${o.sections.map(x => `<h2>${esc(x.label)} · ${x.minutes} דק׳</h2>${x.teacherSays ? `<p>“${esc(x.teacherSays)}”</p>` : ''}${x.studentsDo ? `<p><b>הילדים:</b> ${esc(x.studentsDo)}</p>` : ''}<ol>${x.steps.map(y => `<li>${esc(y)}</li>`).join('')}</ol>`).join('')}
     ${o.questions.length ? `<h2>שאלות</h2><ol>${o.questions.map(x => `<li>${esc(x.q)} <i>(${esc(x.answer)})</i></li>`).join('')}</ol>` : ''}

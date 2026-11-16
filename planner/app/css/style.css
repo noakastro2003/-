@@ -2234,3 +2234,39 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 #printroot .ws-hint b { color: var(--c); font-weight: 500; }
 #printroot .ws-goal { font-size: 11.5pt; margin: -4pt 0 10pt; }
 .aiex { font-size: var(--fs-sm); }
+#printroot .ws-match { display: grid; grid-template-columns: auto 1fr auto; column-gap: 0; row-gap: 8pt; margin-top: 8pt; width: 78%; }
+#printroot .ws-match .l, #printroot .ws-match .r { display: inline-flex; align-items: center; gap: 8pt; padding: 3pt 12pt; border: 1.2pt solid var(--c); border-radius: 99pt; background: var(--t); }
+#printroot .ws-match .l { grid-column: 1; justify-self: start; }
+#printroot .ws-match .r { grid-column: 3; justify-self: end; background: #fff; }
+#printroot .ws-match i { width: 6pt; height: 6pt; border-radius: 50%; background: var(--c); display: inline-block; }
+#printroot.bw .ws-match .l { background: #fff; }
+/* v110 — tighter, so a level usually fits on one page */
+#printroot .ws { font-size: 12.5pt; line-height: 1.45; padding: 13pt 16pt 11pt; }
+#printroot .ws-top { margin-bottom: 6pt; }
+#printroot .ws-h { font-size: 22pt; margin: 2pt 0 8pt; padding-bottom: 4pt; }
+#printroot .ws-story { padding: 7pt 12pt; margin-bottom: 8pt; }
+#printroot .ws-story img { width: 44pt; height: 44pt; }
+#printroot .ws-story p, #printroot .ws-ins { font-size: 12pt; }
+#printroot .ws-ex { padding: 6pt 10pt; margin-bottom: 6pt; }
+#printroot .ws-ex p { font-size: 11.5pt; margin: 0; line-height: 1.4; }
+#printroot .ws-q { padding: 6pt 0 7pt; }
+#printroot .ws-box { height: 58pt; margin-top: 5pt; }
+#printroot .ws-box.calc { height: 56pt; width: 40%; }
+#printroot .ws-line { height: 21pt; }
+#printroot .ws-hint { margin-top: 1pt; }
+#printroot .ws-opt { margin-top: 4pt; }
+#printroot .ws-opt > span { padding: 2pt 10pt; margin-bottom: 3pt; }
+#printroot .ws-match { row-gap: 5pt; margin-top: 5pt; }
+#printroot .ws-end { margin-top: 6pt; padding-top: 6pt; }
+#printroot .ws-box.calc { height: 50pt; }
+#printroot .ws-q { padding: 5pt 0 6pt; }
+#printroot .ws-story img { width: 40pt; height: 40pt; }
+#printroot .ws-hint { display: inline-block; margin: 0 6pt 0 0; padding: 0 7pt; border-radius: 99pt; background: var(--t); font-size: 10pt; color: #5E5670; }
+#printroot.bw .ws-hint { background: #fff; border: .8pt dashed #999; }
+/* answer key: a full-width band per level, answers in two columns */
+#printroot .ws-keys { display: block; }
+#printroot .ws-kcol { margin-bottom: 8pt; padding: 8pt 14pt; }
+#printroot .ws-kcol ol { columns: 2; column-gap: 24pt; }
+#printroot .ws-kcol li { break-inside: avoid; }
+#printroot .ws-key .mth, #printroot .ws-note .mth, #printroot .ws-goal .mth { white-space: nowrap; }
+#printroot .ws-note { line-height: 1.6; background: #fff; border: 1pt dashed var(--c); border-radius: 12pt; padding: 8pt 12pt; }

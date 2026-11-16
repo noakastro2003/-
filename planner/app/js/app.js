@@ -5269,6 +5269,13 @@ function aiText(o) {
 }
 // the worksheet's fonts and picture are fetched ahead, so the print dialog never shows a half-styled page
 function wsPreload() { if (wsPreload.done) return; wsPreload.done = true; try { ['400 20px Playpen', '400 14px Rubik', '500 14px Rubik', '700 14px Rubik'].forEach(f => document.fonts.load(f, 'אבג')); } catch { /* fine */ } new Image().src = 'img/ill/dark/prep.webp'; }
+// "connect with a line": two columns, the answers shuffled (the same way every time), a dot at each end for the line
+function wsMatch(opts, M) {
+  const P = opts.map(y => { const i = y.lastIndexOf('='); return [y.slice(0, i).trim(), y.slice(i + 1).trim()]; });
+  const n = P.length, order = P.map((_, i) => i).sort((a, b) => ((a * 7 + 3) % n) - ((b * 7 + 3) % n) || a - b);
+  if (order.every((v, i) => v === i)) order.push(order.shift());
+  return `<div class="ws-match">${P.map((p, i) => `<span class="l">${M(p[0])}<i></i></span><span class="r"><i></i>${M(P[order[i]][1])}</span>`).join('')}</div>`;
+}
 function aiPrint(o, bw) {
   wsPreload();
   let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
@@ -5286,7 +5293,7 @@ function aiPrint(o, bw) {
   const blanks = h => h.replace(/_{2,}/g, '<span class="ws-blank"></span>');
   const stars = n => '<span class="ws-stars">' + [0, 1, 2].map(k => `<svg viewBox="0 0 24 24" class="${k <= n ? 'on' : ''}"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2 6.3 20.3l1.2-6.4L2.8 9.5l6.4-.8z"/></svg>`).join('') + '</span>';
   const face = (k) => `<svg viewBox="0 0 40 40" class="ws-face"><circle cx="20" cy="20" r="17"/><circle cx="14" cy="16" r="1.8" class="f"/><circle cx="26" cy="16" r="1.8" class="f"/><path d="${['M12 24c4 5 12 5 16 0', 'M13 26h14', 'M12 28c4-5 12-5 16 0'][k]}"/></svg>`;
-  const item = (x, i) => `<div class="ws-q"><span class="ws-n">${i + 1}</span><div class="ws-qb"><p class="ws-p">${blanks(M(x.prompt))}</p>${x.hint ? `<p class="ws-hint"><b>רֶמֶז:</b> ${M(x.hint)}</p>` : ''}${x.options.length ? `<div class="ws-opt ${x.kind}">${x.options.map(y => `<span>${x.kind === 'choice' ? '<i class="ws-bub"></i>' : x.kind === 'order' ? '<i class="ws-sq"></i>' : ''}${blanks(M(y))}</span>`).join('')}</div>` : ''}${space(x).replace('ai-box calc', 'ws-box calc').replace('ai-box', 'ws-box').replace(/mp-line/g, 'ws-line')}</div></div>`;
+  const item = (x, i) => `<div class="ws-q"><span class="ws-n">${i + 1}</span><div class="ws-qb"><p class="ws-p">${blanks(M(x.prompt))}${x.hint ? ` <span class="ws-hint"><b>רֶמֶז:</b> ${M(x.hint)}</span>` : ''}</p>${x.kind === 'match' && x.options.length > 1 && x.options.every(y => /=/.test(y)) ? wsMatch(x.options, M) : x.options.length ? `<div class="ws-opt ${x.kind}">${x.options.map(y => `<span>${x.kind === 'choice' ? '<i class="ws-bub"></i>' : x.kind === 'order' ? '<i class="ws-sq"></i>' : ''}${blanks(M(y))}</span>`).join('')}</div>` : ''}${space(x).replace('ai-box calc', 'ws-box calc').replace('ai-box', 'ws-box').replace(/mp-line/g, 'ws-line')}</div></div>`;
   r.classList.toggle('bw', !!bw);
   if (o.kind === 'sheet') r.innerHTML = o.levels.map((l, li) => { const [c, t, cls] = LV[li % 3];
     return `<div class="pw-pg ws ${cls}" style="--c:${c};--t:${t}">
@@ -5298,9 +5305,9 @@ function aiPrint(o, bw) {
       ${l.items.map(item).join('')}
       ${o.selfCheck === false ? '' : `<div class="ws-end"><span>איך הרגשתי בדף?</span>${face(0)}${face(1)}${face(2)}<span class="ws-good">כל הכבוד! ✦</span></div>`}
     </div>`; }).join('')
-    + (o.levels.some(l => l.items.some(x => x.answer)) ? `<div class="pw-pg ws ws-key"><div class="ws-top"><div class="ws-badge"><b>למורה · תשובות</b></div></div><h1 class="ws-h">${esc(o.title)}</h1>${o.goal ? `<p class="ws-goal"><b>מטרת הדף:</b> ${esc(o.goal)}</p>` : ''}
+    + (o.levels.some(l => l.items.some(x => x.answer)) ? `<div class="pw-pg ws ws-key"><div class="ws-top"><div class="ws-badge"><b>למורה · תשובות</b></div></div><h1 class="ws-h">${esc(o.title)}</h1>${o.goal ? `<p class="ws-goal"><b>מטרת הדף:</b> ${M(o.goal)}</p>` : ''}
       <div class="ws-keys">${o.levels.map((l, li) => `<div class="ws-kcol" style="--c:${LV[li % 3][0]};--t:${LV[li % 3][1]}"><h2>${esc(l.name)}</h2><ol>${l.items.map(x => `<li>${M(x.answer)}</li>`).join('')}</ol></div>`).join('')}</div>
-      ${o.teacherNote ? `<p class="ws-note"><b>הערה למורה:</b> ${esc(o.teacherNote)}</p>` : ''}</div>` : '');
+      ${o.teacherNote ? `<p class="ws-note"><b>הערה למורה:</b> ${M(o.teacherNote)}</p>` : ''}</div>` : '');
   else r.innerHTML = `<div class="pw-pg aisheet"><header><h1>${esc(o.title)}</h1><p>${o.goals.map(esc).join(' · ')}</p></header>
     ${o.sections.map(x => `<h2>${esc(x.label)} · ${x.minutes} דק׳</h2>${x.teacherSays ? `<p>“${esc(x.teacherSays)}”</p>` : ''}${x.studentsDo ? `<p><b>הילדים:</b> ${esc(x.studentsDo)}</p>` : ''}<ol>${x.steps.map(y => `<li>${esc(y)}</li>`).join('')}</ol>`).join('')}
     ${o.questions.length ? `<h2>שאלות</h2><ol>${o.questions.map(x => `<li>${esc(x.q)} <i>(${esc(x.answer)})</i></li>`).join('')}</ol>` : ''}

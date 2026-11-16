@@ -13,7 +13,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 84; // keep in step with CACHE in sw.js
+const APP_V = 85; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -796,6 +796,19 @@ const diagText = d => d ? `קובץ: ${d.name} · ${d.type} · ${Math.round(d.si
 const isDict = p => /הכתבה/.test(`${p.title} ${p.subtitle} ${p.sections.map(s => s.label + ' ' + s.text).join(' ')}`);
 const splitWords = t => String(t || '').split(/[,،·\n]+|\s[–-]\s/).map(x => x.trim().replace(/^["״']|["״']$/g, '')).filter(x => x && x.length < 40);
 const dictBtn = (day, p) => `<button class="cta soft dictbtn" data-dict="${esc(day.dow + '|' + p.label)}">${ic('dice')} הגרלת סדר המילים להכתבה</button>`;
+// the words for NEXT week's dictation: a notes block titled "הכתבה", or a line in a lesson such as
+// "מחלקים את המילים לשבוע הבא – ריבוי זוגי: מִשְׁקָפַיִם, אוֹפַנַּיִם…" (topic before the colon, words after it)
+function dictNext(w) {
+  if (!w) return { topic: '', words: [] };
+  const n = (w.notes || []).find(x => /הכתבה/.test(x.label) && splitWords(x.text).length >= 3 && x.text.length < 600);
+  if (n) return { topic: (n.label.split('·')[1] || '').trim(), words: splitWords(n.text) };
+  const re = /מילים\s+(?:להכתבה\s+)?(?:ל?שבוע\s+הבא|הבאה|להכתבה\s+הבאה)\s*[–\-:]?\s*(?:([^:·\n]{2,30}):\s*)?([^·\n]+)/;
+  for (const d of w.days) for (const p of d.periods) for (const t of [...p.sections.map(x => x.text), ...p.materials.map(x => x.text), ...p.homework]) {
+    const m = String(t || '').match(re);
+    if (m && splitWords(m[2]).length >= 3) return { topic: (m[1] || '').replace(/^[–\-\s]+/, '').trim(), words: splitWords(m[2]) };
+  }
+  return { topic: '', words: [] };
+}
 function dictSource(w, dow, label) {
   const k = `${w.id}:${dow}:${label}`;
   if (state.dict[k]) return state.dict[k];
@@ -803,7 +816,8 @@ function dictSource(w, dow, label) {
   const sec = p && p.sections.find(s => /הכתבה|מילים/.test(s.label) && s.text);
   if (sec) return splitWords(sec.text);
   const prev = sortedWeeks().filter(x => x.id < w.id).pop();
-  const n = [...(prev ? prev.notes || [] : []), ...(w.notes || [])].find(x => /הכתבה/.test(x.label));
+  const fromPrev = dictNext(prev).words; if (fromPrev.length) return fromPrev;
+  const n = (w.notes || []).find(x => /הכתבה/.test(x.label));
   return n ? splitWords(n.text) : [];
 }
 function shuffled(a, not) {
@@ -846,9 +860,9 @@ function pmDefaults(w, type) {
   const today = todayInWeek(w), next = w.days.find(d => dayDate(w, d) > t) || w.days[w.days.length - 1];
   const past = w.days.filter(d => dayDate(w, d) && dayDate(w, d) <= t).pop() || w.days[0];
   if (type === 'all') {
-    const n = (w.notes || []).find(x => /הכתבה/.test(x.label));
+    const dn = dictNext(w);
     const g = (next ? next.periods : []).flatMap(p => [...p.materials.map(m => m.text), ...p.sections.map(x => x.text)]).filter(x => /להביא|לצייד|להגיע עם/.test(x));
-    return { scope: t.getDay() === 6 || t.getDay() === 5 ? 'week' : 'day', dow: (today || past).dow, topic: n ? (n.label.split('·')[1] || '').trim() : '', words: n ? splitWords(n.text) : [], dictWhen: '',
+    return { scope: t.getDay() === 6 || t.getDay() === 5 ? 'week' : 'day', dow: (today || past).dow, topic: dn.topic, words: dn.words, dictWhen: '',
       tests: autoTests(w), events: autoEvents(w), names: weekBdays(w, state.kids), bdayWhen: '', gear: g, treats: false };
   }
   if (type === 'today') return { dow: (today || past).dow, learned: true, hw: true, help: true };
@@ -863,10 +877,7 @@ function pmDefaults(w, type) {
     const g = d ? d.periods.flatMap(p => [...p.materials.map(m => m.text), ...p.sections.map(x => x.text)]).filter(x => /להביא|לצייד|להגיע עם/.test(x)) : [];
     return { dow: d && d.dow, gear: g };
   }
-  if (type === 'dict') {
-    const n = (w.notes || []).find(x => /הכתבה/.test(x.label));
-    return { topic: n ? (n.label.split('·')[1] || '').trim() : '', words: n ? splitWords(n.text) : [] };
-  }
+  if (type === 'dict') { const dn = dictNext(w); return { topic: dn.topic, words: dn.words }; }
   if (type === 'test') {
     const hit = w.days.flatMap(d => d.periods.filter(p => /מבדק|משימת הערכה|מבחן/.test(p.title)).map(p => ({ d, p })))[0];
     return { what: hit ? hit.p.title : 'מבדק', when: hit ? `ביום ${hit.d.name}${hit.d.date ? ' ' + hit.d.date : ''}` : '', topics: [] };
@@ -1467,8 +1478,8 @@ function nextWeekFrom(w) {
       : { ...c, title: look(p).n === 'שיעור' ? p.title : (/מפגש בוקר|צוות|פרטני/.test(p.title) ? p.title : look(p).n), sections: [], materials: [], homework: [], links: [], badges: [] };
   }) }));
   const wk = buildWeek(days, isoDay(start), { title: w.number ? `שבוע ${w.number + 1}` : '', number: w.number ? w.number + 1 : null });
-  const dict = (w.notes || []).find(n => /הכתבה/.test(n.label));
-  wk.notes = [...(carried.length ? [{ label: 'עבר מהשבוע הקודם', text: carried.join(' · ') }] : []), ...(dict ? [{ label: 'מילים להכתבה (מהשבוע הקודם)', text: dict.text }] : [])];
+  const dn = dictNext(w);
+  wk.notes = [...(carried.length ? [{ label: 'עבר מהשבוע הקודם', text: carried.join(' · ') }] : []), ...(dn.words.length ? [{ label: `מילים להכתבה${dn.topic ? ' · ' + dn.topic : ''}`, text: dn.words.join(', ') }] : [])];
   return { wk, carried };
 }
 function viewBank() {

@@ -41,6 +41,8 @@ export function linesFrom(items) {
   return lines.map(l => buildLine(l.y, l.items)).sort((a, b) => a.y - b.y);
 }
 
+// relative widths of Hebrew letters in common fonts (wide letters ≈ .9)
+const CW = { 'ו': .42, 'י': .4, 'ן': .42, 'ז': .5, 'ג': .62, 'נ': .6, 'ר': .7, 'ד': .72, 'ך': .72, 'ל': .8, 'ף': .76, 'ץ': .76, 'ק': .85, ' ': .3, '-': .4, '–': .6, ',': .3, '.': .3, ':': .3 };
 export async function pageItems(page) {
   await page.getOperatorList(); // makes fonts available in commonObjs
   const tc = await page.getTextContent();
@@ -61,13 +63,27 @@ export async function pageItems(page) {
     const x = it.transform[4];
     const yb = vp.height - it.transform[5];
     const size = Math.round(Math.abs(it.transform[3]) || it.height);
-    items.push({ s: it.str, x, w: it.width, x1: x + it.width, y: yb, size, bold: isBold(it.fontName) });
+    items.push({ s: it.str, x, w: it.width, x1: x + it.width, y: yb, size, bold: isBold(it.fontName), k: items.length });
   }
+  // some PDFs write every letter and mark as its own piece, left to right, each mark just before the letter it sits on:
+  // then the order tells us the letter (positions are offset and mislead)
+  const stream = items.slice();
+  const nextLetter = m => {
+    for (let j = m.k + 1; j < stream.length && j < m.k + 4; j++) {
+      const n = stream[j]; if (Math.abs(n.y - m.y) > 3) return null;
+      if (!n.s.trim()) continue;
+      if (MARK.test(n.s)) continue;
+      return Array.from(n.s.replace(/[\u0591-\u05C7]/g, '')).length === 1 && HEB.test(n.s) ? n : null;
+    }
+    return null;
+  };
 
   // attach niqqud marks to the letter they sit over
   const marks = items.filter(i => MARK.test(i.s));
   items = items.filter(i => !MARK.test(i.s));
   for (const m of marks) {
+    const nl = nextLetter(m);
+    if (nl) { nl.s += m.s; continue; }
     let best = null, bd = 1e9;
     for (const b of items) {
       if (Math.abs(b.y - m.y) > 3 || !HEB.test(b.s)) continue;
@@ -76,9 +92,14 @@ export async function pageItems(page) {
     }
     if (!best || bd > 3) continue;
     const chars = Array.from(best.s);
-    // Hebrew item is logical: first char is the rightmost
-    let idx = Math.floor((best.x1 - m.x) / (best.w || 1) * chars.length);
-    idx = Math.max(0, Math.min(chars.length - 1, idx));
+    // Hebrew item is logical: first char is the rightmost. Letters differ in width (ו, י are narrow; ש, מ wide),
+    // so walk the letters with their real proportions and give the mark to the one under its centre.
+    const wts = chars.map(c => MARK.test(c) ? 0 : (CW[c] ?? (HEB.test(c) ? .9 : .55)));
+    const tot = wts.reduce((a, b) => a + b, 0) || 1;
+    const at = (best.x1 - (m.x + (m.w || 0) / 2)) / (best.w || 1) * tot;
+    let acc = 0, idx = chars.length - 1;
+    for (let i = 0; i < chars.length; i++) { if (!wts[i]) continue; if (at < acc + wts[i]) { idx = i; break; } acc += wts[i]; }
+    while (idx > 0 && !wts[idx]) idx--;
     chars[idx] = chars[idx] + m.s;
     best.s = chars.join('');
   }

@@ -15,7 +15,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 const KEY = 'noa-planner-v1';
 const team = { data: {}, at: {}, busy: {} }; // shared-week progress of the other teachers (see TEAM below)
 let teamT = 0;
-const APP_V = 93; // keep in step with CACHE in sw.js
+const ai = { busy: false, kind: 'lesson', out: null, err: '' }; // the AI builder's screen state (see AI below)
+const APP_V = 94; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -265,7 +266,7 @@ const greet = () => { const h = now().getHours(); return h < 5 ? 'לילה טו�
 // one illustration family (soft clay, plum / cream / gold), shown in a rounded tile
 const ILL = { books: 'desk', notepad: 'prep', star: 'tools', heart: 'class', clock: 'week', calendar: 'week', cake: 'notebook', medal: 'medal', sunrise: 'school', school: 'school', notebook: 'notebook' };
 // which picture belongs to which screen
-const TAB_ILL = { seats: 'class', now: 'desk', day: 'week', prep: 'prep', cls: 'class', kids: 'class', class: 'class', friends: 'class', more: 'tools', tools: 'tools', files: 'tools', journal: 'notebook', todos: 'notebook', lists: 'prep', autos: 'notebook', calendar: 'week', bells: 'week', bank: 'desk', msgs: 'notebook', summary: 'medal', grades: 'medal', settings: 'tools', reports: 'notebook' };
+const TAB_ILL = { ai: 'prep', seats: 'class', now: 'desk', day: 'week', prep: 'prep', cls: 'class', kids: 'class', class: 'class', friends: 'class', more: 'tools', tools: 'tools', files: 'tools', journal: 'notebook', todos: 'notebook', lists: 'prep', autos: 'notebook', calendar: 'week', bells: 'week', bank: 'desk', msgs: 'notebook', summary: 'medal', grades: 'medal', settings: 'tools', reports: 'notebook' };
 const ILLF = new Set(['desk', 'week', 'prep', 'class', 'tools', 'school', 'notebook', 'medal']);
 const illFile = name => ILLF.has(name) ? name : ILL[name];
 // every picture has a night twin cut out of its cream background (img/ill/dark/*.webp); it loads only when night shows it
@@ -2178,7 +2179,7 @@ function viewMore(w) {
   return top('עוד', streak() > 1 ? `🔥 ${streak()} ימים ברצף שהכל מוכן` : 'כלים, הגדרות ותכנונים', 'star') + `
   ${[
     ['תכנון', [['upload', 'תכנון חדש', 'data-act="upload"'], ['layers', 'השבוע הבא', w ? 'data-act="nextweek"' : 'disabled'], ['grid', 'מערכת', 'data-day="all"'], ['clock', 'לוח צלצולים', 'data-go="bells"'], ['book', 'מאגר שיעורים', 'data-go="bank"'], ['printer', 'הדפסת השבוע', w ? `data-printweek="${esc(w.id)}"` : 'disabled'], ['chart', 'סיכום שבוע', `data-go="summary" ${w ? '' : 'disabled'}`]]],
-    ['חומרים ורעיונות', [['screen', 'מסך הכיתה', 'data-act="cast"'], ['folder', 'קבצים', 'data-go="files"'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"'], ['pencil', 'נקדן', 'data-act="nakdan"']]],
+    ['חומרים ורעיונות', [['sparkle', 'שיעור / דף עבודה עם AI', 'data-go="ai"'], ['screen', 'מסך הכיתה', 'data-act="cast"'], ['folder', 'קבצים', 'data-go="files"'], ['sparkle', 'שיטות וטיפים', 'data-go="tools"'], ['text', 'הגרלת הכתבה', 'data-act="dictfree"'], ['pencil', 'נקדן', 'data-act="nakdan"']]],
     ['תזכורות ושיתוף', [['pin', 'תזכורות', 'data-go="todos"'], ['check', 'הרשימות שלי', 'data-go="lists"'], ['bell', 'אוטומציות', 'data-go="autos"'], ['heart', 'מורות חברות', 'data-go="friends"']]],
   ].map(([t, items], k) => `<h4 class="sect msect">${t}</h4><div class="toolgrid ${['hue-lav', 'hue-apr', 'hue-rose'][k] || ''}">${items.map(([i, l, a]) => `<button ${a}><span class="ti">${ic(i)}</span>${l}</button>`).join('')}</div>`).join('')}
   <h4 class="sect msect">עזרה והגדרות</h4>
@@ -3515,8 +3516,8 @@ function readyMoment(day) {
 
 // ================================================================ render
 const TABS = ['now', 'day', 'prep', 'cls', 'more'];
-const SUB = { seats: 'cls', files: 'more', friends: 'more', bells: 'more', kids: 'cls', grades: 'cls', journal: 'cls', class: 'cls', msgs: 'cls', calendar: 'cls', todos: 'more', reports: 'more', summary: 'more', settings: 'more',  lists: 'more', autos: 'more', tools: 'more',   bank: 'more',  };
-const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, cls: viewHub, friends: viewFriends, bells: viewBells, reports: viewReports, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar, seats: viewSeats };
+const SUB = { ai: 'more', seats: 'cls', files: 'more', friends: 'more', bells: 'more', kids: 'cls', grades: 'cls', journal: 'cls', class: 'cls', msgs: 'cls', calendar: 'cls', todos: 'more', reports: 'more', summary: 'more', settings: 'more',  lists: 'more', autos: 'more', tools: 'more',   bank: 'more',  };
+const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, cls: viewHub, friends: viewFriends, bells: viewBells, reports: viewReports, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar, seats: viewSeats, ai: viewAi };
 let lastTab = null;
 function render(animate) {
   let w = pickWeek();
@@ -3531,7 +3532,7 @@ function render(animate) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   requestAnimationFrame(moveTabInd);
   const v = $('#view');
-  const needWeek = !['seats', 'more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells', 'reports'].includes(state.tab);
+  const needWeek = !['ai', 'seats', 'more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells', 'reports'].includes(state.tab);
   document.body.classList.toggle('onboarding', !state.onboarded);
   let html = !state.onboarded ? viewOnboard() : !w && needWeek ? viewEmpty() : VIEWS[state.tab](w);
   const busyNow = (() => { const w0 = realWeek(), d0 = w0 && todayInWeek(w0), ph0 = d0 && phase(d0); return ph0 && (ph0.kind === 'lesson' || ph0.kind === 'break'); })();
@@ -3700,12 +3701,18 @@ document.addEventListener('click', async e => {
   if (D.cnote != null && D.tag) { noteSheet(D.cnote || null, D.tag); return; }
   if (D.picktag) { state._note.tag = D.picktag; state._note.tagSet = true; document.querySelectorAll('.tp').forEach(b => b.classList.toggle('on', b.dataset.picktag === D.picktag)); return; }
   if (D.pickkid) { const k = state._note.kids, i = k.indexOf(D.pickkid); if (i >= 0) k.splice(i, 1); else k.push(D.pickkid); t.classList.toggle('on', i < 0); return; }
+  if (D.aikind) { ai.kind = D.aikind; ai.out = null; ai.err = ''; ['#aiTopic', '#aiGrade', '#aiNotes'].forEach(id => { const el = $(id); if (el) state['_ai' + id.slice(3)] = el.value; }); rerender(); return; }
   if (D.subday != null) { subSheet(+D.subday); return; }
   if (D.subtog) { state._sub[D.subtog] = !state._sub[D.subtog]; subSheet(); return; }
   if (D.subhours) { state._sub.hours = D.subhours; subSheet(); return; }
   if (D.subshare) { subShare(D.subshare); return; }
   if (D.subend) { fetch('/api/sub?op=end', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: D.subend }) }).catch(() => {}); state.prefs.subLast = null; save(); toast('הקישור בוטל ✓'); subSheet(); return; }
   if (D.insoff) { state.prefs.insOff = state.prefs.insOff || {}; state.prefs.insOff[D.insoff] = Date.now(); save(); rerender(); return; }
+  if (D.evalai) { const n = D.evalai, t0 = $('#evalText'); if (!t0 || !t0.value.trim()) return; if (!sync.user) { toast(AI_ERR.login, 3000); return; }
+    t.disabled = true; t.innerHTML = `${ic('sparkle')} משפרת…`;
+    try { const txt = await aiCall({ kind: 'polish', text: t0.value }); withUndo(['evals'], 'הניסוח שופר', () => { state.evals[n] = { ...(state.evals[n] || {}), text: txt.trim() }; }); evalSheet(n); }
+    catch (e) { toast(AI_ERR[e.code] || AI_ERR.error, 3500); t.disabled = false; t.innerHTML = `${ic('sparkle')} שיפור הניסוח עם AI`; }
+    return; }
   if (D.evaldraft) { evalSheet(D.evaldraft); return; }
   if (D.evalsex) { const [n, sx] = D.evalsex.split('|'); state.evals = state.evals || {}; const E = state.evals[n] = state.evals[n] || {}; const changed = E.sex && E.sex !== sx; E.sex = sx; const k = state.kids.find(x => x.name === n); if (k) k.sex = sx; if (changed || !E.text) E.text = evalDraft(n, sx); save(); evalSheet(n); return; }
   if (D.evalredo) { const n = D.evalredo, E = state.evals[n] || {}; withUndo(['evals'], 'נכתבה טיוטה חדשה', () => { state.evals[n] = { ...E, text: evalDraft(n, E.sex || 'f') }; }); evalSheet(n); return; }
@@ -3892,6 +3899,10 @@ document.addEventListener('click', async e => {
     case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
     case 'classes': classesSheet(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
+    case 'aigo': aiGo(); break;
+    case 'aicopy': { try { await navigator.clipboard.writeText(aiText(ai.out)); toast('הועתק ✓', 1500); } catch { toast('לא הצלחתי להעתיק'); } break; }
+    case 'aiprint': aiPrint(ai.out); break;
+    case 'aibank': { const o = ai.out; state.bank.push({ id: uid(), at: Date.now(), p: { label: '', start: '', end: '', title: o.title, subtitle: o.goal || '', sections: o.sections.map(x => ({ label: `${x.label} (${x.minutes} דק׳)`, text: x.text })), materials: o.materials.map(text => ({ text })), homework: o.homework ? [o.homework] : [], links: [], badges: ['נבנה עם AI'], from: 'AI' } }); save(); toast('נשמר במאגר השיעורים ⭐'); break; }
     case 'subcreate': subCreate(); break;
     case 'ics': icsExport(); break;
     case 'evalall': evalAllSheet(); break;
@@ -4635,7 +4646,8 @@ function evalSheet(name) {
     <div class="setrow"><span>פנייה</span><div class="seg"><button class="${sex === 'm' ? 'on' : ''}" data-evalsex="${esc(name)}|m">בן</button><button class="${sex === 'f' ? 'on' : ''}" data-evalsex="${esc(name)}|f">בת</button></div></div>
     ${sex ? `<label class="field">הטקסט (נשמר לבד)<textarea id="evalText" data-evalname="${esc(name)}" rows="10">${esc(text)}</textarea></label>
       <p class="hint">הטיוטה נבנתה ממה שנרשם השנה: ציונים, מגמה, הצטיינויות, הפרעות ונוכחות. כדאי להוסיף משפט אישי משלך.</p>
-      <div class="btnrow"><button class="cta" data-evalcopy="${esc(name)}">${ic('link')} העתקה</button><button class="cta soft" data-evalredo="${esc(name)}">${ic('dice')} טיוטה מחדש</button></div>`
+      <div class="btnrow"><button class="cta" data-evalcopy="${esc(name)}">${ic('link')} העתקה</button><button class="cta soft" data-evalredo="${esc(name)}">${ic('dice')} טיוטה מחדש</button></div>
+      <button class="cta soft" data-evalai="${esc(name)}">${ic('sparkle')} שיפור הניסוח עם AI</button>`
       : '<p class="hint">בוחרים בן או בת – וההערכה תיכתב בלשון המתאימה.</p>'}
   </div>`);
 }
@@ -4786,3 +4798,60 @@ async function subShare(t) {
   try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('הקישור הועתק – מדביקים בווטסאפ ✓', 2500); } catch { prompt('הקישור:', url); }
 }
 document.addEventListener('input', e => { if (e.target.id === 'subNotes' && state._sub) state._sub.notes = e.target.value; });
+
+// ================================================================ AI: a lesson or a three-level worksheet from a topic (Claude, through Netlify AI Gateway)
+async function aiCall(body, onText) {
+  try { await ID.refreshSession(); } catch { /* fine */ }
+  const r = await fetch('/api/ai', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw Object.assign(new Error(j.error || r.status), { code: j.error || r.status }); }
+  const rd = r.body.getReader(), dec = new TextDecoder(); let txt = '';
+  for (;;) { const { value, done } = await rd.read(); if (done) break; txt += dec.decode(value, { stream: true }); onText && onText(txt); }
+  const m = txt.match(/\n\u0000(\w+)$/); if (m) throw Object.assign(new Error(m[1]), { code: m[1] });
+  return txt;
+}
+const AI_ERR = { login: 'צריך להתחבר לחשבון (בהגדרות)', limit: 'הגעת למכסה היומית – אפשר שוב מחר', 'not-ready': 'הבינה המלאכותית עוד לא פעילה באתר – היא נדלקת אחרי ההעלאה הבאה', refusal: 'לא הצלחתי לבנות את זה – נסי לנסח אחרת', cut: 'התשובה נקטעה – נסי נושא מצומצם יותר', error: 'משהו השתבש – נסי שוב בעוד רגע' };
+function viewAi() {
+  const c = curCls();
+  let h = top('בונים עם AI', 'שיעור מלא או דף עבודה בשלוש רמות – מנושא אחד', 'sparkle', { back: 'more' });
+  h += `<div class="card setcard aiform">
+    <div class="seg aikind">${[['lesson', 'שיעור', 'book'], ['sheet', 'דף עבודה', 'file']].map(([k, l, i]) => `<button class="${ai.kind === k ? 'on' : ''}" data-aikind="${k}">${ic(i)}${l}</button>`).join('')}</div>
+    <label class="field">נושא<input id="aiTopic" placeholder="${ai.kind === 'lesson' ? 'למשל: ריבוי זוגי – מִשְׁקָפַיִם, אוֹפַנַּיִם' : 'למשל: חיבור במאונך עד 100'}" value="${esc(state._aiTopic || '')}"></label>
+    <div class="frow"><label class="field">כיתה<input id="aiGrade" value="${esc(state._aiGrade || (c && c.name) || '')}" placeholder="ב׳"></label>${ai.kind === 'lesson' ? `<label class="field">דקות<input id="aiMin" type="number" inputmode="numeric" value="${esc(state._aiMin || 45)}"></label>` : ''}</div>
+    <label class="field">דגשים (לא חובה)<textarea id="aiNotes" rows="2" placeholder="למשל: הרבה תנועה, עבודה בזוגות, יש 3 תלמידים מתקשים בקריאה">${esc(state._aiNotes || '')}</textarea></label>
+    <button class="cta" data-act="aigo" ${ai.busy ? 'disabled' : ''}>${ic('sparkle')} ${ai.busy ? 'בונה…' : ai.kind === 'lesson' ? 'בניית שיעור' : 'בניית דף עבודה'}</button>
+    <p class="hint">נבנה עם Claude. כדאי תמיד לעבור על התוצאה לפני השיעור. עד 15 בניות ביום.</p>
+  </div>`;
+  if (ai.busy) h += `<div class="card aiwait"><span class="ld-ill">${slotImg('welcome', 'md')}</span><b>${ai.kind === 'lesson' ? 'מתכננת את השיעור…' : 'כותבת את הדף…'}</b><small id="aiProg">זה לוקח בערך חצי דקה</small></div>`;
+  if (ai.err) h += `<div class="card"><p class="dim">${esc(ai.err)}</p></div>`;
+  const o = ai.out;
+  if (o && o.kind === 'lesson') h += `<div class="card ailesson">${cardHead('book', esc(o.title))}${o.goal ? `<p class="dim">${esc(o.goal)}</p>` : ''}
+    ${o.sections.map(x => `<div class="aisec"><b>${esc(x.label)}<span>${x.minutes} דק׳</span></b><p>${esc(x.text)}</p></div>`).join('')}
+    ${o.materials.length ? `<h4>מה צריך</h4><ul>${o.materials.map(m => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}
+    ${o.homework ? `<h4>שיעורי בית</h4><p>${esc(o.homework)}</p>` : ''}${o.differentiation ? `<h4>התאמה לתלמידים</h4><p>${esc(o.differentiation)}</p>` : ''}
+    <div class="btnrow"><button class="cta" data-act="aibank">${ic('star')} שמירה במאגר השיעורים</button><button class="cta soft" data-act="aicopy">${ic('link')} העתקה</button></div></div>`;
+  if (o && o.kind === 'sheet') h += `<div class="card ailesson">${cardHead('file', esc(o.title))}
+    ${o.levels.map(l => `<div class="aisec"><b>${esc(l.name)}</b><p class="dim">${esc(l.instructions)}</p><ol>${l.items.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>`).join('')}
+    <div class="btnrow"><button class="cta" data-act="aiprint">${ic('printer')} הדפסה (כל רמה בעמוד)</button><button class="cta soft" data-act="aicopy">${ic('link')} העתקה</button></div></div>`;
+  return h;
+}
+async function aiGo() {
+  const v = id => ($(id) || {}).value || '';
+  state._aiTopic = v('#aiTopic').trim(); state._aiGrade = v('#aiGrade').trim(); state._aiNotes = v('#aiNotes').trim(); if ($('#aiMin')) state._aiMin = +v('#aiMin') || 45;
+  if (!state._aiTopic) { toast('כותבים נושא קודם'); return; }
+  if (!sync.user) { toast(AI_ERR.login, 3000); return; }
+  Object.assign(ai, { busy: true, out: null, err: '' }); rerender();
+  try {
+    const txt = await aiCall({ kind: ai.kind, topic: state._aiTopic, grade: state._aiGrade, minutes: state._aiMin, notes: state._aiNotes }, t => { const p = $('#aiProg'); if (p) p.textContent = `נכתבו ${t.length} תווים…`; });
+    ai.out = { kind: ai.kind, ...JSON.parse(txt) };
+  } catch (e) { ai.err = AI_ERR[e.code] || AI_ERR.error; }
+  ai.busy = false; if (state.tab === 'ai') rerender();
+}
+function aiText(o) {
+  if (o.kind === 'lesson') return [o.title, o.goal, '', ...o.sections.map(x => `${x.label} (${x.minutes} דק׳)\n${x.text}`), '', o.materials.length ? 'מה צריך: ' + o.materials.join(', ') : '', o.homework ? 'שיעורי בית: ' + o.homework : '', o.differentiation ? 'התאמה: ' + o.differentiation : ''].filter(x => x !== null).join('\n');
+  return [o.title, '', ...o.levels.map(l => `${l.name}\n${l.instructions}\n${l.items.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n`)].join('\n');
+}
+function aiPrint(o) {
+  let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
+  r.innerHTML = o.levels.map(l => `<div class="pw-pg aisheet"><header><h1>${esc(o.title)}</h1><p>${esc(l.name)} · שם: ____________ · תאריך: ________</p></header><p class="ai-ins">${esc(l.instructions)}</p>${l.items.map((x, i) => `<div class="ai-q"><b>${i + 1}.</b> ${esc(x)}<div class="mp-line"></div><div class="mp-line"></div></div>`).join('')}</div>`).join('');
+  document.body.classList.add('printing'); setTimeout(() => window.print(), 60);
+}

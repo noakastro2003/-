@@ -1976,3 +1976,18 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 .sublast { padding: 12px 14px; border-radius: 18px; background: color-mix(in srgb, #5CC983 14%, var(--card)); margin: 8px 0 4px; font-size: var(--fs-sm); }
 .sublast .btnrow { margin-top: 8px; }
 .subsheet .fchips { flex-wrap: wrap; }
+/* v94 · AI builder */
+.aikind { margin: 6px 0 10px; }
+.aikind button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.aiwait { text-align: center; padding: 22px 16px; }
+.aiwait .ill.md { width: 110px; height: 110px; margin: 0 auto 8px; animation: ldBob 1.8s ease-in-out infinite; }
+.aiwait b { display: block; } .aiwait small { color: var(--soft); }
+.ailesson h4 { margin: 14px 0 4px; font-size: var(--fs-sm); color: var(--accent-ink); }
+.ailesson ul, .ailesson ol { margin: 4px 0; padding-inline-start: 20px; }
+.aisec { padding: 10px 0; border-top: 1px solid var(--line); }
+.aisec:first-of-type { border-top: 0; }
+.aisec b { display: flex; justify-content: space-between; gap: 10px; color: var(--ink); }
+.aisec b span { font-size: var(--fs-note); color: var(--soft); font-weight: 500; }
+.aisec p { margin: 4px 0 0; line-height: 1.55; }
+#printroot .aisheet .ai-ins { font-size: 12pt; margin: 0 0 10pt; }
+#printroot .ai-q { font-size: 13pt; margin: 0 0 12pt; }

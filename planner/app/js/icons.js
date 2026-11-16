@@ -1,5 +1,6 @@
 // Line icons (24×24, stroke = currentColor) + small colourful illustrations.
 const P = {
+  chair: '<path d="M7 3.5h10v8H7z"/><path d="M5.5 11.5h13v3h-13zM7 14.5v6M17 14.5v6"/>',
   home: '<path d="M3.5 10.5 12 3.5l8.5 7V19a1.5 1.5 0 0 1-1.5 1.5h-4.5v-6h-5v6H5A1.5 1.5 0 0 1 3.5 19z"/>',
   calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M8 3v4M16 3v4M3.5 10h17"/><path d="M12 13.2l.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2-1.45-1.4 2-.3z" stroke-width="1.3"/>',
   check: '<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><path d="M8 12.3l2.8 2.8L16.2 9"/>',

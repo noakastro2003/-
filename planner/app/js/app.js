@@ -30,7 +30,7 @@ const RULE_IDEAS = { rules: ['מצביעים ומחכים לתור', 'מקשיב
   routines: ['בכניסה: מוציאים מחברת ועט ומתחילים במשימת הפתיחה שעל הלוח', 'סימן שקט: יד מורמת + ספירה לאחור מ־5', 'סיימתי מוקדם? קורא/ת ספר או עובד/ת על משימת אתגר', 'שירותים: לוקחים את הכרטיס ומחזירים', 'לפני ההפסקה: מסדרים את השולחן ומרימים כיסא', 'סוף היום: מעתיקים שיעורי בית מהלוח'] };
 const WS_KINDS = [['open', 'שאלה פתוחה', 'pencil'], ['fill', 'השלמה ____', 'text'], ['choice', 'בחירה', 'check'], ['calc', 'תרגיל + מקום לפתרון', 'calc'], ['match', 'מתיחת קו', 'link'], ['order', 'סידור לפי הסדר', 'layers'], ['draw', 'ציור / מקום גדול', 'star']];
 const wsCur = () => (state.sheets = state.sheets || []).find(x => x.id === state._wsId);
-const wsOut = sh => ({ kind: 'sheet', title: sh.title || 'דף עבודה', story: sh.story, teacherNote: sh.teacherNote, selfCheck: sh.selfCheck, levels: sh.levels.map(l => ({ name: sh.levels.length > 1 ? l.name : '', instructions: l.instructions, items: l.items.map(x => ({ kind: x.kind, prompt: x.prompt || '', options: x.options || [], answer: x.answer || '' })) })) });
+const wsOut = sh => ({ kind: 'sheet', title: sh.title || 'דף עבודה', goal: sh.goal || '', story: sh.story, teacherNote: sh.teacherNote, selfCheck: sh.selfCheck, levels: sh.levels.map(l => ({ name: sh.levels.length > 1 ? l.name : '', instructions: l.instructions, example: l.example || '', items: l.items.map(x => ({ kind: x.kind, prompt: x.prompt || '', options: x.options || [], hint: x.hint || '', answer: x.answer || '' })) })) });
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
 const APP_V = 108; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules', 'sheets'];
@@ -4048,7 +4048,7 @@ document.addEventListener('click', async e => {
     case 'aicopy': { try { await navigator.clipboard.writeText(aiText(ai.out)); toast('הועתק ✓', 1500); } catch { toast('לא הצלחתי להעתיק'); } break; }
     case 'aiprint': aiPrint(ai.out); break;
     case 'aiprintbw': aiPrint(ai.out, true); break;
-    case 'aiedit': { state.sheets = state.sheets || []; const o = JSON.parse(JSON.stringify(ai.out)); const sh = { id: uid(), title: o.title, story: o.story || '', teacherNote: o.teacherNote || '', levels: o.levels, at: Date.now(), from: 'AI' }; state.sheets.unshift(sh); state._wsId = sh.id; save(); go('sheets'); break; }
+    case 'aiedit': { state.sheets = state.sheets || []; const o = JSON.parse(JSON.stringify(ai.out)); const sh = { id: uid(), title: o.title, goal: o.goal || '', story: o.story || '', teacherNote: o.teacherNote || '', levels: o.levels, at: Date.now(), from: 'AI' }; state.sheets.unshift(sh); state._wsId = sh.id; save(); go('sheets'); break; }
     case 'wsnew': { state.sheets = state.sheets || []; const sh = { id: uid(), title: '', story: '', teacherNote: '', levels: [{ name: 'רמה א׳', instructions: '', items: [] }], at: Date.now() }; state.sheets.unshift(sh); state._wsId = sh.id; save(); rerender(); setTimeout(() => { const i = $('[data-wsf="title"]'); if (i) i.focus(); }, 60); break; }
     case 'wsback': state._wsId = null; rerender(); break;
     case 'wsprint': { const sh = wsCur(); if (sh) aiPrint(wsOut(sh)); break; }
@@ -5003,6 +5003,7 @@ function viewSheets() {
   h += `<button class="linkbtn wsback" data-act="wsback">${ic('chevR')} כל הדפים</button>`;
   h += `<div class="card setcard wsed">
     <label class="field">כותרת הדף${inp('title', sh.title, 'למשל: בולי בקופה – חיבור במאונך')}</label>
+    <label class="field">מטרת הדף <small class="dim">(למורה, מופיעה בדף התשובות)</small>${inp('goal', sh.goal, 'למשל: חיבור דו־ספרתי במאונך בלי המרה')}</label>
     <label class="field">סיפור / פתיחה <small class="dim">(לא חובה)</small>${inp('story', sh.story, 'משפט או שניים שמכניסים לעניין', true)}</label>
     <div class="setrow"><span>"איך הרגשתי בדף?" בסוף כל דף</span><button class="switch ${sh.selfCheck === false ? '' : 'on'}" data-wstog="selfCheck" role="switch" aria-checked="${sh.selfCheck !== false}"><i></i></button></div>
   </div>`;
@@ -5010,11 +5011,13 @@ function viewSheets() {
     h += `<div class="card wslevel">
       ${sh.levels.length > 1 ? `<div class="wslh"><input class="wsln" data-wsf="${li}|name" value="${esc(l.name)}" aria-label="שם הרמה"><button class="iconbtn" data-wsdellevel="${li}" aria-label="מחיקת הרמה">${ic('trash')}</button></div>` : ''}
       <label class="field">הוראה לילדים${inp(`${li}|instructions`, l.instructions, 'למשל: פִּתְרוּ בַּמְּאֻנָּךְ. הַתְחִילוּ מֵהַיְּחִידוֹת.')}</label>
+      <label class="field">דוגמה פתורה <small class="dim">(לא חובה – עוזרת מאוד ברמה המתקשה)</small>${inp(`${li}|example`, l.example, 'למשל: 34 + 25 ← יחידות: 4 + 5 = 9 · עשרות: 3 + 2 = 5 · התשובה 59', true)}</label>
       ${l.items.map((x, ii) => `<div class="wsitem">
         <div class="wsih"><span class="wsn">${ii + 1}</span><select data-wsf="${li}|${ii}|kind" aria-label="סוג">${WS_KINDS.map(([k, n]) => `<option value="${k}" ${x.kind === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
           ${ii ? `<button class="iconbtn" data-wsup="${li}|${ii}" aria-label="להעלות">${ic('chevD', 'flipup')}</button>` : ''}<button class="iconbtn" data-wsdelitem="${li}|${ii}" aria-label="מחיקה">${ic('x')}</button></div>
         ${inp(`${li}|${ii}|prompt`, x.prompt, x.kind === 'fill' ? 'כותבים ____ במקום שצריך להשלים' : x.kind === 'calc' ? 'למשל: כִּתְבוּ בַּמְּאֻנָּךְ וּפִתְרוּ: 42 + 15' : 'השאלה', true)}
         ${['choice', 'match', 'order'].includes(x.kind) ? `<label class="field sm">${x.kind === 'choice' ? 'תשובות לבחירה' : x.kind === 'match' ? 'הפריטים לחיבור בקו' : 'הפריטים לסידור'} <small class="dim">(שורה לכל אחת)</small><textarea data-wsf="${li}|${ii}|options" rows="3">${esc((x.options || []).join('\n'))}</textarea></label>` : ''}
+        <label class="field sm">רמז לילד <small class="dim">(לא חובה)</small><input data-wsf="${li}|${ii}|hint" value="${esc(x.hint || '')}" autocomplete="off"></label>
         <label class="field sm">תשובה <small class="dim">(לדף התשובות, לא חובה)</small><input data-wsf="${li}|${ii}|answer" value="${esc(x.answer || '')}" autocomplete="off"></label>
       </div>`).join('')}
       <p class="pmlbl">הוספת שאלה</p><div class="fchips wrap">${WS_KINDS.map(([k, n, i]) => `<button class="fc" data-wsadd="${li}|${k}">${ic(i)} ${n}</button>`).join('')}</div>
@@ -5228,8 +5231,8 @@ function viewAi() {
     ${o.tips.length ? `<h4>טיפים</h4><ul>${o.tips.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
     <div class="btnrow"><button class="cta" data-act="aibank">${ic('star')} שמירה במאגר</button><button class="cta soft" data-act="aiprint">${ic('printer')} הדפסה</button></div>
     <div class="btnrow"><button class="cta soft" data-act="aicopy">${ic('link')} העתקה</button></div></div>`;
-  if (o && o.kind === 'sheet') h += `<div class="card ailesson">${cardHead('file', esc(o.title))}${o.story ? `<p class="say">${esc(o.story)}</p>` : ''}
-    ${o.levels.map(l => `<div class="aisec"><b>${esc(l.name)}</b><p class="dim">${esc(l.instructions)}</p><ol>${l.items.map(x => `<li>${esc(x.prompt)}${x.options.length ? `<div class="aiopts">${x.options.map(y => `<span>${esc(y)}</span>`).join('')}</div>` : ''}<small class="ans">תשובה: ${esc(x.answer)}</small></li>`).join('')}</ol></div>`).join('')}
+  if (o && o.kind === 'sheet') h += `<div class="card ailesson">${cardHead('file', esc(o.title))}${o.goal ? `<p class="dim"><i>מטרה:</i> ${esc(o.goal)}</p>` : ''}${o.story ? `<p class="say">${esc(o.story)}</p>` : ''}
+    ${o.levels.map(l => `<div class="aisec"><b>${esc(l.name)}</b><p class="dim">${esc(l.instructions)}</p>${l.example ? `<pre class="board-t aiex">${esc(l.example)}</pre>` : ''}<ol>${l.items.map(x => `<li>${esc(x.prompt)}${x.options.length ? `<div class="aiopts">${x.options.map(y => `<span>${esc(y)}</span>`).join('')}</div>` : ''}<small class="ans">תשובה: ${esc(x.answer)}</small></li>`).join('')}</ol></div>`).join('')}
     ${o.teacherNote ? `<p class="hint">${esc(o.teacherNote)}</p>` : ''}
     <div class="btnrow"><button class="cta" data-act="aiprint">${ic('printer')} הדפסה בצבע</button><button class="cta soft" data-act="aiprintbw">${ic('printer')} שחור־לבן</button></div>
     <div class="btnrow"><button class="cta soft" data-act="aiedit">${ic('pencil')} עריכה ושמירה בדפים שלי</button><button class="cta soft" data-act="aicopy">${ic('link')} העתקה</button></div></div>`;
@@ -5283,7 +5286,7 @@ function aiPrint(o, bw) {
   const blanks = h => h.replace(/_{2,}/g, '<span class="ws-blank"></span>');
   const stars = n => '<span class="ws-stars">' + [0, 1, 2].map(k => `<svg viewBox="0 0 24 24" class="${k <= n ? 'on' : ''}"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2 6.3 20.3l1.2-6.4L2.8 9.5l6.4-.8z"/></svg>`).join('') + '</span>';
   const face = (k) => `<svg viewBox="0 0 40 40" class="ws-face"><circle cx="20" cy="20" r="17"/><circle cx="14" cy="16" r="1.8" class="f"/><circle cx="26" cy="16" r="1.8" class="f"/><path d="${['M12 24c4 5 12 5 16 0', 'M13 26h14', 'M12 28c4-5 12-5 16 0'][k]}"/></svg>`;
-  const item = (x, i) => `<div class="ws-q"><span class="ws-n">${i + 1}</span><div class="ws-qb"><p class="ws-p">${blanks(M(x.prompt))}</p>${x.options.length ? `<div class="ws-opt ${x.kind}">${x.options.map(y => `<span>${x.kind === 'choice' ? '<i class="ws-bub"></i>' : x.kind === 'order' ? '<i class="ws-sq"></i>' : ''}${blanks(M(y))}</span>`).join('')}</div>` : ''}${space(x).replace('ai-box calc', 'ws-box calc').replace('ai-box', 'ws-box').replace(/mp-line/g, 'ws-line')}</div></div>`;
+  const item = (x, i) => `<div class="ws-q"><span class="ws-n">${i + 1}</span><div class="ws-qb"><p class="ws-p">${blanks(M(x.prompt))}</p>${x.hint ? `<p class="ws-hint"><b>רֶמֶז:</b> ${M(x.hint)}</p>` : ''}${x.options.length ? `<div class="ws-opt ${x.kind}">${x.options.map(y => `<span>${x.kind === 'choice' ? '<i class="ws-bub"></i>' : x.kind === 'order' ? '<i class="ws-sq"></i>' : ''}${blanks(M(y))}</span>`).join('')}</div>` : ''}${space(x).replace('ai-box calc', 'ws-box calc').replace('ai-box', 'ws-box').replace(/mp-line/g, 'ws-line')}</div></div>`;
   r.classList.toggle('bw', !!bw);
   if (o.kind === 'sheet') r.innerHTML = o.levels.map((l, li) => { const [c, t, cls] = LV[li % 3];
     return `<div class="pw-pg ws ${cls}" style="--c:${c};--t:${t}">
@@ -5291,10 +5294,11 @@ function aiPrint(o, bw) {
       <h1 class="ws-h">${esc(o.title)}</h1>
       ${o.story ? `<div class="ws-story"><img src="img/ill/dark/prep.webp" alt=""><p>${M(o.story)}</p></div>` : ''}
       ${l.instructions ? `<p class="ws-ins"><svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z M14 7l3 3"/></svg>${esc(l.instructions)}</p>` : ''}
+      ${l.example ? `<div class="ws-ex"><b>דֻּגְמָה</b><div>${String(l.example).split('\n').map(z => `<p>${M(z)}</p>`).join('')}</div></div>` : ''}
       ${l.items.map(item).join('')}
       ${o.selfCheck === false ? '' : `<div class="ws-end"><span>איך הרגשתי בדף?</span>${face(0)}${face(1)}${face(2)}<span class="ws-good">כל הכבוד! ✦</span></div>`}
     </div>`; }).join('')
-    + (o.levels.some(l => l.items.some(x => x.answer)) ? `<div class="pw-pg ws ws-key"><div class="ws-top"><div class="ws-badge"><b>למורה · תשובות</b></div></div><h1 class="ws-h">${esc(o.title)}</h1>
+    + (o.levels.some(l => l.items.some(x => x.answer)) ? `<div class="pw-pg ws ws-key"><div class="ws-top"><div class="ws-badge"><b>למורה · תשובות</b></div></div><h1 class="ws-h">${esc(o.title)}</h1>${o.goal ? `<p class="ws-goal"><b>מטרת הדף:</b> ${esc(o.goal)}</p>` : ''}
       <div class="ws-keys">${o.levels.map((l, li) => `<div class="ws-kcol" style="--c:${LV[li % 3][0]};--t:${LV[li % 3][1]}"><h2>${esc(l.name)}</h2><ol>${l.items.map(x => `<li>${M(x.answer)}</li>`).join('')}</ol></div>`).join('')}</div>
       ${o.teacherNote ? `<p class="ws-note"><b>הערה למורה:</b> ${esc(o.teacherNote)}</p>` : ''}</div>` : '');
   else r.innerHTML = `<div class="pw-pg aisheet"><header><h1>${esc(o.title)}</h1><p>${o.goals.map(esc).join(' · ')}</p></header>

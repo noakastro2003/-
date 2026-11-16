@@ -13,12 +13,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
-const APP_V = 88; // keep in step with CACHE in sw.js
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats'];
+const APP_V = 89; // keep in step with CACHE in sw.js
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null, att: {}, seats: {},
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null, att: {}, seats: {}, evals: {},
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -1421,6 +1421,7 @@ function kidSheet(name) {
     <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
     ${kidSnapshot(name, k, ns, gs, avg, lt)}
     <div class="btnrow"><button class="cta" data-kidmsg="${esc(name)}">${ic('phone2')} הודעה להורה</button><button class="cta soft" data-kidnote="${esc(name)}">${ic('pencil')} פתק</button></div>
+    <div class="btnrow"><button class="cta soft" data-meetprint="${esc(name)}">${ic('printer')} דף לשיחת הורים</button><button class="cta soft" data-evaldraft="${esc(name)}">${ic('text')} טיוטת הערכה</button></div>
     ${k.phone ? `<p class="hint">📞 <bdi dir="ltr">${esc(k.phone)}</bdi></p>` : '<p class="hint">אין טלפון של הורה – מוסיפים ב"הכיתה שלי"</p>'}
     ${(() => { const x = kidAtt(name); return x.a || x.l ? `<p class="hint">נוכחות: ${x.a} חיסורים · ${x.l} איחורים</p>` : ''; })()}
     ${gs.length ? `<h4>ציונים</h4>${gs.slice().reverse().map(({ g, v }) => `<div class="row"><span class="tpill">${esc(g.kind)}</span><span class="grow">${esc(g.title)}</span><b class="${pct(v, g.max) < 60 ? 'low' : ''}">${v}${g.max && g.max !== 100 ? '/' + g.max : ''}</b></div>`).join('')}` : ''}
@@ -1781,6 +1782,8 @@ function viewHub() {
     if (q.length && state.kids.length - q.length >= state.kids.length / 3) h += `<div class="card quiet">${cardHead('heart', 'השבוע עוד לא נרשם כלום על', `<span class="cnt">${q.length}</span>`)}<div class="fchips wrap">${q.slice(0, 6).map(k => `<button class="fc" data-kid="${esc(k.name)}">${esc(k.name)}</button>`).join('')}${q.length > 6 ? `<span class="dim">ועוד ${q.length - 6}</span>` : ''}</div></div>`;
     h += `<div class="card">${cardHead('user', 'הילדים', `<span class="cnt">${state.kids.length}</span>`)}<div class="kidgrid">${state.kids.map(k => { const n = kidNotes(k.name).length; return `<button data-kid="${esc(k.name)}"><span class="av">${esc(k.name[0] || '?')}</span><b>${esc(k.name.split(' ')[0])}</b>${n ? `<em>${n}</em>` : ''}</button>`; }).join('')}</div></div>`;
   }
+  if (state.kids.length) h += `<div class="card">${cardHead('users', 'אסיפת הורים')}<p class="dim">דף הכנה לכל ילד: חוזקות, מה לחזק, ציונים, נוכחות ומקום לכתוב בזמן השיחה.</p>
+    <div class="btnrow"><button class="cta soft" data-act="meetall">${ic('printer')} דפים לכל הכיתה</button><button class="cta soft" data-act="evalall">${ic('text')} טיוטות הערכה</button></div></div>`;
   h += bdCard(14, 'ימי הולדת בשבועיים הקרובים');
   return h;
 }
@@ -3688,6 +3691,11 @@ document.addEventListener('click', async e => {
   if (D.cnote != null && D.tag) { noteSheet(D.cnote || null, D.tag); return; }
   if (D.picktag) { state._note.tag = D.picktag; state._note.tagSet = true; document.querySelectorAll('.tp').forEach(b => b.classList.toggle('on', b.dataset.picktag === D.picktag)); return; }
   if (D.pickkid) { const k = state._note.kids, i = k.indexOf(D.pickkid); if (i >= 0) k.splice(i, 1); else k.push(D.pickkid); t.classList.toggle('on', i < 0); return; }
+  if (D.evaldraft) { evalSheet(D.evaldraft); return; }
+  if (D.evalsex) { const [n, sx] = D.evalsex.split('|'); state.evals = state.evals || {}; const E = state.evals[n] = state.evals[n] || {}; const changed = E.sex && E.sex !== sx; E.sex = sx; const k = state.kids.find(x => x.name === n); if (k) k.sex = sx; if (changed || !E.text) E.text = evalDraft(n, sx); save(); evalSheet(n); return; }
+  if (D.evalredo) { const n = D.evalredo, E = state.evals[n] || {}; withUndo(['evals'], 'נכתבה טיוטה חדשה', () => { state.evals[n] = { ...E, text: evalDraft(n, E.sex || 'f') }; }); evalSheet(n); return; }
+  if (D.evalcopy) { const t = $('#evalText'); try { await navigator.clipboard.writeText(t ? t.value : ''); toast('הועתק ✓', 1500); } catch { toast('לא הצלחתי להעתיק'); } return; }
+  if (D.meetprint) { closeOverlay(); meetPrint([D.meetprint]); return; }
   if (D.seat) { seatTap(D.seat); return; }
   if (D.seatkid) { const S = seatsOf(); let k = state._seatSel && !S.map[state._seatSel] ? state._seatSel : null;
     if (!k) for (let r = 0; r < S.rows && !k; r++) for (let c = 0; c < S.cols && !k; c++) if (!S.map[seatKey(r, c)]) k = seatKey(r, c);
@@ -3869,6 +3877,9 @@ document.addEventListener('click', async e => {
     case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
     case 'classes': classesSheet(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
+    case 'evalall': evalAllSheet(); break;
+    case 'evalcopyall': { const all = state.kids.map(k => { const E = (state.evals || {})[k.name] || {}; return E.text ? `${k.name}\n${E.text}` : ''; }).filter(Boolean).join('\n\n———\n\n'); if (!all) { toast('עוד אין הערכות – בוחרים ילד/ה ובן/בת'); break; } try { await navigator.clipboard.writeText(all); toast(`הועתקו ${all.split('———').length} הערכות ✓`, 2000); } catch { toast('לא הצלחתי להעתיק'); } break; }
+    case 'meetall': meetPrint(state.kids.map(k => k.name)); break;
     case 'seatpair': { const S = seatsOf(); S.pair = !S.pair; save(); rerender(); break; }
     case 'seatshuffle': { const S = seatsOf(); withUndo(['seats'], 'סידור חדש', () => { const r = seatShuffle(S); S.map = r.map; if (r.bad) setTimeout(() => toast(`לא הצלחתי להפריד בין כולם (${r.bad}) – אפשר לתקן ידנית`, 3500), 50); }); state._seatSel = null; if (cast.on && cast.last && cast.last.kind === 'seats') castSend('seats', { ...seatsOf() }); break; }
     case 'seatwipe': { withUndo(['seats'], 'המקומות נוקו', () => { seatsOf().map = {}; }); state._seatSel = null; break; }
@@ -4542,3 +4553,83 @@ function seatTap(k) {
   state._seatSel = null; save(); rerender();
   if (cast.on && cast.last && cast.last.kind === 'seats') castSend('seats', { ...S });
 }
+
+// ================================================================ PARENT MEETING: one page per child – strengths, to work on, grades, attendance, room to write
+function meetPage(name) {
+  const c = curCls(), ns = kidNotes(name), gs = kidGrades(name), att = kidAtt(name);
+  const ps = gs.map(x => pct(x.v, x.g.max)), avg = ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) : null;
+  const d = n => { const t = new Date(n.at); return `${t.getDate()}.${t.getMonth() + 1}`; };
+  const good = [...ns.filter(n => n.tag === 'star').map(n => `${n.text || 'הצטיינות'} (${d(n)})`), ...gs.filter(x => pct(x.v, x.g.max) >= 85).map(x => `${x.g.kind} "${x.g.title}" – ${x.v}`)];
+  const work = [...gs.filter(x => pct(x.v, x.g.max) < 70).map(x => `${x.g.kind} "${x.g.title}" – ${x.v}`), ...ns.filter(n => n.tag === 'disrupt' || n.tag === 'care').map(n => `${(TAGS[n.tag] || TAGS.note)[1]}${n.text ? ': ' + n.text : ''} (${d(n)})`)];
+  const other = ns.filter(n => n.tag === 'note' || n.tag === 'parent').map(n => `${n.text || (TAGS[n.tag] || TAGS.note)[1]} (${d(n)})${ACTION.includes(n.tag) && !n.done ? ' – פתוח' : ''}`);
+  const ul = (a, empty) => a.length ? `<ul>${a.slice(0, 8).map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : `<p class="mp-e">${empty}</p>`;
+  const lines = n => Array.from({ length: n }, () => '<div class="mp-line"></div>').join('');
+  return `<div class="pw-pg mp"><header><h1>שיחה עם ההורים של ${esc(name)}</h1><p>${c && c.name ? esc(c.name) + ' · ' : ''}${new Date().toLocaleDateString('he-IL')}${state.name ? ' · ' + esc(state.name) : ''}</p></header>
+    <div class="mp-stats"><div><b>${avg != null ? avg + '%' : '—'}</b><span>ממוצע ציונים</span></div><div><b>${ns.filter(n => n.tag === 'star').length}</b><span>הצטיינויות</span></div><div><b>${att.a}</b><span>חיסורים</span></div><div><b>${att.l}</b><span>איחורים</span></div></div>
+    <div class="mp-cols"><section><h2>חוזקות</h2>${ul(good, 'עוד לא נרשם – כדאי לחשוב על דוגמה אחת לפני השיחה')}</section><section><h2>לחיזוק</h2>${ul(work, 'אין משהו מיוחד שנרשם')}</section></div>
+    ${gs.length ? `<section><h2>ציונים</h2><table class="mp-t"><tr>${gs.map(x => `<td>${esc(x.g.title)}<b>${x.v}${x.g.max && x.g.max !== 100 ? '/' + x.g.max : ''}</b></td>`).join('')}</tr></table></section>` : ''}
+    ${other.length ? `<section><h2>עוד מהיומן</h2>${ul(other, '')}</section>` : ''}
+    <section><h2>נקודות לשיחה</h2>${lines(4)}</section>
+    <section><h2>סיכומים והמשך</h2>${lines(4)}</section></div>`;
+}
+function meetPrint(names) {
+  let r = $('#printroot'); if (!r) { r = document.createElement('div'); r.id = 'printroot'; document.body.appendChild(r); }
+  r.innerHTML = names.map(meetPage).join('');
+  document.body.classList.add('printing'); setTimeout(() => window.print(), 60);
+}
+
+// ================================================================ REPORT-CARD COMMENTS: a draft from the year's record, in a warm teacher's voice; edited and kept per child
+function evalDraft(name, sex) {
+  const f = sex === 'f', G = (m, w) => f ? w : m;
+  const first = name.split(' ')[0];
+  const ns = kidNotes(name), gs = kidGrades(name), att = kidAtt(name);
+  const ps = gs.map(x => pct(x.v, x.g.max)), avg = ps.length ? ps.reduce((a, b) => a + b, 0) / ps.length : null;
+  const recent = ps.slice(-2), before = ps.slice(0, -2), mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const trend = before.length && recent.length ? mean(recent) - mean(before) : 0;
+  const stars = ns.filter(n => n.tag === 'star'), dis = ns.filter(n => n.tag === 'disrupt');
+  const out = [];
+  out.push(`${first} ${G('יקר', 'יקרה')},`);
+  out.push(avg == null ? `${G('אתה תלמיד', 'את תלמידה')} ${G('סקרן', 'סקרנית')} ${G('ומשתתף', 'ומשתתפת')} בשיעורים.`
+    : avg >= 88 ? `${G('אתה תלמיד', 'את תלמידה')} ${G('רציני', 'רצינית')} ${G('ומשקיע', 'ומשקיעה')}, והישגיך הלימודיים טובים מאוד.`
+    : avg >= 75 ? `${G('אתה תלמיד', 'את תלמידה')} ${G('משקיע', 'משקיעה')}, והישגיך הלימודיים טובים.`
+    : `${G('אתה לומד', 'את לומדת')} ${G('ומתקדם', 'ומתקדמת')} בקצב שלך, ואני רואה את המאמץ שלך.`);
+  if (trend >= 5) out.push(`לאורך המחצית ניכרת אצלך התקדמות יפה – כל הכבוד!`);
+  if (stars.length) {
+    const ex = stars.map(n => n.text).filter(Boolean).slice(0, 2);
+    out.push(ex.length ? `רגעים יפים שרשמתי השנה: ${ex.join('; ')} – ${G('אתה מראה', 'את מראה')} לב גדול.` : `${G('אתה מראה', 'את מראה')} לא פעם רגעים של הצטיינות ואכפתיות.`);
+  }
+  const low = gs.filter(x => pct(x.v, x.g.max) < 70).map(x => x.g.title);
+  if (low.length) out.push(`כדאי להמשיך להתאמן ב${low.slice(0, 2).map(t => `"${t}"`).join(' וב')}, ואני ${g('בטוחה', 'בטוח')} ${G('שתצליח', 'שתצליחי')}.`);
+  if (dis.length >= 3) out.push(`אני ${g('מזמינה', 'מזמין')} אותך להמשיך לעבוד על הקשבה בשיעור ועל שמירה על כללי הכיתה.`);
+  if (att.a >= 5) out.push(`חשוב להקפיד על נוכחות סדירה, כדי לא לפספס את מה שלומדים.`);
+  out.push(`אני ${g('מאחלת', 'מאחל')} לך המשך מחצית של למידה, צמיחה והנאה!`);
+  if (state.name) out.push(`${state.name}`);
+  return out.join('\n');
+}
+function evalSheet(name) {
+  state.evals = state.evals || {};
+  const E = state.evals[name] || {};
+  const k = state.kids.find(x => x.name === name) || {};
+  const sex = E.sex || k.sex || '';
+  const text = E.text || (sex ? evalDraft(name, sex) : '');
+  openOverlay(`<div class="ov sheet evalsheet">
+    <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('text')}<h2>הערכה – ${esc(name)}</h2></div>
+    <div class="setrow"><span>פנייה</span><div class="seg"><button class="${sex === 'm' ? 'on' : ''}" data-evalsex="${esc(name)}|m">בן</button><button class="${sex === 'f' ? 'on' : ''}" data-evalsex="${esc(name)}|f">בת</button></div></div>
+    ${sex ? `<label class="field">הטקסט (נשמר לבד)<textarea id="evalText" data-evalname="${esc(name)}" rows="10">${esc(text)}</textarea></label>
+      <p class="hint">הטיוטה נבנתה ממה שנרשם השנה: ציונים, מגמה, הצטיינויות, הפרעות ונוכחות. כדאי להוסיף משפט אישי משלך.</p>
+      <div class="btnrow"><button class="cta" data-evalcopy="${esc(name)}">${ic('link')} העתקה</button><button class="cta soft" data-evalredo="${esc(name)}">${ic('dice')} טיוטה מחדש</button></div>`
+      : '<p class="hint">בוחרים בן או בת – וההערכה תיכתב בלשון המתאימה.</p>'}
+  </div>`);
+}
+function evalAllSheet() {
+  state.evals = state.evals || {};
+  const rows = state.kids.map(k => { const E = state.evals[k.name] || {}; const st = E.text ? 'נערך' : (E.sex || k.sex) ? 'טיוטה' : 'לבחור בן/בת'; return `<button class="gsrow" data-evaldraft="${esc(k.name)}"><span class="grow"><b>${esc(k.name)}</b><small>${st}</small></span>${ic('chevL', 'chev')}</button>`; }).join('');
+  openOverlay(`<div class="ov sheet"><button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('text')}<h2>טיוטות הערכה</h2></div>
+    <p class="dim">לוחצים על ילד/ה, בוחרים בן או בת, ועורכים. כשמוכן – מעתיקים הכל בבת אחת.</p>
+    <button class="cta" data-act="evalcopyall">${ic('link')} העתקת כל ההערכות</button>
+    <div class="gsg" style="margin-top:12px">${rows}</div></div>`);
+}
+document.addEventListener('input', e => { const t = e.target; if (t.id === 'evalText') { state.evals = state.evals || {}; const n = t.dataset.evalname; state.evals[n] = { ...(state.evals[n] || {}), text: t.value }; clearTimeout(evalSaveT); evalSaveT = setTimeout(save, 600); } });
+let evalSaveT = 0;

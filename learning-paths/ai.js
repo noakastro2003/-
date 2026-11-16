@@ -3,7 +3,7 @@ import zlib from 'node:zlib';
 import Anthropic from '@anthropic-ai/sdk';
 import { HttpError } from './validate.js';
 import { docxToText } from './docx.js';
-import { SYSTEM_PROMPT, AI_TASK_TYPES, ICONS, COLORS, buildRequestText, NIKUD_SYSTEM, improvePrompt } from './ai-prompt.js';
+import { SYSTEM_PROMPT, AI_TASK_TYPES, ICONS, COLORS, buildRequestText, NIKUD_SYSTEM, improvePrompt, jsonFormatInstructions } from './ai-prompt.js';
 
 export { GRADES, AI_TASK_TYPES, SYSTEM_PROMPT, buildRequestText } from './ai-prompt.js';
 
@@ -165,12 +165,15 @@ async function callClaude(client, params, kind) {
   return message.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
 }
 
-const parseJson = (text) => {
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new HttpError(502, 'התקבלה תשובה לא תקינה. נסו שוב.');
+// The model's JSON, also when it wraps it in a code fence or adds a sentence around it.
+export const parseJson = (text) => {
+  const t = String(text).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  for (const candidate of [t, t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)]) {
+    try {
+      return JSON.parse(candidate);
+    } catch { /* try the next */ }
   }
+  throw new HttpError(502, 'התקבלה תשובה לא תקינה. נסו שוב.');
 };
 
 // The schema of one task type, for "improve this task".
@@ -183,16 +186,24 @@ export function createAiTools(client = new Anthropic({ timeout: 10 * 60 * 1000 }
   return {
     async generatePath(input) {
       const { blocks, names } = await fileBlocks(input.files);
-      const text = await callClaude(client, {
+      // The shape goes in the prompt, not as a JSON schema: a schema covering every task
+      // type is too large for structured outputs ("compiled grammar is too large").
+      // pathFromAi() validates every task that comes back, and drops broken ones.
+      const ask = () => callClaude(client, {
         max_tokens: 32000,
-        output_config: { effort: 'high', format: { type: 'json_schema', schema: pathSchema(input.types) } },
-        system: SYSTEM_PROMPT,
+        output_config: { effort: 'high' },
+        system: `${SYSTEM_PROMPT}\n\n${jsonFormatInstructions(input.types)}`,
         messages: [{
           role: 'user',
           content: [...blocks, { type: 'text', text: buildRequestText({ ...input, fileNames: names }) }],
         }],
       }, 'generate');
-      return parseJson(text);
+      try {
+        return parseJson(await ask());
+      } catch (err) {
+        if (!(err instanceof HttpError) || err.status !== 502) throw err;
+        return parseJson(await ask()); // one more try on unreadable output
+      }
     },
 
     async nikud(text) {

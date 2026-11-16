@@ -161,10 +161,13 @@ test('generator sends a well-formed streaming request and parses the result', as
   assert.equal(req.body.model, 'claude-opus-5-5');
   assert.equal(req.body.stream, true);
   assert.equal(req.body.fallbacks, 'default');
-  assert.equal(req.body.output_config.format.type, 'json_schema');
+  // No JSON schema: one covering all task types is too large for the API's grammar.
+  assert.equal(req.body.output_config.format, undefined);
+  assert.equal(req.body.output_config.effort, 'high');
   assert.equal(req.body.thinking, undefined, 'Opus 5.5 always thinks; no thinking param');
-  const variants = req.body.output_config.format.schema.properties.tasks.items.anyOf;
-  assert.deepEqual(variants.map((x) => x.properties.type.const), ['read', 'memory', 'choice']);
+  assert.match(req.body.system, /Reply with only one JSON object/);
+  assert.match(req.body.system, /"type":"memory"/);
+  assert.doesNotMatch(req.body.system, /"type":"wordsearch"/, 'only the chosen types');
 
   const content = req.body.messages[0].content;
   assert.deepEqual(content.map((b) => b.type), ['document', 'document', 'document', 'image', 'text']);
@@ -173,6 +176,26 @@ test('generator sends a well-formed streaming request and parses the result', as
   assert.equal(content[2].source.data, 'מים הם חיים');
   assert.match(content[4].text, /Topic: מחזור המים/);
   assert.match(content[4].text, /full nikud/);
+});
+
+test('generator reads JSON wrapped in a code fence or a sentence', async () => {
+  const { srv } = mockAnthropic({ text: `הנה המסלול:\n\`\`\`json\n${JSON.stringify(SAMPLE_PATH)}\n\`\`\`` });
+  await new Promise((r) => srv.listen(0, r));
+  const client = new Anthropic({ apiKey: 'test-key', baseURL: `http://localhost:${srv.address().port}`, maxRetries: 0 });
+  const out = await createGenerator(client)({ ...INPUT, files: [] });
+  srv.close();
+  assert.deepEqual(out, SAMPLE_PATH);
+});
+
+test('the largest request (every task type) has no schema to outgrow the API limits', async () => {
+  const { AI_TASK_TYPES } = await import('../ai-prompt.js');
+  const { srv, seen } = mockAnthropic({ text: JSON.stringify(SAMPLE_PATH) });
+  await new Promise((r) => srv.listen(0, r));
+  const client = new Anthropic({ apiKey: 'test-key', baseURL: `http://localhost:${srv.address().port}`, maxRetries: 0 });
+  await createGenerator(client)({ ...INPUT, files: [], types: [...AI_TASK_TYPES] });
+  srv.close();
+  assert.equal(seen[0].body.output_config.format, undefined);
+  for (const t of AI_TASK_TYPES) assert.match(seen[0].body.system, new RegExp(`"type":"${t}"`));
 });
 
 test('generator turns a refusal into a friendly error', async () => {

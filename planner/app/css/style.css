@@ -2098,3 +2098,24 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 #printroot .rposter h1 { font-size: 40pt; color: #5B4190; margin: 0 0 6pt; }
 #printroot .rposter .rp-sub { font-size: 14pt; color: #777; margin: 0 0 24pt; }
 #printroot .rposter ol { text-align: start; display: inline-block; font-size: 24pt; line-height: 1.9; margin: 0; padding-inline-start: 40pt; }
+
+/* v105 — reminders with a day/hour, "soon" on home, popup on open */
+.addtodo { flex-wrap: wrap; }
+.twhen { flex-basis: 100%; display: grid; gap: 8px; margin-top: 4px; }
+.twhen .fchips { margin: 0; }
+.twrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.twrow label { display: grid; gap: 3px; font-size: var(--fs-note); color: var(--soft); }
+.addtodo .twrow input { width: 100%; min-width: 0; flex: none; }
+.twpop { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--soft); }
+.addtodo .twpop input { padding: 0; border: 0; width: 18px; height: 18px; accent-color: var(--plum, #5B4190); flex: none; }
+.tlsoon { margin: 10px 0 2px; }
+.tlrow.soon b { font-weight: 500; opacity: .85; }
+.tpop.off { opacity: .35; }
+.todopop .tprow { padding: 12px 0; border-top: 1px solid var(--line); }
+.todopop .tprow:first-of-type { border-top: 0; }
+.todopop .tprow b { display: block; font-size: var(--fs-h3); }
+.todopop .tprow small { color: var(--soft); font-size: var(--fs-sm); }
+.tpbtns { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.tpbtns .cta { flex: 1; width: auto; margin: 0; min-height: 42px; }
+.tpoff { margin-top: 8px; font-size: var(--fs-sm); }
+.twhen .fc { white-space: nowrap; }

@@ -29,7 +29,7 @@ const boardWrap = (S, board, grid, cls = 'sroom') => `<div class="${cls} b-${S.b
 const RULE_IDEAS = { rules: ['מצביעים ומחכים לתור', 'מקשיבים כשמישהו מדבר', 'מדברים בשקט ובכבוד', 'שומרים על הציוד של כולם', 'יוצאים מהכיתה רק באישור', 'עוזרים לחבר שצריך', 'טועים ולומדים – לא צוחקים על אף אחד'],
   routines: ['בכניסה: מוציאים מחברת ועט ומתחילים במשימת הפתיחה שעל הלוח', 'סימן שקט: יד מורמת + ספירה לאחור מ־5', 'סיימתי מוקדם? קורא/ת ספר או עובד/ת על משימת אתגר', 'שירותים: לוקחים את הכרטיס ומחזירים', 'לפני ההפסקה: מסדרים את השולחן ומרימים כיסא', 'סוף היום: מעתיקים שיעורי בית מהלוח'] };
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 105; // keep in step with CACHE in sw.js
+const APP_V = 106; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -250,7 +250,16 @@ function bdCard(days, title) {
 }
 
 // ================================================================ reminders
-const todoDue = t => !t.done && (!t.date || new Date(t.date + 'T00:00') <= now());
+// a reminder can have a day, a time, both or neither; it is "due" from that moment on
+function todoWhen(t) { if (!t.date && !t.time) return null; const d = t.date ? new Date(t.date + 'T00:00') : new Date(now().toDateString()); return t.time ? atTime(d, t.time) : d; }
+const todoDue = t => !t.done && (!todoWhen(t) || todoWhen(t) <= now());
+function todoLabel(t) {
+  const w = todoWhen(t); if (!w) return '';
+  const d0 = new Date(now().toDateString()), dd = Math.round((new Date(w.toDateString()) - d0) / 864e5);
+  const day = dd === 0 ? 'היום' : dd === 1 ? 'מחר' : dd === -1 ? 'אתמול' : dd > 1 && dd < 7 ? `יום ${DAY_FULL[w.getDay()]}` : `${w.getDate()}.${w.getMonth() + 1}`;
+  return t.time ? `${day} ${t.time}` : day;
+}
+const todoPill = t => { const l = todoLabel(t); return l ? ` <small class="tpill ${todoDue(t) && todoWhen(t) && todoWhen(t) < new Date(now().toDateString()) ? 'warn' : ''}">${esc(l)}</small>` : ''; };
 const fmtDate = iso => { const [, m, d] = iso.split('-'); return `${+d}.${+m}`; };
 function remindersCard(w, full) {
   const list = state.todos.filter(t => full || todoDue(t));
@@ -259,17 +268,51 @@ function remindersCard(w, full) {
     ${cardHead('pin', 'לא לשכוח', !full ? `<button class="linkbtn" data-go="todos">הכל</button>` : '')}
     ${full && !list.length ? estate('e-todos', 'אין תזכורות', 'כותבים כאן משהו קטן שלא רוצים לשכוח. עם תאריך – זה יופיע ב"עכשיו" ביום הזה.') : ''}
     ${list.map(t => `<div class="todo" ${t.done ? '' : `data-sw="todo:${t.id}"`}>
-      <label class="chk ${t.done ? 'on' : ''}"><input type="checkbox" data-todo="${t.id}" ${t.done ? 'checked' : ''}><span class="box">${ic('check')}</span><span class="ct">${esc(t.text)}${t.date ? ` <small class="tpill">${esc(fmtDate(t.date))}</small>` : ''}</span></label>
+      <label class="chk ${t.done ? 'on' : ''}"><input type="checkbox" data-todo="${t.id}" ${t.done ? 'checked' : ''}><span class="box">${ic('check')}</span><span class="ct">${esc(t.text)}${todoPill(t)}</span></label>
+      ${full && !t.done ? `<button class="iconbtn tpop ${t.pop === false ? 'off' : ''}" data-todopop="${t.id}" aria-label="${t.pop === false ? 'לא קופצת בפתיחה – לחיצה כדי להפעיל' : 'קופצת בפתיחה – לחיצה כדי לבטל'}" title="קפיצה בפתיחת האפליקציה">${ic('bell')}</button>` : ''}
       ${full ? `<button class="iconbtn" data-deltodo="${t.id}" aria-label="מחיקה">${ic('trash')}</button>` : ''}
     </div>`).join('')}
     <form class="addtodo" data-addtodo>
       <input name="t" placeholder="תזכורת חדשה…" autocomplete="off">
-      ${full ? '<input name="d" type="date" title="מתי להזכיר (לא חובה)">' : ''}
       <button aria-label="הוספה">${ic('plus')}</button>
+      ${full ? todoWhenFields() : ''}
     </form>
     ${pdf.map(n => `<div class="note"><b>${esc(n.label)}</b><span>${esc(n.text)}</span></div>`).join('')}
   </div>`;
 }
+
+// when to remind: quick chips + a day + an hour, and whether it pops up when the app opens
+function todoWhenFields() {
+  const W = state._todoWhen || {}, iso = d => isoDay(d), t0 = new Date(now().toDateString());
+  const chips = [['היום', iso(t0)], ['מחר', iso(addDays(t0, 1))], ['בעוד שבוע', iso(addDays(t0, 7))]];
+  return `<div class="twhen">
+    <div class="fchips">${chips.map(([l, v]) => `<button type="button" class="fc ${W.d === v ? 'on' : ''}" data-twd="${v}">${l}</button>`).join('')}</div>
+    <div class="twrow"><label>יום<input name="d" type="date" value="${esc(W.d || '')}"></label><label>שעה<input name="tm" type="time" value="${esc(W.t || '')}"></label></div>
+    <label class="twpop"><input type="checkbox" name="pop" ${W.pop === false ? '' : 'checked'}> לקפוץ כשפותחים את האפליקציה, עד שמסמנים שבוצע</label>
+  </div>`;
+}
+// the reminder pops up (a real popup, not the opening screen) every time the app opens, until it's done
+let todoPopShown = new Set();
+function todoPopList() { return state.prefs.todoPopOff ? [] : state.todos.filter(t => t.pop !== false && todoDue(t) && todoWhen(t) && !todoPopShown.has(t.id)); }
+function todoPop(force) {
+  if (appLocked || !state.onboarded || $('#welcome') || ($('#overlay.show') && !$('#overlay.show .todopop'))) return false;
+  const L = force ? state.todos.filter(t => t.pop !== false && todoDue(t) && todoWhen(t)) : todoPopList();
+  if (!L.length) { if ($('#overlay.show .todopop')) closeOverlay(); return false; }
+  L.forEach(t => todoPopShown.add(t.id));
+  openOverlay(`<div class="ov sheet todopop"><button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('pin')}<h2>לא לשכוח</h2></div>
+    ${L.map(t => `<div class="tprow"><div class="grow"><b>${esc(t.text)}</b><small>${esc(todoLabel(t))}</small></div>
+      <div class="tpbtns"><button class="cta sm" data-tpdone="${t.id}">${ic('check')} בוצע</button><button class="cta soft sm" data-tplater="${t.id}">עוד שעה</button><button class="cta soft sm" data-tptmrw="${t.id}">מחר</button></div>
+      <button class="linkbtn tpoff" data-tpoff="${t.id}">לא להקפיץ את זו שוב</button></div>`).join('')}
+    <p class="hint">אפשר לכבות את הקפיצה לגמרי בהגדרות ← התראות.</p>
+  </div>`);
+  if (navigator.vibrate) navigator.vibrate([20, 60, 20]);
+  return true;
+}
+// on opening: after the greeting fades. Coming back after a while counts as opening again. Timed reminders pop on time while the app is open.
+setTimeout(function tryPop(n = 0) { if ($('#welcome') && n < 10) { setTimeout(() => tryPop(n + 1), 700); return; } todoPop(); }, 1800);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && lastHidden && Date.now() - lastHidden > 3 * 60e3) { todoPopShown = new Set(); setTimeout(function tp(n = 0) { if ($('#welcome') && n < 10) { setTimeout(() => tp(n + 1), 700); return; } todoPop(); }, 1800); } });
+setInterval(() => { if (!document.hidden && todoPopList().length) todoPop(); }, 30e3);
 
 // ================================================================ shared bits
 const line = () => { const d = now(); return `יום ${DAY_FULL[d.getDay()]}, ${d.getDate()} ${HE_MONTHS[d.getMonth()]}`; };
@@ -2256,7 +2299,8 @@ function viewSettings(w) {
       <button class="linkbtn" data-act="mypalreset">חזרה לצבעים המקוריים</button></div>` : ''}`) +
   sec('התראות', `
     ${link('bell', 'התראות ואוטומציות', '"בוקר טוב", לפני שיעור, תזכורות קבועות', 'data-go="autos"')}
-    <div class="setrow"><span>שמות ילדים בהתראות<small class="dim">מופיעים גם על מסך הנעילה</small></span>${toggle('notifNames', !!P.notifNames)}</div>`) +
+    <div class="setrow"><span>שמות ילדים בהתראות<small class="dim">מופיעים גם על מסך הנעילה</small></span>${toggle('notifNames', !!P.notifNames)}</div>
+    <div class="setrow"><span>תזכורות קופצות בפתיחת האפליקציה<small class="dim">חלון קטן עם מה שהגיע זמנו, עד שמסמנים שבוצע</small></span><button class="switch ${P.todoPopOff ? '' : 'on'}" data-act="todopopall" role="switch" aria-checked="${!P.todoPopOff}"><i></i></button></div>`) +
   sec('פרטיות', `
     <div class="setrow"><span>נעילה בקוד${P.pinHash ? ' · פעילה' : ''}<small class="dim">קוד בן 4 ספרות לפני שרואים את האפליקציה</small></span><button class="cta soft sm" data-act="${P.pinHash ? 'pinoff' : 'pinset'}">${P.pinHash ? 'ביטול' : 'הפעלה'}</button></div>
     ${P.pinHash ? `<div class="setrow"><span>לנעול אחרי</span>${seg([1, 5, 15].map(m => [m, m + ' דק׳']), P.lockMin || 5, 'data-lockmin')}</div>` : ''}
@@ -2291,7 +2335,8 @@ function viewSettings(w) {
 }
 function viewTodos(w) {
   return top('תזכורות', 'הדברים הקטנים שלא רוצים לשכוח', 'notepad', { back: 'more' }) + remindersCard(w, true) +
-    `<p class="hint">תזכורת עם תאריך תופיע ב"עכשיו" מהיום הזה. בלי תאריך – תמיד. החלקה הצידה על תזכורת מסמנת שבוצעה.</p>` +
+    (wpush.supported && !wpush.sub ? `<div class="card minvite"><span class="grow"><b>${ic('bell')} שהתזכורת תגיע גם לטלפון</b><small>מפעילים התראות פעם אחת – וכל תזכורת עם שעה מגיעה בזמן, גם כשהאפליקציה סגורה.</small></span><button class="cta" data-act="pushon">הפעלה</button></div>` : '') +
+    `<p class="hint">תזכורת עם יום ושעה: מופיעה ב"עכשיו" כבר מראש תחת "בקרוב", מגיעה כהתראה בזמן, וקופצת כשפותחים את האפליקציה עד שמסמנים שבוצעה. ${ic('bell')} ליד תזכורת = להקפיץ או לא. החלקה הצידה מסמנת שבוצעה.</p>` +
     (state.todos.some(t => t.done) ? `<button class="cta soft" data-act="cleartodos">לנקות את מה שסימנתי ✓</button>` : '');
 }
 
@@ -3272,18 +3317,23 @@ function todayList(folded) {
   if (folded && !state._tlOpen) { const n = acts.length + todos.length; return n ? `<div class="card fold1 hue-rose"><button class="pnh" data-act="tlopen"><b>${ic('pin')} לא לשכוח</b><span class="cnt">${n}</span>${ic('chevD', 'chev')}</button></div>` : ''; }
   const rows = [
     ...acts.map(n => { const [e, t] = TAGS[n.tag] || TAGS.note; return `<div class="tlrow"><button class="tlchk" data-cdone="${n.id}" aria-label="טופל">${ic('check')}</button><span class="grow"><b>${e} ${esc(n.kids.join(', ') || t)}</b>${n.text ? ` <span>– ${esc(n.text)}</span>` : ''}</span></div>`; }),
-    ...todos.map(t => `<div class="tlrow"><label class="tlchk"><input type="checkbox" data-todo="${t.id}"><span>${ic('check')}</span></label><span class="grow"><b>📌 ${esc(t.text)}</b>${t.date ? ` <small class="tpill">${esc(fmtDate(t.date))}</small>` : ''}</span></div>`),
+    ...todos.map(t => `<div class="tlrow"><label class="tlchk"><input type="checkbox" data-todo="${t.id}"><span>${ic('check')}</span></label><span class="grow"><b>📌 ${esc(t.text)}</b>${todoPill(t)}</span></div>`),
   ];
+  // coming up in the next week – visible ahead of time, so nothing surprises you
+  const soonEnd = addDays(new Date(now().toDateString()), 8);
+  const soon = state.todos.filter(t => !t.done && !todoDue(t) && todoWhen(t) < soonEnd).sort((a, b) => todoWhen(a) - todoWhen(b));
+  const soonHtml = soon.length ? `<p class="pmlbl tlsoon">בקרוב</p>${soon.map(t => `<div class="tlrow soon"><label class="tlchk"><input type="checkbox" data-todo="${t.id}"><span>${ic('check')}</span></label><span class="grow"><b>${esc(t.text)}</b> <small class="tpill">${esc(todoLabel(t))}</small></span></div>`).join('')}` : '';
   const more = rows.length - 5;
   const add = state._addTodo
-    ? `<form class="addtodo" data-addtodo><input name="t" placeholder="מה לא לשכוח?" autocomplete="off" autofocus><button aria-label="הוספה">${ic('plus')}</button></form>`
+    ? `<form class="addtodo" data-addtodo><input name="t" placeholder="מה לא לשכוח?" autocomplete="off" autofocus><button aria-label="הוספה">${ic('plus')}</button>${todoWhenFields()}</form>`
     : `<button class="tladd" data-act="addtodo">${ic('plus')} תזכורת</button>`;
-  if (!rows.length) return state._addTodo
-    ? `<div class="card tlist hue-rose">${cardHead('pin', 'לא לשכוח')}${add}</div>`
+  if (!rows.length) return state._addTodo || soon.length
+    ? `<div class="card tlist hue-rose">${cardHead('pin', 'לא לשכוח')}${soonHtml}<div class="tlfoot">${add}</div></div>`
     : `<div class="tlempty">${ic('pin')}<span class="grow">לא לשכוח · <span class="dim">אין משהו פתוח ✓</span></span>${add}</div>`;
   return `<div class="card tlist hue-rose">${cardHead('pin', 'לא לשכוח', `<span class="cnt">${rows.length}</span>`)}
     ${rows.slice(0, 5).join('')}
     ${more > 0 ? `<button class="linkbtn tlmore" data-go="todos">ועוד ${more} ←</button>` : ''}
+    ${soonHtml}
     <div class="tlfoot">${add}${acts.length ? `<button class="linkbtn" data-go="journal">יומן כיתה</button>` : ''}</div>
   </div>`;
 }
@@ -3366,6 +3416,11 @@ function buildQueue() {
   for (const w of sortedWeeks()) for (const d of w.days) { const dd = dayDate(w, d); if (dd && d.periods.length) days.push({ w, d, dd }); }
   const add = (at, title, body, tag, url) => { if (at.getTime() > t0 && at.getTime() < end) out.push({ at: at.getTime(), title, body, tag, ...(url ? { url } : {}) }); };
   const sec = (w, d, re) => ((w.prep[d.dow] || []).find(s => re.test(s.title)) || { items: [] }).items.map(i => i.text.split('–')[0].trim());
+  for (const t of state.todos) { // a reminder with a day or an hour → a notification at that moment (a day alone → 07:30)
+    if (t.done || !todoWhen(t)) continue;
+    const at = t.time ? todoWhen(t) : atTime(todoWhen(t), '07:30');
+    add(at, '📌 תזכורת', t.text, 'todo-' + t.id, './?go=todos');
+  }
   for (const a of autos()) {
     if (!a.on) continue;
     if (a.kind === 'morning') for (const { w, d, dd } of days) {
@@ -3763,6 +3818,19 @@ document.addEventListener('click', async e => {
     S.desks = S.desks.filter(inside); for (const key of Object.keys(S.map)) if (!inside(key)) delete S.map[key]; S.layout = 'custom'; save(); rerender(); return; }
   if (D.seatmode) { state._seatEdit = D.seatmode === 'edit'; state._seatSel = null; state._deskSel = null; rerender(); return; }
   if (D.seatcell) { if (performance.now() - deskDrag.endAt < 350) return; deskTap(D.seatcell); return; }
+  if (D.twd) { const f = t.closest('form'); const W = state._todoWhen = state._todoWhen || {}; W.d = W.d === D.twd ? '' : D.twd; if (f) { f.d.value = W.d; f.querySelectorAll('[data-twd]').forEach(b => b.classList.toggle('on', b.dataset.twd === W.d)); } return; }
+  if (D.todopop) { const x = state.todos.find(y => y.id === D.todopop); if (x) { x.pop = x.pop === false ? undefined : false; save(); rerender(); toast(x.pop === false ? 'לא תקפוץ בפתיחה' : 'תקפוץ בפתיחה עד שתסומן', 1600); } return; }
+  if (D.tpdone || D.tplater || D.tptmrw || D.tpoff) {
+    const x = state.todos.find(y => y.id === (D.tpdone || D.tplater || D.tptmrw || D.tpoff)); if (!x) return;
+    if (D.tpdone) { x.done = true; toast('מעולה, בוצע ✓', 1400); }
+    if (D.tplater) { const n = new Date(Date.now() + 3600e3); x.date = isoDay(n); x.time = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; toast(`אזכיר שוב ב־${x.time}`, 1600); }
+    if (D.tptmrw) { x.date = isoDay(addDays(new Date(now().toDateString()), 1)); toast(`אזכיר מחר${x.time ? ' ב־' + x.time : ''}`, 1600); }
+    if (D.tpoff) { x.pop = false; toast('לא תקפוץ שוב – נשארת ברשימה', 1800); }
+    todoPopShown.delete(x.id); save(); rerender();
+    const row = t.closest('.tprow'); if (row) row.remove();
+    if (!$('#overlay .tprow')) closeOverlay();
+    return;
+  }
   if (D.ruletap) { state._ruleEdit = D.ruletap; rerender(); setTimeout(() => { const i = $('[data-ruleedit] input'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 30); return; }
   if (D.ruledel) { const [k, i] = D.ruledel.split(':'); const L = toLines(clsRules()[k]); withUndo(['crules'], 'נמחק', () => { L.splice(+i, 1); clsRules()[k] = L.join('\n'); }); return; }
   if (D.ruleup) { const [k, i] = D.ruleup.split(':'); const L = toLines(clsRules()[k]); [L[i - 1], L[i]] = [L[i], L[i - 1]]; ruleSet(k, L); return; }
@@ -3951,6 +4019,7 @@ document.addEventListener('click', async e => {
     case 'bellauto': state.prefs.bellAuto = !state.prefs.bellAuto; save(); rerender(); break;
     case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
     case 'classes': classesSheet(); break;
+    case 'todopopall': state.prefs.todoPopOff = !state.prefs.todoPopOff; save(); rerender(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
     case 'sharewelcome': { const url = `${location.origin}/welcome.html`, text = 'מצאתי אפליקציה שמסדרת את כל התכנון השבועי, הכיתה וההורים במקום אחד – שווה להציץ:'; if (navigator.share) { try { await navigator.share({ title: 'הכיתה שלי', text, url }); } catch { /* closed */ } } else { try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('הקישור הועתק ✓'); } catch { prompt('הקישור:', url); } } break; }
     case 'aigo': aiGo(); break;
@@ -4256,8 +4325,11 @@ document.addEventListener('submit', e => {
   e.preventDefault();
   const text = f.t.value.trim();
   if (!text) return;
-  state.todos.push({ id: uid(), text, date: f.d && f.d.value ? f.d.value : null, done: false }); state._addTodo = false;
-  save(); rerender(); toast('נוסף 📌', 1200);
+  const date = f.d && f.d.value ? f.d.value : null, time = f.tm && f.tm.value ? f.tm.value : null;
+  const t = { id: uid(), text, date, time, done: false }; if (f.pop && !f.pop.checked) t.pop = false;
+  state.todos.push(t); state._addTodo = false; state._todoWhen = null;
+  save(); rerender();
+  toast(todoWhen(t) ? `נוסף 📌 ${todoLabel(t)}${time && !wpush.sub && wpush.supported ? ' · כדאי להפעיל התראות' : ''}` : 'נוסף 📌', 2200);
 });
 
 $('#upfile').addEventListener('change', e => {

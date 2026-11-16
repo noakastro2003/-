@@ -55,6 +55,7 @@ const VARIANT_FIELDS = {
   highlight: { passage: s },
   photo: {},
   draw: {},
+  numberline: { min: s, max: s, step: s, labels: { type: 'string', enum: ['whole', 'ends', 'all'] }, targets: strings },
 };
 
 export function pathSchema(types = AI_TASK_TYPES) {

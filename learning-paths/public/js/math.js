@@ -135,3 +135,28 @@ export function speakableMath(text) {
     .replace(new RegExp(String.raw`(${NUM})\s+ו-?\s*(${NUM})\s*\/\s*(${NUM})(?![\d/])`, 'g'), (_, w, n, d) => `${w} ו${fractionWords(n, d)}`)
     .replace(new RegExp(String.raw`(?<![\d/])(${NUM})\s*\/\s*(${NUM})(?![\d/])`, 'g'), (_, n, d) => fractionWords(n, d));
 }
+
+// ---------- numbers as teachers write them ----------
+
+// "3", "-2", "2.5", "3/4", "1 ו-1/2" → a number (NaN otherwise). Same rules as validate.js.
+export function parseNumber(value) {
+  const s = String(value ?? '').trim().replace(/[−–]/g, '-');
+  let m = s.match(/^(-?\d+)\s+ו-?\s*(\d+)\s*\/\s*(\d+)$/);
+  if (m && Number(m[3])) return Number(m[1]) + Math.sign(Number(m[1]) || 1) * (Number(m[2]) / Number(m[3]));
+  m = s.match(/^(-?\d+)\s*\/\s*(\d+)$/);
+  if (m && Number(m[2])) return Number(m[1]) / Number(m[2]);
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+
+// A value written with the step's denominator: step "1/4" → 1.5 as "1 ו-2/4", 0.75 as "3/4".
+export function formatOnScale(value, step) {
+  const m = String(step).trim().match(/^\d+\s*\/\s*(\d+)$/);
+  if (!m) return String(Math.round(value * 1e6) / 1e6);
+  const d = Number(m[1]);
+  const total = Math.round(value * d);
+  const sign = total < 0 ? '-' : '';
+  const whole = Math.floor(Math.abs(total) / d);
+  const rest = Math.abs(total) % d;
+  if (!rest) return `${sign}${whole}`;
+  return whole ? `${sign}${whole} ו-${rest}/${d}` : `${sign}${rest}/${d}`;
+}

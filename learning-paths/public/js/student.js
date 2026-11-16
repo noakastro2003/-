@@ -6,6 +6,7 @@ import { GAMES, gameSpeech } from './games.js';
 import { DEMO } from './env.js';
 import { play, setPathSound, muted, setMuted } from './sound.js';
 import { watchFractions, speakableMath } from './math.js';
+import { visualEl } from './visuals.js';
 
 // ---------- code entry ----------
 
@@ -414,6 +415,7 @@ function showTask(s, i) {
 
   const parts = [];
   if (c.text) parts.push(h('p', { class: 'task-text path-font' }, c.text));
+  if (c.visual) parts.push(visualEl(c.visual));
 
   // In these tasks the picture is the board itself.
   if ((c.image || c.imageUrl) && !['hotspot', 'draw'].includes(t.type)) {

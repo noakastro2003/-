@@ -166,3 +166,20 @@ test('a student\'s mood reaches the teacher', async () => {
   const prog = (await t('GET', `/api/paths/${path.id}/progress`)).body;
   assert.equal(prog.students[0].moods.start.mood, '😢');
 });
+
+test('number line: fractions and mixed numbers on ticks', async () => {
+  const { parseNumber } = await import('../validate.js');
+  assert.equal(parseNumber('1 ו-1/2'), 1.5);
+  assert.equal(parseNumber('-3'), -3);
+  assert.ok(Number.isNaN(parseNumber('שלוש')));
+  const t = v.task({ type: 'numberline', title: 'ישר', content: { min: '0', max: '2', step: '1/4', targets: ['3/4', '1 ו-1/2'] } });
+  assert.equal(t.content.labels, 'whole');
+  assert.deepEqual(gradeAnswer('numberline', t.content, { answer: [3, 6] }), { correct: true, answer: [3, 6], wrong: [] });
+  assert.deepEqual(gradeAnswer('numberline', t.content, { answer: [3, 5] }).wrong, [1]);
+  assert.throws(() => gradeAnswer('numberline', t.content, { answer: [3, null] }), /כל המספרים/);
+  assert.throws(() => gradeAnswer('numberline', t.content, { answer: [3, 99] }));
+  assert.throws(() => v.task({ type: 'numberline', title: 'x', content: { min: '0', max: '1', step: '1/4', targets: ['1/3'] } }), /סימונים/);
+  assert.throws(() => v.task({ type: 'numberline', title: 'x', content: { min: '0', max: '1', step: '0.3', targets: ['0'] } }), /להתחלק/);
+  assert.throws(() => v.task({ type: 'numberline', title: 'x', content: { min: '0', max: '100', step: '1', targets: ['5'] } }), /40/);
+  assert.equal(taskFromAi({ type: 'numberline', title: 'x', emoji: '', estMinutes: 3, text: '', min: '0', max: '10', step: '1', labels: 'ends', targets: ['7'] }).content.labels, 'ends');
+});

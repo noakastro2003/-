@@ -12,6 +12,7 @@ import { celebrate } from './student.js';
 const THEME_FALLBACK = { color: '#6c5ce7', background: 'plain', font: 'rounded', mode: 'light' };
 import { nikudBar } from './nikud.js';
 import { imageField, audioField } from './media.js';
+import { visualEl } from './visuals.js';
 import { classesSection } from './classes.js';
 import { scheduleCard, libraryShareCard } from './library.js';
 import { DEMO } from './env.js';
@@ -602,6 +603,50 @@ function dictationEditor(words) {
   });
 }
 
+// A visual aid: a fraction (pie/bar) or groups of objects to count, with a live preview.
+function visualField(current) {
+  let kind = current?.kind === 'fraction' ? `fraction-${current.shape || 'pie'}` : current?.kind || '';
+  const n = h('input', { type: 'number', min: 0, max: 36, value: current?.n ?? 3, class: 'num-input', 'aria-label': 'מונה' });
+  const d = h('input', { type: 'number', min: 1, max: 12, value: current?.d ?? 4, class: 'num-input', 'aria-label': 'מכנה' });
+  const groups = [0, 1, 2].map((i) => ({
+    emoji: h('input', { type: 'text', maxlength: 8, value: current?.groups?.[i]?.emoji ?? (i ? '' : '🍎'), class: 'emoji-input', 'aria-label': `סמל ${i + 1}` }),
+    count: h('input', { type: 'number', min: 0, max: 20, value: current?.groups?.[i]?.count ?? (i ? '' : 5), class: 'num-input', 'aria-label': `כמות ${i + 1}` }),
+  }));
+  const op = h('select', { 'aria-label': 'סימן בין הקבוצות' }, [['', 'בלי סימן'], ['+', '+ (חיבור)'], ['−', '− (חיסור)']]
+    .map(([val, label]) => h('option', { value: val, selected: (current?.op || '') === val }, label)));
+  const preview = h('div', { class: 'visual-preview' });
+  const controls = h('div', { class: 'visual-controls' });
+  const value = () => {
+    if (kind.startsWith('fraction')) return { kind: 'fraction', n: Number(n.value), d: Number(d.value), shape: kind.endsWith('bar') ? 'bar' : 'pie' };
+    if (kind === 'objects') {
+      return { kind: 'objects', op: op.value, groups: groups.map((g) => ({ emoji: g.emoji.value.trim(), count: Number(g.count.value) })).filter((g) => g.emoji && g.count > 0) };
+    }
+    return null;
+  };
+  const draw = () => {
+    mount(controls,
+      kind.startsWith('fraction') && h('div', { class: 'row wrap' }, field('כמה חלקים צבועים', n), field('לכמה חלקים מחולק השלם', d)),
+      kind === 'objects' && h('div', { class: 'stack' },
+        groups.map((g, i) => h('div', { class: 'row' }, h('span', { class: 'small muted' }, `קבוצה ${i + 1}:`), g.emoji, g.count)),
+        field('סימן בין הקבוצות', op)));
+    let el = null;
+    try { el = visualEl(value()); } catch { el = null; }
+    mount(preview, el || (kind ? h('span', { class: 'muted small' }, 'מלאו את הפרטים') : null));
+  };
+  const kinds = [['', 'בלי'], ['fraction-pie', '🍕 שבר כעוגה'], ['fraction-bar', '🍫 שבר כפס'], ['objects', '🍎 חפצים לספירה']];
+  const seg = h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'סוג ההמחשה' });
+  const drawSeg = () => mount(seg, kinds.map(([val, label]) => h('button', {
+    type: 'button', role: 'radio', 'aria-checked': String(kind === val), class: kind === val ? 'on' : '',
+    onclick: () => { kind = val; drawSeg(); draw(); },
+  }, label)));
+  [n, d, op, ...groups.flatMap((g) => [g.emoji, g.count])].forEach((x) => x.addEventListener('input', draw));
+  drawSeg();
+  draw();
+  const wrap = h('div', { class: 'visual-field' }, seg, controls, preview);
+  wrap.getValue = value;
+  return wrap;
+}
+
 // Hotspot task: the teacher taps the right places on her picture.
 function spotEditor(spots, imageF) {
   let list = spots.map((x) => ({ ...x }));
@@ -675,6 +720,7 @@ const DEFAULT_TEXT = {
   sort: 'גררו כל פריט לקופסה המתאימה (או לחצו על פריט ואז על קופסה).',
   voice: 'לחצו על המיקרופון וספרו במילים שלכם.',
   dictation: 'הקשיבו לכל מילה וכתבו אותה. אפשר לשמוע שוב כמה פעמים שרוצים.',
+  numberline: 'שימו כל מספר במקום הנכון על ישר המספרים.',
   photo: 'פתרו במחברת, ואז צלמו את הדף ושלחו.',
   draw: 'ציירו על הלוח. אפשר לבחור צבע ועובי.',
   hotspot: 'לחצו על המקום הנכון בתמונה.',
@@ -764,6 +810,19 @@ function taskForm(state, type, existing, onDone, draft = null) {
     const words = dictationEditor(c.words || []);
     extra.push(field('המילים להכתבה', words, 'בלי הקלטה, המחשב יקריא את המילה. הקלטה שלכם ברורה יותר (מומלץ). הבדיקה מתעלמת מניקוד.'));
     collect = () => ({ words: words.values() });
+  } else if (type === 'numberline') {
+    const inp = (v, ph) => h('input', { type: 'text', dir: 'ltr', maxlength: 20, value: v, placeholder: ph, class: 'nl-input' });
+    const min = inp(c.min ?? '0', '0');
+    const max = inp(c.max ?? '1', '1');
+    const step = inp(c.step ?? '1/4', '1/4');
+    const labels = h('select', {}, [['whole', 'מספרים שלמים בלבד'], ['ends', 'רק ההתחלה והסוף'], ['all', 'כל הסימונים']]
+      .map(([val, label]) => h('option', { value: val, selected: (c.labels || 'whole') === val }, label)));
+    const targets = listEditor(c.targets || [], { placeholder: 'למשל 3/4', min: 1, max: 5 });
+    extra.push(
+      h('div', { class: 'row wrap' }, field('מתחיל ב־', min), field('נגמר ב־', max), field('קפיצה בין סימונים', step, 'למשל 1, 10, 1/2, 1/4')),
+      field('אילו מספרים כתובים מתחת לישר', labels, 'כשרוצים שהתלמידים יחשבו בעצמם, כדאי להציג פחות מספרים'),
+      field('המספרים שהתלמידים שמים על הישר', targets, 'עד 5. כל מספר צריך ליפול על אחד הסימונים. אפשר שברים (3/4) ומספרים מעורבים (1 ו-1/2).'));
+    collect = () => ({ min: min.value, max: max.value, step: step.value, labels: labels.value, targets: targets.getValues().filter((x) => x.trim()) });
   } else if (type === 'hotspot') {
     // Uses the task's picture field (created below); the editor follows it.
     collect = () => ({ spots: spotsEd.values() });
@@ -790,11 +849,12 @@ function taskForm(state, type, existing, onDone, draft = null) {
       h('span', { class: 'hint' }, 'לחצו על התמונה לסימון מקום נכון, ולחצו על עיגול כדי למחוק אותו. התלמידים יצטרכו למצוא את כולם.')));
   }
   const audioF = audioField(c.audio || '');
+  const visualF = visualField(c.visual);
   const submit = h('button', { class: 'btn primary', type: 'submit' }, existing ? 'שמירה' : 'הוספה');
   const payloadNow = () => ({
     type, title: title.value, emoji: emoji.getValue(), estMinutes: Number(est.value),
     needsApproval: approval.checked,
-    content: { text: text.value, image: imageF.getValue(), audio: audioF.getValue(), ...collect() },
+    content: { text: text.value, image: imageF.getValue(), audio: audioF.getValue(), visual: visualF.getValue(), ...collect() },
   });
   const improveBtn = h('button', {
     type: 'button', class: 'btn small secondary',
@@ -822,6 +882,8 @@ function taskForm(state, type, existing, onDone, draft = null) {
     h('div', { class: 'media-row' },
       field(type === 'hotspot' ? 'התמונה' : type === 'draw' ? 'תמונת רקע לציור (לא חובה)' : 'תמונה (לא חובה)', imageF),
       field('ההוראות בקול שלך (לא חובה)', audioF, 'התלמידים ישמעו אותך במקום הקראה ממוחשבת')),
+    h('div', { class: 'field' }, h('span', { class: 'field-label' }, '📊 המחשה (לא חובה)'), visualF,
+      h('span', { class: 'hint' }, 'ציור מדויק שמופיע מתחת להוראות: שבר כעוגה או כפס, או חפצים לספירה')),
     extra,
     h('div', { class: 'row wrap' }, field('זמן משוער (דקות)', est)),
     h('label', { class: 'toggle approval-toggle' }, approval, h('span', { class: 'toggle-ui', 'aria-hidden': 'true' }),

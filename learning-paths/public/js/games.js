@@ -8,6 +8,7 @@
 import { h, mount } from './ui.js';
 import { stripNikud } from './themes.js';
 import { shrinkImage } from './media.js';
+import { parseNumber, formatOnScale } from './math.js';
 
 // Stands in for an upload in the teacher's preview, where nothing is saved.
 const PREVIEW_FILE = '/api/media/preview-only';
@@ -1125,7 +1126,107 @@ function highlight(t) {
   };
 }
 
-export const GAMES = { memory, wordsearch, matching, order, blanks, truefalse, lines, sort, voice, dictation, flashcards, photo, draw, hotspot, highlight };
+// ---------- number line ----------
+
+function numberline(t) {
+  const c = t.content;
+  const lo = parseNumber(c.min);
+  const hi = parseNumber(c.max);
+  const st = parseNumber(c.step);
+  const n = Math.round((hi - lo) / st);
+  const pos = c.targets.map(() => null); // the tick each number was put on
+  let sel = 0;
+  let wrongSet = new Set();
+  const xOf = (k) => 4 + (92 * k) / n; // percent from the left
+  const isWhole = (k) => Math.abs((lo + k * st) - Math.round(lo + k * st)) < 1e-9;
+  const showLabel = (k) => k === 0 || k === n || c.labels === 'all' || (c.labels === 'whole' && isWhole(k));
+
+  const track = h('div', { class: 'nl-track', role: 'group', 'aria-label': 'ישר המספרים' });
+  const bank = h('div', { class: 'nl-bank' });
+  const color = (i) => PAIR_COLORS[i % PAIR_COLORS.length];
+
+  // Where on the line (which tick) a pointer is.
+  const tickAt = (clientX) => {
+    const r = track.getBoundingClientRect();
+    const pct = ((clientX - r.left) / r.width) * 100;
+    return Math.max(0, Math.min(n, Math.round(((pct - 4) / 92) * n)));
+  };
+  const place = (i, k) => {
+    pos[i] = k;
+    wrongSet.delete(i);
+    const next = pos.findIndex((p) => p === null);
+    sel = next >= 0 ? next : i;
+    render();
+  };
+
+  track.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.nl-pin')) return;
+    if (sel === null || sel === undefined) return;
+    place(sel, tickAt(e.clientX));
+  });
+
+  // A pin can be dragged along the line with a finger or the mouse.
+  function dragPin(e, i) {
+    e.preventDefault();
+    e.stopPropagation();
+    sel = i;
+    const onMove = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      const k = tickAt(ev.clientX);
+      if (k !== pos[i]) { pos[i] = k; wrongSet.delete(i); render(); }
+    };
+    const onUp = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      render();
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    render();
+  }
+
+  function render() {
+    const ticks = [];
+    for (let k = 0; k <= n; k++) {
+      ticks.push(h('span', { class: `nl-tick${isWhole(k) ? ' major' : ''}`, style: { left: `${xOf(k)}%` } }));
+      if (showLabel(k)) ticks.push(h('span', { class: 'nl-label', style: { left: `${xOf(k)}%` } }, formatOnScale(lo + k * st, c.step)));
+    }
+    const pins = pos.map((k, i) => k === null ? null : h('button', {
+      class: `nl-pin${sel === i ? ' selected' : ''}${wrongSet.has(i) ? ' wrong' : ''}`,
+      style: { left: `${xOf(k)}%`, '--pin': color(i) }, 'aria-label': `${c.targets[i]} על הישר`,
+      onpointerdown: (e) => dragPin(e, i),
+    }, h('span', { class: 'nl-pin-label' }, c.targets[i])));
+    mount(track, h('span', { class: 'nl-axis' }), h('span', { class: 'nl-arrow' }), ticks, pins);
+    mount(bank, c.targets.map((v, i) => h('button', {
+      class: `nl-chip${sel === i ? ' selected' : ''}${pos[i] !== null ? ' placed' : ''}`, style: { '--pin': color(i) },
+      onclick: () => { sel = i; render(); },
+    }, h('span', { class: 'nl-dot', 'aria-hidden': 'true' }), v, pos[i] !== null ? ' ✓' : '')));
+  }
+  render();
+  return {
+    el: h('div', { class: 'game' },
+      h('p', { class: 'game-counter' }, c.targets.length > 1
+        ? 'בחרו מספר, ואז לחצו על המקום שלו בישר. אפשר לגרור את הסימון.'
+        : 'לחצו על המקום הנכון בישר. אפשר לגרור את הסימון.'),
+      bank, h('div', { class: 'nl', dir: 'ltr' }, track)),
+    answer: () => pos,
+    ready: () => {
+      const left = pos.filter((p) => p === null).length;
+      return left ? `נשארו עוד ${left} מספרים לשים על הישר 📏` : null;
+    },
+    wrong: (idx) => {
+      wrongSet = new Set(idx);
+      render();
+      setTimeout(() => { idx.forEach((i) => { pos[i] = null; }); sel = idx[0] ?? 0; wrongSet = new Set(); render(); }, 1300);
+    },
+    label: 'בדיקה ✓',
+  };
+}
+
+export const GAMES = { memory, wordsearch, matching, order, blanks, truefalse, lines, sort, voice, dictation, flashcards, photo, draw, hotspot, highlight, numberline };
 
 // Text for the read-aloud button.
 export function gameSpeech(t) {
@@ -1136,6 +1237,7 @@ export function gameSpeech(t) {
     case 'matching':
     case 'lines': return c.left.join('. ');
     case 'highlight': return c.tokens.join(' ');
+    case 'numberline': return `ישר מספרים מ-${c.min} עד ${c.max}. שימו על הישר: ${c.targets.join(', ')}`;
     case 'sort': return `${c.groups.join(', ')}. ${c.items.join(', ')}`;
     case 'blanks': return c.segments.join(' ... ');
     case 'wordsearch': return c.words.join(', ');

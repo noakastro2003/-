@@ -6,7 +6,7 @@ export const GRADES = ['גן', 'א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', '
 // Task types the generator may use. 'link' is left out on purpose: the model
 // would have to invent URLs, and a dead link is worse than no link. 'hotspot' needs
 // the teacher's own picture.
-export const AI_TASK_TYPES = ['read', 'question', 'choice', 'checklist', 'timer', 'memory', 'wordsearch', 'matching', 'order', 'blanks', 'truefalse', 'lines', 'sort', 'voice', 'dictation', 'flashcards', 'highlight', 'photo', 'draw'];
+export const AI_TASK_TYPES = ['read', 'question', 'choice', 'checklist', 'timer', 'memory', 'wordsearch', 'matching', 'order', 'blanks', 'truefalse', 'lines', 'sort', 'voice', 'dictation', 'flashcards', 'highlight', 'photo', 'draw', 'numberline'];
 
 export const ICONS = ['🚀', '🌈', '🦄', '🐢', '🦁', '⚽', '🎨', '📚', '🧩', '🌟', '🌱', '🏝️', '🐙', '🎵', '🔬', '🏰'];
 export const COLORS = ['#6c5ce7', '#0984e3', '#00a884', '#e17055', '#d63384', '#2d3436'];
@@ -41,8 +41,13 @@ Rules per task type (the JSON schema enforces the shape, these rules cover the r
 - highlight: the student taps words in a text. "passage" is a short text (1–4 sentences) where each word to tap is wrapped in square brackets, e.g. "הילד [רץ] ו[קפץ] בחצר"; "text" says what to tap (for example "סמנו את כל הפעלים"). 2–8 words to tap.
 - photo: the student does work on paper (in the notebook) and photographs it. "text" says exactly what to write, draw or solve on paper.
 - draw: the student draws on the screen. "text" says what to draw (for example a picture of the story's hero, or a diagram).
+- numberline: the student puts numbers on a number line. "min", "max" and "step" are strings (whole numbers, decimals or fractions like "1/4"); (max − min) / step must be a whole number of at most 20. "labels" is "whole" (only whole numbers are written under the line), "ends" (only min and max) or "all". "targets" are 1–4 numbers to place, each exactly on a tick (min + k × step), written like "3/4", "1 ו-1/2" or "7". Great for fractions, decimals, negative numbers and rounding.
 - flashcards: cards the student flips to practice and memorize. 4–12 "cards": "a" is the front (a word, question or exercise) and "b" the back (meaning, answer or result).
 - Every task: a short "title" (2–5 words), one fitting "emoji", and a realistic "estMinutes".
+- Visual aids (optional, any task): add "visual" when a picture helps understanding, especially in math for young grades or fractions. The app draws it exactly:
+  {"kind": "fraction", "n": 3, "d": 4, "shape": "pie"} (or "bar"; n ≤ 3·d, d ≤ 12) — a fraction as a pie or a bar;
+  {"kind": "objects", "groups": [{"emoji": "🍎", "count": 5}, {"emoji": "🍎", "count": 3}], "op": "+"} (1–3 groups, up to 20 each; op "+", "−" or "") — objects to count.
+  The visual must match the task's content exactly and must not give away an answer the student is asked to find. Use it in about a third of the tasks where it fits; never more than once per task.
 - "text" for games is the instruction line, for example "מצאו את כל הזוגות".
 
 Path fields: "title" is short and inviting, "description" is one sentence the student sees at the start, and pick an "icon" and "color" that fit the topic.`;
@@ -92,6 +97,7 @@ const EXAMPLES = {
   highlight: { text: '...', passage: '... [...] ...' },
   photo: { text: '...' },
   draw: { text: '...' },
+  numberline: { text: '...', min: '0', max: '2', step: '1/4', labels: 'whole', targets: ['3/4', '1 ו-1/2'] },
 };
 
 export function jsonFormatInstructions(types) {

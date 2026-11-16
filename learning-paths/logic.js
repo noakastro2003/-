@@ -10,7 +10,7 @@ function randomInt(n) {
 }
 
 // Task types with right and wrong answers: a "first try" badge counts these.
-export const GRADED_TYPES = ['choice', 'matching', 'order', 'blanks', 'truefalse', 'lines', 'sort', 'dictation', 'hotspot', 'highlight'];
+export const GRADED_TYPES = ['choice', 'matching', 'order', 'blanks', 'truefalse', 'lines', 'sort', 'dictation', 'hotspot', 'highlight', 'numberline'];
 
 // A student's "secret password": 3 picks (repeats allowed) from these pictures. Easy for
 // young children and weak readers; the server rate-limits guessing.
@@ -62,6 +62,7 @@ export function studentContent(type, c) {
   const media = {};
   if (c.image) media.image = c.image;
   if (c.audio) media.audio = c.audio;
+  if (c.visual) media.visual = c.visual;
   return { ...studentTypeContent(type, c), ...media };
 }
 
@@ -178,6 +179,16 @@ export function gradeAnswer(type, content, body) {
       const wrong = picked.filter((i) => !targets.includes(i));
       return { correct: wrong.length === 0, answer: picked, wrong };
     }
+    case 'numberline': {
+      // answer: the tick (0 = min) where the student put each number.
+      const ticks = v.numberLineTicks(content);
+      const placed = list(content.targets.length).map((k) => (Number.isInteger(k) && k >= 0 && k <= ticks ? k : -1));
+      if (placed.includes(-1)) throw new HttpError(400, 'צריך לשים את כל המספרים על הישר');
+      const lo = v.parseNumber(content.min);
+      const st = v.parseNumber(content.step);
+      const wrong = content.targets.map((t, i) => (Math.abs(lo + placed[i] * st - v.parseNumber(t)) < 1e-9 ? -1 : i)).filter((i) => i >= 0);
+      return { correct: wrong.length === 0, answer: placed, wrong };
+    }
     case 'flashcards':
       return { correct: true, answer: { again: v.int(body.answer, { min: 0, max: 999, def: 0 }) } };
     case 'order':
@@ -234,13 +245,21 @@ export function taskFromAi(t) {
   const { type, title, emoji, estMinutes, ...content } = t;
   const clamp = (n, lo, hi, def) => (Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : def);
   if (type === 'timer') content.minutes = clamp(content.minutes, 1, 60, 10);
-  return v.task({
+  const make = (c) => v.task({
     type,
     title: String(title || '').slice(0, 120),
     emoji: String(emoji || '').slice(0, 16),
     estMinutes: clamp(estMinutes, 1, 120, 5),
-    content,
+    content: c,
   });
+  try {
+    return make(content);
+  } catch (err) {
+    // A broken drawing shouldn't cost the whole task: try again without it.
+    if (!content.visual) throw err;
+    const { visual, ...rest } = content;
+    return make(rest);
+  }
 }
 
 // After an AI rewrite: the pictures, recordings and approval stop belong to the teacher.
@@ -249,6 +268,7 @@ export function keepTeacherParts(original, improved) {
   const c = improved.content;
   if (o.image) c.image = o.image;
   if (o.audio) c.audio = o.audio;
+  if (o.visual && !c.visual) c.visual = o.visual;
   if (improved.type === 'dictation') {
     const rec = new Map(o.words.filter((x) => x.audio).map((x) => [v.normalizeWord(x.w), x.audio]));
     for (const x of c.words) if (rec.has(v.normalizeWord(x.w))) x.audio = rec.get(v.normalizeWord(x.w));

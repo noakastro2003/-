@@ -65,6 +65,7 @@ Content per type (limits are enforced):
 | `voice` | `text` – a “tell in your own words” prompt (the student records an answer) |
 | `draw` | `text` – what to draw on the screen |
 | `photo` | `text` – what to do on paper and photograph |
+| `numberline` | `text`, `min`, `max`, `step` (strings: "0", "2", "1/4"; (max−min)/step whole, ≤ 40), `labels` ("whole" / "ends" / "all"), `targets` 1–5 values on ticks ("3/4", "1 ו-1/2") |
 
 Do not use `link` or `hotspot` (they need a URL or the teacher's own picture).
 

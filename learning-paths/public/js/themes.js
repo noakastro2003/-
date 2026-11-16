@@ -108,6 +108,7 @@ export const TASK_TYPES = {
   lines: { group: 'game', name: 'מתיחת קו', icon: '〰️', desc: 'גוררים קו מכל פריט לבן הזוג שלו' },
   sort: { group: 'game', name: 'מיון לקבוצות', icon: '🗂️', desc: 'מכניסים כל פריט לקופסה הנכונה' },
   dictation: { group: 'game', name: 'הכתבה', icon: '✍️', desc: 'שומעים מילה ומקלידים אותה. בלי לחשוש מניקוד' },
+  numberline: { group: 'game', name: 'ישר מספרים', icon: '📏', desc: 'שמים מספרים או שברים במקום הנכון על הישר' },
   hotspot: { group: 'game', name: 'סימון על תמונה', icon: '🎯', desc: 'לוחצים על המקום הנכון במפה, בגוף או בתמונה' },
   highlight: { group: 'game', name: 'סימון מילים בטקסט', icon: '🖍️', desc: 'מסמנים בטקסט, למשל את כל הפעלים' },
   flashcards: { group: 'game', name: 'כרטיסיות', icon: '🎴', desc: 'הופכים כרטיס: מילה ופירוש, תרגיל ותשובה' },

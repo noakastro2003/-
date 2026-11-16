@@ -1100,3 +1100,40 @@ a.icon-btn { display: inline-grid; place-items: center; text-decoration: none; }
 .order-grip:active { background: var(--accent-soft); }
 .order-item { transition: transform .15s; }
 .order-item.dragging { border-color: var(--accent); box-shadow: 0 8px 20px rgb(0 0 0 / .18); background: var(--k-surface); position: relative; z-index: 2; transition: none; }
+
+/* number line */
+.nl { padding: 3.6rem .2rem 2.6rem; }
+.nl-track { position: relative; height: 60px; cursor: pointer; touch-action: none; user-select: none; }
+.nl-axis { position: absolute; left: 1%; right: 1%; top: 30px; height: 4px; background: var(--k-text); border-radius: 2px; }
+.nl-arrow { position: absolute; right: 0; top: 24px; border: 8px solid transparent; border-left: 12px solid var(--k-text); border-right: 0; }
+.nl-tick { position: absolute; top: 22px; width: 2px; height: 20px; margin-left: -1px; background: var(--k-text); }
+.nl-tick.major { top: 16px; width: 3px; height: 32px; margin-left: -1.5px; }
+.nl-label { position: absolute; top: 52px; transform: translateX(-50%); font-size: 1.05rem; white-space: nowrap; }
+.nl-pin { position: absolute; bottom: 32px; transform: translateX(-50%); border: 0; background: none; padding: 0; cursor: grab; touch-action: none; display: flex; flex-direction: column; align-items: center; }
+.nl-pin::after { content: ''; width: 0; height: 0; border: 9px solid transparent; border-top: 14px solid var(--pin); border-bottom: 0; }
+.nl-pin-label { background: var(--pin); color: #1c1b2e; font-weight: 700; padding: .15rem .45rem; border-radius: 10px; font-size: 1rem; white-space: nowrap; box-shadow: 0 2px 5px rgb(0 0 0 / .2); }
+.nl-pin.selected .nl-pin-label { outline: 3px solid var(--accent); }
+.nl-pin.wrong .nl-pin-label { background: #ffc9c9; outline: 3px solid var(--danger); }
+.nl-bank { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; }
+.nl-chip { display: inline-flex; align-items: center; gap: .4rem; padding: .45rem .9rem; border-radius: 999px; border: 3px solid var(--pin); background: var(--k-surface); color: var(--k-text); font-size: 1.2rem; cursor: pointer; }
+.nl-chip.selected { box-shadow: 0 0 0 4px var(--accent-soft); border-color: var(--accent); }
+.nl-chip.placed { opacity: .65; }
+.nl-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--pin); }
+
+/* visual aids */
+.visual { margin: .6rem auto 1rem; display: flex; flex-wrap: wrap; gap: .8rem; justify-content: center; align-items: center; }
+.vis-pie { width: 110px; height: 110px; }
+.vis-bar { width: min(320px, 100%); height: auto; }
+.vis-pie .on, .vis-bar .on { fill: var(--accent); }
+.vis-pie .off, .vis-bar .off { fill: var(--k-surface); }
+.vis-pie path, .vis-pie circle, .vis-bar rect { stroke: var(--k-text); stroke-width: 2; }
+.vis-fraction.bar { flex-direction: column; }
+.vis-group { display: inline-flex; flex-direction: column; gap: .15rem; padding: .4rem .6rem; border-radius: 14px; background: var(--k-surface-2); font-size: 1.8rem; line-height: 1.2; letter-spacing: .1em; }
+.vis-op { font-size: 2rem; font-weight: 700; color: var(--accent-strong); }
+.visual-field { display: flex; flex-direction: column; gap: .5rem; }
+.visual-field .segmented { flex-wrap: wrap; }
+.num-input { width: 5.5rem; }
+.emoji-input { width: 4.5rem; text-align: center; font-size: 1.3rem; }
+.visual-preview { min-height: 1rem; }
+.visual-preview .visual { margin: .2rem 0; justify-content: flex-start; }
+.vis-group { font-size: clamp(1.25rem, 5.5vw, 1.8rem); }

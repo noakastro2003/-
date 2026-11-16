@@ -131,8 +131,31 @@ export const TASK_TYPES = [
   'read', 'link', 'question', 'choice', 'checklist', 'timer',
   'memory', 'wordsearch', 'matching', 'order', 'blanks', 'truefalse',
   'lines', 'sort', 'voice', 'dictation', 'flashcards',
-  'photo', 'hotspot', 'draw', 'highlight',
+  'photo', 'hotspot', 'draw', 'highlight', 'numberline',
 ];
+
+// A number as teachers write it: "3", "-2", "2.5", "3/4", "1 ו-1/2" (mixed). NaN if not one.
+export function parseNumber(value) {
+  const s = String(value ?? '').trim().replace(/[−–]/g, '-');
+  let m = s.match(/^(-?\d+)\s+ו-?\s*(\d+)\s*\/\s*(\d+)$/);
+  if (m && Number(m[3])) return Number(m[1]) + Math.sign(Number(m[1]) || 1) * (Number(m[2]) / Number(m[3]));
+  m = s.match(/^(-?\d+)\s*\/\s*(\d+)$/);
+  if (m && Number(m[2])) return Number(m[1]) / Number(m[2]);
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+const sameNumber = (a, b) => Math.abs(a - b) < 1e-9;
+
+// A number line: ticks from min to max every step. Returns the tick count, or throws.
+export function numberLineTicks(c) {
+  const [min, max, step] = [c.min, c.max, c.step].map(parseNumber);
+  if ([min, max, step].some(Number.isNaN)) throw bad('ישר מספרים: התחלה, סוף וקפיצה צריכים להיות מספרים (אפשר שברים כמו 1/4)');
+  if (max <= min) throw bad('ישר מספרים: הסוף צריך להיות גדול מההתחלה');
+  if (step <= 0) throw bad('ישר מספרים: הקפיצה צריכה להיות גדולה מאפס');
+  const n = (max - min) / step;
+  if (!sameNumber(n, Math.round(n))) throw bad('ישר מספרים: הקפיצה צריכה להתחלק בדיוק בטווח (למשל 0 עד 1 בקפיצות של 1/4)');
+  if (Math.round(n) > 40) throw bad('ישר מספרים: עד 40 קפיצות על הישר');
+  return Math.round(n);
+}
 
 // Removes Hebrew nikud and cantillation marks (keeps maqaf and punctuation).
 export function stripNikud(s) {
@@ -181,6 +204,28 @@ export function highlightTokens(passage) {
   return { tokens, targets, tight };
 }
 
+// A visual aid the app draws exactly: a fraction as a pie or a bar, or groups of objects
+// to count ("🍎 ×3 + 🍎 ×2"). Returns null when there is none.
+export function visual(x) {
+  if (!x || typeof x !== 'object' || !x.kind) return null;
+  if (x.kind === 'fraction') {
+    const d = int(x.d, { min: 1, max: 12, def: 0 });
+    const n = int(x.n, { min: 0, max: 36, def: -1 });
+    if (!d || n < 0) throw bad('המחשה: מונה ומכנה צריכים להיות מספרים (מכנה עד 12)');
+    if (n > d * 3) throw bad('המחשה: עד 3 שלמים');
+    return { kind: 'fraction', n, d, shape: x.shape === 'bar' ? 'bar' : 'pie' };
+  }
+  if (x.kind === 'objects') {
+    const groups = (Array.isArray(x.groups) ? x.groups : [])
+      .map((g) => ({ emoji: str(g?.emoji, { max: 16, field: 'סמל' }), count: int(g?.count, { min: 0, max: 20, def: 0 }) }))
+      .filter((g) => g.emoji && g.count);
+    if (!groups.length) throw bad('המחשה: צריך לפחות קבוצה אחת עם סמל ומספר');
+    if (groups.length > 3) throw bad('המחשה: עד 3 קבוצות');
+    return { kind: 'objects', groups, op: ['+', '−', ''].includes(x.op) ? x.op : '' };
+  }
+  throw bad('סוג המחשה לא מוכר');
+}
+
 function pairList(value, { min, max }) {
   if (!Array.isArray(value)) value = [];
   const pairs = value
@@ -204,6 +249,8 @@ function taskContent(type, c = {}) {
   if (image) media.image = image;
   if (audio) media.audio = audio;
   if (type === 'hotspot' && !image) throw bad('במשימת סימון על תמונה צריך להעלות תמונה');
+  const vis = visual(c.visual);
+  if (vis) media.visual = vis;
   return { ...typeContent(type, c), ...media };
 }
 
@@ -320,6 +367,25 @@ function typeContent(type, c) {
       if (targets.length > 30) throw bad('עד 30 מילים לסימון');
       if (tokens.length > 400) throw bad('הטקסט ארוך מדי לסימון');
       return { text, passage };
+    }
+    case 'numberline': {
+      const nl = {
+        min: str(c.min, { max: 20, required: true, field: 'התחלה' }),
+        max: str(c.max, { max: 20, required: true, field: 'סוף' }),
+        step: str(c.step, { max: 20, required: true, field: 'קפיצה' }),
+      };
+      const ticks = numberLineTicks(nl);
+      const labels = ['ends', 'whole', 'all'].includes(c.labels) ? c.labels : 'whole';
+      const targets = strList(c.targets, { field: 'מספרים לסימון', min: 1, maxItems: 5, maxLen: 20 });
+      const lo = parseNumber(nl.min);
+      const st = parseNumber(nl.step);
+      for (const t of targets) {
+        const v = parseNumber(t);
+        if (Number.isNaN(v)) throw bad(`"${t}" הוא לא מספר`);
+        const k = (v - lo) / st;
+        if (k < -1e-9 || k > ticks + 1e-9 || !sameNumber(k, Math.round(k))) throw bad(`המספר ${t} לא נמצא על אחד הסימונים של הישר`);
+      }
+      return { text, ...nl, labels, targets };
     }
     case 'flashcards': {
       const cards = pairList(c.cards, { min: 2, max: 20 });

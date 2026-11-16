@@ -1,0 +1,25 @@
+# Netlify: the site is the public/ folder; /api/* is the function in netlify/functions/api.mjs;
+# the database (Netlify Database) gets its schema from netlify/database/migrations.
+[build]
+  publish = "public"
+  command = "npm run content"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["pg", "@anthropic-ai/sdk"]
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src * data: blob:; media-src 'self' blob:; frame-src https://www.youtube-nocookie.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "no-cache"

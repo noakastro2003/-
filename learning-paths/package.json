@@ -1,0 +1,25 @@
+{
+  "name": "learning-paths",
+  "version": "1.0.0",
+  "description": "מערכת למורות לבניית מסלולי למידה עצמאיים לתלמידים עם קשיי קשב",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --no-warnings server.js",
+    "test": "node --no-warnings --test test/*.test.js",
+    "admin": "node --no-warnings admin.js",
+    "content": "node --no-warnings scripts/content.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.135.0",
+    "@electric-sql/pglite": "^0.5.16",
+    "@google/genai": "^2.31.0",
+    "@netlify/blobs": "^11.1.9",
+    "@netlify/database": "^2.0.3",
+    "openai": "^7.57.0",
+    "pg": "^8.23.1"
+  }
+}

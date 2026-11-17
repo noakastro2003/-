@@ -33,7 +33,7 @@ const WS_KINDS = [['open', 'שאלה פתוחה', 'pencil'], ['fill', 'השלמ�
 const wsCur = () => (state.sheets = state.sheets || []).find(x => x.id === state._wsId);
 const wsOut = sh => ({ kind: 'sheet', title: sh.title || 'דף עבודה', goal: sh.goal || '', story: sh.story, teacherNote: sh.teacherNote, selfCheck: sh.selfCheck, levels: sh.levels.map(l => ({ name: sh.levels.length > 1 ? l.name : '', instructions: l.instructions, example: l.example || '', items: l.items.map(x => ({ kind: x.kind, prompt: x.prompt || '', options: x.options || [], hint: x.hint || '', answer: x.answer || '' })) })) });
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 111; // keep in step with CACHE in sw.js
+const APP_V = 112; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules', 'sheets'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -2128,14 +2128,23 @@ function viewBells() {
   <div class="card">${cardHead('layers', 'להחיל על התכנונים')}
     <p class="dim">השעות של כל שיעור בתכנונים יתעדכנו לפי הלוח.</p>
     <button class="cta soft" data-act="bellapply">${ic('check')} עדכון השבוע הנוכחי והבאים</button>
-    <div class="setrow"><span>תכנון חדש שאעלה – לפי הלוח</span><button class="switch ${state.prefs.bellAuto ? 'on' : ''}" data-act="bellauto" role="switch" aria-checked="${!!state.prefs.bellAuto}"><i></i></button></div>
+    <div class="setrow"><span>שעות השיעורים תמיד לפי הלוח<small class="dim">גם בתכנונים שכבר העלית וגם בחדשים</small></span><button class="switch ${state.prefs.bellOff ? '' : 'on'}" data-act="bellauto" role="switch" aria-checked="${!state.prefs.bellOff}"><i></i></button></div>
   </div>`;
   return h;
 }
 function bellSave(rows) {
   const b = {};
   for (const [l, s, e] of rows) if (l && s) b[l] = [s, e || s];
-  state.prefs.bell = b; state._bellDraft = null; save();
+  state.prefs.bell = b; state._bellDraft = null;
+  const n = bellSync(true); save();
+  if (n) setTimeout(() => toast(`עודכנו השעות של ${n} שיעורים לפי הלוח ✓`, 2500), 50);
+}
+// the bell schedule is the truth for lesson times: this week and the ones after it follow it (unless the teacher turned that off)
+function bellSync(force) {
+  if (!state.prefs.bell || (state.prefs.bellOff && !force)) return 0;
+  const cur = (realWeek() || {}).id || ''; let n = 0;
+  for (const wk of sortedWeeks()) if (!cur || wk.id >= cur) n += applyBell(wk);
+  return n;
 }
 function applyBell(wk) {
   const b = state.prefs.bell; if (!b) return 0;
@@ -2567,7 +2576,7 @@ function manualSheet(template) {
   </form>`);
 }
 function saveGenericWeek(wk) {
-  tagClasses(wk); if (state.prefs.bellAuto) applyBell(wk);
+  tagClasses(wk); if (state.prefs.bell && !state.prefs.bellOff) applyBell(wk);
   state.weeks[wk.id] = wk; state.activeId = wk.id; state.viewWeekId = wk.id === (realWeek() || {}).id ? null : wk.id; save();
   closeOverlay(); state.dayDow = null; go('day'); confetti();
 }
@@ -3697,6 +3706,7 @@ const SUB = { ai: 'more', seats: 'cls', files: 'more', friends: 'more', bells: '
 const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, more: viewMore, kids: viewKids, todos: viewTodos, summary: viewSummary, settings: viewSettings, journal: viewJournal, lists: viewLists, autos: viewAutos, tools: viewTools, msgs: viewMsgs, cls: viewHub, friends: viewFriends, bells: viewBells, reports: viewReports, class: viewClass, grades: viewGrades, bank: viewBank, calendar: viewCalendar, seats: viewSeats, ai: viewAi, rules: viewRules, sheets: viewSheets };
 let lastTab = null;
 function render(animate) {
+  if (!appLocked && bellSync()) saveLocal();
   let w = pickWeek();
   // after the last school day of the week, "to prepare" jumps to the next uploaded week
   if (w && state.tab === 'prep' && !state.viewWeekId && state.prepDow == null) {
@@ -4112,7 +4122,7 @@ document.addEventListener('click', async e => {
     case 'belladd': { const r = state._bellDraft || bellRows(); const last = r[r.length - 1]; const nl = BELL_ORDER[Math.min(BELL_ORDER.length - 1, BELL_ORDER.indexOf(last ? last[0] : 'בוקר') + 1)]; r.push([nl, last ? last[2] : '08:00', '']); state._bellDraft = r; rerender(); break; }
     case 'bellsave': bellSave(state._bellDraft || bellRows()); toast('לוח הצלצולים נשמר ⏰'); rerender(); break;
     case 'bellfile': $('#bellfile').click(); break;
-    case 'bellauto': state.prefs.bellAuto = !state.prefs.bellAuto; save(); rerender(); break;
+    case 'bellauto': state.prefs.bellOff = !state.prefs.bellOff; if (!state.prefs.bellOff) bellSync(); save(); rerender(); break;
     case 'bellapply': { if (state._bellDraft) bellSave(state._bellDraft); if (!state.prefs.bell) { toast('קודם שומרים את הלוח'); break; } const cur = (realWeek() || {}).id || ''; let n = 0; for (const wk of sortedWeeks()) if (wk.id >= cur) n += applyBell(wk); save(); toast(n ? `עודכנו השעות של ${n} שיעורים ✓` : 'הכל כבר לפי הלוח ✓'); break; }
     case 'classes': classesSheet(); break;
     case 'dictprint': { const W = toLines(($('#dictIn') || {}).value.replace(/[,،]/g, '\n')); doPrint(pdoc('מילים להכתבה', pdSub(`${W.length} מילים`), `<ol class="pd-words">${W.map(x => `<li>${esc(x)}</li>`).join('')}</ol><p class="pd-foot">לקרוא, לכתוב פעמיים, ולבקש ממישהו בבית להכתיב.</p>`)); break; }
@@ -4469,7 +4479,7 @@ $('#file').addEventListener('change', async e => {
     loader(true, 1, 'מסדרת את השבוע ✨'); await new Promise(r => setTimeout(r, 450)); loader(false);
     const n = nn;
     const empty = wk.days.filter(d => !d.periods.length).map(d => d.name);
-    tagClasses(wk); if (state.prefs.bellAuto) applyBell(wk);
+    tagClasses(wk); if (state.prefs.bell && !state.prefs.bellOff) applyBell(wk);
     state.weeks[wk.id] = wk; state.activeId = wk.id; state.viewWeekId = null; save();
     go('now');
     importSummary(wk, n, empty);
@@ -4622,6 +4632,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 if (!appLocked) ensureClasses();
 if (appLocked) showLock();
 { const g = new URLSearchParams(location.search).get('go'); if (g && VIEWS[g]) state.tab = g; }
+if (!appLocked && bellSync()) saveLocal(); // weeks uploaded before the bell schedule was set catch up
 setTimeout(() => { const l = +localStorage.getItem('hk-snap') || 0; if (!appLocked && Date.now() - l > 20 * 3600e3) dailySnap(); }, 5000);
 render(true);
 if (!appLocked) { initAuth(); welcome(); setTimeout(autoOffline, 8000); }

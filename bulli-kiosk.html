@@ -490,6 +490,23 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .tf{position:absolute;z-index:9;pointer-events:none;border-radius:14px;box-shadow:inset 0 0 0 3px rgba(160,60,40,.25);
   background-image:linear-gradient(90deg,rgba(160,60,40,.18) 2px,transparent 2px),linear-gradient(rgba(160,60,40,.18) 2px,transparent 2px);background-size:52px 52px;background-position:-1px -1px}
 .tf.full{box-shadow:inset 0 0 0 4px var(--sun),0 0 18px rgba(255,201,74,.9);animation:breathe 1.2s ease-in-out infinite}
+/* ===== vertical exercise ===== */
+#vq{flex:1;display:grid;grid-template-columns:56px 84px 84px 96px;grid-template-rows:44px 72px 72px 8px 92px;direction:ltr;align-items:center;justify-items:center;justify-content:center;column-gap:6px}
+#vq .d{font-size:64px;line-height:1;position:relative}
+#vq .op{color:var(--ink2)}
+#vq .m{font-size:36px;color:#D4473A;line-height:1}
+#vq .ic svg{width:78px;height:64px}
+#vq .ic.sh{font-size:44px;color:var(--ink2)}
+#vq .ln{grid-column:1/4;height:6px;width:100%;background:var(--ink);border-radius:3px}
+#vq .box{width:80px;height:88px;border-radius:20px;background:#FFF6E6;box-shadow:inset 0 4px 0 rgba(0,0,0,.06),0 0 0 4px #F3DEC1;font-size:58px;color:var(--ink)}
+#vq .box.act{box-shadow:inset 0 4px 0 rgba(0,0,0,.06),0 0 0 6px var(--sun);animation:breathe 1.6s ease-in-out infinite}
+#vq .box .q{color:#D9C6AE}
+#vq.good .box{background:#DDF5E4;box-shadow:0 0 0 6px var(--leaf)}
+#vq.wig .box{animation:shake .5s}
+#vq .strike::after{content:"";position:absolute;left:-6px;right:-6px;top:50%;height:6px;margin-top:-3px;background:#D4473A;border-radius:3px;transform:rotate(-24deg);animation:pop .35s ease}
+#vq .strike{color:#A79BAE}
+#vq .bo{position:absolute;left:-22px;top:-6px;font-size:32px;color:#D4473A;animation:pop .4s cubic-bezier(.3,1.6,.5,1)}
+#vq .cy,#vq .nb{display:inline-block;animation:pop .45s cubic-bezier(.3,1.6,.5,1)}
 </style>
 </head>
 <body>
@@ -625,13 +642,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
         <div id="bbot" class="robot"></div>
         <div id="bbb" class="bub robo tr off"></div>
         <div id="qpanel" class="hidden">
-          <div class="eq">
-            <div class="eqc"><svg class="eqi" id="eqAI" viewBox="0 0 120 90"><use href="#walletS"/></svg><div class="eqn" id="eqA"></div></div>
-            <div class="eqo" id="eqOp">−</div>
-            <div class="eqc"><svg class="eqi" id="eqPI" viewBox="0 0 120 120"><use href="#p-artik"/></svg><div class="eqn" id="eqB"></div></div>
-            <div class="eqo">=</div>
-            <div class="eqc"><div class="eqi sp"></div><div class="disp" id="disp2"></div></div>
-          </div>
+          <div id="vq"></div>
           <div class="keys" id="keys2"></div>
         </div>
         <div id="kp1" class="hidden"><div class="disp" id="disp1"></div><div class="keys v" id="keys1"></div></div>
@@ -1171,12 +1182,44 @@ function buildKeys(el,order){
 }
 buildKeys($('#keys1'),['1','2','3','4','5','6','7','8','9','del','0','ok']);
 buildKeys($('#keys2'),['1','2','3','4','5','6','7','8','9','del','0','ok']);
-const disp=()=>G.level===1?$('#disp1'):$('#disp2');
-function paintDisp(){disp().innerHTML=(answer?`<span>${answer}</span>`:'<span class="q">?</span>')+'<span class="sh">₪</span>'}
+let ansT='',ansO='',slot='o';
+function resetAns(){answer='';ansT='';ansO='';slot='o'}
+const disp=()=>G.level===1?$('#disp1'):$('#vq');
+function paintDisp(){
+  if(G.level===1){$('#disp1').innerHTML=(answer?`<span>${answer}</span>`:'<span class="q">?</span>')+'<span class="sh">₪</span>';return}
+  const bt=$('#bT'),bo=$('#bO');if(!bt)return;
+  bo.innerHTML=ansO!==''?ansO:'<span class="q">?</span>';bt.innerHTML=ansT!==''?ansT:'';
+  const on=G.phase==='question';bo.classList.toggle('act',on&&slot==='o');bt.classList.toggle('act',on&&slot==='t');
+}
+function vIcon(kind){
+  if(kind==='wallet')return '<svg viewBox="0 0 120 90"><use href="#walletS"/></svg>';
+  if(kind==='items'){const IS=itemsSVG();return `<svg viewBox="${IS.vb}">${IS.html}</svg>`}
+  return `<svg viewBox="0 0 120 120"><use href="#p-${kind}"/></svg>`;
+}
+function buildVertical(o){
+  const td=Math.floor(o.top/10),to=o.top%10,bd=Math.floor(o.bottom/10),bo=o.bottom%10;resetAns();
+  $('#vq').className='';
+  $('#vq').innerHTML=`<div></div><div class="m" id="mT"></div><div class="m" id="mO"></div><div></div>
+   <div></div><div class="d" id="dT">${td||''}</div><div class="d" id="dO">${to}</div><div class="ic">${o.iTop}</div>
+   <div class="d op">${o.op}</div><div class="d">${bd||''}</div><div class="d">${bo}</div><div class="ic">${o.iBot}</div>
+   <div class="ln"></div><div></div>
+   <div></div><button class="box" id="bT"></button><button class="box" id="bO"></button><div class="ic sh">₪</div>`;
+  $('#bT').onclick=()=>{if(G.phase==='question'){slot='t';SND.tap();paintDisp()}};
+  $('#bO').onclick=()=>{if(G.phase==='question'){slot='o';SND.tap();paintDisp()}};
+  paintDisp();
+  if(o.mark){const tk=G.token;setTimeout(()=>{if(tk!==G.token||!$('#dT'))return;
+    if(o.mark==='carry'){$('#mT').innerHTML='<span class="cy">1</span>';SND.count(10);bsay('עֶשֶׂר חָדָשׁ<br>עוֹלֶה לָעֲשָׂרוֹת!','happy',2400)}
+    else{$('#dT').classList.add('strike');$('#mT').innerHTML=`<span class="nb">${td-1}</span>`;$('#dO').innerHTML=`<span class="bo">1</span>${to}`;SND.count(10);bsay('פָּרַטְנוּ עֶשֶׂר!','happy',2400)}},700)}
+}
 function keysEnabled(){return G.level===1?G.phase==='sort':G.phase==='question'}
 function onKey(k){
   G.lastAct=Date.now();
   if(!keysEnabled()||G.busy)return;
+  if(G.level>1){
+    if(k==='del'){if(slot==='t'&&ansT!=='')ansT='';else{slot='o';ansO='';ansT=''}SND.tap();paintDisp();return}
+    if(k==='ok'){if(ansO!==''){answer=String(parseInt((ansT||'')+ansO,10));submit()}return}
+    if(slot==='o'){ansO=k;slot='t'}else ansT=k;SND.tap();paintDisp();return;
+  }
   if(k==='del'){answer=answer.slice(0,-1);SND.tap()}
   else if(k==='ok'){if(answer){submit();return}}
   else{if(answer.length<2){answer=(answer==='0'?'':answer)+k;SND.tap()}}
@@ -1484,10 +1527,10 @@ function afterBuilt(){
 }
 function showAddQuestion(){
   $('#machine').classList.remove('flash');stopDemo();layoutTray(300);
-  $('#eqAI').setAttribute('viewBox','0 0 120 120');$('#eqAI').innerHTML=`<use href="#p-${G.items[1].prod.id}"/>`;$('#eqA').textContent=G.items[1].price;
-  $('#eqOp').textContent='+';$('#eqPI').setAttribute('viewBox','0 0 120 120');$('#eqPI').innerHTML=`<use href="#p-${G.items[0].prod.id}"/>`;$('#eqB').textContent=G.items[0].price;
-  $('#qpanel').classList.remove('hidden');answer='';paintDisp();setWait(false);
+  const [x,y]=G.items[0].price>=G.items[1].price?[G.items[0],G.items[1]]:[G.items[1],G.items[0]];
   G.baseLine=G.orderLine;G.phase='question';G.lastAct=Date.now();
+  $('#qpanel').classList.remove('hidden');setWait(false);
+  buildVertical({top:x.price,bottom:y.price,op:'+',iTop:vIcon(x.prod.id),iBot:vIcon(y.prod.id),mark:G.carry?'carry':null});
 }
 async function exchange(){
   const tk=G.token;const ones=inZone('reg').filter(c=>c.v===1).slice(0,10);if(ones.length<10)return;
@@ -1654,10 +1697,11 @@ async function paid(){
   inZone('wallet').forEach((c,i)=>{c.el.classList.remove('glow');setPos(c,445,625,450,i*15);setTimeout(()=>c.el.classList.add('gone'),200+i*15)});
   await wait(550);if(tk!==G.token)return;
   $('#wallet').classList.add('closed');
-  $('#eqAI').setAttribute('viewBox','0 0 120 90');$('#eqAI').innerHTML='<use href="#walletS"/>';$('#eqOp').textContent='−';$('#eqA').textContent=G.start;$('#eqB').textContent=G.price;{const IS=itemsSVG();$('#eqPI').setAttribute('viewBox',IS.vb);$('#eqPI').innerHTML=IS.html}
-  $('#qpanel').classList.remove('hidden');answer='';paintDisp();setWait(false);
+
   G.baseLine='כַּמָּה נִשְׁאַר לִי?';say(G.baseLine);
-  G.phase='question';G.patRun=true;G.lastAct=Date.now();
+  G.phase='question';
+  $('#qpanel').classList.remove('hidden');setWait(false);
+  buildVertical({top:G.start,bottom:G.price,op:'−',iTop:vIcon('wallet'),iBot:vIcon('items'),mark:G.start%10<G.price%10?'borrow':null});G.patRun=true;G.lastAct=Date.now();
 }
 
 /* ----- answering ----- */
@@ -1674,7 +1718,7 @@ async function submit(){
       const nT=Math.floor(right/10),nO=right%10;let k=0;
       for(let i=0;i<nT+nO;i++){const v=i<nT?10:1;const cc=document.createElement('div');cc.className='flyc';cc.innerHTML=`<svg viewBox="0 0 100 100"><use href="#coin${v}"/></svg>`;fx.appendChild(cc);
         arcFly(cc,1080,330,200+(k++%6)*40,300,140,700,i*110,true).finished.then(()=>{cc.remove();SND.clink()}).catch(()=>{})}}
-    else if($('#wallet').classList.contains('closed')){$('#wallet').classList.remove('closed');inZone('wallet').forEach(c=>c.el.classList.remove('gone'));layout(450,20)}
+    else if($('#wallet').classList.contains('closed')){$('#wtag').style.visibility='hidden';$('#wallet').classList.remove('closed');inZone('wallet').forEach(c=>c.el.classList.remove('gone'));layout(450,20)}
     say(`נָכוֹן!<br>${nis(right)}`,'happy');paintBot('#bbot','happy');$('#bbot').classList.remove('hop');void $('#bbot').offsetWidth;$('#bbot').classList.add('hop');
     sparks(G.level===1?1178:1115,G.level===1?210:320,fx);
     flyStar(G.level===1?{x:1178,y:200}:{x:1115,y:320});
@@ -1780,7 +1824,7 @@ function countTap(c){
     removeGuide();
     setTimeout(()=>{
       if(G.phase!=='count')return;
-      G.phase=G.level===1?'sort':'question';answer='';paintDisp();setWait(false);G.patRun=true;G.lastAct=Date.now();
+      G.phase=G.level===1?'sort':'question';resetAns();paintDisp();setWait(false);G.patRun=true;G.lastAct=Date.now();
       bsay('כַּמָּה יָצָא?','happy',3000);
     },500);
   }
@@ -1937,7 +1981,7 @@ paintBot('#hbot','happy',false,true);paintHome();
 if(DB.cur&&DB.profiles[DB.cur]){useProfile(DB.cur);paintHome()}
 if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 // test hook (no effect on play)
-window.__kiosk={G,startGame,submit:()=>submit(),setAnswer:a=>{answer=String(a);paintDisp()},goRegister:()=>goRegister(),exchange:()=>exchange(),music:()=>({on:musicOn,running:!!MUS.timer,step:MUS.step}),get STORE(){return STORE},DB,useProfile,CHARS,fullBody};
+window.__kiosk={G,startGame,submit:()=>submit(),setAnswer:a=>{answer=String(a);const t=String(a);ansO=t.slice(-1);ansT=t.length>1?t.slice(0,-1):'';paintDisp()},goRegister:()=>goRegister(),exchange:()=>exchange(),music:()=>({on:musicOn,running:!!MUS.timer,step:MUS.step}),get STORE(){return STORE},DB,useProfile,CHARS,fullBody};
 })();
 </script>
 </body>

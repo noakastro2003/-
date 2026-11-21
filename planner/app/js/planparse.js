@@ -204,7 +204,7 @@ function parseDayPage(lines, links, day, width = 595) {
 
   for (const l of body) {
     const side = l.parts.filter(p => p.x0 >= sideX);
-    const main = l.parts.filter(p => p.x0 < sideX);
+    let main = l.parts.filter(p => p.x0 < sideX);
     for (const p of side) {
       const txt = p.text.trim();
       const tr = txt.match(TIME_RANGE), t1 = txt.match(TIME_ONE);
@@ -221,6 +221,26 @@ function parseDayPage(lines, links, day, width = 595) {
       }
     }
     if (!per || !main.length || /^©/.test(main[0].text)) continue;
+
+    // text that sits under a link annotation is a file of this lesson, wherever it is on the line
+    // (newer plans put "מצגת · דף מורה" at the far left of a row, with no 📎 in front)
+    if (per.title && links.length && !/^(🔗|📎)/u.test(joinParts(main).trim())) {
+      const linkOf = i => { const cx = (i.x + i.x1) / 2; return links.find(a => a.y0 <= l.y + 2 && a.y1 >= l.y - 9 && cx > a.x0 - .5 && cx < a.x1 + .5); };
+      const SEP = /^[·•|]$|^(🔗|📎)$/u;
+      const itemsOf = p => l.items.filter(i => i.t.trim() && i.x >= p.x0 - .5 && i.x1 <= p.x1 + .5);
+      const linkParts = main.filter(p => { const its = itemsOf(p).filter(i => !SEP.test(i.t.trim())); return its.length && its.filter(linkOf).length >= its.length * .6; });
+      if (linkParts.length) {
+        per._links = per._links || [];
+        for (const p of linkParts) {
+          const its = itemsOf(p).sort((a, b) => b.x1 - a.x1); let seg = [], cur = null;
+          const flush = () => { if (seg.length && cur) { const text = buildLine(l.y, seg).text.replace(/^(🔗|📎)\s*/u, '').trim(); if (text) per._links.push({ url: cur.url, text }); } seg = []; cur = null; };
+          for (const i of its) { if (SEP.test(i.t.trim())) { flush(); continue; } const a = linkOf(i) || cur; if (a !== cur && cur) flush(); cur = a; seg.push(i); }
+          flush();
+        }
+        main = main.filter(p => !linkParts.includes(p));
+        if (!main.length) continue;
+      }
+    }
 
     const chunks = splitChunks(main);
     const firstText = joinParts(chunks[0]).trim();
@@ -245,7 +265,7 @@ function parseDayPage(lines, links, day, width = 595) {
     }
 
     // homework line ("שיעורי בית:" / "📝 שיעורי בית –")
-    const hw = joinParts(main).trim().replace(LEAD_EMOJI, '').match(/^שיעורי בית\s*[:–-]\s*(.*)$/);
+    const hw = joinParts(chunks[0]).trim().replace(LEAD_EMOJI, '').match(/^שיעורי בית\s*[:–-]\s*(.*)$/);
     if (hw) {
       if (hw[1]) per.homework.push(hw[1].replace(/\s*☐.*$/, '').trim());
       for (const c of chunks.slice(1)) { const t = joinParts(c).trim().replace(/^☐\s*/, ''); if (t) per.materials.push({ text: t }); }
@@ -255,7 +275,11 @@ function parseDayPage(lines, links, day, width = 595) {
 
     // checklist line(s): "☐ item   ☐ item"
     if (/^☐/.test(firstText)) {
-      for (const c of chunks) { const t = joinParts(c).trim().replace(/^☐\s*/, ''); if (t) per.materials.push({ text: t }); }
+      for (const c of chunks) {
+        const t = joinParts(c).trim().replace(/^☐\s*/, ''); if (!t) continue;
+        const h = t.replace(LEAD_EMOJI, '').match(/^שיעורי בית\s*[:–-]\s*(.*)$/);
+        if (h) { if (h[1]) per.homework.push(h[1].trim()); } else per.materials.push({ text: t });
+      }
       per._needSub = false; lastSection = null;
       continue;
     }
@@ -322,6 +346,7 @@ function parseDayPage(lines, links, day, width = 595) {
         p.links.push({ url: ann ? ann.url : '', text });
       }
     }
+    if (p._links) { p.links.push(...p._links); delete p._links; }
     // keep link order as in the text
     p.links = dedupeLinks(p.links);
     delete p._needSub;

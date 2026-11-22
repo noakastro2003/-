@@ -34,12 +34,12 @@ const WS_KINDS = [['open', 'שאלה פתוחה', 'pencil'], ['fill', 'השלמ�
 const wsCur = () => (state.sheets = state.sheets || []).find(x => x.id === state._wsId);
 const wsOut = sh => ({ kind: 'sheet', title: sh.title || 'דף עבודה', goal: sh.goal || '', story: sh.story, teacherNote: sh.teacherNote, selfCheck: sh.selfCheck, levels: sh.levels.map(l => ({ name: sh.levels.length > 1 ? l.name : '', instructions: l.instructions, example: l.example || '', items: l.items.map(x => ({ kind: x.kind, prompt: x.prompt || '', options: x.options || [], hint: x.hint || '', answer: x.answer || '' })) })) });
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 116; // keep in step with CACHE in sw.js
-const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules', 'sheets'];
+const APP_V = 117; // keep in step with CACHE in sw.js
+const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules', 'sheets', 'dictLog'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
 const state = Object.assign({
-  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null, att: {}, seats: {}, evals: {}, crules: {}, sheets: [],
+  weeks: {}, activeId: null, checks: {}, pins: {}, name: '', logs: {}, kids: [], todos: [], files: [], ready: {}, cnotes: [], lists: [], autos: [], notifQueue: [], tsaved: [], tcat: '', dict: {}, pmlog: [], forms: [], pmtpl: [], changes: [], grades: [], bank: [], events: [], points: [], kings: {}, classes: [], curClass: null, att: {}, seats: {}, evals: {}, crules: {}, sheets: [], dictLog: [],
   prefs: {}, picked: [], groups: 5,
   q: '', fsub: '', tab: 'now', dayDow: null, prepDow: null, open: {}, sec: {}, prepEdit: false,
 }, load());
@@ -950,6 +950,37 @@ function shuffled(a, not) {
   }
   return a.slice().reverse();
 }
+// ---- every dictation so far: kept even after the week itself is deleted
+let dictSig = '';
+function syncDictLog() {
+  const sig = Object.values(state.weeks).map(w => w.id + ':' + (w.importedAt || '')).sort().join('|');
+  if (sig === dictSig) return; dictSig = sig;
+  state.dictLog = state.dictLog || [];
+  let ch = false;
+  for (const w of sortedWeeks()) for (const x of findDictation(w).filter(y => y.kind === 'this')) {
+    const d = x.dow >= 0 ? w.days.find(y => y.dow === x.dow) : w.days[0], dt = d && dayDate(w, d);
+    const topic = x.topic || (x.dow >= 0 ? dictTopic(findPeriodIn(w, x.dow, x.label) || { title: '' }) : '') || 'הכתבה';
+    const e = state.dictLog.find(y => y.key === x.key);
+    const row = { key: x.key, topic, date: dt ? isoDay(dt) : w.id, week: w.number || '', words: x.words };
+    if (!e) { state.dictLog.push(row); ch = true; }
+    else if (!e.edited && (e.words.join('|') !== row.words.join('|') || e.topic !== row.topic)) { Object.assign(e, row); ch = true; }
+  }
+  if (ch) { state.dictLog.sort((a, b) => a.date < b.date ? -1 : 1); saveLocal(); }
+}
+const dictLogged = () => { syncDictLog(); return (state.dictLog || []).filter(x => x.words && x.words.length); };
+const shortDate = iso => { const d = new Date(iso + 'T00:00'); return isNaN(d) ? '' : `${d.getDate()}.${d.getMonth() + 1}`; };
+function dictArchive() {
+  const L = dictLogged().slice().reverse(), all = [...new Set(L.flatMap(x => x.words))];
+  openOverlay(`<div class="ov sheet dict">
+    <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
+    <div class="ovh">${ic('book')}<h2>כל ההכתבות</h2></div>
+    ${L.length ? `<p class="dim">${L.length} הכתבות · ${all.length} מילים</p>
+    <button class="cta" data-act="dictreview">${ic('dice')} חזרה מסכמת – 10 מילים מכל ההכתבות</button>
+    <button class="cta soft" data-act="dictprintall">${ic('printer')} הדפסת כל המילים לתרגול</button>
+    <div class="dictarch">${L.map(x => `<button class="dar" data-dictlog="${esc(x.key)}"><span class="grow"><b>${esc(x.topic)}</b><small>${[x.date && shortDate(x.date), x.week && 'שבוע ' + x.week, x.words.length + ' מילים', x.done && '✓ הוכתבה'].filter(Boolean).join(' · ')}</small><em>${esc(x.words.slice(0, 5).join(', '))}${x.words.length > 5 ? '…' : ''}</em></span>${ic('chevL', 'chev')}</button>`).join('')}</div>`
+    : `<p class="dim">עוד לא נמצאו הכתבות. כל הכתבה שמופיעה בתכנון השבועי נשמרת כאן אוטומטית.</p>`}
+  </div>`);
+}
 function dictSheet(k, words, order) {
   state._dict = { k, order: order || [] };
   openOverlay(`<div class="ov sheet dict">
@@ -961,6 +992,7 @@ function dictSheet(k, words, order) {
     ${order && order.length ? `<button class="cta soft" data-act="projdict">${ic('screen')} הקרנה ללוח</button>` : ''}
     ${words.length ? `<button class="cta soft" data-act="dictprint">${ic('printer')} הדפסת המילים (לתרגול בבית)</button>` : ''}
     <label class="field">המילים<textarea id="dictIn" rows="4" placeholder="חבר, חברה, חברים…">${esc(words.join(', '))}</textarea></label>
+    ${dictLogged().length ? `<button class="cta soft" data-act="dictarchive">${ic('book')} כל ההכתבות עד עכשיו (${dictLogged().length})</button>` : ''}
   </div>`);
 }
 
@@ -3748,6 +3780,7 @@ const VIEWS = { now: viewNow, day: viewDay, prep: viewPrep, files: viewFiles, mo
 let lastTab = null;
 function render(animate) {
   if (!appLocked && bellSync()) saveLocal();
+  if (!appLocked && state.onboarded) syncDictLog();
   let w = pickWeek();
   // after the last school day of the week, "to prepare" jumps to the next uploaded week
   if (w && state.tab === 'prep' && !state.viewWeekId && state.prepDow == null) {
@@ -4048,6 +4081,7 @@ document.addEventListener('click', async e => {
   if (D.fopen) { state.fopen = state.fopen || {}; const el = t.closest('.fgrp'); state.fopen[D.fopen] = !el.classList.contains('open'); rerender(); return; }
   if (D.printweek) { printWeek(state.weeks[D.printweek]); return; }
   if (D.dict) { const [dow, label] = D.dict.split('|'); const key = `${w.id}:${dow}:${label}`; state._dictLists = dictLists(w); dictSheet(key, dictSource(w, +dow, label)); return; }
+  if (D.dictlog) { const x = (state.dictLog || []).find(y => y.key === D.dictlog); if (x) { state._dictLists = null; dictSheet(x.key, x.words); } return; }
   if (D.dictpick) { const x = (state._dictLists || [])[+D.dictpick]; if (x) dictSheet(x.key, dictSaved(x.key) ? state.dict[x.key] : x.words); return; }
   if (D.pmtype) { state.pm.type = D.pmtype; rerender(); return; }
   if (D.pmtog) { state.pm.opts[D.pmtog] = state.pm.opts[D.pmtog] === false; state.pm.text = null; rerender(); return; }
@@ -4171,11 +4205,18 @@ document.addEventListener('click', async e => {
       const x = (t && L.find(o => o.key.startsWith(`${w.id}:${t.dow}:`))) || L[0];
       if (x) dictSheet(x.key, dictSaved(x.key) ? state.dict[x.key] : x.words); else dictSheet('free', dictSaved('free') ? state.dict.free : []);
       break; }
+    case 'dictarchive': dictArchive(); break;
+    case 'dictreview': { const all = [...new Set(dictLogged().flatMap(x => x.words))]; state._dictLists = null; const pick = shuffled(all).slice(0, 10); dictSheet('review', pick, shuffled(pick)); break; }
+    case 'dictprintall': doPrint(pdoc('כל מילות ההכתבה', pdSub(`${dictLogged().length} הכתבות`), dictLogged().map(x => `<h3 class="pd-day">${esc(x.topic)}${x.date ? ' · ' + shortDate(x.date) : ''}</h3><ol class="pd-words">${x.words.map(w2 => `<li>${esc(w2)}</li>`).join('')}</ol>`).join('') + '<p class="pd-foot">לקרוא, לכתוב פעמיים, ולבקש ממישהו בבית להכתיב.</p>')); break;
     case 'dictshuffle': {
       const words = splitWords($('#dictIn').value);
       if (!words.length) { toast('צריך לכתוב קודם את המילים'); break; }
       const D2 = state._dict, auto = (state._dictLists || []).find(x => x.key === D2.k);
-      if (auto && auto.words.join('|') === words.join('|')) delete state.dict[D2.k]; else state.dict[D2.k] = words; save();
+      if (auto && auto.words.join('|') === words.join('|')) delete state.dict[D2.k]; else state.dict[D2.k] = words;
+      const lg = (state.dictLog || []).find(x => x.key === D2.k);
+      if (lg) { lg.done = lg.done || Date.now(); if (lg.words.join('|') !== words.join('|')) { lg.words = words; lg.edited = true; } }
+      else if (D2.k !== 'review' && words.length >= 3) { state.dictLog = state.dictLog || []; state.dictLog.push({ key: D2.k === 'free' ? 'free:' + Date.now() : D2.k, topic: 'הכתבה', date: isoDay(new Date()), week: '', words, done: Date.now(), edited: true }); }
+      save();
       if (navigator.vibrate) navigator.vibrate(12);
       dictSheet(D2.k, words, shuffled(words, D2.order.length ? D2.order : null)); break;
     }

@@ -2329,3 +2329,10 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
   button, [data-go], [data-act], a.trow { cursor: pointer; }
 }
 @media (min-width: 1000px) and (max-height: 980px) { .tabs { padding-top: 64px; } .tabs button { min-height: 40px; padding-block: 8px !important; } .sidemore { margin-top: 8px; padding-top: 8px; } .sidemore button { min-height: 34px; padding-block: 6px; } }
+
+/* all dictations so far */
+.dictarch { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.dar { display: flex; align-items: center; gap: 10px; text-align: start; padding: 12px 14px; border-radius: var(--r-item); background: var(--card); border: 1px solid var(--line); }
+.dar .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dar small { color: var(--soft); font-size: var(--fs-note); }
+.dar em { font-style: normal; font-size: var(--fs-sm); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -1254,7 +1254,14 @@ body.onboarding .tabs, body.onboarding .minibar { display: none !important; }
   #view > .top, #view > .wknav, #view > .daypick, #view > .fchips, #view > .seg, #view > .search, #view > .tip1, #view > .steps,
   #view > .pmtypes, #view > .pmmore, #view > .cta, #view > .hubcls, #view > .hubgrid, #view > .toolgrid, #view > .msect, #view > .helprow,
   #view > .lessons, #view > .addbtn, #view > .onb, #view > .card.empty, #view > .hint, #view > .fseg, #view > .clsfilter, #view > .bigq { column-span: all; }
-  #view > .top .brandrow { display: none; }
+  /* the page's own buttons (print, search, timetable, reminders) stay; the logo is already in the sidebar */
+  #view > .top .brandrow { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  #view > .top .brand .blogo, #view > .top .brand > span { display: none; }
+  .hb { cursor: pointer; }
+  .hb:hover { filter: brightness(.97); transform: translateY(-1px); }
+  /* the seating chart and wide tools get the full width */
+  #view > .seatroom, #view > .seatview, #view > .flipbar, #view > .wsrow, #view > .ws-edit { column-span: all; }
+  .seatroom .seatgrid { max-width: 900px; margin-inline: auto; }
   .lessons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
   .lessons > * { margin: 0 !important; }
   .toolgrid { grid-template-columns: repeat(6, 1fr); }
@@ -2306,3 +2313,19 @@ html[data-theme=dark] .logo .lg-d { display: block; border-radius: 0 !important;
 .seatview { margin: 0 0 10px; }
 .seatview button { font-size: var(--fs-sm); }
 .tview .board { box-shadow: 0 -10px 18px -10px rgba(74, 53, 102, .7), inset 0 2px 2px rgba(255, 255, 255, .25); }
+
+/* ============================================================ computer: sidebar tools */
+.sidemore { display: none; }
+@media (min-width: 1000px) {
+  .tabs { overflow-y: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .sidemore { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .sidemore p { font-size: var(--fs-note); color: var(--soft); padding: 0 16px 6px; }
+  .sidemore button { display: flex; align-items: center; gap: 12px; padding: 9px 16px; border-radius: var(--r-item); font-size: var(--fs-sm); color: var(--soft); min-height: 40px; cursor: pointer; }
+  .sidemore button .ic { width: 19px; height: 19px; }
+  .sidemore button:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); color: var(--ink); }
+  .sidemore button.cur { color: var(--accent-ink); font-weight: 600; background: var(--tint); }
+  .tabs button { min-height: 46px; }
+  button, [data-go], [data-act], a.trow { cursor: pointer; }
+}
+@media (min-width: 1000px) and (max-height: 980px) { .tabs { padding-top: 64px; } .tabs button { min-height: 40px; padding-block: 8px !important; } .sidemore { margin-top: 8px; padding-top: 8px; } .sidemore button { min-height: 34px; padding-block: 6px; } }

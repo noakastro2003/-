@@ -33,7 +33,7 @@ const WS_KINDS = [['open', 'שאלה פתוחה', 'pencil'], ['fill', 'השלמ�
 const wsCur = () => (state.sheets = state.sheets || []).find(x => x.id === state._wsId);
 const wsOut = sh => ({ kind: 'sheet', title: sh.title || 'דף עבודה', goal: sh.goal || '', story: sh.story, teacherNote: sh.teacherNote, selfCheck: sh.selfCheck, levels: sh.levels.map(l => ({ name: sh.levels.length > 1 ? l.name : '', instructions: l.instructions, example: l.example || '', items: l.items.map(x => ({ kind: x.kind, prompt: x.prompt || '', options: x.options || [], hint: x.hint || '', answer: x.answer || '' })) })) });
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 114; // keep in step with CACHE in sw.js
+const APP_V = 115; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules', 'sheets'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -3739,7 +3739,8 @@ function render(animate) {
     if (ng && ng.w !== w) { state.viewWeekId = ng.w.id; w = ng.w; }
   }
   const tab = SUB[state.tab] || state.tab;
-  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  document.querySelectorAll('.tabs button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  document.querySelectorAll('.sidemore button').forEach(b => b.classList.toggle('cur', b.dataset.go === state.tab));
   requestAnimationFrame(moveTabInd);
   const v = $('#view');
   const needWeek = !['sheets', 'rules', 'ai', 'seats', 'more', 'kids', 'todos', 'settings', 'journal', 'lists', 'autos', 'tools', 'msgs', 'class', 'grades', 'bank', 'calendar', 'cls', 'friends', 'bells', 'reports'].includes(state.tab);
@@ -3832,8 +3833,23 @@ function a11yFix(root) {
   root.querySelectorAll('[role=switch]:not([aria-label])').forEach(sw => { const row = sw.closest('.setrow'); const t = row && row.querySelector('span'); if (t) sw.setAttribute('aria-label', t.textContent.trim()); });
   document.querySelectorAll('.tabs button').forEach(b => b.toggleAttribute('aria-current', b.classList.contains('on')));
 }
+// on a computer the sidebar also carries the tools used every day, one click away
+const SIDE_MORE = [['chair', 'מקומות ישיבה', 'seats'], ['flag', 'חוקי הכיתה', 'rules'], ['medal', 'ניקוד ורמזור', 'class'], ['pin', 'תזכורות', 'todos'], ['pencil', 'יומן כיתה', 'journal'], ['star', 'ציונים', 'grades'], ['file', 'דפי עבודה', 'sheets'], ['sparkle', 'בונים עם AI', 'ai'], ['calendar', 'לוח אירועים', 'calendar'], ['clock', 'לוח צלצולים', 'bells'], ['settings', 'הגדרות', 'settings']];
+function sideMore() {
+  const t = $('#tabs'); if (!t || t.querySelector('.sidemore')) return;
+  t.insertAdjacentHTML('beforeend', `<div class="sidemore"><p>כלים</p>${SIDE_MORE.map(([i, l, g]) => `<button type="button" data-go="${g}">${ic(i)}<span>${l}</span></button>`).join('')}</div>`);
+}
+sideMore();
+// keyboard on a computer: Esc closes a window, Ctrl+K searches, Ctrl+P prints what's on the screen the app's way
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('#overlay.show')) { e.preventDefault(); closeOverlay(); return; }
+  const mod = e.ctrlKey || e.metaKey; if (!mod || appLocked) return;
+  const k = e.key.toLowerCase();
+  if (k === 'k' || k === 'ל') { e.preventDefault(); searchSheet(); }
+  else if ((k === 'p' || k === 'פ') && !document.body.classList.contains('printing')) { const P = printFor(state.tab); if (P) { e.preventDefault(); P.run(); } }
+});
 function moveTabInd() {
-  const on = $('.tabs button.on'), ind = $('.tabs .tab-ind');
+  const on = $('.tabs button[data-tab].on'), ind = $('.tabs .tab-ind');
   if (!on || !ind) return;
   if (getComputedStyle(on.parentElement).flexDirection === 'column') {
     ind.style.left = on.offsetLeft + 'px'; ind.style.width = on.offsetWidth + 'px';

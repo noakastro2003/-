@@ -877,18 +877,39 @@ const diagText = d => d ? `קובץ: ${d.name} · ${d.type} · ${Math.round(d.si
 
 // ================================================================ dictation: shuffle the word order
 const isDict = p => /הכתבה/.test(`${p.title} ${p.subtitle} ${p.sections.map(s => s.label + ' ' + s.text).join(' ')}`);
-const splitWords = t => String(t || '').split(/[,،·\n]+|\s[–-]\s/).map(x => x.trim().replace(/^["״']|["״']$/g, '')).filter(x => x && x.length < 40);
+const splitWords = t => String(t || '').split(/[,،·\n]+|\s[–-]\s/).map(x => x.trim().replace(/^[^:]{1,30}:\s*/, '').replace(/^["״']|["״']$/g, '')).filter(x => x && x.length < 40);
+// words out of a plan line: the "·"-part that is a comma list (so "שָׁלַח, לָקַח · תרגול לפי האותיות" gives only the words)
+function wordsFrom(t) {
+  const segs = String(t || '').split(/\s·\s|\n/), best = segs.reduce((a, x) => ((x.match(/[,،]/g) || []).length > (a.match(/[,،]/g) || []).length ? x : a), '');
+  return splitWords((best.match(/[,،]/g) || []).length >= 2 ? best : t);
+}
+const dictTopic = p => (String(p.title).match(/הכתבה\s*[–\-:]\s*(.+)$/) || [])[1] || '';
+// every word list the week knows: this week's dictation lesson(s), the words handed out last week, and the ones for next week
+function dictLists(w) {
+  const out = [], same = (a, b) => a.join('|') === b.join('|');
+  if (!w) return out;
+  for (const d of w.days) for (const p of d.periods) {
+    if (!isDict(p)) continue;
+    const sec = p.sections.find(s => /הכתבה/.test(s.label) && wordsFrom(s.text).length >= 3) || (/הכתבה/.test(p.title) && p.sections.find(s => !/סיום|לבקש/.test(s.label) && wordsFrom(s.text).length >= 4));
+    if (sec) out.push({ key: `${w.id}:${d.dow}:${p.label}`, name: dictTopic(p) || p.title, when: `יום ${d.name}`, words: wordsFrom(sec.text) });
+  }
+  const prev = sortedWeeks().filter(x => x.id < w.id).pop(), pn = dictNext(prev);
+  if (pn.words.length && !out.some(o => same(o.words, pn.words))) out.push({ key: `${w.id}:prev`, name: pn.topic || 'המילים שחולקו', when: 'מהשבוע שעבר', words: pn.words });
+  const nn = dictNext(w);
+  if (nn.words.length && !out.some(o => same(o.words, nn.words))) out.push({ key: `${w.id}:next`, name: nn.topic || 'המילים הבאות', when: 'לשבוע הבא', words: nn.words });
+  return out;
+}
 const dictBtn = (day, p) => `<button class="cta soft dictbtn" data-dict="${esc(day.dow + '|' + p.label)}">${ic('dice')} הגרלת סדר המילים להכתבה</button>`;
 // the words for NEXT week's dictation: a notes block titled "הכתבה", or a line in a lesson such as
 // "מחלקים את המילים לשבוע הבא – ריבוי זוגי: מִשְׁקָפַיִם, אוֹפַנַּיִם…" (topic before the colon, words after it)
 function dictNext(w) {
   if (!w) return { topic: '', words: [] };
   const n = (w.notes || []).find(x => /הכתבה/.test(x.label) && splitWords(x.text).length >= 3 && x.text.length < 600);
-  if (n) return { topic: (n.label.split('·')[1] || '').trim(), words: splitWords(n.text) };
+  if (n) return { topic: (n.label.split('·')[1] || (n.text.match(/^\s*([^:\n,]{2,30}):/) || [])[1] || '').trim(), words: wordsFrom(n.text) };
   const re = /מילים\s+(?:להכתבה\s+)?(?:ל?שבוע\s+הבא|הבאה|להכתבה\s+הבאה)\s*[–\-:]?\s*(?:([^:·\n]{2,30}):\s*)?([^·\n]+)/;
   for (const d of w.days) for (const p of d.periods) for (const t of [...p.sections.map(x => x.text), ...p.materials.map(x => x.text), ...p.homework]) {
     const m = String(t || '').match(re);
-    if (m && splitWords(m[2]).length >= 3) return { topic: (m[1] || '').replace(/^[–\-\s]+/, '').trim(), words: splitWords(m[2]) };
+    if (m && splitWords(m[2]).length >= 3) return { topic: (m[1] || '').replace(/^[–\-\s]+/, '').trim(), words: wordsFrom(m[2]) };
   }
   return { topic: '', words: [] };
 }
@@ -896,8 +917,9 @@ function dictSource(w, dow, label) {
   const k = `${w.id}:${dow}:${label}`;
   if (state.dict[k]) return state.dict[k];
   const p = findPeriodIn(w, dow, label);
+  const own = dictLists(w).find(x => x.key === k); if (own) return own.words;
   const sec = p && p.sections.find(s => /הכתבה|מילים/.test(s.label) && s.text);
-  if (sec) return splitWords(sec.text);
+  if (sec) return wordsFrom(sec.text);
   const prev = sortedWeeks().filter(x => x.id < w.id).pop();
   const fromPrev = dictNext(prev).words; if (fromPrev.length) return fromPrev;
   const n = (w.notes || []).find(x => /הכתבה/.test(x.label));
@@ -916,6 +938,7 @@ function dictSheet(k, words, order) {
   openOverlay(`<div class="ov sheet dict">
     <button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
     <div class="ovh">${ic('text')}<h2>סדר המילים להכתבה</h2></div>
+    ${(state._dictLists || []).length > 1 ? `<div class="fchips dictpick">${state._dictLists.map((x, i) => `<button class="fc ${x.key === k ? 'on' : ''}" data-dictpick="${i}"><b>${esc(x.name)}</b> · ${esc(x.when)}</button>`).join('')}</div>` : ''}
     ${order && order.length ? `<ol class="dlist" style="grid-template-rows:repeat(${Math.ceil(order.length / 2)},auto);grid-auto-flow:column">${order.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : `<p class="dim">${words.length ? `${words.length} מילים מוכנות להגרלה` : 'כותבים את המילים כאן (פסיק או שורה חדשה בין מילה למילה)'}</p>`}
     <button class="cta" data-act="dictshuffle">${ic('dice')} ${order && order.length ? 'הגרלה חדשה' : 'להגריל סדר'}</button>
     ${order && order.length ? `<button class="cta soft" data-act="projdict">${ic('screen')} הקרנה ללוח</button>` : ''}
@@ -3990,7 +4013,8 @@ document.addEventListener('click', async e => {
   if (D.fgroup) { state.fgroup = D.fgroup; rerender(); return; }
   if (D.fopen) { state.fopen = state.fopen || {}; const el = t.closest('.fgrp'); state.fopen[D.fopen] = !el.classList.contains('open'); rerender(); return; }
   if (D.printweek) { printWeek(state.weeks[D.printweek]); return; }
-  if (D.dict) { const [dow, label] = D.dict.split('|'); const key = `${w.id}:${dow}:${label}`; dictSheet(key, dictSource(w, +dow, label)); return; }
+  if (D.dict) { const [dow, label] = D.dict.split('|'); const key = `${w.id}:${dow}:${label}`; state._dictLists = dictLists(w); dictSheet(key, dictSource(w, +dow, label)); return; }
+  if (D.dictpick) { const x = (state._dictLists || [])[+D.dictpick]; if (x) dictSheet(x.key, state.dict[x.key] || x.words); return; }
   if (D.pmtype) { state.pm.type = D.pmtype; rerender(); return; }
   if (D.pmtog) { state.pm.opts[D.pmtog] = state.pm.opts[D.pmtog] === false; state.pm.text = null; rerender(); return; }
   if (D.pmday) { const P = state.pm; P.opts.dow = +D.pmday; if (P.type === 'gear') { const d = w.days.find(x => x.dow === +D.pmday); P.opts.gear = d.periods.flatMap(p => [...p.materials.map(m => m.text), ...p.sections.map(x => x.text)]).filter(x => /להביא|לצייד|להגיע עם/.test(x)); } P.text = null; rerender(); return; }
@@ -4108,7 +4132,11 @@ document.addEventListener('click', async e => {
     case 'close': closeOverlay(); break;
     case 'topen': timerScreen(); break;
     case 'picker': pickerScreen(); break;
-    case 'dictfree': { const k = 'free'; dictSheet(k, state.dict[k] || (w ? dictSource(w, -1, '') : [])); break; }
+    case 'dictfree': { // the dictation of this week first (today's or the nearest one), then last week's handout, then next week's
+      const L = state._dictLists = dictLists(w), t = w && todayInWeek(w);
+      const x = (t && L.find(o => o.key.startsWith(`${w.id}:${t.dow}:`))) || L[0];
+      if (x) dictSheet(x.key, state.dict[x.key] || x.words); else dictSheet('free', state.dict.free || []);
+      break; }
     case 'dictshuffle': {
       const words = splitWords($('#dictIn').value);
       if (!words.length) { toast('צריך לכתוב קודם את המילים'); break; }

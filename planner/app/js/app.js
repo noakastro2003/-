@@ -1,3 +1,4 @@
+import { findDictation } from './dictwords.js';
 import * as pdfjsLib from '../vendor/pdf.min.mjs';
 import { parsePlanPdf, DAY_NAMES } from './planparse.js';
 import { ic, art, spark, squiggle, miniArt, fileBadge, logo } from './icons.js';
@@ -33,7 +34,7 @@ const WS_KINDS = [['open', 'שאלה פתוחה', 'pencil'], ['fill', 'השלמ�
 const wsCur = () => (state.sheets = state.sheets || []).find(x => x.id === state._wsId);
 const wsOut = sh => ({ kind: 'sheet', title: sh.title || 'דף עבודה', goal: sh.goal || '', story: sh.story, teacherNote: sh.teacherNote, selfCheck: sh.selfCheck, levels: sh.levels.map(l => ({ name: sh.levels.length > 1 ? l.name : '', instructions: l.instructions, example: l.example || '', items: l.items.map(x => ({ kind: x.kind, prompt: x.prompt || '', options: x.options || [], hint: x.hint || '', answer: x.answer || '' })) })) });
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 115; // keep in step with CACHE in sw.js
+const APP_V = 116; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules', 'sheets'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -298,11 +299,28 @@ function todoWhenFields() {
 // the reminder pops up (a real popup, not the opening screen) every time the app opens, until it's done
 let todoPopShown = new Set();
 function todoPopList() { return state.prefs.todoPopOff ? [] : state.todos.filter(t => t.pop !== false && todoDue(t) && todoWhen(t) && !todoPopShown.has(t.id)); }
+// the app's own sound: a soft two-note bell when a reminder pops up while the app is open.
+// Phones only let a page make sound after it was touched once, so the sound is unlocked on the first touch.
+let bellCtx = null;
+function audioCtx() { try { bellCtx = bellCtx || new (window.AudioContext || window.webkitAudioContext)(); if (bellCtx.state === 'suspended') bellCtx.resume(); } catch { bellCtx = null; } return bellCtx; }
+document.addEventListener('pointerdown', () => { if (!bellCtx) audioCtx(); else if (bellCtx.state === 'suspended') bellCtx.resume(); }, { passive: true });
+function chime(force) {
+  if (state.prefs.chimeOff && !force) return;
+  const a = audioCtx(); if (!a) return;
+  const t = a.currentTime + .02;
+  [[784, 0], [1175, .18]].forEach(([f, d]) => [[f, .22], [f * 2, .05], [f * 3.01, .02]].forEach(([fq, v]) => {
+    const o = a.createOscillator(), g = a.createGain(); o.type = 'sine'; o.frequency.value = fq;
+    g.gain.setValueAtTime(.0001, t + d); g.gain.exponentialRampToValueAtTime(v, t + d + .015); g.gain.exponentialRampToValueAtTime(.0001, t + d + 1.3);
+    o.connect(g); g.connect(a.destination); o.start(t + d); o.stop(t + d + 1.35);
+  }));
+}
 function todoPop(force) {
   if (appLocked || !state.onboarded || $('#welcome') || ($('#overlay.show') && !$('#overlay.show .todopop'))) return false;
   const L = force ? state.todos.filter(t => t.pop !== false && todoDue(t) && todoWhen(t)) : todoPopList();
   if (!L.length) { if ($('#overlay.show .todopop')) closeOverlay(); return false; }
+  const fresh = L.some(t => !todoPopShown.has(t.id));
   L.forEach(t => todoPopShown.add(t.id));
+  if (fresh) chime();
   openOverlay(`<div class="ov sheet todopop"><button class="ovx" data-act="close" aria-label="סגירה">${ic('x')}</button>
     <div class="ovh">${ic('pin')}<h2>לא לשכוח</h2></div>
     ${L.map(t => `<div class="tprow"><div class="grow"><b>${esc(t.text)}</b><small>${esc(todoLabel(t))}</small></div>
@@ -876,7 +894,7 @@ function diagReason(d) {
 const diagText = d => d ? `קובץ: ${d.name} · ${d.type} · ${Math.round(d.size / 1024)}KB${d.pages != null ? ` · ${d.pages} עמודים · ${d.chars} תווים` : ''}${d.err ? ` · שגיאה: ${d.err}` : ''}${d.start ? `\nתחילת הטקסט: ${d.start}` : ''}` : '';
 
 // ================================================================ dictation: shuffle the word order
-const isDict = p => /הכתבה/.test(`${p.title} ${p.subtitle} ${p.sections.map(s => s.label + ' ' + s.text).join(' ')}`);
+const isDict = p => /הכתבה/.test(`${p.title} ${p.subtitle} ${p.sections.map(s => s.label + ' ' + s.text).join(' ')}`) || findDictation({ id: '', days: [{ dow: 0, name: '', periods: [p] }] }).some(x => x.kind === 'this');
 const splitWords = t => String(t || '').split(/[,،·\n]+|\s[–-]\s/).map(x => x.trim().replace(/^[^:]{1,30}:\s*/, '').replace(/^["״']|["״']$/g, '')).filter(x => x && x.length < 40);
 // words out of a plan line: the "·"-part that is a comma list (so "שָׁלַח, לָקַח · תרגול לפי האותיות" gives only the words)
 function wordsFrom(t) {
@@ -886,17 +904,13 @@ function wordsFrom(t) {
 const dictTopic = p => (String(p.title).match(/הכתבה\s*[–\-:]\s*(.+)$/) || [])[1] || '';
 // every word list the week knows: this week's dictation lesson(s), the words handed out last week, and the ones for next week
 function dictLists(w) {
-  const out = [], same = (a, b) => a.join('|') === b.join('|');
-  if (!w) return out;
-  for (const d of w.days) for (const p of d.periods) {
-    if (!isDict(p)) continue;
-    const sec = p.sections.find(s => /הכתבה/.test(s.label) && wordsFrom(s.text).length >= 3) || (/הכתבה/.test(p.title) && p.sections.find(s => !/סיום|לבקש/.test(s.label) && wordsFrom(s.text).length >= 4));
-    if (sec) out.push({ key: `${w.id}:${d.dow}:${p.label}`, name: dictTopic(p) || p.title, when: `יום ${d.name}`, words: wordsFrom(sec.text) });
-  }
+  if (!w) return [];
+  const F = findDictation(w), same = (a, b) => a.join('|') === b.join('|');
+  const name = x => x.topic || (x.dow >= 0 ? (dictTopic(findPeriodIn(w, x.dow, x.label) || { title: '' }) || 'הכתבה') : 'מהתזכורות');
+  const out = F.filter(x => x.kind === 'this').map(x => ({ key: x.key, name: name(x), when: x.dow >= 0 ? `יום ${x.day}` : 'השבוע', words: x.words }));
   const prev = sortedWeeks().filter(x => x.id < w.id).pop(), pn = dictNext(prev);
   if (pn.words.length && !out.some(o => same(o.words, pn.words))) out.push({ key: `${w.id}:prev`, name: pn.topic || 'המילים שחולקו', when: 'מהשבוע שעבר', words: pn.words });
-  const nn = dictNext(w);
-  if (nn.words.length && !out.some(o => same(o.words, nn.words))) out.push({ key: `${w.id}:next`, name: nn.topic || 'המילים הבאות', when: 'לשבוע הבא', words: nn.words });
+  for (const x of F.filter(y => y.kind === 'next')) if (!out.some(o => same(o.words, x.words))) out.push({ key: x.key + ':next', name: x.topic || 'המילים הבאות', when: 'לשבוע הבא', words: x.words });
   return out;
 }
 const dictBtn = (day, p) => `<button class="cta soft dictbtn" data-dict="${esc(day.dow + '|' + p.label)}">${ic('dice')} הגרלת סדר המילים להכתבה</button>`;
@@ -904,6 +918,7 @@ const dictBtn = (day, p) => `<button class="cta soft dictbtn" data-dict="${esc(d
 // "מחלקים את המילים לשבוע הבא – ריבוי זוגי: מִשְׁקָפַיִם, אוֹפַנַּיִם…" (topic before the colon, words after it)
 function dictNext(w) {
   if (!w) return { topic: '', words: [] };
+  const fx = findDictation(w).find(x => x.kind === 'next'); if (fx) return { topic: fx.topic, words: fx.words };
   const n = (w.notes || []).find(x => /הכתבה/.test(x.label) && splitWords(x.text).length >= 3 && x.text.length < 600);
   if (n) return { topic: (n.label.split('·')[1] || (n.text.match(/^\s*([^:\n,]{2,30}):/) || [])[1] || '').trim(), words: wordsFrom(n.text) };
   const re = /מילים\s+(?:להכתבה\s+)?(?:ל?שבוע\s+הבא|הבאה|להכתבה\s+הבאה)\s*[–\-:]?\s*(?:([^:·\n]{2,30}):\s*)?([^·\n]+)/;
@@ -913,9 +928,11 @@ function dictNext(w) {
   }
   return { topic: '', words: [] };
 }
+// a list the teacher edited by hand wins; an old saved copy that still carries a label ("ש.מ.ח: …") does not
+const dictSaved = k => Array.isArray(state.dict[k]) && state.dict[k].length && !state.dict[k].some(x => /:/.test(x));
 function dictSource(w, dow, label) {
   const k = `${w.id}:${dow}:${label}`;
-  if (state.dict[k]) return state.dict[k];
+  if (dictSaved(k)) return state.dict[k];
   const p = findPeriodIn(w, dow, label);
   const own = dictLists(w).find(x => x.key === k); if (own) return own.words;
   const sec = p && p.sections.find(s => /הכתבה|מילים/.test(s.label) && s.text);
@@ -2421,7 +2438,8 @@ function viewSettings(w) {
   sec('התראות', `
     ${link('bell', 'התראות ואוטומציות', '"בוקר טוב", לפני שיעור, תזכורות קבועות', 'data-go="autos"')}
     <div class="setrow"><span>שמות ילדים בהתראות<small class="dim">מופיעים גם על מסך הנעילה</small></span>${toggle('notifNames', !!P.notifNames)}</div>
-    <div class="setrow"><span>תזכורות קופצות בפתיחת האפליקציה<small class="dim">חלון קטן עם מה שהגיע זמנו, עד שמסמנים שבוצע</small></span><button class="switch ${P.todoPopOff ? '' : 'on'}" data-act="todopopall" role="switch" aria-checked="${!P.todoPopOff}"><i></i></button></div>`) +
+    <div class="setrow"><span>תזכורות קופצות בפתיחת האפליקציה<small class="dim">חלון קטן עם מה שהגיע זמנו, עד שמסמנים שבוצע</small></span><button class="switch ${P.todoPopOff ? '' : 'on'}" data-act="todopopall" role="switch" aria-checked="${!P.todoPopOff}"><i></i></button></div>
+    <div class="setrow"><span>צליל של "הכיתה שלי"<small class="dim">פעמון קטן כשתזכורת קופצת והאפליקציה פתוחה · <button type="button" class="linkbtn" data-act="chimetest">להשמיע</button></small></span><button class="switch ${P.chimeOff ? '' : 'on'}" data-act="chimetog" role="switch" aria-checked="${!P.chimeOff}"><i></i></button></div>`) +
   sec('פרטיות', `
     <div class="setrow"><span>נעילה בקוד${P.pinHash ? ' · פעילה' : ''}<small class="dim">קוד בן 4 ספרות לפני שרואים את האפליקציה</small></span><button class="cta soft sm" data-act="${P.pinHash ? 'pinoff' : 'pinset'}">${P.pinHash ? 'ביטול' : 'הפעלה'}</button></div>
     ${P.pinHash ? `<div class="setrow"><span>לנעול אחרי</span>${seg([1, 5, 15].map(m => [m, m + ' דק׳']), P.lockMin || 5, 'data-lockmin')}</div>` : ''}
@@ -4030,7 +4048,7 @@ document.addEventListener('click', async e => {
   if (D.fopen) { state.fopen = state.fopen || {}; const el = t.closest('.fgrp'); state.fopen[D.fopen] = !el.classList.contains('open'); rerender(); return; }
   if (D.printweek) { printWeek(state.weeks[D.printweek]); return; }
   if (D.dict) { const [dow, label] = D.dict.split('|'); const key = `${w.id}:${dow}:${label}`; state._dictLists = dictLists(w); dictSheet(key, dictSource(w, +dow, label)); return; }
-  if (D.dictpick) { const x = (state._dictLists || [])[+D.dictpick]; if (x) dictSheet(x.key, state.dict[x.key] || x.words); return; }
+  if (D.dictpick) { const x = (state._dictLists || [])[+D.dictpick]; if (x) dictSheet(x.key, dictSaved(x.key) ? state.dict[x.key] : x.words); return; }
   if (D.pmtype) { state.pm.type = D.pmtype; rerender(); return; }
   if (D.pmtog) { state.pm.opts[D.pmtog] = state.pm.opts[D.pmtog] === false; state.pm.text = null; rerender(); return; }
   if (D.pmday) { const P = state.pm; P.opts.dow = +D.pmday; if (P.type === 'gear') { const d = w.days.find(x => x.dow === +D.pmday); P.opts.gear = d.periods.flatMap(p => [...p.materials.map(m => m.text), ...p.sections.map(x => x.text)]).filter(x => /להביא|לצייד|להגיע עם/.test(x)); } P.text = null; rerender(); return; }
@@ -4151,12 +4169,13 @@ document.addEventListener('click', async e => {
     case 'dictfree': { // the dictation of this week first (today's or the nearest one), then last week's handout, then next week's
       const L = state._dictLists = dictLists(w), t = w && todayInWeek(w);
       const x = (t && L.find(o => o.key.startsWith(`${w.id}:${t.dow}:`))) || L[0];
-      if (x) dictSheet(x.key, state.dict[x.key] || x.words); else dictSheet('free', state.dict.free || []);
+      if (x) dictSheet(x.key, dictSaved(x.key) ? state.dict[x.key] : x.words); else dictSheet('free', dictSaved('free') ? state.dict.free : []);
       break; }
     case 'dictshuffle': {
       const words = splitWords($('#dictIn').value);
       if (!words.length) { toast('צריך לכתוב קודם את המילים'); break; }
-      const D2 = state._dict; state.dict[D2.k] = words; save();
+      const D2 = state._dict, auto = (state._dictLists || []).find(x => x.key === D2.k);
+      if (auto && auto.words.join('|') === words.join('|')) delete state.dict[D2.k]; else state.dict[D2.k] = words; save();
       if (navigator.vibrate) navigator.vibrate(12);
       dictSheet(D2.k, words, shuffled(words, D2.order.length ? D2.order : null)); break;
     }
@@ -4172,6 +4191,8 @@ document.addEventListener('click', async e => {
     case 'dictprint': { const W = toLines(($('#dictIn') || {}).value.replace(/[,،]/g, '\n')); doPrint(pdoc('מילים להכתבה', pdSub(`${W.length} מילים`), `<ol class="pd-words">${W.map(x => `<li>${esc(x)}</li>`).join('')}</ol><p class="pd-foot">לקרוא, לכתוב פעמיים, ולבקש ממישהו בבית להכתיב.</p>`)); break; }
     case 'evalprint': { state.evals = state.evals || {}; doPrint(pdoc('הערכות', pdSub(), state.kids.map(k => { const E = state.evals[k.name] || {}, t = E.text || ((E.sex || k.sex) ? evalDraft(k.name, E.sex || k.sex) : ''); return t ? `<div class="pd-eval"><h3 class="pd-day">${esc(k.name)}</h3><p>${esc(t)}</p></div>` : ''; }).join('') || '<p>עוד אין טיוטות.</p>')); break; }
     case 'printview': { const P = printFor(state.tab); if (P) P.run(); break; }
+    case 'chimetog': state.prefs.chimeOff = !state.prefs.chimeOff; save(); if (!state.prefs.chimeOff) chime(true); rerender(); break;
+    case 'chimetest': chime(true); break;
     case 'todopopall': state.prefs.todoPopOff = !state.prefs.todoPopOff; save(); rerender(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
     case 'sharewelcome': { const url = `${location.origin}/welcome.html`, text = 'מצאתי אפליקציה שמסדרת את כל התכנון השבועי, הכיתה וההורים במקום אחד – שווה להציץ:'; if (navigator.share) { try { await navigator.share({ title: 'הכיתה שלי', text, url }); } catch { /* closed */ } } else { try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('הקישור הועתק ✓'); } catch { prompt('הקישור:', url); } } break; }

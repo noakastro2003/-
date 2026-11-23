@@ -10,6 +10,8 @@ import { SYSTEM } from '../lib/ai-prompts.mts'
 const json = (x: unknown, status = 200) => Response.json(x, { status, headers: { 'cache-control': 'no-store' } })
 const DAY_CAP = Number(Netlify.env.get('AI_DAY_CAP') || 3)
 const MONTH_CAP = Number(Netlify.env.get('AI_MONTH_CAP') || 4) // AI is paid from the site's Netlify credits: keep the default small; raise it with the AI_MONTH_CAP variable
+// the site's owner has no caps: her sign-in email(s) live in the AI_OWNER_EMAILS variable (comma separated), never in the code
+const OWNERS = String(Netlify.env.get('AI_OWNER_EMAILS') || '').toLowerCase().split(/[,\s]+/).filter(Boolean)
 
 export default async (req: Request) => {
   const user = await getUser()
@@ -30,13 +32,15 @@ export default async (req: Request) => {
   const day = new Date().toISOString().slice(0, 10), month = day.slice(0, 7)
   const dk = `n/${user.id}/${day}`, mk = `m/${month}`
   const usedDay = Number((await st.get(dk)) || 0), usedMonth = Number((await st.get(mk)) || 0)
-  if (usedDay >= DAY_CAP) return json({ error: 'limit', limit: DAY_CAP }, 429)
-  if (usedMonth >= MONTH_CAP) return json({ error: 'month', limit: MONTH_CAP }, 429)
+  const owner = OWNERS.includes(String(user.email || '').toLowerCase())
+  if (!owner && usedDay >= DAY_CAP) return json({ error: 'limit', limit: DAY_CAP }, 429)
+  if (!owner && usedMonth >= MONTH_CAP) return json({ error: 'month', limit: MONTH_CAP }, 429)
+  const count = async () => { if (!owner) { await st.set(dk, String(usedDay + 1)); await st.set(mk, String(usedMonth + 1)) } }
 
   if (op === 'polish') {
     const text = String(b.text || '').slice(0, 2500)
     if (!text.trim()) return json({ error: 'empty' }, 400)
-    await st.set(dk, String(usedDay + 1)); await st.set(mk, String(usedMonth + 1))
+    await count()
     try {
       const client = new Anthropic()
       const msg = await client.messages.create({
@@ -61,9 +65,9 @@ ${text}` }],
     if (!String(b.topic || '').trim()) return json({ error: 'empty' }, 400)
     const raw = JSON.stringify(b)
     if (raw.length > 12_000) return json({ error: 'too-big' }, 413)
-    await st.set(dk, String(usedDay + 1)); await st.set(mk, String(usedMonth + 1))
+    await count()
     const id = crypto.randomUUID()
-    await st.setJSON(`job/${id}`, { id, owner: user.id, kind, params: b, status: 'queued', at: Date.now(), counted: [dk, mk] })
+    await st.setJSON(`job/${id}`, { id, owner: user.id, kind, params: b, status: 'queued', at: Date.now(), counted: owner ? [] : [dk, mk] })
     await fetch(new URL('/api/ai-run', req.url).toString(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) })
     return json({ id })
   }

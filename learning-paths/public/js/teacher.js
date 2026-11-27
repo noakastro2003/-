@@ -25,7 +25,7 @@ import { parentLinkDialog } from './family.js';
 export function topbar(...extra) {
   return h('header', { class: 'topbar' },
     h('a', { class: 'brand', href: session.teacher ? '#/dashboard' : '#/' },
-      brandMark(), 'מסלולי למידה'),
+      brandMark(), h('span', { class: 'brand-word' }, 'Questopia')),
     h('div', { class: 'topbar-actions' },
       extra,
       creditBadge(),
@@ -45,18 +45,21 @@ async function logout() {
 // ---------- home ----------
 
 // The logo: a winding path with stations.
+// The Questopia logo: a dashed trail from a first step to a golden star (public/logo.svg).
 export function brandMark() {
+  return h('img', { class: 'brand-logo', src: 'logo.svg', alt: '', width: 66, height: 30 });
+}
+
+// The logo's dashed trail, drawn across a section of the home page.
+function trail(cls) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 120 120');
-  svg.setAttribute('class', 'brand-mark');
+  svg.setAttribute('viewBox', '0 0 600 120');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('class', `trail ${cls || ''}`);
   svg.setAttribute('aria-hidden', 'true');
-  // The logo: an open book with a path rising from it to a star (same as favicon.svg).
-  svg.innerHTML = '<rect width="120" height="120" rx="32" fill="#e8f7f1"/>'
-    + '<path d="M60 92 C 44 82, 26 82, 14 86 V 50 C 26 46, 44 46, 60 56 Z" fill="#00a884"/>'
-    + '<path d="M60 92 C 76 82, 94 82, 106 86 V 50 C 94 46, 76 46, 60 56 Z" fill="#06d6a0"/>'
-    + '<path d="M60 56 V 92" stroke="#fff" stroke-width="2.5"/>'
-    + '<path d="M60 56 C 60 42, 74 40, 74 28" fill="none" stroke="#6c5ce7" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 7"/>'
-    + '<path d="M76 10 l4.2 8.6 9.4 1.4-6.8 6.6 1.6 9.4-8.4-4.4-8.4 4.4 1.6-9.4-6.8-6.6 9.4-1.4z" fill="#ffd166" stroke="#f4a261" stroke-width="1.5" stroke-linejoin="round"/>';
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M0 90 C 90 20, 170 110, 280 60 S 470 10, 600 40');
+  svg.append(path);
   return svg;
 }
 
@@ -82,7 +85,7 @@ export function homePage(app) {
     ['🃏', 'משחקים ותרגול', 'משחק זיכרון, תפזורת, התאמה, סידור, השלמת מילים, נכון או לא נכון.'],
     ['🙆', 'הפסקות תנועה', 'הפסקה קצרה עם הצעה לתנועה כל כמה משימות, עם שעון.'],
     ['🏅', 'חיזוקים', 'כוכבים, תגים, חגיגה קטנה ודמות מלווה שמעודדת.'],
-    ['🔊', 'הקראה בקול המורה', 'ההוראות בקול שלכם, וניקוד מלא לקוראים מתחילים.'],
+    ['🔊', 'הקראה ונגישות', 'ההוראות בקול המורה, ניקוד מלא, גופן ברור, טקסט גדול ומצב שקט.'],
   ];
   const forTeachers = [
     ['✨', 'מחולל מסלולים', 'נושא, שכבת גיל ומטרות, אפשר לצרף דף עבודה – ומקבלים מסלול שלם לעריכה.'],
@@ -95,34 +98,53 @@ export function homePage(app) {
     h('span', { class: 'home-feature-icon', 'aria-hidden': 'true' }, icon),
     h('div', {}, h('h3', {}, title), h('p', {}, text)));
 
+  const step = (n, en, he, text, icon) => h('li', { class: `quest-step step-${n}` },
+    h('span', { class: 'quest-dot', 'aria-hidden': 'true' }, icon),
+    h('span', { class: 'quest-en', dir: 'ltr' }, en),
+    h('h3', {}, he),
+    h('p', {}, text));
+
   mount(app,
-    topbar(h('a', { class: 'btn ghost small', href: '#/login' }, 'כניסה למורים')),
+    topbar(
+      h('a', { class: 'btn ghost small', href: '#/login' }, 'כניסה'),
+      h('a', { class: 'btn primary small hide-sm', href: '#/register' }, 'הרשמה חינם')),
     h('main', { class: 'home' },
       h('section', { class: 'home-hero' },
         h('div', { class: 'home-hero-text' },
-          h('p', { class: 'eyebrow' }, 'למידה עצמאית לתלמידים עם קשיי קשב'),
-          h('h1', {}, 'כל תלמיד מתקדם ', h('span', { class: 'accent' }, 'במסלול משלו')),
-          h('p', { class: 'lead' }, 'בונים מסלול של משימות קטנות, משחקים והפסקות, ומשתפים קוד עם הכיתה. התלמידים מתקדמים בקצב שלהם, ואתם רואים בדיוק מי מתקדם ומי צריך עזרה.'),
-          h('div', { class: 'row wrap' },
-            h('a', { class: 'btn primary big', href: '#/register' }, 'פתיחת חשבון למורים'),
-            h('a', { class: 'btn secondary big', href: '#/join' }, '🎒 אני תלמיד – יש לי קוד')),
-          h('p', { class: 'muted small' }, '20 קרדיטים חינם בהרשמה · בלי כרטיס אשראי')),
-        mapMockup()),
+          h('p', { class: 'eyebrow', dir: 'ltr' }, h('span', { class: 'eyebrow-dot' }), 'Create. Explore. Discover.'),
+          h('h1', {}, 'הופכים כל שיעור ', h('span', { class: 'grad-text' }, 'להרפתקה')),
+          h('p', { class: 'lead' }, 'Questopia עוזרת למורות לבנות מסלולי למידה קצרים ומשחקיים לתלמידים עם קשיי קשב. כל תלמיד יוצא למסע משלו – משימה אחר משימה, בקצב שלו – ואתן רואות בדיוק מי מתקדם ומי צריך יד.'),
+          h('div', { class: 'row wrap hero-ctas' },
+            h('a', { class: 'btn primary big', href: '#/register' }, 'מתחילים את המסע ←'),
+            h('a', { class: 'btn big hero-kid', href: '#/join' }, '🎒 אני תלמיד – יש לי קוד')),
+          h('ul', { class: 'hero-trust' },
+            h('li', {}, '✨ 20 קרדיטים חינם'),
+            h('li', {}, '📚 138 מסלולים מוכנים'),
+            h('li', {}, '🔒 בלי אימייל לתלמידים'))),
+        h('div', { class: 'hero-visual' },
+          trail('hero-trail'),
+          mapMockup(),
+          h('div', { class: 'float-badge fb-1', 'aria-hidden': 'true' }, '⭐ כל הכבוד!'),
+          h('div', { class: 'float-badge fb-2', 'aria-hidden': 'true' }, '🏅 תג חדש: חצי דרך'),
+          h('div', { class: 'float-badge fb-3', 'aria-hidden': 'true' }, '🙆 הפסקת תנועה'))),
 
       h('section', { class: 'home-steps' },
-        h('h2', {}, 'איך זה עובד'),
-        h('ol', {},
-          h('li', {}, h('strong', {}, 'בונים מסלול'), h('span', {}, 'לבד, ממסלול לדוגמה, או עם המחולל. מוסיפים תמונות, הקלטות וניקוד.')),
-          h('li', {}, h('strong', {}, 'משתפים קוד'), h('span', {}, 'התלמידים נכנסים עם הקוד, שם וסיסמה מתמונות – בלי אימייל.')),
-          h('li', {}, h('strong', {}, 'עוקבים ומאשרים'), h('span', {}, 'טבלת התקדמות, בקשות עזרה, אישור מורה ונתונים על איפה נתקעים.')))),
+        h('h2', { class: 'section-head' }, 'איך יוצאים לדרך'),
+        h('div', { class: 'quest-road' },
+          trail('steps-trail'),
+          h('ol', {},
+            step(1, 'Create', 'בונים מסלול', 'לבד, מתוך 138 מסלולים מוכנים לפי תוכנית הלימודים, או עם המחולל שבונה מסלול שלם מנושא ומטרות.', '🧩'),
+            step(2, 'Explore', 'התלמידים יוצאים למסע', 'נכנסים עם קוד וסיסמה מתמונות. משימה אחת על המסך, משחקים, הפסקות תנועה וכוכבים בדרך.', '🧭'),
+            step(3, 'Discover', 'מגלים מה קורה', 'מי סיים, מי ביקש עזרה ואיפה נתקעים – ומתאימים לכל תלמיד את הדרך שלו.', '🔭')))),
 
       h('section', { class: 'home-columns' },
-        h('div', {}, h('h2', {}, 'לתלמידים'), h('ul', { class: 'home-features' }, forStudents.map(card))),
-        h('div', {}, h('h2', {}, 'למורים'), h('ul', { class: 'home-features' }, forTeachers.map(card)))),
+        h('div', { class: 'feature-panel' }, h('h2', {}, h('span', { class: 'panel-badge teal' }, '🎒'), 'לתלמידים'), h('ul', { class: 'home-features' }, forStudents.map(card))),
+        h('div', { class: 'feature-panel' }, h('h2', {}, h('span', { class: 'panel-badge violet' }, '🧑‍🏫'), 'למורות'), h('ul', { class: 'home-features' }, forTeachers.map(card)))),
 
       h('section', { class: 'home-cta' },
-        h('h2', {}, 'נסו עם הכיתה שלכם'),
-        h('p', {}, 'פתיחת חשבון לוקחת דקה. מקבלים 20 קרדיטים חינם – מספיק לכמה מסלולים מלאים.'),
+        h('div', { class: 'cta-stars', 'aria-hidden': 'true' }, '⭐'),
+        h('h2', {}, 'מוכנות לצאת להרפתקה?'),
+        h('p', {}, 'פתיחת חשבון לוקחת דקה, ומסלול לדוגמה כבר מחכה לך בפנים.'),
         h('a', { class: 'btn big home-cta-btn', href: '#/register' }, 'פתיחת חשבון חינם'))));
 }
 
@@ -160,7 +182,9 @@ export function authPage(app, mode) {
 
   mount(app, topbar(), h('main', { class: 'center-page' },
     h('form', { class: 'card narrow', onsubmit: onSubmit },
-      h('h1', {}, isReg ? 'הרשמה למורות' : 'כניסה למורות'),
+      h('img', { class: 'auth-logo', src: 'favicon.svg', alt: '' }),
+      h('h1', {}, isReg ? 'מצטרפות ל-Questopia' : 'ברוכה השבה!'),
+      h('p', { class: 'muted auth-sub' }, isReg ? 'דקה אחת, ומסלול לדוגמה כבר מחכה לך בפנים.' : 'כניסה למורות'),
       isReg && field('שם מלא', name),
       field('אימייל', email),
       field('סיסמה', pw, isReg ? 'לפחות 8 תווים' : null),
@@ -230,15 +254,19 @@ export async function dashboardPage(app) {
   const hour = new Date().getHours();
   const hello = hour < 12 ? 'בוקר טוב' : hour < 17 ? 'צהריים טובים' : 'ערב טוב';
   mount(app, topbar(), h('main', { class: 'page' },
-    h('p', { class: 'dash-hello' }, DEMO ? `${hello}!` : `${hello}, ${session.teacher.name}!`),
+    h('section', { class: 'dash-hero' },
+      h('div', {},
+        h('p', { class: 'dash-hello' }, DEMO ? `${hello}! 👋` : `${hello}, ${session.teacher.name}! 👋`),
+        h('h1', {}, 'לאן יוצאים היום?'),
+        h('p', { class: 'muted' }, 'מסלול חדש, מסע מוכן מהספרייה, או מסלול שלם מהמחולל.')),
+      h('div', { class: 'dash-actions' },
+        h('button', { class: 'dash-action', onclick: newPathDialog }, h('span', { class: 'da-icon teal' }, '🧩'), h('strong', {}, 'מסלול חדש'), h('span', {}, 'בונים לבד')),
+        h('a', { class: 'dash-action', href: '#/library' }, h('span', { class: 'da-icon orange' }, '📚'), h('strong', {}, 'מהספרייה'), h('span', {}, '138 מסלולים מוכנים')),
+        h('a', { class: 'dash-action', href: '#/generate' }, h('span', { class: 'da-icon violet' }, '✨'), h('strong', {}, 'מחולל'), h('span', {}, 'מסלול שלם בדקה')))),
     guide,
     summary,
     h('div', { class: 'page-head' },
-      h('h1', {}, 'המסלולים שלי'),
-      h('div', { class: 'row wrap' },
-        h('a', { class: 'btn ghost', href: '#/library' }, '📚 ספרייה'),
-        h('a', { class: 'btn secondary', href: '#/generate' }, '✨ מחולל מסלולים'),
-        h('button', { class: 'btn primary', onclick: newPathDialog }, '+ מסלול חדש'))),
+      h('h2', { class: 'section-title' }, 'המסלולים שלי')),
     list,
     classesBox));
   classesSection(classesBox);
@@ -326,7 +354,7 @@ function gettingStarted(box, paths) {
 
 function welcomeTour() {
   const slides = [
-    ['🗺️', 'ברוכה הבאה למסלולי למידה!', 'כל מסלול הוא רצף של משימות קטנות – משחקים, קריאה, הקלטה וציור – שהתלמידים עוברים בקצב שלהם. מחכה לך כבר מסלול לדוגמה בחשבון.'],
+    ['🗺️', 'ברוכה הבאה ל-Questopia!', 'כל מסלול הוא רצף של משימות קטנות – משחקים, קריאה, הקלטה וציור – שהתלמידים עוברים בקצב שלהם. מחכה לך כבר מסלול לדוגמה בחשבון.'],
     ['🧩', 'בונים מסלול', 'מסלול ריק, מסלול מוכן מהספרייה (יותר מ-130 מסלולים לפי תוכנית הלימודים), או המחולל שבונה מסלול שלם מנושא ומטרות. כל משימה ניתנת לעריכה.'],
     ['🔑', 'משתפים קוד', 'בלשונית "שיתוף" מפרסמים ומקבלים קוד. התלמידים נכנסים בלי אימייל – רק שם וסיסמה מתמונות. כיתה נותנת קוד אחד לכמה מסלולים.'],
     ['📊', 'עוקבים ומתאימים', 'רואים מי סיים, מי ביקש עזרה ואיפה נתקעים. ⚙️ התאמה אישית: להסתיר משימות, הפסקות, גופן ברור, טקסט גדול והקראה. 👪 קישור להורים.'],

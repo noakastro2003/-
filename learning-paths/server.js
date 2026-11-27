@@ -761,7 +761,7 @@ export function createApp(db, {
       try {
         await mailer.send({
           to: t.email,
-          subject: 'איפוס סיסמה – מסלולי למידה',
+          subject: 'איפוס סיסמה – Questopia',
           text: `שלום ${t.name},\n\nכדי לבחור סיסמה חדשה, פתחו את הקישור (תקף לשעה אחת):\n${link}\n\nאם לא ביקשתם לאפס סיסמה, אפשר להתעלם מההודעה.`,
         });
       } catch (err) {
@@ -1917,6 +1917,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   const server = http.createServer(createApp(db));
   server.requestTimeout = 15 * 60 * 1000; // AI generation can take a few minutes
   server.listen(port, () => {
-    console.log(`מסלולי למידה פועל: http://localhost:${port}`);
+    console.log(`Questopia פועל: http://localhost:${port}`);
   });
 }

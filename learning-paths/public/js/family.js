@@ -15,7 +15,7 @@ export async function parentLinkDialog(endpoint, name) {
       h('input', { type: 'text', readonly: true, dir: 'ltr', value: url, onfocus: (e) => e.target.select() }),
       h('div', { class: 'row wrap' },
         h('button', { class: 'btn primary', onclick: () => copyText(url, 'הקישור הועתק ✓') }, '📋 העתקת הקישור'),
-        h('a', { class: 'btn secondary', href: `https://wa.me/?text=${encodeURIComponent(`ההתקדמות של ${name} במסלולי הלמידה: ${url}`)}`, target: '_blank', rel: 'noopener' }, 'שליחה בוואטסאפ'),
+        h('a', { class: 'btn secondary', href: `https://wa.me/?text=${encodeURIComponent(`ההתקדמות של ${name} ב-Questopia: ${url}`)}`, target: '_blank', rel: 'noopener' }, 'שליחה בוואטסאפ'),
         h('button', {
           class: 'btn ghost', onclick: async () => {
             if (!(await confirmDialog('לבטל את הקישור? הקישור הישן יפסיק לעבוד, ואפשר ליצור חדש.', { okText: 'ביטול הקישור', danger: true }))) return;
@@ -51,7 +51,7 @@ export async function parentPage(app, token) {
   const thisWeek = allTasks.filter((t) => t.completedAt && new Date(`${t.completedAt.replace(' ', 'T')}Z`).getTime() > weekAgo).length;
   mount(app, h('main', { class: 'parent' },
     h('header', { class: 'parent-head' },
-      h('span', { class: 'brand' }, brandMark(), 'מסלולי למידה'),
+      h('span', { class: 'brand' }, brandMark(), h('span', { class: 'brand-word' }, 'Questopia')),
       h('h1', {}, `${data.child.avatar || '🌟'} ההתקדמות של ${data.child.name}`),
       h('p', { class: 'muted' }, [data.className && `כיתה: ${data.className}`, data.teacherName && `המורה: ${data.teacherName}`].filter(Boolean).join(' · '))),
     h('section', { class: 'parent-stats' },

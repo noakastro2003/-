@@ -42,7 +42,7 @@ async function wake(t: string, rec: Rec, title: string, body: string, force = fa
     const app = getStore({ name: 'hakita', consistency: 'strong' })
     const p = (await app.get(`push/${rec.owner}`, { type: 'json' })) as { subs: any[] } | null
     if (!p || !p.subs.length) return
-    webpush.setVapidDetails('https://noa-hakita.netlify.app', process.env.VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!)
+    webpush.setVapidDetails('https://classora.netlify.app', process.env.VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!)
     const msg = JSON.stringify({ title, body: body.slice(0, 140), tag: 'sub-' + t, url: '/?subinbox=' + t })
     await Promise.all(p.subs.map(s => webpush.sendNotification(s, msg).catch(() => null)))
   } catch (e) { console.warn('sub push failed', e) }

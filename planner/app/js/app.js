@@ -14,6 +14,18 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf.worker.min.mjs',
 
 // ================================================================ state
 const KEY = 'noa-planner-v1';
+// moving from the old address (noa-hakita.netlify.app): the old site hands over this device's data in the link, once
+await (async () => {
+  const m = location.hash.match(/^#mig=([\w-]+)$/); if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  try {
+    if (localStorage.getItem(KEY)) return; // this device already has Classora data: keep it
+    const bin = Uint8Array.from(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+    const txt = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    const all = JSON.parse(txt);
+    for (const [k, v] of Object.entries(all)) if (typeof v === 'string') localStorage.setItem(k, v);
+  } catch { /* nothing moved: signing in to the account brings the data back */ }
+})();
 const team = { data: {}, at: {}, busy: {} }; // shared-week progress of the other teachers (see TEAM below)
 let teamT = 0;
 const ai = { busy: false, kind: 'lesson', out: null, err: '' }; // the AI builder's screen state (see AI below)
@@ -34,7 +46,7 @@ const WS_KINDS = [['open', 'שאלה פתוחה', 'pencil'], ['fill', 'השלמ�
 const wsCur = () => (state.sheets = state.sheets || []).find(x => x.id === state._wsId);
 const wsOut = sh => ({ kind: 'sheet', title: sh.title || 'דף עבודה', goal: sh.goal || '', story: sh.story, teacherNote: sh.teacherNote, selfCheck: sh.selfCheck, levels: sh.levels.map(l => ({ name: sh.levels.length > 1 ? l.name : '', instructions: l.instructions, example: l.example || '', items: l.items.map(x => ({ kind: x.kind, prompt: x.prompt || '', options: x.options || [], hint: x.hint || '', answer: x.answer || '' })) })) });
 const MINUS = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const APP_V = 117; // keep in step with CACHE in sw.js
+const APP_V = 118; // keep in step with CACHE in sw.js
 const SAVED = ['weeks', 'activeId', 'checks', 'pins', 'name', 'logs', 'kids', 'todos', 'prefs', 'picked', 'groups', 'files', 'absent', 'cnotes', 'lists', 'autos', 'notifQueue', 'ready', 'onboarded', 'tsaved', 'dict', 'pmlog', 'forms', 'pmtpl', 'changes', 'grades', 'bank', 'events', 'points', 'kings', 'guided', 'classes', 'curClass', 'att', 'canva', 'seats', 'evals', 'crules', 'sheets', 'dictLog'];
 let ENC = null, cryptoKey = null, appLocked = false;
 const LOCKMETA = () => { try { return JSON.parse(localStorage.getItem('hk-lock') || 'null'); } catch { return null; } };
@@ -373,7 +385,7 @@ function top(title, sub, illus, opts = {}) {
   const dot = state.todos.some(todoDue) || bdOn(now()).length;
   return `<header class="top">
     <div class="brandrow">
-      <div class="brand">${opts.back ? `<button class="back" data-go="${opts.back}" aria-label="חזרה">${ic('chevR')}</button>` : ''}${logo('blogo')}<span>הכיתה שלי${squiggle('s')}</span>${syncDot()}</div>
+      <div class="brand">${opts.back ? `<button class="back" data-go="${opts.back}" aria-label="חזרה">${ic('chevR')}</button>` : ''}${logo('blogo')}<span>Classora${squiggle('s')}</span>${syncDot()}</div>
       <div class="hbtns">
         ${printFor(state.tab) ? `<button class="hb" data-act="printview" aria-label="${esc(printFor(state.tab).label)}" title="${esc(printFor(state.tab).label)}">${ic('printer')}</button>` : ''}
         <button class="hb" data-act="search" aria-label="חיפוש">${ic('search')}</button>
@@ -1800,7 +1812,7 @@ function viewCalendar() {
 async function shareWeek(w) {
   const data = JSON.stringify({ app: 'hakita-week', v: 1, from: state.name, week: { ...w, importedAt: new Date().toISOString() } });
   const file = new File([data], `תכנון ${w.number ? 'שבוע ' + w.number : w.title || 'שבועי'}.kita.json`, { type: 'application/json' });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], text: `תכנון ${w.number ? 'שבוע ' + w.number : 'שבועי'} מ${state.name || 'הכיתה שלי'} – פותחים באפליקציה "הכיתה שלי" ← עוד ← להעלות תכנון` }).catch(() => {}); return; }
+  if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], text: `תכנון ${w.number ? 'שבוע ' + w.number : 'שבועי'} מ${state.name || 'הכיתה שלי'} – פותחים באפליקציה Classora ← עוד ← להעלות תכנון` }).catch(() => {}); return; }
   const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
 }
 async function tryImportWeek(file) {
@@ -2022,7 +2034,7 @@ function viewOnboard() {
   const st = state.onb || (state.onb = { step: 0, name: state.name || '', role: '', home: '', size: '', classes: [], subject: '' });
   const steps = 4, dots = `<div class="gd-dots">${Array.from({ length: steps }, (_, i) => `<i class="${i === st.step ? 'on' : ''}"></i>`).join('')}</div>`;
   let body = '';
-  if (st.step === 0) body = `<div class="onb-logo">${logo('wlogo')}</div><h1>${g('ברוכה הבאה', 'ברוך הבא')} ל״הכיתה שלי״</h1>
+  if (st.step === 0) body = `<div class="onb-logo">${logo('wlogo')}</div><h1>${g('ברוכה הבאה', 'ברוך הבא')} ל־Classora</h1><p class="onb-tag" dir="ltr">Your classroom. Your universe.</p>
     <p class="onb-sub">התכנון השבועי, הכיתה וההורים – מסודרים במקום אחד. ארבעה צעדים קצרים ומתחילים.</p>
     <form class="card onb-form" data-onbstep="0"><label class="field">איך קוראים לך?<input name="name" required value="${esc(st.name)}" placeholder="השם שלך" autocomplete="given-name"></label>
       <p class="pmlbl">איך לפנות אלייך?</p><div class="seg"><button type="button" class="${!state.prefs.male ? 'on' : ''}" data-addr="f">את</button><button type="button" class="${state.prefs.male ? 'on' : ''}" data-addr="m">אתה</button></div>
@@ -2291,7 +2303,7 @@ function lockCheck(awayMs) { if ((state.prefs.pinHash || LOCKMETA()) && (awayMs 
 function showLock(mode = 'unlock') {
   let el = $('#lock'); if (!el) { el = document.createElement('div'); el.id = 'lock'; document.body.appendChild(el); }
   el.dataset.mode = mode; el.dataset.pin = '';
-  const title = mode === 'set' ? 'בחירת קוד של 4 ספרות' : mode === 'confirm' ? 'שוב, לאישור' : 'הכיתה שלי נעולה';
+  const title = mode === 'set' ? 'בחירת קוד של 4 ספרות' : mode === 'confirm' ? 'שוב, לאישור' : 'Classora נעולה';
   const sub = mode === 'set' ? 'הקוד שומר על המידע של הכיתה' : mode === 'confirm' ? 'מקישים את אותו הקוד' : 'מקישים את הקוד כדי להיכנס';
   el.innerHTML = `<div class="lk-in">${logo('wlogo')}<h2>${title}</h2><p class="lk-sub">${sub}</p><div class="lk-dots">${'<i></i>'.repeat(4)}</div>
     <div class="lk-pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map(k => k === '' ? '<span></span>' : k === '⌫' ? `<button class="lk-del" data-lk="⌫" aria-label="מחיקה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="M13 10l4 4M17 10l-4 4"/></svg></button>` : `<button data-lk="${k}">${k}</button>`).join('')}</div>
@@ -2471,7 +2483,7 @@ function viewSettings(w) {
     ${link('bell', 'התראות ואוטומציות', '"בוקר טוב", לפני שיעור, תזכורות קבועות', 'data-go="autos"')}
     <div class="setrow"><span>שמות ילדים בהתראות<small class="dim">מופיעים גם על מסך הנעילה</small></span>${toggle('notifNames', !!P.notifNames)}</div>
     <div class="setrow"><span>תזכורות קופצות בפתיחת האפליקציה<small class="dim">חלון קטן עם מה שהגיע זמנו, עד שמסמנים שבוצע</small></span><button class="switch ${P.todoPopOff ? '' : 'on'}" data-act="todopopall" role="switch" aria-checked="${!P.todoPopOff}"><i></i></button></div>
-    <div class="setrow"><span>צליל של "הכיתה שלי"<small class="dim">פעמון קטן כשתזכורת קופצת והאפליקציה פתוחה · <button type="button" class="linkbtn" data-act="chimetest">להשמיע</button></small></span><button class="switch ${P.chimeOff ? '' : 'on'}" data-act="chimetog" role="switch" aria-checked="${!P.chimeOff}"><i></i></button></div>`) +
+    <div class="setrow"><span>צליל של Classora<small class="dim">פעמון קטן כשתזכורת קופצת והאפליקציה פתוחה · <button type="button" class="linkbtn" data-act="chimetest">להשמיע</button></small></span><button class="switch ${P.chimeOff ? '' : 'on'}" data-act="chimetog" role="switch" aria-checked="${!P.chimeOff}"><i></i></button></div>`) +
   sec('פרטיות', `
     <div class="setrow"><span>נעילה בקוד${P.pinHash ? ' · פעילה' : ''}<small class="dim">קוד בן 4 ספרות לפני שרואים את האפליקציה</small></span><button class="cta soft sm" data-act="${P.pinHash ? 'pinoff' : 'pinset'}">${P.pinHash ? 'ביטול' : 'הפעלה'}</button></div>
     ${P.pinHash ? `<div class="setrow"><span>לנעול אחרי</span>${seg([1, 5, 15].map(m => [m, m + ' דק׳']), P.lockMin || 5, 'data-lockmin')}</div>` : ''}
@@ -2502,7 +2514,7 @@ function viewSettings(w) {
     </details>` : ''}
     <button class="danger" data-act="wipe">${ic('trash')} מחיקת כל המידע מהטלפון</button>
   </details>
-  <p class="hint ver">הכיתה שלי · גרסה ${APP_V}</p>`;
+  <p class="hint ver">Classora · הכיתה שלך. העולם שלך. · גרסה ${APP_V}</p>`;
 }
 function viewTodos(w) {
   return top('תזכורות', 'הדברים הקטנים שלא רוצים לשכוח', 'notepad', { back: 'more' }) + remindersCard(w, true) +
@@ -2561,7 +2573,7 @@ function viewSummary(w) {
 function viewEmpty() {
   if (!state.onboarded) return `<section class="onb">
     <div class="onb-logo">${logo('wlogo')}</div>
-    <h1>${g('ברוכה הבאה', 'ברוך הבא')} ל״הכיתה שלי״</h1>
+    <h1>${g('ברוכה הבאה', 'ברוך הבא')} ל־Classora</h1><p class="onb-tag" dir="ltr">Your classroom. Your universe.</p>
     <p class="onb-sub">כמה פרטים כדי להתחיל:</p>
     <form class="card onb-form" data-onboard>
       <label class="field">איך קוראים לך?<input name="name" required placeholder="השם שלך" autocomplete="given-name"></label>
@@ -3645,7 +3657,7 @@ async function enablePush() {
   if (!sync.user) { toast('קודם מתחברים לחשבון (בהגדרות) ☁️', 3500); go('settings'); return; }
   if (!wpush.supported) { toast(standalone() ? 'הטלפון הזה לא תומך בהתראות 😕' : 'כדי לקבל התראות צריך לפתוח את האפליקציה ממסך הבית 📱', 4000); return; }
   const perm = await Notification.requestPermission();
-  if (perm !== 'granted') { toast('ההתראות לא אושרו. אפשר לאשר בהגדרות הטלפון ← הכיתה שלי ← עדכונים', 4500); return; }
+  if (perm !== 'granted') { toast('ההתראות לא אושרו. אפשר לאשר בהגדרות הטלפון ← Classora ← עדכונים', 4500); return; }
   try {
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID_PUBLIC) });
@@ -3824,7 +3836,7 @@ let revealObs = null, revealGen = 0;
 function afterRender(v, animate) {
   // compact header title follows the page title
   const h1 = v.querySelector('.tt h1'); const mt = $('#miniTitle');
-  if (mt) mt.textContent = h1 ? h1.textContent : 'הכיתה שלי';
+  if (mt) mt.textContent = h1 ? h1.textContent : 'Classora';
   // cards below the fold slide in when they reach the screen
   if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (revealObs) revealObs.disconnect();
@@ -4236,7 +4248,7 @@ document.addEventListener('click', async e => {
     case 'chimetest': chime(true); break;
     case 'todopopall': state.prefs.todoPopOff = !state.prefs.todoPopOff; save(); rerender(); break;
     case 'addtodo': state._addTodo = true; rerender(); setTimeout(() => { const n = document.querySelector('[data-addtodo] input'); if (n) n.focus(); }, 30); break;
-    case 'sharewelcome': { const url = `${location.origin}/welcome.html`, text = 'מצאתי אפליקציה שמסדרת את כל התכנון השבועי, הכיתה וההורים במקום אחד – שווה להציץ:'; if (navigator.share) { try { await navigator.share({ title: 'הכיתה שלי', text, url }); } catch { /* closed */ } } else { try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('הקישור הועתק ✓'); } catch { prompt('הקישור:', url); } } break; }
+    case 'sharewelcome': { const url = `${location.origin}/welcome.html`, text = 'מצאתי אפליקציה שמסדרת את כל התכנון השבועי, הכיתה וההורים במקום אחד – שווה להציץ:'; if (navigator.share) { try { await navigator.share({ title: 'Classora', text, url }); } catch { /* closed */ } } else { try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('הקישור הועתק ✓'); } catch { prompt('הקישור:', url); } } break; }
     case 'aigo': aiGo(); break;
     case 'aicopy': { try { await navigator.clipboard.writeText(aiText(ai.out)); toast('הועתק ✓', 1500); } catch { toast('לא הצלחתי להעתיק'); } break; }
     case 'aiprint': aiPrint(ai.out); break;
@@ -4277,7 +4289,7 @@ document.addEventListener('click', async e => {
     case 'tlopen': state._tlOpen = !state._tlOpen; rerender(); break;
     case 'stepsopen': state._stepsOpen = !state._stepsOpen; rerender(); break;
     case 'stepsback': state.prefs.stepsDone = false; save(); go('now'); break;
-    case 'sharecode': { const c = soc.data && soc.data.me.code; if (!c) break; const tx = `היי! אני ${g('משתמשת', 'משתמש')} באפליקציה "הכיתה שלי" לתכנון השבועי 💜\nבואו נתחבר שם ונשתף שיעורים – הקוד שלי: ${c}\nhttps://noa-hakita.netlify.app`; if (navigator.share) navigator.share({ text: tx }).catch(() => {}); else navigator.clipboard.writeText(tx).then(() => toast('הועתק 📋')); break; }
+    case 'sharecode': { const c = soc.data && soc.data.me.code; if (!c) break; const tx = `היי! אני ${g('משתמשת', 'משתמש')} באפליקציה Classora לתכנון השבועי 💜\nבואו נתחבר שם ונשתף שיעורים – הקוד שלי: ${c}\nhttps://classora.netlify.app`; if (navigator.share) navigator.share({ text: tx }).catch(() => {}); else navigator.clipboard.writeText(tx).then(() => toast('הועתק 📋')); break; }
     case 'shsend': { const S2 = state._share; socApi('send', { to: S2.to, kind: S2.kind, title: S2.title, data: S2.data }).then(r => { closeOverlay(); toast(`נשלח ל־${r.sent} ✓`); }).catch(e => toast(e.code === 'too-big' ? 'השבוע גדול מדי לשליחה – שולחים כקובץ' : 'לא הצלחתי לשלוח 😕')); break; }
     case 'shpub': { const S2 = state._share; socApi('publish', { title: S2.title, data: S2.data }).then(() => { closeOverlay(); toast('השיעור בספרייה שלך – כל החברות רואות אותו ⭐'); }).catch(() => toast('לא הצלחתי לשתף 😕')); break; }
     case 'shfile': closeOverlay(); shareWeek(state._share.data); break;
@@ -4498,7 +4510,7 @@ document.addEventListener('submit', e => {
   if (f.matches('[data-casttext]')) { e.preventDefault(); state.projText = f.t.value.trim(); save(); castSend('text', state.projText); toast('מוצג במסך הכיתה 📺', 1400); return; }
   if (f.matches('[data-report]')) {
     e.preventDefault();
-    const txt = `דיווח מ"הכיתה שלי" · גרסה ${APP_V}\nמסך: ${state.tab} · ${innerWidth}×${innerHeight} · ${standalone() ? 'מסך הבית' : 'דפדפן'}\n${navigator.userAgent}\n\nמה קרה:\n${f.what.value.trim()}`;
+    const txt = `דיווח מ־Classora · גרסה ${APP_V}\nמסך: ${state.tab} · ${innerWidth}×${innerHeight} · ${standalone() ? 'מסך הבית' : 'דפדפן'}\n${navigator.userAgent}\n\nמה קרה:\n${f.what.value.trim()}`;
     const shot = f.shot.files && f.shot.files[0];
     if (sync.user) {
       const btn = f.querySelector('.cta'); btn.disabled = true; btn.textContent = 'שולחת…';
@@ -5079,14 +5091,14 @@ async function icsExport() {
   const escI = t => String(t).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
   const hash = t => { let h = 0; for (const c of t) h = (h * 31 + c.charCodeAt(0)) | 0; return (h >>> 0).toString(36); };
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//hakita//he', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:הכיתה שלי'];
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//hakita//he', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Classora'];
   for (const e of ev) {
     const name = `${e.icon} ${e.text}`;
     lines.push('BEGIN:VEVENT', `UID:${d8(e.d)}-${hash(e.kind + e.text)}@hakita`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${d8(e.d)}`, `DTEND;VALUE=DATE:${d8(addDays(e.d, 1))}`, `SUMMARY:${escI(name)}`, 'TRANSP:TRANSPARENT', 'END:VEVENT');
   }
   lines.push('END:VCALENDAR');
   const file = new File([lines.join('\r\n')], 'hakita-calendar.ics', { type: 'text/calendar' });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'הכיתה שלי – יומן' }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'Classora – יומן' }); return; } catch (e) { if (e.name === 'AbortError') return; } }
   const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
   toast(`${ev.length} אירועים מוכנים – פותחים את הקובץ ובוחרים "הוספה ליומן"`, 4000);
 }

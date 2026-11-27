@@ -5,9 +5,9 @@
 // 2. ב-Scriptable: + (סקריפט חדש) ← מדביקים את כל הקובץ הזה ← קוראים לסקריפט: הכיתה שלי
 // 3. במסך הבית: לחיצה ארוכה ← + ← Scriptable ← בוחרים גודל ← עריכת הווידג'ט ← Script: הכיתה שלי
 //
-// עדכון כל שבוע: באפליקציה "הכיתה שלי" ← עוד ← הגדרות ← "עדכון הווידג'ט וההתראות".
+// עדכון כל שבוע: באפליקציה Classora ← עוד ← הגדרות ← "עדכון הווידג'ט וההתראות".
 
-const APP_URL = 'https://noa-hakita.netlify.app/';
+const APP_URL = 'https://classora.netlify.app/';
 const FILE = 'kita-week.json';
 
 // ---------------------------------------------------------------- data
@@ -82,7 +82,7 @@ async function importFromClipboard() {
     a.message = `${w.title || 'השבוע'} נכנס לווידג׳ט.` + (w.notify ? `\nהתראות בוקר: ${n} ימים, בשעה ${w.notify}.` : '\nהתראות בוקר כבויות.');
   } else {
     a.title = 'לא מצאתי תכנון 🤔';
-    a.message = 'פותחים את "הכיתה שלי" ← עוד ← הגדרות ← "עדכון הווידג׳ט וההתראות", ומשם זה יגיע לכאן לבד.';
+    a.message = 'פותחים את Classora ← עוד ← הגדרות ← "עדכון הווידג׳ט וההתראות", ומשם זה יגיע לכאן לבד.';
   }
   a.addAction('אחלה');
   await a.present();
@@ -137,7 +137,7 @@ function brand(st, right) {
   const h = st.addStack(); h.layoutHorizontally(); h.centerAlignContent();
   if (right) { const x = h.addText(right); x.font = F.small; x.textColor = SOFT; }
   h.addSpacer();
-  const b = h.addText('הכיתה שלי'); b.font = F.brand; b.textColor = GOLD;
+  const b = h.addText('Classora'); b.font = F.brand; b.textColor = GOLD;
   h.addSpacer(5);
   const dot = h.addStack(); dot.size = new Size(5, 5); dot.cornerRadius = 2.5; dot.backgroundColor = GOLD;
   return h;
@@ -231,7 +231,7 @@ if (config.runsInWidget) {
   await importFromClipboard();
 } else {
   const a = new Alert();
-  a.title = 'הכיתה שלי';
+  a.title = 'Classora';
   a.addAction('לעדכן מהלוח');
   a.addAction('תצוגה מקדימה');
   a.addCancelAction('סגירה');

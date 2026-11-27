@@ -5,7 +5,7 @@ import webpush from 'web-push'
 import type { Config } from '@netlify/functions'
 
 export default async () => {
-  webpush.setVapidDetails('https://noa-hakita.netlify.app', process.env.VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!)
+  webpush.setVapidDetails('https://classora.netlify.app', process.env.VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!)
   const store = getStore({ name: 'hakita', consistency: 'strong' })
   const { blobs } = await store.list({ prefix: 'push/' })
   const now = Date.now()

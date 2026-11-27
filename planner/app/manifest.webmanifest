@@ -1,7 +1,7 @@
 {
-  "name": "הכיתה שלי",
-  "short_name": "הכיתה שלי",
-  "description": "התכנון השבועי – תמיד בכיס",
+  "name": "Classora",
+  "short_name": "Classora",
+  "description": "Your classroom. Your universe. · הכיתה שלך. העולם שלך.",
   "lang": "he",
   "dir": "rtl",
   "start_url": "./",

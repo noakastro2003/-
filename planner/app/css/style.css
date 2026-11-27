@@ -1101,6 +1101,7 @@ body.onboarding .tabs, body.onboarding .minibar { display: none !important; }
 .onb-form .pmlbl { margin-top: 6px; }
 .onb-form .cta { margin-top: 14px; }
 .onb h1 { text-align: center; }
+.onb-tag { text-align: center; margin: -4px 0 6px; color: var(--accent-ink); font-weight: 500; letter-spacing: .2px; }
 .onb .gd-dots { margin: 8px 0 20px; }
 .onb .linkbtn { display: block; margin: 14px auto; }
 .onb-start { display: grid; gap: 12px; margin: 18px 0; }
@@ -1241,13 +1242,16 @@ body.onboarding .tabs, body.onboarding .minibar { display: none !important; }
   body { --side: 236px; }
   /* sidebar navigation instead of the bottom bar */
   .tabs { top: 24px; bottom: 24px; right: 24px; left: auto; transform: none; width: var(--side); height: auto; flex-direction: column; justify-content: flex-start; gap: 4px; padding: 76px 12px 20px; border-radius: var(--r-card); border: 1px solid var(--line); box-shadow: 0 10px 40px rgba(74, 58, 102, .10); }
-  .tabs::before { content: 'הכיתה שלי'; position: absolute; top: 26px; right: 26px; font-size: var(--fs-h3); font-weight: 300; color: var(--ink); letter-spacing: .3px; }
+  .tabs::before { content: 'Classora'; position: absolute; top: 26px; right: 26px; font-size: var(--fs-h3); font-weight: 300; color: var(--ink); letter-spacing: .3px; }
   .tabs button { flex: none; flex-direction: row; justify-content: flex-start; gap: 14px; padding: 13px 16px !important; font-size: var(--fs-body) !important; border-radius: var(--r-item); min-height: 52px; }
   .tabs button:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
   .tabs button.on .ic { transform: none; }
   .tabs .tab-ind { transition: top .45s var(--spring), height .3s !important; }
   .minibar { display: none !important; }
   #app { max-width: 1240px; margin: 0 auto; padding: 28px calc(var(--side) + 56px) 48px 40px; }
+  /* no sidebar while onboarding: center the welcome steps on the screen */
+  body.onboarding #app { max-width: 720px; padding: 28px 40px 48px; }
+  body.onboarding #view { column-count: 1; }
   /* content in two columns; headers, filters and full-width tools span both */
   #view { column-count: 2; column-gap: 24px; }
   #view > * { break-inside: avoid; -webkit-column-break-inside: avoid; }

@@ -1,5 +1,5 @@
 // Offline cache: the app works in class even without reception.
-const CACHE = 'noa-planner-v117';
+const CACHE = 'noa-planner-v118';
 const FILES = [
   './', 'index.html', 'css/style.css', 'css/luxe.css', 'fonts/assistant-hebrew-200-normal.woff2', 'fonts/varela-round-hebrew-400-normal.woff2', 'fonts/playpen-sans-hebrew-hebrew-300-normal.woff2', 'fonts/playpen-sans-hebrew-hebrew-400-normal.woff2', 'fonts/assistant-hebrew-300-normal.woff2', 'fonts/assistant-hebrew-400-normal.woff2', 'fonts/assistant-hebrew-600-normal.woff2', 'img/night.jpg', 'fonts/heebo-hebrew-300-normal.woff2', 'js/app.js', 'js/planparse.js', 'js/dictwords.js', 'js/pdftext.js', 'js/icons.js', 'js/files.js', 'js/genparse.js', 'js/toolkit.js', 'js/printweek.js', 'js/parentmsg.js', 'js/cast.js', 'vendor/identity.mjs',
   'vendor/pdf.min.mjs', 'vendor/keepawake.mp4', 'vendor/pdf.worker.min.mjs', 'manifest.webmanifest',
@@ -32,8 +32,8 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   let n = {};
   try { n = e.data ? e.data.json() : {}; } catch { n = { body: e.data && e.data.text() }; }
-  // a fixed bell at the start so "הכיתה שלי" is recognisable at a glance on the lock screen (web apps can't pick their own sound)
-  const title = n.title || 'הכיתה שלי', t = /^🔔/u.test(title) ? title : `🔔 ${title}`;
+  // a fixed bell at the start so "Classora" is recognisable at a glance on the lock screen (web apps can't pick their own sound)
+  const title = n.title || 'Classora', t = /^🔔/u.test(title) ? title : `🔔 ${title}`;
   e.waitUntil(self.registration.showNotification(t, {
     body: n.body || '', tag: n.tag || undefined, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png',
     data: { url: n.url || './' }, lang: 'he', dir: 'rtl',

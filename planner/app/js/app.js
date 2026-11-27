@@ -4289,7 +4289,7 @@ document.addEventListener('click', async e => {
     case 'tlopen': state._tlOpen = !state._tlOpen; rerender(); break;
     case 'stepsopen': state._stepsOpen = !state._stepsOpen; rerender(); break;
     case 'stepsback': state.prefs.stepsDone = false; save(); go('now'); break;
-    case 'sharecode': { const c = soc.data && soc.data.me.code; if (!c) break; const tx = `היי! אני ${g('משתמשת', 'משתמש')} באפליקציה Classora לתכנון השבועי 💜\nבואו נתחבר שם ונשתף שיעורים – הקוד שלי: ${c}\nhttps://classora.netlify.app`; if (navigator.share) navigator.share({ text: tx }).catch(() => {}); else navigator.clipboard.writeText(tx).then(() => toast('הועתק 📋')); break; }
+    case 'sharecode': { const c = soc.data && soc.data.me.code; if (!c) break; const tx = `היי! אני ${g('משתמשת', 'משתמש')} באפליקציה Classora לתכנון השבועי 💜\nבואו נתחבר שם ונשתף שיעורים – הקוד שלי: ${c}\nhttps://myclassora.netlify.app`; if (navigator.share) navigator.share({ text: tx }).catch(() => {}); else navigator.clipboard.writeText(tx).then(() => toast('הועתק 📋')); break; }
     case 'shsend': { const S2 = state._share; socApi('send', { to: S2.to, kind: S2.kind, title: S2.title, data: S2.data }).then(r => { closeOverlay(); toast(`נשלח ל־${r.sent} ✓`); }).catch(e => toast(e.code === 'too-big' ? 'השבוע גדול מדי לשליחה – שולחים כקובץ' : 'לא הצלחתי לשלוח 😕')); break; }
     case 'shpub': { const S2 = state._share; socApi('publish', { title: S2.title, data: S2.data }).then(() => { closeOverlay(); toast('השיעור בספרייה שלך – כל החברות רואות אותו ⭐'); }).catch(() => toast('לא הצלחתי לשתף 😕')); break; }
     case 'shfile': closeOverlay(); shareWeek(state._share.data); break;

@@ -41,7 +41,7 @@ export default async (req: Request) => {
       const app = getStore({ name: 'hakita', consistency: 'strong' })
       const rec = adminId ? (await app.get(`push/${adminId}`, { type: 'json' })) as { subs: any[] } | null : null
       if (rec && rec.subs.length && process.env.VAPID_PRIVATE_KEY) {
-        webpush.setVapidDetails('https://classora.netlify.app', process.env.VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!)
+        webpush.setVapidDetails('https://myclassora.netlify.app', process.env.VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!)
         const msg = JSON.stringify({ title: `🐞 דיווח חדש${r.name ? ' מ' + r.name : ''}`, body: r.text.slice(0, 140), tag: 'report-' + r.id, url: '/?go=reports' })
         await Promise.all(rec.subs.map(s => webpush.sendNotification(s, msg).catch(() => null)))
       }

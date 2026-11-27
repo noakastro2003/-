@@ -7,7 +7,7 @@
 //
 // עדכון כל שבוע: באפליקציה Classora ← עוד ← הגדרות ← "עדכון הווידג'ט וההתראות".
 
-const APP_URL = 'https://classora.netlify.app/';
+const APP_URL = 'https://myclassora.netlify.app/';
 const FILE = 'kita-week.json';
 
 // ---------------------------------------------------------------- data

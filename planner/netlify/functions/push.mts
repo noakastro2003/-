@@ -24,7 +24,7 @@ export default async (req: Request) => {
     return Response.json({ ok: true })
   }
   if (body.action === 'test') {
-    webpush.setVapidDetails('https://classora.netlify.app', process.env.VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!)
+    webpush.setVapidDetails('https://myclassora.netlify.app', process.env.VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!)
     let sent = 0
     for (const s of rec.subs) {
       try { await webpush.sendNotification(s, JSON.stringify({ title: 'Classora 💜', body: 'ההתראות עובדות! ככה ייראו התזכורות שלך.', tag: 'test' })); sent++ } catch (e) { console.warn('push failed', (e as any).statusCode) }

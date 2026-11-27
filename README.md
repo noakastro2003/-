@@ -33,3 +33,10 @@ python3 tools/render_sample.py font/NoaBubble-Regular.otf samples/bubble_sample.
 python3 tools/compare_glyphs.py WORKDIR font/NoaBubble-Regular.otf samples/bubble_compare_original_vs_font.png
 ```
 דרוש: `opencv-python-headless numpy scikit-image fonttools potracer pillow` (ו-libraqm לרינדור הדוגמה).
+
+## גלקסיית המילים – האתר
+
+- `app/` – המשחק (`app.js`, `app.css`, תמונות וגופנים).
+- `netlify/functions/api.mts` – השרת: הרשמת תלמידים ומורות, קודים, שמירת התקדמות, איפוס סיסמה.
+- `tools/build_site.mjs` – בונה את `site/` מ־`app/`.
+- האתר galaxy-bet2 ב־Netlify מחובר לענף `claude/beautiful-bell-0spza5`: כל דחיפה לענף מעלה גרסה חדשה (וגוזלת נקודות מהמכסה החודשית).

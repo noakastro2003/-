@@ -2622,8 +2622,17 @@ const JOIN = (() => { try { const q = new URLSearchParams(location.search).get("
 let JOIN_TEACHER = null;
 if (ON_SITE && /^[A-Z0-9]{5}$/.test(JOIN)) api("class?code=" + JOIN).then(t => { JOIN_TEACHER = t; if (view.name === "welcome") draw(); }).catch(() => {});
 function applyStudentInfo(me) {
-  if (me && me.cfg) CFG = { ...CFG_DEFAULT, ...me.cfg };
-  if (me && me.teacher) S.teacherName = me.teacher.name;
+  if (!me) return;
+  if (me.cfg) { CFG = { ...CFG_DEFAULT, ...me.cfg }; try { localStorage.setItem("gm-cfg-" + S.code, JSON.stringify(me.cfg)); } catch (e) {} }
+  if (me.teacher) S.teacherName = me.teacher.name;
+  if (me.k && me.k !== S.klass) { S.klass = me.k; save(); }   // the teacher set the class
+}
+// the teacher's settings again, without the saved game: when the game comes back to the screen and with the activity ping
+let meAt = Date.now();
+function refreshTeacherSettings() {
+  if (!ON_SITE || !S.code || Date.now() - meAt < 5 * 60e3) return;
+  meAt = Date.now();
+  api("me?lite=1&code=" + S.code).then(me => { applyStudentInfo(me); if (view.name !== "play") draw(); }).catch(() => {});
 }
 
 /* sign-in screen */
@@ -2907,7 +2916,7 @@ function myStudentsHTML() {
     ${shown.length ? `<p class="how">לחצי על שם של תלמיד כדי לראות את המסלול שלו ואיפה נתקע. אחוז התשובות הנכונות בניסיון הראשון. ירוק 80% ומעלה, צהוב 60% עד 79%, אדום מתחת ל־60%. <button class="linkbtn" data-act="reloadStudents">רענון</button></p>
       <div class="ttable"><table class="cls">
       <thead><tr><th>תלמיד</th><th>כיתה</th><th>תחנות</th><th>⭐</th>${TABLE_SKILLS.map(k => `<th>${SKILLS[k].name}</th>`).join("")}<th>כדאי לחזק</th><th></th></tr></thead>
-      <tbody>${shown.map(x => `<tr class="${ui.kid === x.r.code ? "sel" : ""}"><td class="tn"><button class="kidname" data-kid="${esc(x.r.code)}">${esc(x.r.n)}</button> <span class="kcode">${esc(x.r.code)}</span>${x.r.empty && !x.r.seen ? ` <span class="how">עוד לא שיחק</span>` : `<div class="seenline">${lastSeenHTML(x.r)}</div>`}</td><td>${esc(x.r.k || "")}</td>
+      <tbody>${shown.map(x => `<tr class="${ui.kid === x.r.code ? "sel" : ""}"><td class="tn"><button class="kidname" data-kid="${esc(x.r.code)}">${esc(x.r.n)}</button> <span class="kcode">${esc(x.r.code)}</span>${x.r.empty && !x.r.seen ? ` <span class="how">עוד לא שיחק</span>` : `<div class="seenline">${lastSeenHTML(x.r)}</div>`}</td><td class="kcell">${x.r.k ? esc(x.r.k) : `<span class="how">אין</span>`} <button class="mini edit" data-setk="${esc(x.r.code)}" aria-label="שינוי כיתה" title="שינוי כיתה">✎</button></td>
         <td>${x.doneN}/${ALL.length}</td><td title="מתוך ${x.doneN * 3} אפשריים (עד 3 בכל תחנה)">${x.stars}<span class="of">/${x.doneN * 3}</span></td>${TABLE_SKILLS.map(k => pctCell(x.pct(k))).join("")}
         <td>${x.weak ? SKILLS[x.weak].name : "–"}</td>
         <td><button class="mini" data-untrack="${esc(x.r.code)}" aria-label="הסרה מהמעקב">✕</button></td></tr>`).join("")}</tbody>
@@ -3014,6 +3023,13 @@ async function addTracked() {
   try { const r = await tapi("teachers/students", { method: "POST", body: { code } }); ui.addMsg = `נוסף: ${r.n}${r.k ? " (" + r.k + ")" : ""}`; const f = $("#addCode"); if (f) f.value = ""; await loadMyStudents(); if (f) f.focus(); }
   catch (e) { ui.addMsg = e.status === 404 ? `לא נמצא תלמיד עם הקוד ${code}. כדאי לבדוק עם ההורים את הספרות, ושהילד משחק באתר עצמו (ולא בקישור אחר). את הקוד הנכון רואים ב"פינת ההורים" במכשיר שבו הילד משחק.` : e.status === 401 ? "צריך להתחבר מחדש." : "ההוספה לא הצליחה. נסי שוב."; draw(); }
 }
+async function setKlass(code) {
+  const kid = (MYSTUDENTS || []).find(x => x.code === code); if (!kid) return;
+  const k = prompt(`הכיתה של ${kid.n}:`, kid.k || (TEACHER.cfg && (TEACHER.cfg.classes || [])[0]) || "");
+  if (k === null) return;
+  try { await tapi("teachers/students/klass", { method: "POST", body: { code, k: k.trim().slice(0, 20) } }); kid.k = k.trim().slice(0, 20); toast("הכיתה עודכנה"); draw(); }
+  catch (e) { toast("העדכון לא הצליח. נסי שוב."); }
+}
 async function untrack(code) {
   if (ui.confirmDel !== code) { ui.confirmDel = code; return toast("לחצי שוב על ✕ כדי להסיר את התלמיד מהמעקב"); }
   ui.confirmDel = null;
@@ -3023,7 +3039,7 @@ function teacherSettingsHTML() {
   if (!ui.draft) ui.draft = { ...CFG_DEFAULT, ...JSON.parse(JSON.stringify(TEACHER.cfg || {})), teacher: TEACHER.name, school: TEACHER.school };
   // the settings form is shared with the claude.ai version; only its save button talks to this site
   const html = renderTeacherSettings();
-  return `<p class="how">ההגדרות חלות על כל התלמידים שבמעקב שלך: מה פתוח, מה נפתח באיזה תאריך, משימות השבוע, הודעה ותאריך המבדק.</p>${html}`;
+  return `<p class="how">ההגדרות חלות על כל התלמידים שבמעקב שלך, עם כיתה או בלי: מה פתוח, מה נפתח באיזה תאריך, משימות השבוע, הודעה ותאריך המבדק. תלמיד שהוספת מקבל אותן תוך כמה דקות, גם אם המשחק כבר פתוח אצלו. את הכיתה של תלמיד משנים בטבלת התלמידים (✎).</p>${html}`;
 }
 
 /* guide for teachers */
@@ -3130,6 +3146,7 @@ document.addEventListener("click", e => {
   if (d.kf !== undefined) { ui.klassFilter = d.kf; return draw(); }
   if (d.delrow) return delRow(d.delrow);
   if (d.untrack) return untrack(d.untrack);
+  if (d.setk) return setKlass(d.setk);
   if (d.kid !== undefined) { ui.kid = ui.kid === d.kid ? "" : d.kid; draw(); const j = $("#journey"); if (j) j.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
   if (d.reset) return adminReset(d.reset);
   if (d.claim) return claimKid(d.claim);
@@ -3247,6 +3264,7 @@ async function codeLogin(code) {
 // tell the site the child is playing (for the teacher's "on the site now"), every 3 minutes while the game is in view (each ping uses the site's monthly quota)
 function heartbeat() {
   if (!ON_SITE || !S.code || document.hidden || view.name === "teacher") return;
+  refreshTeacherSettings();
   const s = (view.name === "play" || view.name === "intro" || view.name === "summary") && run ? ST() : null;
   const a = s ? s.title + (view.name === "play" ? ` · שאלה ${run.qi + 1} מתוך ${s.questions.length}` : "") : { shop: "חדר ההלבשה", album: "האלבום", parents: "פינת ההורים" }[view.name] || "המפה";
   fetch("/api/seen", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: S.code, a }) }).catch(() => {});
@@ -3255,9 +3273,11 @@ if (ON_SITE) { setInterval(heartbeat, 180000); setTimeout(heartbeat, 3000); docu
 function curLogSafe() { try { return view.name === "play" && curLog(); } catch (e) { return null; } }
 
 // a child with a code who played on another device since: take the newer saved game
+// until the server answers, use the settings this child's teacher sent last time
+if (ON_SITE && S.code) try { const c = JSON.parse(localStorage.getItem("gm-cfg-" + S.code) || "null"); if (c) CFG = { ...CFG_DEFAULT, ...c }; } catch (e) {}
 if (ON_SITE && S.code) api("me?code=" + S.code).then(me => {
-  applyStudentInfo(me);
   if (me.state && (me.state.saved || 0) > (S.saved || 0) + 1000) { S = Object.assign(blank(), me.state, { nikud: S.nikud, size: S.size, sound: S.sound, code: S.code }); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  applyStudentInfo(me);   // after the saved game, so the class the teacher set wins
   if (view.name !== "play") draw();
 }).catch(() => {});
 

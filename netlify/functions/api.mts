@@ -126,7 +126,8 @@ export default async (req: Request) => {
     if (!validCode(code)) return bad()
     const who: any = await store().get("students/" + code, { type: "json" })
     if (!who) return bad("not_found", 404)
-    const prog: any = await store().get("progress/" + code, { type: "json" })
+    // lite: only the teacher's settings, without the saved game (checked again while the game stays open)
+    const prog: any = url.searchParams.get("lite") ? null : await store().get("progress/" + code, { type: "json" })
     const t: any = who.teacher ? await store().get("teachers/" + who.teacher, { type: "json" }) : null
     return json({ n: who.n, k: who.k, state: prog?.state || null, cfg: t?.cfg || null, teacher: t ? { name: t.name, school: t.school || "" } : null })
   }
@@ -303,6 +304,15 @@ export default async (req: Request) => {
     if ((t.codes || []).length >= 300) return bad("too_many", 400)
     await track(t, code); await saveTeacher()
     return json({ ok: true, n: who.n, k: who.k })
+  }
+  // the teacher sets the class of one of her students (for a child who signed up without one)
+  if (route === "teachers/students/klass" && m === "POST") {
+    const code = String(body.code || "")
+    if (!validCode(code) || !(t.codes || []).includes(code) || typeof body.k !== "string" || body.k.length > 20) return bad()
+    const who: any = await store().get("students/" + code, { type: "json" })
+    if (!who) return bad("not_found", 404)
+    await store().setJSON("students/" + code, { ...who, k: body.k.trim() })
+    return json({ ok: true })
   }
   if (route === "teachers/students" && m === "DELETE") {
     const code = url.searchParams.get("code")

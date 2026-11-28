@@ -40,3 +40,4 @@ python3 tools/compare_glyphs.py WORKDIR font/NoaBubble-Regular.otf samples/bubbl
 - `netlify/functions/api.mts` – השרת: הרשמת תלמידים ומורות, קודים, שמירת התקדמות, איפוס סיסמה.
 - `tools/build_site.mjs` – בונה את `site/` מ־`app/`.
 - האתר galaxy-bet2 ב־Netlify מחובר לענף `claude/beautiful-bell-0spza5`: כל דחיפה לענף מעלה גרסה חדשה (וגוזלת נקודות מהמכסה החודשית).
+- הגדרות הבנייה ב־Netlify: build command `node tools/build_site.mjs`, publish `site`, functions `netlify/functions`.
